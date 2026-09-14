@@ -21,6 +21,7 @@ Section: {title}
 {description}
 
 Value convention: {value_convention}
+Ignore statements/pages about: {exclude}. Use the consolidated (group / koncernen) statement.
 
 Fields to extract (key | label | description | unit hint):
 {field_lines}
@@ -75,6 +76,7 @@ def system_prompt(schema: dict) -> str:
         title=schema.get("title", schema["name"]),
         description=schema.get("description", ""),
         value_convention=schema.get("value_convention", ""),
+        exclude=", ".join(schema.get("exclude_keywords", [])) or "-",
         field_lines=lines,
     )
 
