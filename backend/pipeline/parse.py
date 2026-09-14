@@ -68,7 +68,7 @@ def normalize_ws(s: str) -> str:
 
 
 _NUMTOK = re.compile(r"[-(]?[\d.,]+\)?%?")
-_GAP = r"[\s\d,.()\-]{0,24}?"  # what may sit between two quote tokens on the page: a note reference like "6,7" or Skanska's "8, 9, 10, 33, 38"
+_GAP = r"(?:[\s\d,.()\-]|\b[A-Z]\d{1,2}\b){0,24}?"  # what may sit between two quote tokens on the page: a note reference like "6,7", Skanska's "8, 9, 10, 33, 38" or Pandox's "C1, C4, C6, C7, G5"
 
 
 def quote_on_page(quote: str, text: str) -> str:

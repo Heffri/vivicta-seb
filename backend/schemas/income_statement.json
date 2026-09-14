@@ -141,7 +141,7 @@
     {
       "key": "operating_profit",
       "label": "Operating profit",
-      "description": "Operating profit / EBIT / rörelseresultat.",
+      "description": "Operating profit / EBIT / rörelseresultat. null for a property company whose statement runs from net operating income via financial items to 'profit before changes in value' / 'resultat före värdeförändringar' / 'förvaltningsresultat': that row is after net financial items.",
       "unit_hint": "currency_millions",
       "synonyms": [
         "operating profit",
@@ -163,7 +163,11 @@
         "net operating surplus",
         "net operating income",
         "driftöverskott",
-        "driftnetto"
+        "driftnetto",
+        "före värdeförändring",
+        "before (changes in )?(fair )?value",
+        "förvaltningsresultat",
+        "(income|profit) from property management"
       ]
     },
     {
@@ -307,7 +311,13 @@
         "earnings per share attributable to parent company shareholders",
         "profit per share",
         "basic earnings per share, sek",
-        "basic earnings per share, eur"
+        "basic earnings per share, eur",
+        "årets resultat per aktie",
+        "årets resultat efter skatt per aktie",
+        "årets resultat efter skatt före och efter utspädning, per aktie",
+        "årets resultat före och efter utspädning, per aktie",
+        "resultat efter skatt per aktie",
+        "nettoresultat per aktie"
       ]
     }
   ],
