@@ -11,7 +11,7 @@
       "value": 176658,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Revenue 6, 7",
+      "raw_label": "Revenue",
       "source": {
         "page": 121,
         "quote": "Revenue 6, 7 176,658 176,481"
@@ -33,7 +33,7 @@
       "value": -161906,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Cost of sales 8, 9, 10, 33, 38",
+      "raw_label": "Cost of sales",
       "source": {
         "page": 121,
         "quote": "Cost of sales 8, 9, 10, 33, 38 -161,906 -162,001"
@@ -55,7 +55,7 @@
       "value": 14753,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Gross income 14,753",
+      "raw_label": "Gross income",
       "source": {
         "page": 121,
         "quote": "Gross income 14,753 14,480"
@@ -77,7 +77,7 @@
       "value": 6574,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Operating income 6,574",
+      "raw_label": "Operating income",
       "source": {
         "page": 121,
         "quote": "Operating income 6,574 6,748"
@@ -99,7 +99,7 @@
       "value": 7268,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Income after financial items 7,268",
+      "raw_label": "Income after financial items",
       "source": {
         "page": 121,
         "quote": "Income after financial items 7,268 7,415"
@@ -121,7 +121,7 @@
       "value": -1496,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Income taxes 13",
+      "raw_label": "Income taxes",
       "source": {
         "page": 121,
         "quote": "Income taxes 13 -1,496 -1,831"
@@ -142,7 +142,7 @@
       "label": "Profit from discontinued operations",
       "value": null,
       "unit": null,
-      "period": null,
+      "period": "2025",
       "raw_label": null,
       "source": null,
       "confidence": 0.0,
@@ -154,7 +154,7 @@
       "value": 5772,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Profit for the year 5,772",
+      "raw_label": "Profit for the year",
       "source": {
         "page": 121,
         "quote": "Profit for the year 5,772 5,584"
@@ -176,7 +176,7 @@
       "value": 13.82,
       "unit": "SEK",
       "period": "2025",
-      "raw_label": "Earnings per share, SEK 23, 40",
+      "raw_label": "Earnings per share, SEK",
       "source": {
         "page": 121,
         "quote": "Earnings per share, SEK 23, 40 13.82 13.51"
@@ -211,6 +211,9 @@
     }
   ],
   "warnings": [
-    "gross_profit: 14480 is not the 2025 column, 14753 is"
+    "gross_profit: 14480 is not the 2025 column, 14753 is",
+    "operating_profit: 6748 is not the 2025 column, 6574 is",
+    "profit_before_tax: 7415 is not the 2025 column, 7268 is",
+    "income_tax: -1831 is not the 2025 column, -1496 is"
   ]
 }

@@ -74,13 +74,24 @@
     {
       "key": "profit_before_tax",
       "label": "Profit before tax",
-      "value": null,
+      "value": 7300,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "raw_label": "Income after financial items",
+      "source": {
+        "page": 133,
+        "quote": "Income after financial items 7,300 6,234"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "income_tax",
@@ -179,8 +190,8 @@
     },
     {
       "name": "net_profit_arith",
-      "passed": false,
-      "detail": "missing: profit_before_tax"
+      "passed": true,
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((7300 + -1467 + -1543) - 4291) <= 2"
     },
     {
       "name": "margin_sanity",
@@ -189,10 +200,11 @@
     }
   ],
   "warnings": [
-    "revenue: quote replaced by the page row 'Revenue C5, C6 80,982 80,965'",
-    "operating_profit: quote replaced by the page row 'Operating income C5 10,426 10,834'",
-    "income_tax: quote replaced by the page row 'Income taxes C10 -1,467 -1,313'",
-    "profit_discontinued: quote replaced by the page row 'Net income from discontinued operations C34 -1,543 2,859'",
-    "eps_basic: quote replaced by the page row 'Earnings per share (SEK), basic and diluted, total C20 0.90 1.80'"
+    "revenue: quote replaced by page 133 row 'Revenue C5, C6 80,982 80,965'",
+    "operating_profit: quote replaced by page 133 row 'Operating income C5 10,426 10,834'",
+    "profit_before_tax: model returned null, filled from page 133 row 'Income after financial items 7,300 6,234'",
+    "income_tax: quote replaced by page 133 row 'Income taxes C10 -1,467 -1,313'",
+    "profit_discontinued: quote replaced by page 133 row 'Net income from discontinued operations C34 -1,543 2,859'",
+    "eps_basic: quote replaced by page 133 row 'Earnings per share (SEK), basic and diluted, total C20 0.90 1.80'"
   ]
 }

@@ -145,16 +145,17 @@
       "period": "2025",
       "raw_label": "Income from discontinued operations, net of tax",
       "source": {
-        "page": 73,
+        "page": 55,
         "quote": "Income from discontinued operations, net of tax 174 226"
       },
-      "confidence": 0.95,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
         "arith_ok",
         "label_known",
         "period_ok",
+        "page_is_statement",
         "unit_ok"
       ]
     },

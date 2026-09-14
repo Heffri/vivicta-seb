@@ -11,7 +11,7 @@
       "value": 120680,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Revenue G2, G3",
+      "raw_label": "Revenue",
       "source": {
         "page": 115,
         "quote": "Revenue G2, G3 122,878 120,680"
@@ -77,7 +77,7 @@
       "value": 20809,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Operating profit G2",
+      "raw_label": "Operating profit",
       "source": {
         "page": 115,
         "quote": "Operating profit G2 18,420 20,809"
@@ -123,14 +123,17 @@
       "period": "2025",
       "raw_label": "Income tax",
       "source": {
-        "page": 127,
-        "quote": "Income tax -4,767"
+        "page": 115,
+        "quote": "Income tax G10 -4,216 -4,767"
       },
-      "confidence": 0.25,
+      "confidence": 1.0,
       "evidence": [
+        "quote_on_page",
+        "value_in_quote",
         "arith_ok",
         "label_known",
         "period_ok",
+        "page_is_statement",
         "unit_ok"
       ]
     },
@@ -138,8 +141,8 @@
       "key": "profit_discontinued",
       "label": "Profit from discontinued operations",
       "value": null,
-      "unit": "MSEK",
-      "period": "2025",
+      "unit": null,
+      "period": null,
       "raw_label": null,
       "source": null,
       "confidence": 0.0,
@@ -173,7 +176,7 @@
       "value": 11.71,
       "unit": "SEK",
       "period": "2025",
-      "raw_label": "Basic earnings per share, SEK G11",
+      "raw_label": "Basic earnings per share, SEK",
       "source": {
         "page": 115,
         "quote": "Basic earnings per share, SEK G11 9.76 11.71"
@@ -207,10 +210,5 @@
       "detail": "operating margin between 0 and 60% | 0 < 20809 / 120680 < 0.6"
     }
   ],
-  "warnings": [
-    "revenue: quote replaced by the page row 'Revenue G2, G3 122,878 120,680'",
-    "operating_profit: quote replaced by the page row 'Operating profit G2 18,420 20,809'",
-    "income_tax: quote not found on page 127",
-    "eps_basic: quote replaced by the page row 'Basic earnings per share, SEK G11 9.76 11.71'"
-  ]
+  "warnings": []
 }

@@ -194,6 +194,7 @@
     },
     {
       "key": "eps_basic",
+      "exclude_labels": ["(?<!before and )after dilution", "(?<!före och )efter utspädning", "diluted earnings", ", diluted", "utspädd", "items affecting comparability", "jämförelsestörande", "excluding items", "excl\\. items", "adjusted", "justera", "continuing operations", "kvarvarande verksamhet", "discontinued operations", "avvecklad verksamhet"],
       "label": "EPS, basic",
       "description": "Basic earnings per share (before dilution / före utspädning; never the diluted row) attributable to owners of the parent, total (including discontinued operations), as printed with its unit (SEK, USD, Euro cent ...).",
       "unit_hint": "currency_per_share",

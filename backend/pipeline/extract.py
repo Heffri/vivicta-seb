@@ -194,7 +194,8 @@ def _page_rows(text: str) -> list[str]:
     (pymupdf prints "Gross income\\n14,753\\n14,480" as three lines). Lossy for column-major layouts."""
     rows: list[str] = []
     for line in text.splitlines():
-        if re.search(r"[^\W\d_]{2,}", line):  # "G2, G3" is a note reference, not a label
+        wrapped = rows and not re.search(r"\d", rows[-1]) and re.match(r"\s*[a-zåäöé]", line)  # "...before items affecting" / "comparability (SEK)1 3 11.55"
+        if re.search(r"[^\W\d_]{2,}", line) and not wrapped:  # "G2, G3" is a note reference, not a label
             rows.append(line.strip())
         elif rows and line.strip():
             rows[-1] += " " + line.strip()
@@ -206,8 +207,12 @@ def _clean_label(label) -> str:
 
 
 def _label_known(label, sf: dict) -> bool:
+    """The printed label is one of the field's synonyms (prefix match) and none of its exclude_labels patterns
+    (an adjusted / diluted / continuing-operations variant of the row is not the row)."""
     rl = _clean_label(label)
-    return bool(rl) and any(rl.startswith(s.lower()) or s.lower().startswith(rl) for s in sf.get("synonyms", []))
+    if not rl or any(re.search(p, rl) for p in sf.get("exclude_labels", [])):
+        return False
+    return any(rl.startswith(s.lower()) or s.lower().startswith(rl) for s in sf.get("synonyms", []))
 
 
 def _row_label(row: str) -> str:
@@ -357,6 +362,15 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                 if header and len(amounts) == ncols and field["value"] in amounts and amounts[header[0]] != field["value"]:
                     warnings.append(f"{sf['key']}: {field['value']} is not the {fiscal_year} column, {amounts[header[0]]} is")  # Sandvik prints 2024 first
                     field["value"], field["period"] = amounts[header[0]], str(fiscal_year)
+                if header and any(re.search(p, _clean_label(_row_label(row))) for p in sf.get("exclude_labels", [])):
+                    # Securitas: "...before and after dilution and before items affecting comparability 11.55" is the adjusted
+                    # EPS; Saab: "efter utspädning" is diluted. The statement row with a known, unexcluded label wins.
+                    alt = next((r for r in rows if _label_known(_row_label(r), sf) and len(_row_amounts(r, ncols)) == ncols), None)
+                    if alt:
+                        amounts = _row_amounts(alt, ncols)
+                        warnings.append(f"{sf['key']}: {_row_label(row)!r} {field['value']} is a variant row; {_row_label(alt)!r} {amounts[header[0]]} is the statement row")
+                        row = src["quote"] = alt
+                        field["value"], field["raw_label"], field["period"] = amounts[header[0]], _row_label(alt), str(fiscal_year)
                 label, i = _row_label(row), rows.index(row) if row in rows else -1
                 if not _label_known(field.get("raw_label"), sf) and i >= 0:
                     # ABB: "Basic earnings per share" is a heading, the figure sits on the sub-row "Net income 2.59 2.13"

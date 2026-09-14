@@ -12,7 +12,7 @@ From now on it is **computed by the backend from evidence the backend can verify
 | `quote_on_page` | `source.quote` (or its longest suffix that still holds a label word and a number — the model likes to prepend the section header) occurs on `source.page`: verbatim (whitespace-normalised), or every token in order with only a note reference (`6, 7`) between label and number. The quote is replaced by the part that was verified. A bare number or a bare label never counts | 0.35 | `parse.quote_on_page` |
 | `value_in_quote` | the printed number is inside that verified quote (`168 343`, `168,343`, `168343`, `-7 246`, `(7 246)` all count) | 0.20 | regex over digit groups |
 | `arith_ok` | no schema check that references this key failed; a check with a missing operand (`gross_profit` in a by-nature statement) is n/a, not a failure. Optional rows (`profit_discontinued`, schema `default: 0`) count as 0 | 0.20 | `checks[]` |
-| `label_known` | `raw_label` matches one of the field's `synonyms` (sv + en, case-insensitive, prefix match) | 0.10 | new `synonyms` list per schema field |
+| `label_known` | `raw_label` matches one of the field's `synonyms` (sv + en, case-insensitive, prefix match) and none of its `exclude_labels` patterns (an adjusted / diluted / continuing-operations variant of the row is not the row); a sub-row under a known heading counts as `heading: sub-row` | 0.10 | `synonyms` + `exclude_labels` per schema field |
 | `period_ok` | `period` equals the report's fiscal year | 0.05 | `Report.fiscal_year` (curated for library reports) |
 | `page_is_statement` | `source.page` is the locator's best page or the one after it (statements span two pages; the locator scores heading keywords, field-synonym coverage and digit density, and penalises multi-year / quarterly / parent-company headings) | 0.05 | `locate.candidate_pages` |
 | `unit_ok` | `unit` equals the section currency; for per-share fields the currency without scale must match (`SEK` vs `MSEK` / `SEKm` / `SEK million`) | 0.05 | string compare |
@@ -39,6 +39,8 @@ model copied. Deterministic **repairs** run on that row before scoring, each lea
   on the cited page or the statement spread that holds the number under a known synonym label; `raw_label` and `page` follow;
 - a row that is the sum of the two rows above it, one of them in the field's `excludes` list (`Revenue 23,447` = `Net sales 20,427`
   + `Other operating income 3,020`, SCA), is unwound to the addend with a known label;
+- a row whose label matches one of the field's `exclude_labels` (`Earnings per share ... before items affecting comparability
+  11.55`, Securitas; `efter utspädning`, Saab) is replaced by the page row with a known, unexcluded label;
 - a field the model left null although the statement page prints a row whose label *is* one of the field's synonyms
   (`Income after financial items 7,300`, Telia) is filled from that row and then verified like any model answer;
 - a sub-row label under a known heading (`Basic earnings per share` / `Net income 2.59`, ABB) is reported as `heading: sub-row`

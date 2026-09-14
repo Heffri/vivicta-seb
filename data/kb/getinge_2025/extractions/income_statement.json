@@ -210,7 +210,5 @@
       "detail": "operating margin between 0 and 60% | 0 < 3789 / 34969 < 0.6"
     }
   ],
-  "warnings": [
-    "profit_before_tax: quote replaced by the page row 'Profit after financial items 3,145 2,282'"
-  ]
+  "warnings": []
 }

@@ -77,7 +77,7 @@
       "value": 924.4,
       "unit": "MEUR",
       "period": "2025",
-      "raw_label": "Operating earnings¹",
+      "raw_label": "Operating earnings",
       "source": {
         "page": 177,
         "quote": "Operating earnings¹ 3,13,22,29,30,31 924.4 1,432.2"
@@ -210,14 +210,5 @@
       "detail": "operating margin between 0 and 60% | 0 < 924.4 / 5424.6 < 0.6"
     }
   ],
-  "warnings": [
-    "revenue: value 5424600 rescaled to 5424.6 as printed in the quote",
-    "cost_of_sales: value -1827900 rescaled to -1827.9 as printed in the quote",
-    "gross_profit: value 3596700 rescaled to 3596.7 as printed in the quote",
-    "operating_profit: value 924400 rescaled to 924.4 as printed in the quote",
-    "profit_before_tax: value 793500 rescaled to 793.5 as printed in the quote",
-    "income_tax: value -166700 rescaled to -166.7 as printed in the quote",
-    "net_profit: value 626800 rescaled to 626.8 as printed in the quote",
-    "eps_basic: value 2300 rescaled to 23 as printed in the quote"
-  ]
+  "warnings": []
 }
