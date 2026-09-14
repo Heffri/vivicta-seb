@@ -99,7 +99,7 @@ model copied. Deterministic **repairs** run on that row before scoring, each lea
 - a zero the model made up stands for null: 0 quoting a row that prints no 0 is dropped (Wihlborgs: `Operating surplus 3,107 2,996` as operating profit; a real zero is printed, `Other income 0 3`).
 - a label written as `<known part>: <other field's row>` quoting the other field's row is re-pointed to the row printed with the known part (Nordea: `Operating profit: Net profit for the year` 4840 → `Operating profit 6,316`, the bank's profit before tax).
 - a derived sum may not use another field's row as an addend (Nordea: tax row + net profit row offered as net profit restates the identity and proves nothing; the wrong operand was profit before tax).
-- synonyms: `operating surplus` (gross profit, property companies; excluded for operating profit), `pre-tax profit`, `profit after financial income and expense`.
+- synonyms: `operating surplus` / `driftsöverskott` (gross profit, property companies; excluded for operating profit — Corem), `pre-tax profit`, `profit after financial income and expense`, `net profit, discontinued operations` and kin (Tele2: the model answered null, the row fills the identity: 5,678 − 1,099 + 7 = 4,587).
 
 Swedish space-grouped rows are split by the column count from the year header (`155 054 161 900` is two amounts; no regex can
 tell that from four small numbers), so the repairs only run on pages where that header was found.

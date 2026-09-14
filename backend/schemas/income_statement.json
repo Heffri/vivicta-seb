@@ -137,6 +137,7 @@
         "net operating income",
         "driftöverskott",
         "driftnetto",
+        "driftsöverskott",
         "operating surplus"
       ]
     },
@@ -167,6 +168,7 @@
         "net operating income",
         "driftöverskott",
         "driftnetto",
+        "driftsöverskott",
         "operating surplus",
         "före värdeförändring",
         "before (changes in )?(fair )?value",
@@ -254,7 +256,14 @@
         "loss from discontinued operations",
         "discontinued operations",
         "resultat från avvecklad verksamhet",
-        "avvecklad verksamhet"
+        "avvecklad verksamhet",
+        "net profit, discontinued operations",
+        "profit, discontinued operations",
+        "net profit from discontinued operations",
+        "result from discontinued operations",
+        "profit for the year from discontinued operations",
+        "profit for the period, discontinued operations",
+        "profit for the year, discontinued operations"
       ]
     },
     {
