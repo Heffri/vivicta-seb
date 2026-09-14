@@ -90,6 +90,9 @@ model copied. Deterministic **repairs** run on that row before scoring, each lea
 - the locator reads the page heading's years from the raw text as well as the boilerplate-stripped one (Medicover: the "5-year financial summary" title and its bare `2025` / `2024` lines repeat on enough pages to be stripped, which hid the five-year table).
 - the derived-sum proof also tries the rows just above the quote (IPC: the model quoted the `Gross profit` subtotal for the four rows under the `Cost of sales` heading; they sum to it in both columns).
 - units: `€m` / `$m` and `Mkr` / `Mdkr` are recognised as EUR / USD / SEK scales (Medicover, Clas Ohlson).
+- a known row's printed figure beats the model's reading (Pandox without chain-of-thought: `Bruttoresultat 4 222 3 855` returned as 3622): when the verified row carries the field's own label and one amount per year column, the fiscal-year amount is the value. A value off by a factor of 1000 is a unit mix-up and is left for the rescale rule.
+- a number printed nowhere on the cited page or the statement spread is dropped (Sectra: net sales minus goods for resale offered as gross profit): computed, not read, and the prompt's rule is null then.
+- speed: the model is called through Ollama's native API with `think=false` — qwen3:8b answers in 25–50 s instead of 100–170 s, and the backend's repairs above catch the arithmetic slips the chain of thought used to avoid. `LLM_THINK=1` turns it back on; any other `LLM_BASE_URL` uses the OpenAI-compatible path unchanged.
 
 Swedish space-grouped rows are split by the column count from the year header (`155 054 161 900` is two amounts; no regex can
 tell that from four small numbers), so the repairs only run on pages where that header was found.

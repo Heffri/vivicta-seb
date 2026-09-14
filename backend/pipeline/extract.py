@@ -9,6 +9,7 @@ the model's "leftmost number" habit; (4) tune SYSTEM_PROMPT_TEMPLATE against eva
 import json
 import os
 import re
+import urllib.request
 from collections import Counter
 
 from openai import OpenAI
@@ -40,6 +41,7 @@ Rules:
 - Only rows that are printed. Never compute a value (no revenue minus costs, no EBITDA as gross profit):
   if the row is not in the statement, value is null.
 - Never invent numbers. Prefer null over a guess.
+- Compact JSON: no indentation, no line breaks.
 """
 FEWSHOT_HEADER = """
 Examples of the expected mapping from other reports in the knowledge base (row label as printed -> key), for reference only:
@@ -94,15 +96,21 @@ def system_prompt(schema: dict, exclude_stem: str | None = None) -> str:
 
 
 def call_llm(system: str, user: str, schema: dict = RESPONSE_SCHEMA, name: str = "extraction") -> dict:
-    client = OpenAI(base_url=os.environ["LLM_BASE_URL"], api_key=os.getenv("LLM_API_KEY") or "none",
-                    timeout=float(os.getenv("LLM_TIMEOUT", "180")), max_retries=0)  # a local 8b model that thinks for 3 min is stuck (a good answer takes 30-100 s)
-    resp = client.chat.completions.create(
-        model=os.environ["LLM_MODEL"],
-        temperature=0,
-        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-        response_format={"type": "json_schema", "json_schema": {"name": name, "strict": True, "schema": schema}},
-    )
-    content = resp.choices[0].message.content or ""
+    base, timeout = os.environ["LLM_BASE_URL"], float(os.getenv("LLM_TIMEOUT", "120"))  # a local 8b model that answers in 30-40 s and is still going after two minutes is stuck
+    messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
+    if re.search(r":11434/v1/?$", base):
+        # Ollama's native API: think=false makes qwen3 answer in ~35 s instead of ~100 s. Its OpenAI-compatible /v1 ignores
+        # both the think option and the "/no_think" soft switch, and the model then reasons for a minute before the JSON.
+        body = {"model": os.environ["LLM_MODEL"], "stream": False, "think": os.getenv("LLM_THINK", "0") == "1", "format": schema,
+                "options": {"temperature": 0, "num_ctx": int(os.getenv("LLM_NUM_CTX", "16384"))}, "messages": messages}
+        req = urllib.request.Request(base.rsplit("/v1", 1)[0] + "/api/chat", json.dumps(body).encode(), {"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            content = json.loads(r.read())["message"]["content"]
+    else:  # any OpenAI-compatible endpoint (Azure, OpenAI, a hosted model for the demo)
+        client = OpenAI(base_url=base, api_key=os.getenv("LLM_API_KEY") or "none", timeout=timeout, max_retries=0)
+        resp = client.chat.completions.create(model=os.environ["LLM_MODEL"], temperature=0, messages=messages,
+                                              response_format={"type": "json_schema", "json_schema": {"name": name, "strict": True, "schema": schema}})
+        content = resp.choices[0].message.content or ""
     content = re.sub(r"<think>.*?</think>", "", content, flags=re.S)  # qwen3 & co
     content = re.sub(r"^\s*```(?:json)?\s*|\s*```\s*$", "", content)  # fenced anyway? strip
     return json.loads(content)
@@ -516,6 +524,14 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                         verified, field["raw_label"], page, src["page"], rows = hit, _row_label(hit), p, p, _page_rows(texts[p - 1])
                         break
             if not verified:
+                nearby = sorted({page, *pages[:2]})
+                if not any(_value_in_quote(field["value"], texts[p - 1]) for p in nearby if 0 < p <= len(texts)):
+                    # Sectra: "Net sales" minus "Goods for resale" offered as gross profit with a quote that is not on the page. A number
+                    # printed nowhere on the cited page or the statement spread was computed or invented, and the rules say null then.
+                    warnings.append(f"{sf['key']}: {field['value']} is printed on none of pages {nearby}; dropped as computed, not read")
+                    field.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
+                    fields.append(field)
+                    continue
                 warnings.append(f"{sf['key']}: quote not found on page {page}")
             else:
                 field["evidence"].append("quote_on_page")
@@ -530,6 +546,12 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                 amounts = _row_amounts(row, ncols)
                 if header and len(amounts) == ncols and field["value"] in amounts and amounts[header[0]] != field["value"]:
                     warnings.append(f"{sf['key']}: {field['value']} is not the {fiscal_year} column, {amounts[header[0]]} is")  # Sandvik prints 2024 first
+                    field["value"], field["period"] = amounts[header[0]], str(fiscal_year)
+                elif header and len(amounts) == ncols and abs(field["value"]) not in {abs(a) for a in amounts} and _label_known(_row_label(row), sf) \
+                        and not any(abs(field["value"] * k - amounts[header[0]]) <= abs(amounts[header[0]]) * 1e-3 + 1 for k in (1e3, 1e6, 1e-3, 1e-6)):
+                    # Pandox: "Bruttoresultat 4 222 3 855" returned as 3622. The row is the field's own (known label) and holds one figure per
+                    # year column, so the printed figure wins over the model's misreading; a value off by a factor of 1000 is a unit mix-up, left alone
+                    warnings.append(f"{sf['key']}: {field['value']} is not printed in {_row_label(row)!r}; the row's {fiscal_year} figure is {amounts[header[0]]}")
                     field["value"], field["period"] = amounts[header[0]], str(fiscal_year)
                 if field["value"] in amounts and not _label_known(field.get("raw_label"), sf) and _label_known(_row_label(row), sf):
                     warnings.append(f"{sf['key']}: labelled {field.get('raw_label')!r} by the model; the row is printed as {_row_label(row)!r}")  # Castellum: "Income" for "Rental and service income"
