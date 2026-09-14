@@ -78,7 +78,9 @@
         "försäljningsintäkter",
         "omsättning",
         "total sales",
-        "total revenues"
+        "total revenues",
+        "rental income",
+        "hyresintäkter"
       ],
       "fallback_synonyms": [
         "total operating income",
@@ -106,7 +108,8 @@
         "cost of products sold",
         "cost of sales and services"
       ],
-      "requires": "gross_profit"
+      "requires": "gross_profit",
+      "expense": true
     },
     {
       "key": "gross_profit",
@@ -133,7 +136,21 @@
         "operating earnings",
         "income from operations",
         "ebit",
-        "rörelseresultat"
+        "rörelseresultat",
+        "profit before financial items",
+        "resultat före finansiella poster"
+      ],
+      "exclude_labels": [
+        "before items affecting comparability",
+        "före jämförelsestörande",
+        "before amortisation",
+        "före avskrivning",
+        "adjusted",
+        "justera",
+        "net operating surplus",
+        "net operating income",
+        "driftöverskott",
+        "driftnetto"
       ]
     },
     {
@@ -183,7 +200,8 @@
         "inkomstskatt",
         "skatt på årets resultat",
         "årets skatt"
-      ]
+      ],
+      "expense": true
     },
     {
       "key": "profit_discontinued",
@@ -257,7 +275,10 @@
         "earnings per share, sek",
         "earnings per share (sek)",
         "earnings per share, eur",
-        "earnings per share attributable to parent company shareholders"
+        "earnings per share attributable to parent company shareholders",
+        "profit per share",
+        "basic earnings per share, sek",
+        "basic earnings per share, eur"
       ]
     }
   ],
@@ -265,12 +286,14 @@
     {
       "name": "gross_profit_arith",
       "expr": "abs((revenue + cost_of_sales) - gross_profit) <= 2",
-      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding)"
+      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding)",
+      "identity": true
     },
     {
       "name": "net_profit_arith",
       "expr": "abs((profit_before_tax + income_tax + profit_discontinued) - net_profit) <= 2",
-      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding)"
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding)",
+      "identity": true
     },
     {
       "name": "margin_sanity",

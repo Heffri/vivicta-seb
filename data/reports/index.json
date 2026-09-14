@@ -432,5 +432,55 @@
     "tags": ["fetched"],
     "note": null,
     "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "lundbergforetagen_2025.pdf",
+    "company": "Lundbergföretagen",
+    "fiscal_year": 2025,
+    "language": "sv",
+    "source_url": "https://mb.cision.com/Main/1033/4316066/3962576.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "storskogen_2025.pdf",
+    "company": "Storskogen Group",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/20705/4332262/4027531.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "catena_2025.pdf",
+    "company": "Catena",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/191/4325315/3999685.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "international_petroleum_corp_2025.pdf",
+    "company": "International Petroleum Corp.",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://attachment.news.eu.nasdaq.com/afedef00c0726ab4a4425ae37e93de08a",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "beijer_ref_2025.pdf",
+    "company": "Beijer Ref",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/1860/4327226/4008899.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
   }
 ]

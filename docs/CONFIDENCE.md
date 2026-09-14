@@ -53,6 +53,20 @@ model copied. Deterministic **repairs** run on that row before scoring, each lea
   An industrial keeps them apart because the primary row exists.
 - a field with `requires` (cost of sales requires gross profit) is dropped when the statement has no such row and the model's
   label is not a known synonym (`Materials and services` in Stora Enso's by-nature statement is not cost of sales).
+- a row whose label is excluded and for which the statement prints no alternative is dropped (`Net operating surplus` is not
+  operating profit; Catena, a property company, presents none).
+- a value printed nowhere that is the sum of the 2-8 rows ending at the quote (`Current tax -56` + `Deferred tax -367` = -423,
+  Catena; the four rows under IPC's `Cost of sales` heading) gets `value_derived` when the identity check that ties the field
+  to its neighbours holds with those sums in **every** column; a coincidence in one year is not a proof. Only checks flagged
+  `identity` in the schema count (margin sanity would accept anything). The identity also establishes the concept, so
+  `label_known` is granted; the heading (or the joined row labels) becomes the label.
+- an `expense` field printed unsigned (SEB: `Income tax expense 7,835`) is stored negative when that, and only that, makes
+  the identity check pass.
+- a row on the statement page returned without a unit takes the statement's unit from the page header (`SEK m`, `MSEK`,
+  `USD Thousands`); the header also serves when the model answered nothing at all (SEB: both calls timed out, the page rows
+  filled every field).
+- a model call that times out on the statement spread is not retried on more pages (it would time out again); the page rows
+  fill what they can.
 
 Swedish space-grouped rows are split by the column count from the year header (`155 054 161 900` is two amounts; no regex can
 tell that from four small numbers), so the repairs only run on pages where that header was found.

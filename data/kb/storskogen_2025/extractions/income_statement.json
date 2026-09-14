@@ -1,6 +1,6 @@
 {
-  "report_id": "lib-elekta_2025",
-  "company": "Elekta",
+  "report_id": "lib-storskogen_2025",
+  "company": "Storskogen Group",
   "fiscal_year": 2025,
   "currency": "MSEK",
   "section": "income_statement",
@@ -8,13 +8,13 @@
     {
       "key": "revenue",
       "label": "Revenue",
-      "value": 16718,
+      "value": 33097,
       "unit": "MSEK",
       "period": "2025",
       "raw_label": "Net sales",
       "source": {
-        "page": 84,
-        "quote": "Net sales 6 16,718 18,016"
+        "page": 81,
+        "quote": "Net sales 3, 4 33,097 34,182"
       },
       "confidence": 1.0,
       "evidence": [
@@ -30,57 +30,35 @@
     {
       "key": "cost_of_sales",
       "label": "Cost of sales",
-      "value": -10468,
+      "value": null,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Cost of products sold",
-      "source": {
-        "page": 84,
-        "quote": "Cost of products sold −10,468 −11,270"
-      },
-      "confidence": 1.0,
-      "evidence": [
-        "quote_on_page",
-        "value_in_quote",
-        "arith_ok",
-        "label_known",
-        "period_ok",
-        "page_is_statement",
-        "unit_ok"
-      ]
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
     },
     {
       "key": "gross_profit",
       "label": "Gross profit",
-      "value": 6249,
+      "value": null,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Gross profit",
-      "source": {
-        "page": 84,
-        "quote": "Gross profit 6,249 6,746"
-      },
-      "confidence": 1.0,
-      "evidence": [
-        "quote_on_page",
-        "value_in_quote",
-        "arith_ok",
-        "label_known",
-        "period_ok",
-        "page_is_statement",
-        "unit_ok"
-      ]
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
     },
     {
       "key": "operating_profit",
       "label": "Operating profit",
-      "value": 234,
+      "value": 2391,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Operating result",
+      "raw_label": "Operating profit (EBIT)",
       "source": {
-        "page": 84,
-        "quote": "Operating result 5-10 234 890"
+        "page": 81,
+        "quote": "Operating profit (EBIT) 2,391 1,492"
       },
       "confidence": 1.0,
       "evidence": [
@@ -96,13 +74,13 @@
     {
       "key": "profit_before_tax",
       "label": "Profit before tax",
-      "value": -136,
+      "value": 1585,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Income after financial items",
+      "raw_label": "Profit before tax",
       "source": {
-        "page": 84,
-        "quote": "Income after financial items −136 490"
+        "page": 81,
+        "quote": "Profit before tax 1,585 493"
       },
       "confidence": 1.0,
       "evidence": [
@@ -118,13 +96,13 @@
     {
       "key": "income_tax",
       "label": "Income tax",
-      "value": -380,
+      "value": -386,
       "unit": "MSEK",
       "period": "2025",
       "raw_label": "Income tax",
       "source": {
-        "page": 84,
-        "quote": "Income tax 15 −380 −250"
+        "page": 81,
+        "quote": "Income tax 12 –386 –376"
       },
       "confidence": 1.0,
       "evidence": [
@@ -141,7 +119,7 @@
       "key": "profit_discontinued",
       "label": "Profit from discontinued operations",
       "value": null,
-      "unit": null,
+      "unit": "MSEK",
       "period": "2025",
       "raw_label": null,
       "source": null,
@@ -151,13 +129,13 @@
     {
       "key": "net_profit",
       "label": "Profit for the year",
-      "value": -517,
+      "value": 1199,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Net income",
+      "raw_label": "Profit for the year",
       "source": {
-        "page": 84,
-        "quote": "Net income −517 240"
+        "page": 81,
+        "quote": "Profit for the year 1,199 116"
       },
       "confidence": 1.0,
       "evidence": [
@@ -173,13 +151,13 @@
     {
       "key": "eps_basic",
       "label": "EPS, basic",
-      "value": -1.36,
+      "value": 0.63,
       "unit": "SEK",
       "period": "2025",
-      "raw_label": "Earnings per share before dilution, SEK",
+      "raw_label": "Basic earnings per share, series A and B",
       "source": {
-        "page": 84,
-        "quote": "Earnings per share before dilution, SEK 16 −1.36 0.62"
+        "page": 81,
+        "quote": "Basic earnings per share, series A and B 32 0.63 –0.03"
       },
       "confidence": 1.0,
       "evidence": [
@@ -196,18 +174,18 @@
   "checks": [
     {
       "name": "gross_profit_arith",
-      "passed": true,
-      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((16718 + -10468) - 6249) <= 2"
+      "passed": false,
+      "detail": "missing: cost_of_sales"
     },
     {
       "name": "net_profit_arith",
       "passed": true,
-      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((-136 + -380 + 0) - -517) <= 2"
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((1585 + -386 + 0) - 1199) <= 2"
     },
     {
       "name": "margin_sanity",
       "passed": true,
-      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 234 / 16718 < 10"
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 2391 / 33097 < 10"
     }
   ],
   "warnings": []

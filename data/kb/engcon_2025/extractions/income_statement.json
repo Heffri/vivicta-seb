@@ -104,11 +104,12 @@
         "page": 66,
         "quote": "Profit/loss before tax 290 295"
       },
-      "confidence": 0.9,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
         "arith_ok",
+        "label_known",
         "period_ok",
         "page_is_statement",
         "unit_ok"
@@ -158,11 +159,12 @@
         "page": 66,
         "quote": "Profit/loss for the year 223 229"
       },
-      "confidence": 0.9,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
         "arith_ok",
+        "label_known",
         "period_ok",
         "page_is_statement",
         "unit_ok"
@@ -174,7 +176,7 @@
       "value": 1.44,
       "unit": "SEK",
       "period": "2025",
-      "raw_label": "Basic",
+      "raw_label": "Earnings per share (SEK) Basic",
       "source": {
         "page": 66,
         "quote": "Basic 1.44 1.42"
@@ -205,7 +207,7 @@
     {
       "name": "margin_sanity",
       "passed": true,
-      "detail": "operating margin between 0 and 60% | 0 < 321 / 1889 < 0.6"
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 321 / 1889 < 10"
     }
   ],
   "warnings": []
