@@ -11,6 +11,7 @@ From now on it is **computed by the backend from evidence the backend can verify
 |---|---|---|---|
 | `quote_on_page` | `source.quote` (or its longest suffix that still holds a label word and a number — the model likes to prepend the section header) occurs on `source.page`: verbatim (whitespace-normalised), or every token in order with only a note reference (`6, 7`) between label and number. The quote is replaced by the part that was verified. A bare number or a bare label never counts | 0.35 | `parse.quote_on_page` |
 | `value_in_quote` | the printed number is inside that verified quote (`168 343`, `168,343`, `168343`, `-7 246`, `(7 246)` all count) | 0.20 | regex over digit groups |
+| `value_derived` | *instead of* `value_in_quote`, never both: the printed number is unreadable (Röko's text layer says `Profit before tax 1,01 923`) and a schema check failed, but the 2–6 rows printed right above sum to the value in the fiscal-year column **and** to the printed figures in every other column, and the check passes with it. The quote becomes those addend rows | 0.20 | `extract._derived_value` |
 | `arith_ok` | no schema check that references this key failed; a check with a missing operand (`gross_profit` in a by-nature statement) is n/a, not a failure. Optional rows (`profit_discontinued`, schema `default: 0`) count as 0 | 0.20 | `checks[]` |
 | `label_known` | `raw_label` matches one of the field's `synonyms` (sv + en, case-insensitive, prefix match) and none of its `exclude_labels` patterns (an adjusted / diluted / continuing-operations variant of the row is not the row); a sub-row under a known heading counts as `heading: sub-row` | 0.10 | `synonyms` + `exclude_labels` per schema field |
 | `period_ok` | `period` equals the report's fiscal year | 0.05 | `Report.fiscal_year` (curated for library reports) |
@@ -45,6 +46,8 @@ model copied. Deterministic **repairs** run on that row before scoring, each lea
   (`Income after financial items 7,300`, Telia) is filled from that row and then verified like any model answer;
 - a sub-row label under a known heading (`Basic earnings per share` / `Net income 2.59`, ABB) is reported as `heading: sub-row`
   so `label_known` sees the printed context.
+- `Profit/loss before tax`, `Profit (loss) for the year` are read as `Profit before tax`, `Profit for the year` before the
+  synonym match (Yubico, engcon, AFRY).
 
 Swedish space-grouped rows are split by the column count from the year header (`155 054 161 900` is two amounts; no regex can
 tell that from four small numbers), so the repairs only run on pages where that header was found.

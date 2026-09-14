@@ -136,11 +136,12 @@ def _check(check: dict, values: dict) -> dict:
 
 
 WEIGHTS = {"quote_on_page": 0.35, "value_in_quote": 0.20, "arith_ok": 0.20, "label_known": 0.10,
-           "period_ok": 0.05, "page_is_statement": 0.05, "unit_ok": 0.05}  # docs/CONFIDENCE.md; sums to 1.0
+           "period_ok": 0.05, "page_is_statement": 0.05, "unit_ok": 0.05,  # docs/CONFIDENCE.md; sums to 1.0
+           "value_derived": 0.20}  # stands in for value_in_quote when the printed number is unreadable, never both
 
 
 _DASHES = str.maketrans({"–": "-", "−": "-", " ": " "})
-_SPACE_GROUPS = re.compile(r"(?<!\d)\d{1,3}(?:[  ]\d{3})+(?![,.'\d])")  # Swedish thousands; "7 176,658" (note ref + number) stays apart
+_SPACE_GROUPS = re.compile(r"(?<![\d,.])\d{1,3}(?:[  ]\d{3})+(?![,.'\d])")  # Swedish thousands; "7 176,658" (note ref + number) and "1,051 969" (two columns) stay apart
 _AMOUNT = re.compile(r"[-(]?(\d{1,3}(?:[ ,.']\d{3})*|\d+)(?:([.,])(\d{1,2}))?\)?")
 
 
@@ -203,7 +204,8 @@ def _page_rows(text: str) -> list[str]:
 
 
 def _clean_label(label) -> str:
-    return re.sub(r"[\s\d,.:;*)(]+$", "", normalize_ws(str(label or ""))).lower()  # drop trailing note refs
+    label = re.sub(r"\s*[/(]\s*\(?loss\)?|/förlust", "", normalize_ws(str(label or "")), flags=re.I)  # "Profit/loss before tax", "Profit (loss)"
+    return re.sub(r"[\s\d,.:;*)(]+$", "", label).lower()  # drop trailing note refs
 
 
 def _label_known(label, sf: dict) -> bool:
@@ -263,6 +265,31 @@ def repair_value(value, quote: str):
     return None
 
 
+def _derived_value(field: dict, texts: list[str], fiscal_year):
+    """(value, quote) when the field's row is the exact column-wise sum of the 2..6 rows printed right above it: every
+    other column of the row agrees with that sum, only the fiscal-year column does not. Röko's text layer prints
+    "Profit before tax 1,01 923" (a digit lost); Operating profit 1,051 + Financial income 49 + Financial expenses -90
+    = 1,010 while 969 + 66 - 112 = 923 as printed. The quote becomes those rows, the sum the value."""
+    src = field.get("source") or {}
+    text = texts[src["page"] - 1] if src.get("page") else ""
+    header, rows = _year_column(text, fiscal_year), _page_rows(text)
+    if not header or src.get("quote") not in rows:
+        return None
+    col, ncols = header
+    i, own = rows.index(src["quote"]), _row_amounts(src["quote"], ncols)
+    if len(own) != ncols:
+        return None
+    for k in range(2, 7):
+        parts = [_row_amounts(r, ncols) for r in rows[max(i - k, 0):i]]
+        if len(parts) < k or any(len(a) != ncols for a in parts):
+            return None  # a heading or a row without amounts ends the run of addends
+        sums = [round(sum(a[c] for a in parts), 2) for c in range(ncols)]
+        quote = " ".join(rows[i - k:i])
+        if all(sums[c] == own[c] for c in range(ncols) if c != col) and sums[col] != field["value"] and quote_on_page(quote, text):
+            return sums[col], quote
+    return None
+
+
 def score_field(field: dict, sf: dict, checks: list[dict], schema: dict, currency, fiscal_year, statement_pages: set[int]) -> None:
     """Fill field["evidence"] and field["confidence"] from what the backend itself verified. Never the model's opinion."""
     ev = field["evidence"]  # may already hold quote_on_page
@@ -285,7 +312,7 @@ def score_field(field: dict, sf: dict, checks: list[dict], schema: dict, currenc
     score = sum(WEIGHTS[e] for e in ev)
     if "quote_on_page" not in ev:
         score = min(score, 0.25)  # no verifiable provenance
-    if "quote_on_page" in ev and "value_in_quote" not in ev:
+    if "quote_on_page" in ev and "value_in_quote" not in ev and "value_derived" not in ev:
         score = min(score, 0.50)  # the row is on the page but this number is not in it
     if failed:
         score = min(score, 0.50)  # contradicts its neighbours
@@ -297,7 +324,7 @@ def score_field(field: dict, sf: dict, checks: list[dict], schema: dict, currenc
 def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict) -> dict:
     fiscal_year = report_meta.get("fiscal_year")
     system, warnings, raw = system_prompt(schema, report_meta.get("stem")), [], []
-    for attempt in (pages, pages[:2]):  # SCA: the model timed out thinking over six pages; the statement spread alone is a quick call
+    for attempt in (pages[:4], pages[:2]):  # SCA: the model timed out thinking over six pages; the statement spread alone is a quick call
         user = (f"Fiscal year to extract: {fiscal_year}\n\n" if fiscal_year else "") + \
             "\n\n".join(f"=== PAGE {n} ===\n{texts[n - 1]}" for n in attempt)
         try:
@@ -307,8 +334,12 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             warnings.append(f"llm: {type(e).__name__}: {e} (pages {attempt})")
     by_key = {f.get("key"): f for f in raw if isinstance(f, dict)}
 
-    fields, filled = [], set()
+    fields, filled, sfs = [], set(), []
     for sf in schema["fields"]:
+        if sf.get("fallback_synonyms") and pages and not any(_label_known(_row_label(r), sf) for r in _page_rows(texts[pages[0] - 1])):
+            # a bank prints no "profit before tax" row: its "Operating profit" is the line before tax (NOBA); its top line is "Total operating income"
+            sf = {**sf, "synonyms": sf["synonyms"] + sf["fallback_synonyms"]}
+        sfs.append(sf)
         f = by_key.get(sf["key"]) or {}
         field = {
             "key": sf["key"], "label": sf["label"], "value": _num(f.get("value")),
@@ -398,13 +429,26 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
     periods = Counter(f["period"] for f in fields if re.fullmatch(r"\d{4}", str(f["period"])))
     defaults = {sf["key"]: sf["default"] for sf in schema["fields"] if "default" in sf}  # optional rows (discontinued ops) count as 0
     checks = [_check(c, {**defaults, **values}) for c in schema.get("checks", [])]
+    for c, sc in zip(checks, schema.get("checks", [])):
+        if c["passed"] or c["detail"].startswith("missing:"):
+            continue
+        for f in fields:  # one operand of a failed check is a row whose addends above prove another value: Röko "1,01"
+            if f["value"] is None or not re.search(rf"\b{re.escape(f['key'])}\b", sc["expr"]) or "quote_on_page" not in f["evidence"]:
+                continue
+            fix = _derived_value(f, texts, fiscal_year)
+            if fix and _check(sc, {**defaults, **values, f["key"]: fix[0]})["passed"]:
+                warnings.append(f"{f['key']}: {f['value']} fails {c['name']}; the rows above {f['source']['quote']!r} sum to {fix[0]} in every column, which passes")
+                f["value"], f["source"]["quote"], values[f["key"]] = fix[0], fix[1], fix[0]
+                f["evidence"].append("value_derived")
+                break
+    checks = [_check(c, {**defaults, **values}) for c in schema.get("checks", [])]
     currency = units.most_common(1)[0][0] if units else None
-    for f, sf in zip(fields, schema["fields"]):
+    for f, sf in zip(fields, sfs):
         if f["key"] in filled and currency:  # a row filled from the page has the statement's unit
             f["unit"] = _ccy(currency) if sf.get("unit_hint") == "currency_per_share" else currency
     fiscal_year = fiscal_year or (int(periods.most_common(1)[0][0]) if periods else None)
     statement_pages = set(pages[:2])  # the locator's statement spread: best page + the one after it
-    for sf, field in zip(schema["fields"], fields):
+    for sf, field in zip(sfs, fields):
         if field["value"] is not None:
             score_field(field, sf, checks, schema, currency, fiscal_year, statement_pages)
 

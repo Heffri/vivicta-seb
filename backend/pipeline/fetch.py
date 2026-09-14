@@ -19,6 +19,9 @@ UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.3
 MAX_TRIES = 6
 NOT_AR = re.compile(r"general meeting|st[äa]mma|notice|kallelse|nomination|valberedning|20-f|interim|delårs|quarter", re.I)
 IS_AR = re.compile(r"annual|årsredovisning|års- och", re.I)
+# a PDF that is not *the* annual report even though the search matched: Nordea's Pillar 3 report, AGM decks, quarterlies
+BAD_URL = re.compile(r"interim|q[1-4]\b|quarter|delars|half-?year|risk|pillar|remuneration|ersattning|sustainab|hallbarhet|governance|bolagsstyrning|presentation|agm|stamma|prospect", re.I)
+NOT_REPORT = re.compile(r"capital and risk management|pillar 3|remuneration report|sustainability (report|statement)|corporate governance report|prospectus|interim report|half-year|year-end report|bokslutskommunik", re.I)
 
 
 def _get(url, timeout=60):
@@ -78,16 +81,46 @@ def _ddg(company, year):
                 continue
             l = u.lower()
             sc = 3 * (str(year) in l) + 2 * bool(re.search(r"annual|arsredovisning|annual-report", l))
-            sc += 2 * (tok in urllib.parse.urlparse(u).netloc) - 5 * bool(re.search(r"interim|q4|quarter|delars", l))
+            sc += 2 * (tok in urllib.parse.urlparse(u).netloc) - 5 * bool(BAD_URL.search(l))
             out[u] = sc
     return [u for u, _ in sorted(out.items(), key=lambda x: -x[1])]
+
+
+def _crawl(company, year):
+    """Search without filetype:, then harvest annual-report PDF links from the company's own pages among the top hits
+    (the press release "X has published its annual report 2025", the IR reports page). Nordea's report is not found by
+    a filetype:pdf search but is linked from both."""
+    tok = slugify(company).split("_")[0]
+    pages = []
+    for q in (f"{company} annual report {year}", f"{company} årsredovisning {year}"):
+        try:
+            s = _get("https://html.duckduckgo.com/html/?q=" + urllib.parse.quote_plus(q)).decode("utf-8", "ignore")
+        except Exception as e:
+            print(f"ddg failed: {e}")
+            continue
+        for m in re.findall(r'uddg=([^&"]+)', s):
+            u = urllib.parse.unquote(m)
+            if ".pdf" not in u.lower() and tok in urllib.parse.urlparse(u).netloc and u not in pages:
+                pages.append(u)
+    out = {}
+    for page in pages[:3]:
+        try:
+            html = _get(page).decode("utf-8", "ignore")
+        except Exception as e:
+            print(f"crawl {page} -> {e}")
+            continue
+        for href, text in re.findall(r'href="([^"]+\.pdf[^"]*)"[^>]*>(.*?)</a>', html, re.I | re.S):
+            u = urllib.parse.urljoin(page, href)
+            l = (u + " " + re.sub(r"<[^>]+>", " ", text)).lower()
+            out[u] = 3 * (str(year) in l) + 2 * bool(re.search(r"annual|arsredovisning|årsredovisning", l)) - 5 * bool(BAD_URL.search(l))
+    return [u for u, sc in sorted(out.items(), key=lambda x: -x[1]) if sc > 0]
 
 
 def find_report(company: str, year: int) -> list[str]:
     """Candidate PDF URLs, best first."""
     urls = _mfn(company, year)
     if not urls:
-        urls = _ddg(company, year)
+        urls = _crawl(company, year) + _ddg(company, year)
     return list(dict.fromkeys(urls))
 
 
@@ -106,6 +139,9 @@ def _validate(data, company, year):
         return None, f"issuer mismatch: {tok!r} not in first 20 pages"  # DDG happily returns some other company's report
     if str(year) not in text:
         return None, f"{year} not in first 20 pages"
+    head = "".join(doc[i].get_text() for i in range(min(3, doc.page_count)))
+    if NOT_REPORT.search(head) and not IS_AR.search(head):
+        return None, f"not an annual report: {NOT_REPORT.search(head).group(0)!r} on the cover"
     return doc, text
 
 

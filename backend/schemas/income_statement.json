@@ -59,7 +59,11 @@
   "fields": [
     {
       "key": "revenue",
-      "excludes": ["other operating income", "other income", "övriga rörelseintäkter"],
+      "excludes": [
+        "other operating income",
+        "other income",
+        "övriga rörelseintäkter"
+      ],
       "label": "Revenue",
       "description": "Net sales / revenue from contracts with customers for the group. If sales are split into lines of the same kind (e.g. 'Sales' + 'Sales, acquired business' = 'Total sales'), take the total. Not a 'Revenue'/'Total revenue' subtotal that adds other operating income to net sales (then take 'Net sales').",
       "unit_hint": "currency_millions",
@@ -75,6 +79,11 @@
         "omsättning",
         "total sales",
         "total revenues"
+      ],
+      "fallback_synonyms": [
+        "total operating income",
+        "summa rörelseintäkter",
+        "total income"
       ]
     },
     {
@@ -104,7 +113,8 @@
         "gross income",
         "gross earnings",
         "gross margin",
-        "bruttoresultat"
+        "bruttoresultat",
+        "gross operating income"
       ]
     },
     {
@@ -136,7 +146,19 @@
         "profit after financial items",
         "resultat före skatt",
         "resultat efter finansiella poster",
-        "income from continuing operations before taxes"
+        "income from continuing operations before taxes",
+        "resultat efter finansnetto",
+        "profit after net financial items"
+      ],
+      "fallback_synonyms": [
+        "operating profit",
+        "rörelseresultat"
+      ],
+      "exclude_labels": [
+        "before credit losses",
+        "före kreditförluster",
+        "before amortisation",
+        "före avskrivning"
       ]
     },
     {
@@ -189,12 +211,31 @@
         "total net income",
         "net profit",
         "årets resultat",
-        "periodens resultat"
+        "periodens resultat",
+        "net profit for the year",
+        "income for the period",
+        "income for the year"
       ]
     },
     {
       "key": "eps_basic",
-      "exclude_labels": ["(?<!before and )after dilution", "(?<!före och )efter utspädning", "diluted earnings", ", diluted", "utspädd", "items affecting comparability", "jämförelsestörande", "excluding items", "excl\\. items", "adjusted", "justera", "continuing operations", "kvarvarande verksamhet", "discontinued operations", "avvecklad verksamhet"],
+      "exclude_labels": [
+        "(?<!before and )after dilution",
+        "(?<!före och )efter utspädning",
+        "diluted earnings",
+        ", diluted",
+        "utspädd",
+        "items affecting comparability",
+        "jämförelsestörande",
+        "excluding items",
+        "excl\\. items",
+        "adjusted",
+        "justera",
+        "continuing operations",
+        "kvarvarande verksamhet",
+        "discontinued operations",
+        "avvecklad verksamhet"
+      ],
       "label": "EPS, basic",
       "description": "Basic earnings per share (before dilution / före utspädning; never the diluted row) attributable to owners of the parent, total (including discontinued operations), as printed with its unit (SEK, USD, Euro cent ...).",
       "unit_hint": "currency_per_share",
@@ -206,7 +247,8 @@
         "earnings per share, before dilution",
         "eps basic",
         "resultat per aktie",
-        "resultat per aktie före utspädning"
+        "resultat per aktie före utspädning",
+        "redovisat resultat per aktie"
       ]
     }
   ],

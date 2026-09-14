@@ -234,21 +234,91 @@
     "fetched_at": "2026-09-14"
   },
   {
-    "file": "nordea_bank_abp_2025.pdf",
-    "company": "Nordea Bank Abp",
-    "fiscal_year": 2025,
-    "language": "en",
-    "source_url": "https://www.nordea.com/en/doc/nordea-group-capital-and-risk-management-report-2025.pdf",
-    "tags": ["fetched"],
-    "note": null,
-    "fetched_at": "2026-09-14"
-  },
-  {
     "file": "beijer_alma_2025.pdf",
     "company": "Beijer Alma",
     "fiscal_year": 2025,
     "language": "sv",
     "source_url": "https://storage.mfn.se/a541c972-5379-4b92-a13e-57c0c8054f3d/beijeralma-ar2025-sv.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "roko_2025.pdf",
+    "company": "Röko",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/61964d86-f8de-4994-8ea7-1ae1502a0b53/roko-annual-report-2025.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "loomis_2025.pdf",
+    "company": "Loomis",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/51/4328898/4016382.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "engcon_2025.pdf",
+    "company": "engcon",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/9e976aac-ab1a-42f9-bbf9-46a2facf11b6/engcon-ab-annual-and-sustainability-report-2025.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "afry_2025.pdf",
+    "company": "AFRY",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/15400/4322535/3987671.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "noba_bank_2025.pdf",
+    "company": "NOBA Bank Group",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/e1b3a7e1-3674-458c-b280-21263d9cc50c/annual-report-2025-noba-bank-group-ab-publ.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "electrolux_professional_2025.pdf",
+    "company": "Electrolux Professional",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/f972ee6b-0a78-4b50-9a9c-e9c3490f0153/press-release-as-pdf.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "aq_2025.pdf",
+    "company": "AQ Group",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/11536/4326558/4005197.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "scandic_hotels_2025.pdf",
+    "company": "Scandic Hotels Group",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/13379/4332706/4028964.pdf",
     "tags": ["fetched"],
     "note": null,
     "fetched_at": "2026-09-14"
