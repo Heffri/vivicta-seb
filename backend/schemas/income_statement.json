@@ -106,7 +106,10 @@
         "production costs",
         "costs of goods sold",
         "cost of products sold",
-        "cost of sales and services"
+        "cost of sales and services",
+        "property expenses",
+        "property costs",
+        "fastighetskostnader"
       ],
       "requires": "gross_profit",
       "expense": true
@@ -122,7 +125,11 @@
         "gross earnings",
         "gross margin",
         "bruttoresultat",
-        "gross operating income"
+        "gross operating income",
+        "net operating surplus",
+        "net operating income",
+        "driftöverskott",
+        "driftnetto"
       ]
     },
     {

@@ -137,7 +137,8 @@ def _check(check: dict, values: dict) -> dict:
 
 WEIGHTS = {"quote_on_page": 0.35, "value_in_quote": 0.20, "arith_ok": 0.20, "label_known": 0.10,
            "period_ok": 0.05, "page_is_statement": 0.05, "unit_ok": 0.05,  # docs/CONFIDENCE.md; sums to 1.0
-           "value_derived": 0.20}  # stands in for value_in_quote when the printed number is unreadable, never both
+           "value_derived": 0.20,  # stands in for value_in_quote when the printed number is unreadable, never both
+           "identity_all_columns": 0.0}  # a marker: an unknown label whose identity holds in every column earns label_known
 
 
 _DASHES = str.maketrans({"–": "-", "−": "-", " ": " "})
@@ -157,8 +158,8 @@ def _year_column(text: str, fiscal_year) -> tuple[int, int] | None:
         while (n := year.search(head, end)) and n.start() - end <= 12 and not re.search(r"\d", head[end:n.start()]):
             run.append(n.group())  # "2025 2024" or Telia's "2025 Jan-Dec 2024": one word between years is still the header
             end = n.end()
-        if len(run) >= 2:
-            return (run.index(str(fiscal_year)), len(run)) if str(fiscal_year) in run else None
+        if len(run) >= 2:  # Volvo prints "2025 2024" per segment (Industrial Operations ... Volvo Group): which pair is the group is not knowable here
+            return (run.index(str(fiscal_year)), len(run)) if run.count(str(fiscal_year)) == 1 else None
     return None
 
 
@@ -362,8 +363,8 @@ def score_field(field: dict, sf: dict, checks: list[dict], schema: dict, currenc
     failed = [c for c in mine if not c["passed"] and not c["detail"].startswith("missing:")]  # a check with a missing operand is n/a, not failed
     if not failed:
         ev.append("arith_ok")  # vacuously true for fields no check references (eps)
-    if _label_known(field.get("raw_label"), sf) or "value_derived" in ev:
-        ev.append("label_known")  # a derived sum is identified by the check holding in every column, not by a printed label
+    if _label_known(field.get("raw_label"), sf) or "value_derived" in ev or "identity_all_columns" in ev:
+        ev.append("label_known")  # a derived sum, or an unknown row, is identified by the check holding in every column, not by a printed label
     if fiscal_year and str(field.get("period")) == str(fiscal_year):
         ev.append("period_ok")
     if src.get("page") in statement_pages:
@@ -465,6 +466,16 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                 if header and len(amounts) == ncols and field["value"] in amounts and amounts[header[0]] != field["value"]:
                     warnings.append(f"{sf['key']}: {field['value']} is not the {fiscal_year} column, {amounts[header[0]]} is")  # Sandvik prints 2024 first
                     field["value"], field["period"] = amounts[header[0]], str(fiscal_year)
+                if header and _clean_label(field.get("raw_label")) != _clean_label(_row_label(row)) and _label_known(field.get("raw_label"), sf):
+                    # Lundbergs: the model paired "Rörelseresultat 16 077" with the row below it; the row printed with that label is the quote,
+                    # and its figure the value ("Nettoomsättning m m" prints 28 781, not the 30 615 subtotal on the next row)
+                    own = next((r for r in rows if _clean_label(_row_label(r)) == _clean_label(field["raw_label"]) and len(_row_amounts(r, ncols)) == ncols), None)
+                    if own and own != row:
+                        am = _row_amounts(own, ncols)
+                        warnings.append(f"{sf['key']}: quoted {_row_label(row)!r}; the {field['raw_label']!r} row prints {am[header[0]]}"
+                                        + ("" if am[header[0]] == field["value"] else f", not {field['value']}"))
+                        row = src["quote"] = own
+                        amounts, field["value"], field["period"] = am, am[header[0]], str(fiscal_year)
                 if header and any(re.search(p, _clean_label(_row_label(row))) for p in sf.get("exclude_labels", [])):
                     # Securitas: "...before and after dilution and before items affecting comparability 11.55" is the adjusted
                     # EPS; Saab: "efter utspädning" is diluted. The statement row with a known, unexcluded label wins.
@@ -547,6 +558,20 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                 c.update(_check(sc, {**defaults, **values}))
                 break
     checks = [_check(c, {**defaults, **values}) for c in schema.get("checks", [])]
+    for c, sc in zip(checks, schema.get("checks", [])):
+        if not c["passed"] or not sc.get("identity"):
+            continue
+        for f, sf in zip(fields, sfs):  # Addnode: "Purchases of goods and services" sits between net sales and gross profit and closes the identity in both years
+            src = f["source"] or {}
+            if f["value"] is None or _label_known(f.get("raw_label"), sf) or "quote_on_page" not in f["evidence"] or not re.search(rf"\b{re.escape(f['key'])}\b", sc["expr"]):
+                continue
+            header, others = _year_column(texts[src["page"] - 1], fiscal_year), _column_values(f, fields, defaults, texts, fiscal_year)
+            if not header or header[1] < 2 or others is None:
+                continue  # one column is one equation; two independent years name the row
+            own = _row_amounts(src["quote"], header[1])
+            if len(own) == header[1] and own[header[0]] == f["value"] and all(_check(sc, {**others[k], f["key"]: own[k]})["passed"] for k in range(header[1])):
+                warnings.append(f"{f['key']}: {f['raw_label']!r} is not a known {sf['label'].lower()} label, but {c['name']} holds with that row in every column")
+                f["evidence"].append("identity_all_columns")
     currency = units.most_common(1)[0][0] if units else (_page_unit(texts[pages[0] - 1]) if pages else None)
     for f, sf in zip(fields, sfs):
         if currency and (f["key"] in filled or (not f["unit"] and (f["source"] or {}).get("page") in pages[:2])):

@@ -41,6 +41,7 @@ def demo():
     assert x._year_column("Consolidated income statement\nMSEK\nNote\n2024\n2025\nRevenue\nG2, G3\n122,878\n120,680", 2025) == (1, 2)
     assert x._year_column("Income Statements\nYear ended December 31 ($ in millions)\n2025\n2024\nSales", 2025) == (0, 2)
     assert x._year_column("Consolidated income statement for the year ended december 31 msek note revenues 168 343", 2025) is None
+    assert x._year_column("Industrial Operations Financial Services Eliminations Volvo Group\n2025 2024 2025 2024 2025 2024 2025 2024\nNet sales", 2025) is None  # segments side by side
     assert x._row_amounts("Revenue\nG2, G3\n122,878\n120,680") == [122878, 120680] and x._row_amounts("Revenue 6, 7 176,658 176,481") == [176658, 176481]
     assert x._row_amounts("Försäljningsintäkter 4 79 146 63 751") == [79146, 63751] and x._row_amounts("Cost of goods sold 6,12 -1,827.9 -1,791.4") == [-1827.9, -1791.4]
     assert x._row_amounts("Income tax (7,246) (6,910)") == [-7246, -6910] and x._row_amounts("Resultat per aktie (SEK) 11,77 9,02") == [11.77, 9.02]
@@ -227,6 +228,31 @@ def demo():
     out = x.extract([lb], [1], {"name": "is", "keywords": [], "checks": [gp], "fields": [real[k] for k in ("revenue", "cost_of_sales", "gross_profit", "operating_profit")]}, {"fiscal_year": 2025})
     assert [(f["value"], f["confidence"]) for f in out["fields"]] == [(28781, 1.0), (None, 0.0), (None, 0.0), (16077, 1.0)], (out["fields"], out["warnings"])
     assert x._page_unit(lb) == "mnkr", x._page_unit(lb)
+    # Lundbergs, second run: the model paired every label with the row below it ("Rörelseresultat" 16077 quoted as "Resultat efter
+    # finansiella poster 15 465"), and "Nettoomsättning" with the 30 615 subtotal on the "Övriga intäkter" row
+    lb2 = ("Resultaträkning\nKONCERNEN, mnkr\nNot 2025 2024\nNettoomsättning m m 3 28 781 29 311\nÖvriga intäkter m m 4 1 834 2 385 30 615 31 696\n"
+           "Rörelseresultat 11 16 077 10 334\nFinansiella intäkter 12 58 79\nResultat efter finansiella poster 15 465 9 808\nSkatt 13 -1 044 -1 425\nÅrets resultat 14 421 8 383\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "revenue", "value": 30615, "unit": "mnkr", "period": "2025", "raw_label": "Nettoomsättning m m", "source": {"page": 1, "quote": "Övriga intäkter m m 4 1 834 2 385 30 615"}},
+        {"key": "operating_profit", "value": 16077, "unit": "mnkr", "period": "2025", "raw_label": "Rörelseresultat", "source": {"page": 1, "quote": "Resultat efter finansiella poster 15 465"}},
+        {"key": "profit_before_tax", "value": 15465, "unit": "mnkr", "period": "2025", "raw_label": "Resultat efter finansiella poster", "source": {"page": 1, "quote": "Skatt 13 -1 044"}},
+        {"key": "income_tax", "value": -1044, "unit": "mnkr", "period": "2025", "raw_label": "Skatt", "source": {"page": 1, "quote": "Årets resultat 14 421"}},
+        {"key": "net_profit", "value": 14421, "unit": "mnkr", "period": "2025", "raw_label": "Årets resultat", "source": {"page": 1, "quote": "Årets resultat 14 421"}}]}
+    out = x.extract([lb2], [1], {**sch, "fields": [real[k] for k in ("revenue", "operating_profit", "profit_before_tax", "income_tax", "net_profit")]}, {"fiscal_year": 2025})
+    assert [(f["value"], f["confidence"]) for f in out["fields"]] == [(28781, 1.0), (16077, 1.0), (15465, 1.0), (-1044, 1.0), (14421, 1.0)], (out["fields"], out["warnings"])
+    assert out["fields"][1]["source"]["quote"] == "Rörelseresultat 11 16 077 10 334" and sum("row prints" in w for w in out["warnings"]) == 4, out["warnings"]
+    # Catena (property company): rental income - property expenses = net operating surplus is the gross profit
+    assert x._label_known("Net operating surplus", real["gross_profit"]) and x._label_known("Property expenses", real["cost_of_sales"]) and not x._label_known("Net operating surplus", real["operating_profit"])
+    # Addnode: "Purchases of goods and services" is not a cost of sales label, but net sales + it = gross profit in both years
+    an = "Consolidated income statement\nSEK m\nNote 2025 2024\nNet sales 2, 3, 38 5,793 7,757\nPurchases of goods and services 38 -1,350 -3,559\nGross profit 4,443 4,198\n"
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "revenue", "value": 5793, "unit": "SEK m", "period": "2025", "raw_label": "Net sales", "source": {"page": 1, "quote": "Net sales 2, 3, 38 5,793"}},
+        {"key": "cost_of_sales", "value": -1350, "unit": "SEK m", "period": "2025", "raw_label": "Purchases of goods and services", "source": {"page": 1, "quote": "Purchases of goods and services 38 -1,350"}},
+        {"key": "gross_profit", "value": 4443, "unit": "SEK m", "period": "2025", "raw_label": "Gross profit", "source": {"page": 1, "quote": "Gross profit 4,443"}}]}
+    out = x.extract([an], [1], {"name": "is", "keywords": [], "checks": [gp], "fields": [real[k] for k in ("revenue", "cost_of_sales", "gross_profit")]}, {"fiscal_year": 2025})
+    assert [f["confidence"] for f in out["fields"]] == [1.0, 1.0, 1.0] and "identity_all_columns" in out["fields"][1]["evidence"], (out["fields"], out["warnings"])
+    out = x.extract([an.replace("-3,559", "-3,000")], [1], {"name": "is", "keywords": [], "checks": [gp], "fields": [real[k] for k in ("revenue", "cost_of_sales", "gross_profit")]}, {"fiscal_year": 2025})
+    assert out["fields"][1]["confidence"] == 0.9, out["fields"][1]  # only one year adds up: the label stays unknown
     print("confidence self-check ok")
 
 

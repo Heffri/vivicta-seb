@@ -70,6 +70,10 @@ model copied. Deterministic **repairs** run on that row before scoring, each lea
 - component rows (IPC): the model quotes the first row under a "Cost of sales" heading. The identity check fails, and the run of rows starting at (or ending at) the quote whose sums make the identity hold in *every* column becomes the value and the quote, labelled by the heading. `value_derived`, not `value_in_quote`.
 - twin rows (Lundbergs): the same printed row offered for two keys ("Rörelseresultat" as gross profit and as operating profit) belongs to the key whose label it is; the other is dropped, and a row that `requires` it follows.
 - the statement row (SEB): when a variant row is replaced or a null is filled from the page, the row whose label is exactly a synonym wins over a prefix match ("Operating profit", not "Operating profit before items affecting comparability").
+- a quote on the neighbouring row (Lundbergs: every label paired with the row below it): when the model's label is a known one and the page prints a row with exactly that label, that row is the quote and its figure the value.
+- an unknown label whose identity holds in every column (Addnode: "Purchases of goods and services" between net sales and gross profit, both years) earns `label_known`; one column is one equation and proves nothing.
+- segments printed side by side (Volvo: "2025 2024" four times, Industrial Operations to Volvo Group) have no usable year header; the model's column stands and the checks decide.
+- a property company's `Net operating surplus` is its gross profit (rental income - property expenses); operating profit it is not.
 
 Swedish space-grouped rows are split by the column count from the year header (`155 054 161 900` is two amounts; no regex can
 tell that from four small numbers), so the repairs only run on pages where that header was found.
