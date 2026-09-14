@@ -1,0 +1,192 @@
+{
+  "report_id": "lib-scandic_hotels_2025",
+  "company": "Scandic Hotels Group",
+  "fiscal_year": 2025,
+  "currency": "SEK",
+  "section": "income_statement",
+  "fields": [
+    {
+      "key": "revenue",
+      "label": "Revenue",
+      "value": 22289,
+      "unit": "SEK",
+      "period": "2025",
+      "raw_label": "Net sales",
+      "source": {
+        "page": 117,
+        "quote": "Net sales 22,289 21,959"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "cost_of_sales",
+      "label": "Cost of sales",
+      "value": null,
+      "unit": "SEK",
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "gross_profit",
+      "label": "Gross profit",
+      "value": null,
+      "unit": "SEK",
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "operating_profit",
+      "label": "Operating profit",
+      "value": 2661,
+      "unit": "SEK",
+      "period": "2025",
+      "raw_label": "Operating profit/loss",
+      "source": {
+        "page": 117,
+        "quote": "Operating profit/loss 2,661 2,836"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_before_tax",
+      "label": "Profit before tax",
+      "value": 809,
+      "unit": "SEK",
+      "period": "2025",
+      "raw_label": "Profit/loss before tax",
+      "source": {
+        "page": 117,
+        "quote": "Profit/loss before tax 809 861"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "income_tax",
+      "label": "Income tax",
+      "value": -185,
+      "unit": "SEK",
+      "period": "2025",
+      "raw_label": "Taxes",
+      "source": {
+        "page": 117,
+        "quote": "Taxes 10 -185 -209"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_discontinued",
+      "label": "Profit from discontinued operations",
+      "value": null,
+      "unit": "SEK",
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "net_profit",
+      "label": "Profit for the year",
+      "value": 624,
+      "unit": "SEK",
+      "period": "2025",
+      "raw_label": "Profit/loss for the year",
+      "source": {
+        "page": 117,
+        "quote": "PROFIT/LOSS FOR THE YEAR 624 652"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "eps_basic",
+      "label": "EPS, basic",
+      "value": 2.9,
+      "unit": "SEK",
+      "period": "2025",
+      "raw_label": "Earnings per share before dilution, attributable to Parent Company shareholders (SEK per share)",
+      "source": {
+        "page": 117,
+        "quote": "Parent Company shareholders (SEK per share) 11 2.90 3.43"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "gross_profit_arith",
+      "passed": false,
+      "detail": "missing: cost_of_sales"
+    },
+    {
+      "name": "net_profit_arith",
+      "passed": true,
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((809 + -185 + 0) - 624) <= 2"
+    },
+    {
+      "name": "margin_sanity",
+      "passed": true,
+      "detail": "operating margin between 0 and 60% | 0 < 2661 / 22289 < 0.6"
+    }
+  ],
+  "warnings": []
+}

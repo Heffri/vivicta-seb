@@ -204,7 +204,8 @@ def _page_rows(text: str) -> list[str]:
 
 
 def _clean_label(label) -> str:
-    label = re.sub(r"\s*[/(]\s*\(?loss\)?|/förlust", "", normalize_ws(str(label or "")), flags=re.I)  # "Profit/loss before tax", "Profit (loss)"
+    label = re.sub(r"(?i)\bresult\b", "profit", str(label or ""))  # SSAB / Elekta / Stora Enso: "Operating result", "Result before tax", "Result for the year"
+    label = re.sub(r"\s*[/(]\s*\(?loss\)?|/förlust", "", normalize_ws(label), flags=re.I)  # "Profit/loss before tax", "Profit (loss)"; normalize_ws glues digits to the word before
     return re.sub(r"[\s\d,.:;*)(]+$", "", label).lower()  # drop trailing note refs
 
 
@@ -226,9 +227,9 @@ def _ccy(unit) -> str:
     """'MSEK' / 'SEKm' / 'USD m' / 'SEK million' -> 'SEK' / 'USD': the currency without the scale."""
     c = re.sub(r"(?i)\b(m|mn|mkr|million|millions|thousand|thousands|bn|billion|k|cent|cents|öre)\b|[^A-Za-z]", "", str(unit or "")).upper()
     c = {"EURO": "EUR", "KR": "SEK", "KRONOR": "SEK"}.get(c, c)  # Hexagon prints EPS in "Euro cent"
-    if len(c) == 4 and c[0] == "M":
+    if len(c) == 4 and c[0] in "MKT":  # MSEK, KSEK (Paradox), TEUR
         c = c[1:]
-    if len(c) == 4 and c[-1] == "M":
+    if len(c) == 4 and c[-1] in "MKT":
         c = c[:-1]
     return c
 
@@ -324,14 +325,20 @@ def score_field(field: dict, sf: dict, checks: list[dict], schema: dict, currenc
 def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict) -> dict:
     fiscal_year = report_meta.get("fiscal_year")
     system, warnings, raw = system_prompt(schema, report_meta.get("stem")), [], []
-    for attempt in (pages[:4], pages[:2]):  # SCA: the model timed out thinking over six pages; the statement spread alone is a quick call
+    nonnull = lambda fs: sum(isinstance(f, dict) and f.get("value") is not None for f in fs)
+    for attempt in dict.fromkeys((tuple(pages[:2]), tuple(pages[:4]))):
+        # the statement spread first: a quick call (four pages timed out on NOBA / Nordnet); more pages only if most fields came back empty
         user = (f"Fiscal year to extract: {fiscal_year}\n\n" if fiscal_year else "") + \
             "\n\n".join(f"=== PAGE {n} ===\n{texts[n - 1]}" for n in attempt)
         try:
-            raw = call_llm(system, user).get("fields", [])
+            got = call_llm(system, user).get("fields", [])
+        except Exception as e:  # ponytail: teammates feed the error back to the model
+            warnings.append(f"llm: {type(e).__name__}: {e} (pages {list(attempt)})")
+            continue
+        if nonnull(got) > nonnull(raw):
+            raw = got
+        if 2 * nonnull(raw) >= len(schema["fields"]):
             break
-        except Exception as e:  # ponytail: one retry on fewer pages; teammates feed the error back to the model
-            warnings.append(f"llm: {type(e).__name__}: {e} (pages {attempt})")
     by_key = {f.get("key"): f for f in raw if isinstance(f, dict)}
 
     fields, filled, sfs = [], set(), []
@@ -424,6 +431,12 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                                 break
         fields.append(field)
 
+    by_key = {f["key"]: f for f in fields}
+    for sf, f in zip(sfs, fields):  # Stora Enso: "Materials and services" offered as cost of sales in a by-nature statement with no gross profit
+        req = sf.get("requires")
+        if req and f["value"] is not None and by_key[req]["value"] is None and not _label_known(f.get("raw_label"), sf):
+            warnings.append(f"{sf['key']}: {f.get('raw_label')!r} {f['value']} dropped: not a known {sf['label'].lower()} label and the statement has no {req}")
+            f.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
     values = {f["key"]: f["value"] for f in fields if isinstance(f["value"], (int, float))}
     units = Counter(f["unit"] for f in fields if f["unit"])
     periods = Counter(f["period"] for f in fields if re.fullmatch(r"\d{4}", str(f["period"])))

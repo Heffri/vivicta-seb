@@ -1,0 +1,212 @@
+{
+  "report_id": "lib-beijer_alma_2025",
+  "company": "Beijer Alma",
+  "fiscal_year": 2025,
+  "currency": "MSEK",
+  "section": "income_statement",
+  "fields": [
+    {
+      "key": "revenue",
+      "label": "Revenue",
+      "value": 7750,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Nettoomsättning",
+      "source": {
+        "page": 63,
+        "quote": "Nettoomsättning 3, 4 7 750 7 203"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "cost_of_sales",
+      "label": "Cost of sales",
+      "value": -5356,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Kostnader för sålda varor",
+      "source": {
+        "page": 63,
+        "quote": "Kostnader för sålda varor 9 –5 356 –4 967"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "gross_profit",
+      "label": "Gross profit",
+      "value": 2394,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Bruttoresultat",
+      "source": {
+        "page": 63,
+        "quote": "Bruttoresultat 2 394 2 236"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "operating_profit",
+      "label": "Operating profit",
+      "value": 952,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Rörelseresultat",
+      "source": {
+        "page": 63,
+        "quote": "Rörelseresultat 9 952 1 091"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_before_tax",
+      "label": "Profit before tax",
+      "value": 777,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Resultat efter finansnetto",
+      "source": {
+        "page": 63,
+        "quote": "Resultat efter finansnetto 777 895"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "income_tax",
+      "label": "Income tax",
+      "value": -191,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Skatt",
+      "source": {
+        "page": 63,
+        "quote": "Skatt 13 –191 –166"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_discontinued",
+      "label": "Profit from discontinued operations",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "net_profit",
+      "label": "Profit for the year",
+      "value": 586,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Årets resultat",
+      "source": {
+        "page": 63,
+        "quote": "Årets resultat 586 729"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "eps_basic",
+      "label": "EPS, basic",
+      "value": 9.43,
+      "unit": "SEK",
+      "period": "2025",
+      "raw_label": "Redovisat resultat per aktie före och efter utspädning, kr",
+      "source": {
+        "page": 63,
+        "quote": "Redovisat resultat per aktie före och efter utspädning, kr 14 9,43 11,85"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "gross_profit_arith",
+      "passed": true,
+      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((7750 + -5356) - 2394) <= 2"
+    },
+    {
+      "name": "net_profit_arith",
+      "passed": true,
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((777 + -191 + 0) - 586) <= 2"
+    },
+    {
+      "name": "margin_sanity",
+      "passed": true,
+      "detail": "operating margin between 0 and 60% | 0 < 952 / 7750 < 0.6"
+    }
+  ],
+  "warnings": []
+}

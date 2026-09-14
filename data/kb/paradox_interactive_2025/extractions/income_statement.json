@@ -1,0 +1,213 @@
+{
+  "report_id": "lib-paradox_interactive_2025",
+  "company": "Paradox Interactive",
+  "fiscal_year": 2025,
+  "currency": "KSEK",
+  "section": "income_statement",
+  "fields": [
+    {
+      "key": "revenue",
+      "label": "Revenue",
+      "value": 2191918,
+      "unit": "KSEK",
+      "period": "2025",
+      "raw_label": "Revenues",
+      "source": {
+        "page": 47,
+        "quote": "Revenues 5 2,191,918 2,200,943"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "cost_of_sales",
+      "label": "Cost of sales",
+      "value": -1656913,
+      "unit": "KSEK",
+      "period": "2025",
+      "raw_label": "Cost of goods sold",
+      "source": {
+        "page": 47,
+        "quote": "Cost of goods sold 7, 8, 9, 10 -1,656,913 -1,203,649"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "gross_profit",
+      "label": "Gross profit",
+      "value": 535005,
+      "unit": "KSEK",
+      "period": "2025",
+      "raw_label": "Gross profit",
+      "source": {
+        "page": 47,
+        "quote": "Gross profit 535,005 997,294"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "operating_profit",
+      "label": "Operating profit",
+      "value": 145999,
+      "unit": "KSEK",
+      "period": "2025",
+      "raw_label": "Operating profit",
+      "source": {
+        "page": 47,
+        "quote": "Operating profit 145,999 721,364"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_before_tax",
+      "label": "Profit before tax",
+      "value": 167397,
+      "unit": "KSEK",
+      "period": "2025",
+      "raw_label": "Profit after financial items",
+      "source": {
+        "page": 47,
+        "quote": "Profit after financial items 167,397 757,303"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "income_tax",
+      "label": "Income tax",
+      "value": -41940,
+      "unit": "KSEK",
+      "period": "2025",
+      "raw_label": "Tax expense",
+      "source": {
+        "page": 47,
+        "quote": "Tax expense 18 -41,940 -172,675"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_discontinued",
+      "label": "Profit from discontinued operations",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "net_profit",
+      "label": "Profit for the year",
+      "value": 125456,
+      "unit": "KSEK",
+      "period": "2025",
+      "raw_label": "Profit for the year",
+      "source": {
+        "page": 47,
+        "quote": "Profit for the year 125,456 584,628"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "eps_basic",
+      "label": "EPS, basic",
+      "value": 1.19,
+      "unit": "SEK",
+      "period": "2025",
+      "raw_label": "Earnings per share attributable to parent company shareholders: before dilution",
+      "source": {
+        "page": 47,
+        "quote": "- before dilution 42 1.19 5.54"
+      },
+      "confidence": 0.95,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "gross_profit_arith",
+      "passed": true,
+      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((2191918 + -1656913) - 535005) <= 2"
+    },
+    {
+      "name": "net_profit_arith",
+      "passed": true,
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((167397 + -41940 + 0) - 125456) <= 2"
+    },
+    {
+      "name": "margin_sanity",
+      "passed": true,
+      "detail": "operating margin between 0 and 60% | 0 < 145999 / 2191918 < 0.6"
+    }
+  ],
+  "warnings": []
+}

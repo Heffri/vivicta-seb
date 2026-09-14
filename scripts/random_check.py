@@ -3,8 +3,8 @@
     python scripts/random_check.py [--n 10] [--seed 1] [--year 2025] [--section income_statement] [--market "Large Cap"]
 
 "Full confidence" = every non-null field at confidence 1.0 and every arithmetic check passed (docs/CONFIDENCE.md).
-No labels involved: this is the backend's own evidence on companies nobody tuned the parser on. Companies already
-in data/kb (the tuning set) are skipped. Needs the backend on :8000 with Ollama; ~2 min per company.
+No labels involved: this is the backend's own evidence on companies nobody tuned the parser on. The labelled eval set
+(eval/labels.csv) is skipped; the same seed always draws the same companies. Needs the backend on :8000 with Ollama; ~2 min per company.
 """
 import argparse
 import json
@@ -37,7 +37,7 @@ def main():
     a = ap.parse_args()
 
     companies = json.loads((ROOT / "data" / "companies.json").read_text("utf-8"))
-    known = {p.name.split("_")[0] for p in (ROOT / "data" / "kb").iterdir() if p.is_dir()}
+    known = {line.split("_")[0] for line in (ROOT / "eval" / "labels.csv").read_text("utf-8").splitlines()[1:]}
     pool = [c for c in companies if a.market.lower() in c.get("market", "").lower()
             and c["name"].split()[0].lower() not in known]
     random.Random(a.seed).shuffle(pool)

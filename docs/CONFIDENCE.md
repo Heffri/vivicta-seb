@@ -47,7 +47,12 @@ model copied. Deterministic **repairs** run on that row before scoring, each lea
 - a sub-row label under a known heading (`Basic earnings per share` / `Net income 2.59`, ABB) is reported as `heading: sub-row`
   so `label_known` sees the printed context.
 - `Profit/loss before tax`, `Profit (loss) for the year` are read as `Profit before tax`, `Profit for the year` before the
-  synonym match (Yubico, engcon, AFRY).
+  synonym match (Yubico, engcon, AFRY); `Operating result`, `Result before tax` as `... profit` (SSAB, Stora Enso).
+- a bank prints no `Profit before tax` row: when none of a field's synonyms appears on the statement page, its
+  `fallback_synonyms` apply (`Operating profit` is the pre-tax line, `Total operating income` the top line; NOBA, Nordnet).
+  An industrial keeps them apart because the primary row exists.
+- a field with `requires` (cost of sales requires gross profit) is dropped when the statement has no such row and the model's
+  label is not a known synonym (`Materials and services` in Stora Enso's by-nature statement is not cost of sales).
 
 Swedish space-grouped rows are split by the column count from the year header (`155 054 161 900` is two amounts; no regex can
 tell that from four small numbers), so the repairs only run on pages where that header was found.

@@ -322,5 +322,115 @@
     "tags": ["fetched"],
     "note": null,
     "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "ncc_2025.pdf",
+    "company": "NCC",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/197/4333700/4032579.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "vitrolife_2025.pdf",
+    "company": "Vitrolife",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/1031/4325108/4006207.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "paradox_interactive_2025.pdf",
+    "company": "Paradox Interactive",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/13927/4332778/4029546.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "sweco_2025.pdf",
+    "company": "SWECO",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/1356/4326321/4005820.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "ssab_2025.pdf",
+    "company": "SSAB",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Public/980/4322375/82dc4b95e96a55ad.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "nordnet_2025.pdf",
+    "company": "Nordnet",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/116/4320623/3981144.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "elekta_2025.pdf",
+    "company": "Elekta",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/4fee6c42-f5eb-4dff-9601-c15ca8313eec/elekta-annual-report-2025-26.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "stora_enso_2025.pdf",
+    "company": "Stora Enso",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/13589/4306573/3931241.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "traton_2025.pdf",
+    "company": "TRATON",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://attachment.news.eu.nasdaq.com/a6d56a94ad277cab4c68dbe4cb0625159",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "asker_healthcare_2025.pdf",
+    "company": "Asker Healthcare Group",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://attachment.news.eu.nasdaq.com/a293b5ef61a39601958f8058e6f1f19b1",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "arion_banki_2025.pdf",
+    "company": "Arion Banki",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://attachment.news.eu.nasdaq.com/a3c8e870b6022fa84f8c26810d342931b",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
   }
 ]

@@ -100,8 +100,13 @@
         "kostnad sålda varor",
         "kostnader för sålda varor",
         "total cost of sales",
-        "cost of goods and services sold"
-      ]
+        "cost of goods and services sold",
+        "production costs",
+        "costs of goods sold",
+        "cost of products sold",
+        "cost of sales and services"
+      ],
+      "requires": "gross_profit"
     },
     {
       "key": "gross_profit",
@@ -225,8 +230,8 @@
         "diluted earnings",
         ", diluted",
         "utspädd",
-        "items affecting comparability",
-        "jämförelsestörande",
+        "(before|excluding|excl\\.?) items affecting comparability",
+        "(före|exklusive|exkl\\.?) jämförelsestörande",
         "excluding items",
         "excl\\. items",
         "adjusted",
@@ -248,7 +253,11 @@
         "eps basic",
         "resultat per aktie",
         "resultat per aktie före utspädning",
-        "redovisat resultat per aktie"
+        "redovisat resultat per aktie",
+        "earnings per share, sek",
+        "earnings per share (sek)",
+        "earnings per share, eur",
+        "earnings per share attributable to parent company shareholders"
       ]
     }
   ],
@@ -265,8 +274,8 @@
     },
     {
       "name": "margin_sanity",
-      "expr": "0 < operating_profit / revenue < 0.6",
-      "detail": "operating margin between 0 and 60%"
+      "expr": "-10 < operating_profit / revenue < 10",
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real)"
     }
   ]
 }

@@ -66,6 +66,34 @@ def _mfn(company, year):
     return [u for _, u in sorted(scored, key=lambda x: -x[0])]
 
 
+def _nasdaq(company, year):
+    """Nasdaq Nordic company news: every listed issuer's "Annual Financial Report" notice carries the PDF as an attachment
+    (TRATON, Asker, Vitrolife ... also the ESEF zip, unused). MFN covers most Swedish issuers; this covers the rest."""
+    tok = next((t for t in slugify(company).split("_") if len(t) >= 3), company.lower())
+    q = urllib.parse.urlencode({"type": "json", "showAttachments": "true", "showCnsSpecific": "true", "showCompany": "true", "countResults": "false",
+                                "freeText": company, "cnscategory": "Annual Financial Report", "globalGroup": "exchangeNotice",
+                                "globalName": "NordicMainMarkets", "displayLanguage": "en", "limit": 30, "start": 0, "dir": "DESC"})
+    try:
+        items = json.loads(_get("https://api.news.eu.nasdaq.com/news/query.action?" + q))["results"]["item"]
+    except Exception as e:
+        print(f"nasdaq news failed: {e}")
+        return []
+    scored = []
+    for it in items:
+        names = " ".join(a.get("fileName", "") for a in it.get("attachment", []))
+        if tok not in it.get("company", "").lower() or NOT_AR.search(it.get("headline", "")):
+            continue
+        if str(year) not in it.get("headline", "") + names and not it.get("published", "").startswith(str(year + 1)):
+            continue  # the report for FY2025 is published in 2026
+        for a in it.get("attachment", []):
+            n = a.get("fileName", "")
+            if a.get("mimetype") != "application/pdf" or BAD_URL.search(n) or re.search(r"press|release|meddelande", n, re.I):
+                continue
+            sc = 3 * bool(IS_AR.search(n)) + (str(year) in n) + (it.get("language") == "en")
+            scored.append((sc, a["attachmentUrl"]))
+    return [u for _, u in sorted(scored, key=lambda x: -x[0])]
+
+
 def _ddg(company, year):
     tok = slugify(company).split("_")[0]
     out = {}
@@ -118,7 +146,7 @@ def _crawl(company, year):
 
 def find_report(company: str, year: int) -> list[str]:
     """Candidate PDF URLs, best first."""
-    urls = _mfn(company, year)
+    urls = _mfn(company, year) + _nasdaq(company, year)  # structured feeds first, web search only when neither knows the issuer
     if not urls:
         urls = _crawl(company, year) + _ddg(company, year)
     return list(dict.fromkeys(urls))
