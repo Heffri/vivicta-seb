@@ -75,7 +75,9 @@ def _pages(stem: str) -> dict[int, str]:
 def save_report(stem: str, meta: dict, texts: list[str]) -> Path:
     """meta.json + pages.jsonl; no-op when the PDF's sha256 is already there."""
     d = kb_dir() / stem
-    if _meta(stem).get("sha256") == meta.get("sha256") and (d / "pages.jsonl").exists():
+    from .parse import PARSER_VERSION
+    meta = {**meta, "parser": PARSER_VERSION}
+    if _meta(stem).get("sha256") == meta["sha256"] and _meta(stem).get("parser") == PARSER_VERSION and (d / "pages.jsonl").exists():
         return d
     d.mkdir(parents=True, exist_ok=True)
     (d / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -79,8 +79,7 @@
         "omsättning",
         "total sales",
         "total revenues",
-        "rental income",
-        "hyresintäkter"
+        "rental income", "rental and service income", "rental income and service income", "hyresintäkter", "hyres- och serviceintäkter"
       ],
       "fallback_synonyms": [
         "total operating income",
@@ -271,7 +270,7 @@
         "discontinued operations",
         "avvecklad verksamhet",
         "fully diluted",
-        "\bdiluted\b"
+        "(?<!basic and )(?<!basic or )\\bdiluted\\b"
       ],
       "label": "EPS, basic",
       "description": "Basic earnings per share (before dilution / före utspädning; never the diluted row) attributable to owners of the parent, total (including discontinued operations), as printed with its unit (SEK, USD, Euro cent ...).",

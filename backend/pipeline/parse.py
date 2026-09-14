@@ -15,10 +15,44 @@ _DIGIT_SPACE = re.compile(r" (?=\d)|(?<=\d) ")  # any space touching a digit
 _CHARMAP = str.maketrans({"\u00a0": " ", "\u202f": " ", "\u2013": "-", "\u2212": "-"})  # NBSP, narrow NBSP, en dash, minus
 
 
+PARSER_VERSION = 2  # bump when page_text changes so kb.save_report rewrites cached pages.jsonl
+NUMERIC_RUN = 12  # consecutive letterless lines: a column-major text layer (Arion Bank prints every figure first, then every label, in no order)
+_LEADERS = re.compile(r"(?:\s*\.){3,}")
+
+
 def page_texts(pdf_path) -> list[str]:
     """0-based list; page n (1-based) is texts[n-1]."""
     with pymupdf.open(pdf_path) as doc:
-        return [page.get_text() for page in doc]
+        return [page_text(page) for page in doc]
+
+
+def page_text(page) -> str:
+    """Plain text; when the text layer is column-major, lines rebuilt from word coordinates instead (label and its
+    figures on one line). Only then: words on a baseline also merge two tables printed side by side (AQ)."""
+    text = page.get_text()
+    return text if _numeric_run(text) < NUMERIC_RUN else _lines_from_words(page)
+
+
+def _numeric_run(text: str) -> int:
+    best = run = 0
+    for line in text.splitlines():
+        if line.strip():
+            run = 0 if re.search(r"[^\W\d_]", line) else run + 1
+            best = max(best, run)
+    return best
+
+
+def _lines_from_words(page) -> str:
+    """Words sharing a baseline (within half a word height), left to right; dot leaders dropped."""
+    lines: list[tuple[float, list]] = []
+    for x0, y0, x1, y1, word, *_ in page.get_text("words"):
+        yc, tol = (y0 + y1) / 2, (y1 - y0) / 2
+        line = next((l for l in lines if abs(l[0] - yc) <= tol), None)
+        if line is None:
+            lines.append((yc, [(x0, word)]))
+        else:
+            line[1].append((x0, word))
+    return "\n".join(_WS.sub(" ", _LEADERS.sub(" ", " ".join(w for _, w in sorted(ws)))).strip() for _, ws in sorted(lines))
 
 
 def normalize_ws(s: str) -> str:

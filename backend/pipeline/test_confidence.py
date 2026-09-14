@@ -282,6 +282,14 @@ def demo():
     assert [(f["value"], f["confidence"]) for f in out["fields"]] == [(5793, 1.0), (-1350, 1.0), (4443, 1.0), (514, 1.0), (-130, 1.0), (None, 0.0), (384, 1.0)], (out["fields"], out["warnings"])
     assert out["fields"][4]["raw_label"] == "Current tax + Deferred tax" and "value_derived" in out["fields"][4]["evidence"] and "identity_all_columns" in out["fields"][1]["evidence"], out["fields"]
     assert not x._label_known("Tax attributable to items that may be reclassified", real["income_tax"])
+    # Arion Bank: a column-major text layer (every figure, then every label); lines rebuilt from word coordinates
+    import pymupdf
+    from . import parse
+    pg = pymupdf.open().new_page()
+    for y, (lab, a, b) in enumerate([("Interest income", "129,777", "132,259"), ("Net earnings", "32,507", "26,112")]):
+        pg.insert_text((40, 100 + 14 * y), lab + " " + "." * 40), pg.insert_text((400, 100 + 14 * y), a), pg.insert_text((470, 100 + 14 * y), b)
+    assert parse._lines_from_words(pg).splitlines() == ["Interest income 129,777 132,259", "Net earnings 32,507 26,112"], parse._lines_from_words(pg)
+    assert parse._numeric_run("Notes" + "".join(f"{chr(10)}{i}" for i in range(12)) + f"{chr(10)}Label") == 12 and parse._numeric_run(f"Gross income{chr(10)}14,753{chr(10)}14,480") == 2
     from . import locate
     assert locate.strip_boilerplate(["Financial statements Group and Parent company_ _____124\nNotes ......... 136\nConsolidated income statement\nNet sales 26 46,021 45,052"])[0] == "Consolidated income statement\nNet sales 26 46,021 45,052"  # AAK nav bar
     print("confidence self-check ok")

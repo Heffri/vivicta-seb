@@ -238,6 +238,7 @@ def _page_rows(text: str) -> list[str]:
 def _clean_label(label) -> str:
     label = re.sub(r"(?i)\bresult\b", "profit", str(label or ""))  # SSAB / Elekta / Stora Enso: "Operating result", "Result before tax", "Result for the year"
     label = re.sub(r"\s*[/(]\s*\(?loss\)?|/förlust", "", normalize_ws(label), flags=re.I)  # "Profit/loss before tax", "Profit (loss)"; normalize_ws glues digits to the word before
+    label = re.sub(r",?\s*\(?\b(?:SEK|EUR|USD|NOK|DKK|ISK|GBP|CHF|kr)\b\)?", "", label, flags=re.I)  # Castellum "Earnings, SEK per share before and after dilution"; "Resultat per aktie (SEK)"
     return re.sub(r"[\s\d,.:;*)(]+$", "", label).lower()  # drop trailing note refs
 
 
