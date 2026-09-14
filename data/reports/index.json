@@ -222,5 +222,35 @@
     "tags": ["fetched"],
     "note": null,
     "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "yubico_2025.pdf",
+    "company": "Yubico",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/8b6c7d69-93ce-4b02-a29b-fb0e0bcf56f2/yubico-ar25-eng.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "nordea_bank_abp_2025.pdf",
+    "company": "Nordea Bank Abp",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://www.nordea.com/en/doc/nordea-group-capital-and-risk-management-report-2025.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "beijer_alma_2025.pdf",
+    "company": "Beijer Alma",
+    "fiscal_year": 2025,
+    "language": "sv",
+    "source_url": "https://storage.mfn.se/a541c972-5379-4b92-a13e-57c0c8054f3d/beijeralma-ar2025-sv.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
   }
 ]

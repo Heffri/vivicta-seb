@@ -176,7 +176,7 @@
       "value": 8.29,
       "unit": "SEK",
       "period": "2025",
-      "raw_label": "Earnings per share, SEK",
+      "raw_label": "Earnings per share, SEK1",
       "source": {
         "page": 140,
         "quote": "Earnings per share, SEK1 17 8.29 6.01"
@@ -210,5 +210,7 @@
       "detail": "operating margin between 0 and 60% | 0 < 3789 / 34969 < 0.6"
     }
   ],
-  "warnings": []
+  "warnings": [
+    "profit_before_tax: quote replaced by page 140 row 'Profit after financial items 3,145 2,282'"
+  ]
 }

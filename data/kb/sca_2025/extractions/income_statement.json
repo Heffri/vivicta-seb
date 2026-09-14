@@ -2,14 +2,14 @@
   "report_id": "lib-sca_2025",
   "company": "SCA",
   "fiscal_year": 2025,
-  "currency": "SEKm",
+  "currency": "MSEK",
   "section": "income_statement",
   "fields": [
     {
       "key": "revenue",
       "label": "Revenue",
       "value": 20427,
-      "unit": "SEKm",
+      "unit": "MSEK",
       "period": "2025",
       "raw_label": "Net sales B1",
       "source": {
@@ -53,7 +53,7 @@
       "key": "operating_profit",
       "label": "Operating profit",
       "value": 4432,
-      "unit": "SEKm",
+      "unit": "MSEK",
       "period": "2025",
       "raw_label": "Operating profit",
       "source": {
@@ -75,7 +75,7 @@
       "key": "profit_before_tax",
       "label": "Profit before tax",
       "value": 3999,
-      "unit": "SEKm",
+      "unit": "MSEK",
       "period": "2025",
       "raw_label": "Profit before tax",
       "source": {
@@ -97,7 +97,7 @@
       "key": "income_tax",
       "label": "Income tax",
       "value": -794,
-      "unit": "SEKm",
+      "unit": "MSEK",
       "period": "2025",
       "raw_label": "Income taxes",
       "source": {
@@ -130,7 +130,7 @@
       "key": "net_profit",
       "label": "Profit for the year",
       "value": 3205,
-      "unit": "SEKm",
+      "unit": "MSEK",
       "period": "2025",
       "raw_label": "Profit for the year",
       "source": {

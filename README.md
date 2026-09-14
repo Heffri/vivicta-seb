@@ -62,6 +62,7 @@ Accuracy:
 ```bash
 python eval/run.py --dry-run       # scores the fixture, no backend needed
 python eval/run.py                 # runs the real pipeline over data/reports + eval/labels.csv
+python scripts/random_check.py --n 10 --seed 1   # fetches 10 untuned Large Cap reports; how many parse at full confidence
 ```
 
 ## How a section works

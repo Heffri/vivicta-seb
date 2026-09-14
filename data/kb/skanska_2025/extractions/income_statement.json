@@ -142,7 +142,7 @@
       "label": "Profit from discontinued operations",
       "value": null,
       "unit": null,
-      "period": "2025",
+      "period": null,
       "raw_label": null,
       "source": null,
       "confidence": 0.0,
@@ -210,10 +210,5 @@
       "detail": "operating margin between 0 and 60% | 0 < 6574 / 176658 < 0.6"
     }
   ],
-  "warnings": [
-    "gross_profit: 14480 is not the 2025 column, 14753 is",
-    "operating_profit: 6748 is not the 2025 column, 6574 is",
-    "profit_before_tax: 7415 is not the 2025 column, 7268 is",
-    "income_tax: -1831 is not the 2025 column, -1496 is"
-  ]
+  "warnings": []
 }

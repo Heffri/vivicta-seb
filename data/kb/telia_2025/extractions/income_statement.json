@@ -33,7 +33,7 @@
       "value": null,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": null,
+      "raw_label": "Goods and services purchased",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -44,7 +44,7 @@
       "value": null,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": null,
+      "raw_label": "Gross profit",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -202,7 +202,6 @@
   "warnings": [
     "revenue: quote replaced by page 133 row 'Revenue C5, C6 80,982 80,965'",
     "operating_profit: quote replaced by page 133 row 'Operating income C5 10,426 10,834'",
-    "profit_before_tax: model returned null, filled from page 133 row 'Income after financial items 7,300 6,234'",
     "income_tax: quote replaced by page 133 row 'Income taxes C10 -1,467 -1,313'",
     "profit_discontinued: quote replaced by page 133 row 'Net income from discontinued operations C34 -1,543 2,859'",
     "eps_basic: quote replaced by page 133 row 'Earnings per share (SEK), basic and diluted, total C20 0.90 1.80'"

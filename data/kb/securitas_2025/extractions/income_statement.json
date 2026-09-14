@@ -173,13 +173,13 @@
     {
       "key": "eps_basic",
       "label": "EPS, basic",
-      "value": 11.55,
+      "value": 8.93,
       "unit": "SEK",
       "period": "2025",
-      "raw_label": "Earnings per share before and after dilution and before items affecting comparability (SEK)",
+      "raw_label": "Earnings per share before and after dilution (SEK)",
       "source": {
         "page": 106,
-        "quote": "comparability (SEK)1 3 11.55 10.81"
+        "quote": "Earnings per share before and after dilution (SEK) 3 8.93 9.01"
       },
       "confidence": 1.0,
       "evidence": [
@@ -210,5 +210,8 @@
       "detail": "operating margin between 0 and 60% | 0 < 9073 / 155113 < 0.6"
     }
   ],
-  "warnings": []
+  "warnings": [
+    "revenue: 'Sales' 155113 replaced by 'Total sales' 155113",
+    "eps_basic: quote replaced by page 106 row 'Earnings per share before and after dilution (SEK) 3 8.93 9.01'"
+  ]
 }
