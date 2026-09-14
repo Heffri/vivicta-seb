@@ -86,6 +86,10 @@ model copied. Deterministic **repairs** run on that row before scoring, each lea
 - the fetcher checks the issuer, not just the name's first word (Lundin Gold's search returned Lundin Mining's report): the two identifying tokens of the company name must appear in the first 20 pages, and MFN/Nasdaq hits must carry both.
 - alphanumeric note references (Pandox: `Kostnader Hyresavtal C1, C4, C6, C7, G5 –519 –568`) may sit between the quote's tokens like numeric ones, so a two-row quote such as `Kostnader Hyresavtal –519 –568 Kostnader Egen drift –2 728 –2 713` verifies and the field then goes through the derived-sum proof (`value_derived`).
 - a property company has no operating profit row: `Resultat före värdeförändringar` / `förvaltningsresultat` / `income from property management` sit after net financial items and are excluded labels, so the field is dropped (null) rather than reported at 0.9 under the wrong name.
+- a broken fiscal year (Sectra: `2025/2026 2024/2025`) is one column per pair, named by its first year, in the locator's multi-year test and in the year header; a model period `2025/2026` is read as 2025.
+- the locator reads the page heading's years from the raw text as well as the boilerplate-stripped one (Medicover: the "5-year financial summary" title and its bare `2025` / `2024` lines repeat on enough pages to be stripped, which hid the five-year table).
+- the derived-sum proof also tries the rows just above the quote (IPC: the model quoted the `Gross profit` subtotal for the four rows under the `Cost of sales` heading; they sum to it in both columns).
+- units: `€m` / `$m` and `Mkr` / `Mdkr` are recognised as EUR / USD / SEK scales (Medicover, Clas Ohlson).
 
 Swedish space-grouped rows are split by the column count from the year header (`155 054 161 900` is two amounts; no regex can
 tell that from four small numbers), so the repairs only run on pages where that header was found.

@@ -86,7 +86,8 @@
         "hyresintäkter",
         "hyres- och serviceintäkter",
         "net turnover",
-        "turnover"
+        "turnover",
+        "net revenue"
       ],
       "fallback_synonyms": [
         "total operating income",
@@ -151,7 +152,8 @@
         "ebit",
         "rörelseresultat",
         "profit before financial items",
-        "resultat före finansiella poster"
+        "resultat före finansiella poster",
+        "profit before net financial items"
       ],
       "exclude_labels": [
         "before items affecting comparability",
@@ -317,7 +319,9 @@
         "årets resultat efter skatt före och efter utspädning, per aktie",
         "årets resultat före och efter utspädning, per aktie",
         "resultat efter skatt per aktie",
-        "nettoresultat per aktie"
+        "nettoresultat per aktie",
+        "vinst per aktie",
+        "vinst per aktie före utspädning"
       ]
     }
   ],

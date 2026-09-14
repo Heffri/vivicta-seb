@@ -20,6 +20,7 @@ import re
 HEADING_CHARS = 150
 YEARS = re.compile(r"\b20\d\d\b")
 DATE = re.compile(r"\d{1,2}[/.]\d{1,2}[/.]20\d\d|20\d\d-\d\d-\d\d")
+SPLIT_YEAR = re.compile(r"\b(20\d\d)/(?:20)?\d\d\b")  # Sectra "2025/2026 2024/2025": a broken fiscal year is one column, named by its first year
 QUARTER = re.compile(r"\bq[1-4]\b|quarter|kvartal")
 GROUP = re.compile(r"\b(group|koncern|consolidated)")
 ENTITY = re.compile(r"moderbolag|parent")  # exclude_keywords naming the other entity, as opposed to a table type (segment, five-year)
@@ -57,8 +58,9 @@ def candidate_pages(texts: list[str], schema: dict, top_n: int = 8) -> list[int]
         heading = any(k in head for k in keywords)
         fields = sum(s in low for s in synonyms)  # the statement names most of its rows; a currency note or a liabilities table does not
         density = min(sum(c.isdigit() for c in text) / max(len(text), 1), 0.2)  # tables ~0.15-0.3, prose ~0.01; capped so summaries don't win on digits
-        years = YEARS.findall(DATE.sub("", head))  # AQ prints the income statement and comprehensive income side by side, each headed "01/01/2025 31/12/2025 ...": dates, not a multi-year table
-        summary = len(set(years)) >= 3 or len(years) >= 5 or QUARTER.search(head)  # "2023 2022 2021" / "Oct-Dec 2025 Jul-Sep 2025 ...": multi-year or quarterly table
+        raw_head = " ".join(texts[i].lower().split())[:HEADING_CHARS]  # Medicover: the "5-year financial summary" title and its "2025" "2024" lines are on enough pages to be stripped as boilerplate
+        years = [YEARS.findall(SPLIT_YEAR.sub(r"\1", DATE.sub("", h))) for h in (head, raw_head)]  # AQ prints the income statement and comprehensive income side by side, each headed "01/01/2025 31/12/2025 ...": dates, not a multi-year table
+        summary = any(len(set(y)) >= 3 or len(y) >= 5 for y in years) or QUARTER.search(head)  # "2023 2022 2021" / "Oct-Dec 2025 Jul-Sep 2025 ...": multi-year or quarterly table
         group_at = (GROUP.search(head) or re.compile(r"$").search(head)).start()
         parent = any(k in head and (head.index(k) < group_at or not ENTITY.search(k)) for k in excluded)  # Pandox: "KONCERNEN 2024 Rörelsesegment" is a segment note whatever precedes it. Saab SV: parent-company statement outranked the group one;
         penalty = 0.1 if summary or parent else 1  # Vitrolife prints "Group | Parent Company" columns on one page: group first, so not a parent page

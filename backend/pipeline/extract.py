@@ -146,6 +146,8 @@ _SPACE_GROUPS = re.compile(r"(?<![\d,.])\d{1,3}(?:[  ]\d{3})+(?![,.'\d])")  # S
 _FOOTNOTE = re.compile(r"(?<=\d{3})\d\)(?=\s|$)")  # Volvo Cars "Cost of sales 3 -297,0421) -320,821": a footnote marker glued to the amount
 _AMOUNT = re.compile(r"[-(]?(\d{1,3}(?:[ ,.']\d{3})*|\d+)(?:([.,])(\d{1,2}))?\)?")
 
+_SPLIT_YEAR = re.compile(r"\b(20\d\d)/(?:20)?\d\d\b")
+
 
 def _year_column(text: str, fiscal_year) -> tuple[int, int] | None:
     """(position of the fiscal year, number of year columns) from the table's year header ("Note 2024 2025" -> (1, 2)).
@@ -161,6 +163,7 @@ def _year_run(text: str) -> list[str]:
     head = re.sub(r"\b\d{1,2}[/.]\d{1,2}[/.](20\d\d)\s*[-\u2013]\s*\d{1,2}[/.]\d{1,2}[/.](20\d\d)|\b(20\d\d)-\d\d-\d\d\s*[-\u2013]\s*(20\d\d)-\d\d-\d\d",
                   lambda m: m.group(2) or m.group(4), head)  # Catena "01/01/2025 -31/12/2025": the period's end year is the column
     head = re.sub(r"\b\d{1,2}[/.]\d{1,2}[/.](20\d\d)|\b(20\d\d)-\d\d-\d\d", lambda m: m.group(1) or m.group(2), head)  # "31/12/2025", "2025-12-31"
+    head = _SPLIT_YEAR.sub(r"\1", head)  # Sectra "2025/2026 2024/2025": a broken fiscal year is one column, named by its first year
     for m in year.finditer(head):
         run, end = [m.group()], m.end()
         while (n := year.search(head, end)) and n.start() - end <= 12 and not re.search(r"\d", head[end:n.start()]):
@@ -264,8 +267,9 @@ def _row_label(row: str) -> str:
 
 def _ccy(unit) -> str:
     """'MSEK' / 'SEKm' / 'USD m' / 'SEK million' -> 'SEK' / 'USD': the currency without the scale."""
-    c = re.sub(r"(?i)\b(m|mn|mkr|million|millions|thousand|thousands|bn|billion|k|cent|cents|öre)\b|[^A-Za-z]", "", str(unit or "")).upper()
-    c = {"EURO": "EUR", "KR": "SEK", "KRONOR": "SEK"}.get(c, c)  # Hexagon prints EPS in "Euro cent"
+    unit = str(unit or "").translate(_SYMBOLS)  # Medicover "€m"
+    c = re.sub(r"(?i)\b(m|mn|million|millions|thousand|thousands|bn|billion|k|cent|cents|öre)\b|[^A-Za-z]", "", unit).upper()
+    c = {"EURO": "EUR", "KR": "SEK", "KRONOR": "SEK", "MKR": "SEK", "MDKR": "SEK", "TKR": "SEK"}.get(c, c)  # Hexagon prints EPS in "Euro cent"
     if len(c) == 4 and c[0] in "MKT":  # MSEK, KSEK (Paradox), TEUR
         c = c[1:]
     if len(c) == 4 and c[-1] in "MKT":
@@ -273,7 +277,8 @@ def _ccy(unit) -> str:
     return c
 
 
-_UNIT = re.compile(r"\b(?:[MKT](?:SEK|EUR|USD|NOK|DKK|GBP)|[MT]kr|mnkr|mdkr|(?:SEK|EUR|USD|NOK|DKK|GBP|CHF)\s?(?:m|mn|million|millions|thousand|thousands|k|bn|billion))\b", re.I)  # "SEK m", "USD Thousands"
+_SYMBOLS = str.maketrans({"€": "EUR ", "$": "USD ", "£": "GBP "})
+_UNIT = re.compile(r"(?:\b(?:[MKT](?:SEK|EUR|USD|NOK|DKK|GBP)|[MT]kr|mnkr|mdkr|(?:SEK|EUR|USD|NOK|DKK|GBP|CHF)\s?(?:m|mn|million|millions|thousand|thousands|k|bn|billion))|[€$£]\s?(?:m|mn|million|millions|thousand|thousands|k|bn|billion))\b", re.I)  # "SEK m", "USD Thousands", "€m"
 
 
 def _page_unit(text: str):
@@ -362,7 +367,7 @@ def _derived_value(field: dict, texts: list[str], fiscal_year, check: dict | Non
     if not check or others is None:
         return None
     for k in range(2, 9):
-        for start in range(max(i + 1 - k, 0), i + 1):  # the k rows ending at the quote (Catena), or starting at it (IPC)
+        for start in range(max(i - k, 0), i + 1):  # the k rows ending at the quote (Catena), starting at it, or just above it (IPC: the model quoted the "Gross profit" subtotal for the four rows under "Cost of sales")
             parts = [_row_amounts(r, ncols) for r in rows[start:start + k]]
             if len(parts) < k or any(len(a) != ncols for a in parts):
                 continue
@@ -475,7 +480,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
         f = by_key.get(sf["key"]) or {}
         field = {
             "key": sf["key"], "label": sf["label"], "value": _num(f.get("value")),
-            "unit": f.get("unit"), "period": f.get("period"), "raw_label": f.get("raw_label"),
+            "unit": f.get("unit"), "period": _SPLIT_YEAR.sub(lambda m: m.group(1), str(f.get("period"))) if f.get("period") else f.get("period"), "raw_label": f.get("raw_label"),
             "source": f.get("source") or None, "confidence": 0.0, "evidence": [],  # the model's own confidence is ignored, see docs/CONFIDENCE.md
         }
         if field["value"] is None and not field["source"] and pages and fiscal_year:
