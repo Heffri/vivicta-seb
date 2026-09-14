@@ -79,6 +79,7 @@ model copied. Deterministic **repairs** run on that row before scoring, each lea
 - a column-major text layer (Arion Bank: the PDF's text order is all numbers, then all labels): when a page has 12 or more consecutive letterless lines, its text is rebuilt from word positions (baseline grouping, left to right) so `Net interest income 7 52,542 46,302` is one line again. `PARSER_VERSION` is stamped in the knowledge base and a cached report is re-parsed when the version changes.
 - a currency token inside the label (Castellum: `Earnings, SEK per share before and after dilution`, `Rental and service income`) is stripped before the synonym match; `(SEK)` no longer hides the printed label from `exclude_labels`, so `basic and diluted` is guarded explicitly.
 - an optional operand with an unknown label (NCC: `Result from sales of Group companies 20` offered as discontinued operations) is dropped when the identity fails with it and holds with its default (0): profit before tax + tax already equals net profit.
+- a small amount in parentheses or with a minus sign (`Discontinued operations held for sale, net of income tax 18 (19) (37)`, Arion Bank) is an amount, not a note reference: only bare one- and two-digit tokens are note references. The null fill then finds the row.
 
 Swedish space-grouped rows are split by the column count from the year header (`155 054 161 900` is two amounts; no regex can
 tell that from four small numbers), so the repairs only run on pages where that header was found.

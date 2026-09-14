@@ -83,7 +83,9 @@
         "rental and service income",
         "rental income and service income",
         "hyresintäkter",
-        "hyres- och serviceintäkter"
+        "hyres- och serviceintäkter",
+        "net turnover",
+        "turnover"
       ],
       "fallback_synonyms": [
         "total operating income",
