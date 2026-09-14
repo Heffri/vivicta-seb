@@ -1,4 +1,4 @@
-import type { Extraction, Report, Schema } from './types'
+import type { Extraction, LibraryEntry, Report, Schema } from './types'
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init)
@@ -21,6 +21,15 @@ export function uploadReport(file: File) {
   return request<Report>('/api/reports', { method: 'POST', body })
 }
 
+export const getLibrary = () => request<LibraryEntry[]>('/api/library')
+
+export const registerLibraryReport = (file: string) =>
+  request<Report>('/api/reports/from-library', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ file }),
+  })
+
 export const extractSection = (reportId: string, section: string) =>
   request<Extraction>(`/api/reports/${reportId}/extract`, {
     method: 'POST',
@@ -30,3 +39,5 @@ export const extractSection = (reportId: string, section: string) =>
 
 export const pageUrl = (reportId: string, page: number) => `/api/reports/${reportId}/pages/${page}.png`
 export const csvUrl = (reportId: string) => `/api/reports/${reportId}/extraction.csv`
+export const pdfUrl = (reportId: string, page?: number) =>
+  `/api/reports/${reportId}/pdf${page ? `#page=${page}` : ''}`

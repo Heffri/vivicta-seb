@@ -1,6 +1,5 @@
 # data
-data/reports/*
-!data/reports/.gitkeep
+data/reports/*.pdf
 backend/uploads/
 
 # python

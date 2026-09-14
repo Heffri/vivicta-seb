@@ -1,0 +1,56 @@
+[
+  {
+    "file": "atlas_copco_2025.pdf",
+    "company": "Atlas Copco",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://www.atlascopcogroup.com/content/dam/atlas-copco/group/documents/investors/financial-publications/english/20260320-annual-report-2025-incl-sustainability-report-and-corporate-governance-report-copy-of-the-official-ESEF-format.pdf",
+    "tags": ["wallenberg", "industrials"],
+    "note": null
+  },
+  {
+    "file": "investor_2025.pdf",
+    "company": "Investor AB",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://www.investorab.com/media/mjzjnq4d/investor_ar25_eng.pdf",
+    "tags": ["wallenberg", "investment"],
+    "note": "investment company — income-statement checks fail by design"
+  },
+  {
+    "file": "saab_2025.pdf",
+    "company": "Saab",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://www.saab.com/globalassets/corporate/corporate-governance/annual-general-meeting/2026/en-post/appendix-4a---annual-and-sustainability-report-2025_new.pdf",
+    "tags": ["wallenberg", "defence"],
+    "note": "image-only PDF, no text layer — extraction returns nothing until OCR lands"
+  },
+  {
+    "file": "saab_2025_sv.pdf",
+    "company": "Saab (svenska)",
+    "fiscal_year": 2025,
+    "language": "sv",
+    "source_url": "https://www.saab.com/globalassets/corporate/corporate-governance/annual-general-meeting/2026/sv-post/bilaga-4a---saab-ars--och-hallbarhetsredovisning-2025.pdf",
+    "tags": ["wallenberg", "defence"],
+    "note": null
+  },
+  {
+    "file": "seb_2025.pdf",
+    "company": "SEB",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://webapp.sebgroup.com/mb/mblib.nsf/alldocsbyunid/1C740093062958DDC1258DAE003DFAF7/$FILE/SEB_Annual_Report_2025_ENG.pdf",
+    "tags": ["wallenberg", "banks"],
+    "note": "bank — needs its own schema, income_statement is a poor fit"
+  },
+  {
+    "file": "skf_2025.pdf",
+    "company": "SKF",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://cdn.skfmediahub.skf.com/api/public/096ee325b273e74a/pdf_preview_medium/SKF_ASR_2025_ENG_locked_pdf_preview_medium.pdf",
+    "tags": ["wallenberg", "industrials"],
+    "note": null
+  }
+]

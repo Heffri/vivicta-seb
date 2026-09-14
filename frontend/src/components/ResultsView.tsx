@@ -1,23 +1,23 @@
-import { Check, Download, ImageOff, TriangleAlert, X } from 'lucide-react'
+import { ArrowLeft, Check, Download, ExternalLink, ImageOff, TriangleAlert, X } from 'lucide-react'
 import { useState } from 'react'
-import { csvUrl, pageUrl } from '@/api'
+import { csvUrl, pageUrl, pdfUrl } from '@/api'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { Extraction, Field } from '@/types'
 
-type Props = { extraction: Extraction; sectionTitle: string; onReset: () => void }
+type Props = { extraction: Extraction; sectionTitle: string; onReset: () => void; onBack?: () => void }
 
 // 152340 → "152 340" (thin space U+2009), sign kept, decimals as-is, null → em dash.
-const fmtValue = (v: Field['value']) =>
+export const fmtValue = (v: Field['value']) =>
   v === null
     ? '—'
     : typeof v === 'number'
       ? v.toLocaleString('en-US', { maximumFractionDigits: 6 }).replaceAll(',', ' ')
       : v
 
-const confidenceClass = (c: number) =>
+export const confidenceClass = (c: number) =>
   c >= 0.9
     ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
     : c >= 0.7
@@ -26,10 +26,30 @@ const confidenceClass = (c: number) =>
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
-export function ResultsView({ extraction, sectionTitle, onReset }: Props) {
+// Provenance viewer: browser PDF viewer (scroll/zoom/search/select for free) or the rendered PNG as fallback.
+type Viewer = 'pdf' | 'image'
+const VIEWER_KEY = 'provenance-viewer'
+const loadViewer = (): Viewer => {
+  try {
+    return localStorage.getItem(VIEWER_KEY) === 'image' ? 'image' : 'pdf'
+  } catch {
+    return 'pdf'
+  }
+}
+
+export function ResultsView({ extraction, sectionTitle, onReset, onBack }: Props) {
   const { report_id, company, fiscal_year, currency, section, fields, checks, warnings } = extraction
   const [selectedKey, setSelectedKey] = useState<string | null>(() => fields.find((f) => f.source)?.key ?? null)
   const [brokenPage, setBrokenPage] = useState<number | null>(null)
+  const [viewer, setViewerState] = useState<Viewer>(loadViewer)
+  const setViewer = (v: Viewer) => {
+    setViewerState(v)
+    try {
+      localStorage.setItem(VIEWER_KEY, v)
+    } catch {
+      /* private mode etc. — preference just won't stick */
+    }
+  }
 
   const selected = fields.find((f) => f.key === selectedKey) ?? null
   const warningFor = (f: Field) => warnings.find((w) => w.startsWith(f.key + ':'))
@@ -51,7 +71,13 @@ export function ResultsView({ extraction, sectionTitle, onReset }: Props) {
       {/* Top bar */}
       <header className="flex flex-wrap items-start justify-between gap-4 border-b pb-5">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Annual Report Parser</p>
+          {onBack ? (
+            <Button variant="link" size="xs" className="-ml-2 h-auto p-0 text-xs" onClick={onBack}>
+              <ArrowLeft /> Back to comparison
+            </Button>
+          ) : (
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Annual Report Parser</p>
+          )}
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">{company ?? 'Unknown company'}</h1>
           <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
             <span>{sectionTitle}</span>
@@ -195,10 +221,31 @@ export function ResultsView({ extraction, sectionTitle, onReset }: Props) {
         {/* Right: provenance */}
         <Card className="self-start lg:sticky lg:top-6">
           <CardHeader>
-            <CardTitle className="flex items-baseline justify-between">
+            <CardTitle className="flex items-center justify-between gap-2">
               <span>Source</span>
               {selected?.source && (
-                <span className="text-sm font-normal text-muted-foreground">Page {selected.source.page}</span>
+                <span className="flex items-center gap-1.5 text-sm font-normal text-muted-foreground">
+                  <span className="mr-1">Page {selected.source.page}</span>
+                  {(['pdf', 'image'] as const).map((v) => (
+                    <Button
+                      key={v}
+                      size="xs"
+                      variant={viewer === v ? 'default' : 'outline'}
+                      aria-pressed={viewer === v}
+                      onClick={() => setViewer(v)}
+                    >
+                      {v === 'pdf' ? 'PDF' : 'Image'}
+                    </Button>
+                  ))}
+                  <a
+                    href={pdfUrl(report_id, selected.source.page)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={buttonVariants({ size: 'xs', variant: 'ghost' })}
+                  >
+                    Open PDF <ExternalLink />
+                  </a>
+                </span>
               )}
             </CardTitle>
           </CardHeader>
@@ -209,7 +256,17 @@ export function ResultsView({ extraction, sectionTitle, onReset }: Props) {
               <p className="text-sm text-muted-foreground">No source — value not found.</p>
             ) : (
               <>
-                {brokenPage === selected.source.page ? (
+                {viewer === 'pdf' ? (
+                  // ponytail: key={page} remounts the iframe — swapping only the #page= hash on the same src doesn't
+                  // reliably navigate in Chromium. PDF is browser-cached after the first load; pdf.js is the upgrade if
+                  // the remount flicker ever annoys.
+                  <iframe
+                    key={selected.source.page}
+                    src={pdfUrl(report_id, selected.source.page)}
+                    title={`Page ${selected.source.page} of the report`}
+                    className="h-[70vh] w-full rounded border bg-white"
+                  />
+                ) : brokenPage === selected.source.page ? (
                   <div className="flex aspect-[1/1.3] flex-col items-center justify-center gap-2 rounded-md border bg-muted/40 text-sm text-muted-foreground">
                     <ImageOff className="size-5" />
                     Page preview unavailable

@@ -1,30 +1,39 @@
 import { useState } from 'react'
+import { CompareView } from './components/CompareView'
 import { ResultsView } from './components/ResultsView'
 import { UploadView } from './components/UploadView'
-import type { Extraction } from './types'
-
-type Result = { extraction: Extraction; sectionTitle: string }
+import type { Result } from './types'
 
 export default function App() {
-  const [view, setView] = useState<'upload' | 'results'>('upload')
-  const [result, setResult] = useState<Result | null>(null)
+  const [results, setResults] = useState<Result[]>([])
+  const [detail, setDetail] = useState<number | null>(null) // index into results when drilling down from compare
+  const reset = () => {
+    setResults([])
+    setDetail(null)
+  }
 
+  const single = results.length === 1 ? results[0] : null
+  const shown = single ?? (detail !== null ? results[detail] : null)
+
+  if (shown?.extraction) {
+    return (
+      <main className="mx-auto max-w-6xl px-6 py-10">
+        <ResultsView
+          key={shown.extraction.report_id}
+          extraction={shown.extraction}
+          sectionTitle={shown.sectionTitle}
+          onReset={reset}
+          onBack={single ? undefined : () => setDetail(null)}
+        />
+      </main>
+    )
+  }
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
-      {view === 'results' && result ? (
-        <ResultsView
-          key={result.extraction.report_id}
-          extraction={result.extraction}
-          sectionTitle={result.sectionTitle}
-          onReset={() => setView('upload')}
-        />
+      {results.length > 1 ? (
+        <CompareView results={results} onSelect={setDetail} onReset={reset} />
       ) : (
-        <UploadView
-          onDone={(extraction, sectionTitle) => {
-            setResult({ extraction, sectionTitle })
-            setView('results')
-          }}
-        />
+        <UploadView onDone={setResults} />
       )}
     </main>
   )

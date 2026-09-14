@@ -16,7 +16,7 @@ backend/    FastAPI + PyMuPDF + OpenAI-compatible LLM client (Ollama locally)   
 frontend/   Vite + React 19 + Tailwind 4 + shadcn/ui                            ← Sebastijan
 eval/       labels.csv + run.py → accuracy number                               ← Sara
 docs/       API contract, challenge notes, prep for SEB meetings
-data/reports/  put annual-report PDFs here (gitignored)
+data/reports/  bundled annual reports: index.json committed, PDFs gitignored -> `python data/fetch.py`
 ```
 
 The handshake between frontend and backend is [`docs/API.md`](docs/API.md). Change it there first.
@@ -33,6 +33,9 @@ pip install -r requirements.txt
 cp .env.example .env               # leave LLM_BASE_URL unset → returns the fixture (UI dev mode)
 uvicorn app:app --reload --port 8000
 ```
+
+Reports (once): `python data/fetch.py` downloads the six bundled annual reports listed in `data/reports/index.json`
+(Atlas Copco, Investor, Saab en/sv, SEB, SKF — ~130 MB). They show up in `GET /api/library` and in the UI's library picker.
 
 Frontend (terminal 2):
 

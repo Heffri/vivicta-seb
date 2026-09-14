@@ -11,7 +11,7 @@ import pymupdf
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
 from pipeline import extract as extract_mod, locate, parse
@@ -21,6 +21,7 @@ HERE = Path(__file__).parent
 UPLOADS = HERE / "uploads"
 UPLOADS.mkdir(exist_ok=True)
 SCHEMAS = HERE / "schemas"
+LIBRARY = HERE.parent / "data" / "reports"  # bundled reports; index.json is committed, PDFs via `python data/fetch.py`
 FIXTURE = HERE / "fixtures" / "sample_extraction.json"
 CSV_HEADER = "report_id,company,fiscal_year,section,key,label,value,unit,period,raw_label,page,quote,confidence".split(",")
 
@@ -29,14 +30,33 @@ app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http
 
 reports: dict[str, dict] = {}      # ponytail: in-memory, add sqlite if restarts must survive
 extractions: dict[str, dict] = {}  # report_id -> last Extraction
+library_paths: dict[str, Path] = {}  # report_id -> PDF in data/reports/ (library reports are served in place, not copied)
+library_pages: dict[str, int] = {}   # file -> page_count, for GET /api/library
+texts_cache: dict[str, list[str]] = {}  # ponytail: page texts per report, unbounded; Saab is 231 pages, fine for a demo
 
 
 class ExtractBody(BaseModel):
     section: str
 
 
+class LibraryBody(BaseModel):
+    file: str
+
+
 def pdf_path(report_id: str) -> Path:
-    return UPLOADS / f"{report_id}.pdf"
+    return library_paths.get(report_id) or UPLOADS / f"{report_id}.pdf"
+
+
+def report_texts(report_id: str) -> list[str]:
+    if report_id not in texts_cache:
+        texts_cache[report_id] = parse.page_texts(pdf_path(report_id))
+    return texts_cache[report_id]
+
+
+def library_index() -> list[dict]:
+    """index.json entries whose PDF is actually on disk."""
+    entries = json.loads((LIBRARY / "index.json").read_text(encoding="utf-8"))
+    return [e for e in entries if (LIBRARY / e["file"]).exists()]
 
 
 def get_report(report_id: str) -> dict:
@@ -79,15 +99,45 @@ async def upload_report(file: UploadFile = File(...)):
         raise HTTPException(400, "file is not a readable PDF")
     report_id = uuid.uuid4().hex[:12]
     pdf_path(report_id).write_bytes(data)
-    texts = parse.page_texts(pdf_path(report_id))
+    texts = report_texts(report_id)
     company, fiscal_year = guess_meta(texts)
     reports[report_id] = {"report_id": report_id, "filename": file.filename or "upload.pdf", "pages": len(texts), "company": company, "fiscal_year": fiscal_year}
+    return reports[report_id]
+
+
+@app.get("/api/library")
+def list_library():
+    out = []
+    for e in library_index():
+        if e["file"] not in library_pages:
+            with pymupdf.open(LIBRARY / e["file"]) as doc:
+                library_pages[e["file"]] = doc.page_count
+        out.append(e | {"pages": library_pages[e["file"]]})
+    return out
+
+
+@app.post("/api/reports/from-library")
+def report_from_library(body: LibraryBody):
+    entry = next((e for e in library_index() if e["file"] == body.file), None)
+    if not entry or "/" in body.file or "\\" in body.file:  # trust boundary: index basenames only, never a path
+        raise HTTPException(404, f"not in library: {body.file!r}; see GET /api/library")
+    report_id = "lib-" + Path(body.file).stem  # deterministic: same file twice = same report
+    if report_id not in reports:
+        library_paths[report_id] = LIBRARY / body.file
+        reports[report_id] = {"report_id": report_id, "filename": body.file, "pages": len(report_texts(report_id)),
+                              "company": entry["company"], "fiscal_year": entry["fiscal_year"]}  # curated beats guess_meta
     return reports[report_id]
 
 
 @app.get("/api/reports/{report_id}")
 def read_report(report_id: str):
     return get_report(report_id)
+
+
+@app.get("/api/reports/{report_id}/pdf")
+def report_pdf(report_id: str):
+    report = get_report(report_id)  # FileResponse handles Range, so the browser viewer can seek
+    return FileResponse(pdf_path(report_id), media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{report["filename"]}"'})
 
 
 @app.get("/api/reports/{report_id}/pages/{n}.png")
@@ -107,7 +157,7 @@ def run_extract(report_id: str, body: ExtractBody):
     if not os.getenv("LLM_BASE_URL"):  # frontend dev mode: no model configured
         result = json.loads(FIXTURE.read_text(encoding="utf-8")) | {"report_id": report_id}
     else:
-        texts = parse.page_texts(pdf_path(report_id))  # ponytail: re-parsed per call; cache if reports get huge
+        texts = report_texts(report_id)
         pages = locate.candidate_pages(texts, schema)
         print(f"[extract] {report_id} {body.section}: candidate pages {pages}")
         result = extract_mod.extract(texts, pages, schema, report)

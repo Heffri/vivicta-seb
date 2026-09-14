@@ -8,6 +8,17 @@ export type Report = {
   fiscal_year?: number | null;
 };
 
+export type LibraryEntry = {
+  file: string;             // basename in data/reports/, e.g. "atlas_copco_2025.pdf"; key for from-library
+  company: string;          // display name, curated in data/reports/index.json
+  fiscal_year: number;
+  language: 'en' | 'sv';
+  pages: number;
+  source_url: string | null;
+  tags: string[];           // collections, e.g. ["wallenberg", "industrials"]; UI offers each tag as a one-click set
+  note?: string | null;     // e.g. "image-only PDF, no text layer"
+};
+
 export type Source = {
   page: number;             // 1-based page in the uploaded PDF
   quote: string;            // verbatim text from that page that supports the value
@@ -46,4 +57,12 @@ export type Schema = {
   name: string;             // used in POST /extract { section }
   title: string;
   description?: string;
+};
+
+// Frontend-only: one queued report after extraction. Exactly one of extraction / error is set.
+export type Result = {
+  label: string;            // company display name (library) or filename (upload)
+  sectionTitle: string;
+  extraction?: Extraction;
+  error?: string;
 };

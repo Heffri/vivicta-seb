@@ -1,14 +1,13 @@
 import { FileText, Loader2, UploadCloud } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { extractSection, getSchemas, uploadReport } from '@/api'
+import { extractSection, getLibrary, getSchemas, registerLibraryReport, uploadReport } from '@/api'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import type { Extraction, Schema } from '@/types'
+import type { LibraryEntry, Report, Result, Schema } from '@/types'
 
-type Props = { onDone: (extraction: Extraction, sectionTitle: string) => void }
-
-type Status = { step: 'idle' } | { step: 'uploading' } | { step: 'extracting'; pages: number }
+type Props = { onDone: (results: Result[]) => void }
 
 const fmtSize = (bytes: number) =>
   bytes < 1_000_000 ? `${Math.round(bytes / 1000)} kB` : `${(bytes / 1_000_000).toFixed(1)} MB`
@@ -17,9 +16,12 @@ export function UploadView({ onDone }: Props) {
   const [schemas, setSchemas] = useState<Schema[]>([])
   const [schemasError, setSchemasError] = useState<string | null>(null)
   const [section, setSection] = useState<string | null>(null)
+  const [library, setLibrary] = useState<LibraryEntry[]>([])
+  const [libraryError, setLibraryError] = useState<string | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set()) // LibraryEntry.file
   const [file, setFile] = useState<File | null>(null)
   const [dragging, setDragging] = useState(false)
-  const [status, setStatus] = useState<Status>({ step: 'idle' })
+  const [progress, setProgress] = useState<string | null>(null) // non-null = busy
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -29,6 +31,9 @@ export function UploadView({ onDone }: Props) {
         setSection(list[0]?.name ?? null)
       })
       .catch((e: Error) => setSchemasError(e.message))
+    getLibrary()
+      .then(setLibrary)
+      .catch((e: Error) => setLibraryError(e.message))
   }, [])
 
   const pickFile = (f: File | undefined) => {
@@ -41,26 +46,61 @@ export function UploadView({ onDone }: Props) {
     setFile(f)
   }
 
-  const busy = status.step !== 'idle'
-  const canExtract = !!file && !!section && !busy
+  const tags = [...new Set(library.flatMap((e) => e.tags))].sort()
+  const allSelected = (files: string[]) => files.length > 0 && files.every((f) => selected.has(f))
+  // Chip semantics: all of the tag already selected → deselect them, otherwise select them.
+  const toggleAll = (files: string[]) =>
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (allSelected(files)) files.forEach((f) => next.delete(f))
+      else files.forEach((f) => next.add(f))
+      return next
+    })
+  const toggleOne = (f: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (!next.delete(f)) next.add(f)
+      return next
+    })
+
+  const busy = progress !== null
+  const count = selected.size + (file ? 1 : 0)
+  const canExtract = count > 0 && !!section && !busy
 
   const run = async () => {
-    if (!file || !section) return
+    if (!section) return
     setError(null)
-    try {
-      setStatus({ step: 'uploading' })
-      const report = await uploadReport(file)
-      setStatus({ step: 'extracting', pages: report.pages })
-      const extraction = await extractSection(report.report_id, section)
-      onDone(extraction, schemas.find((s) => s.name === section)?.title ?? section)
-    } catch (e) {
-      setError((e as Error).message)
-      setStatus({ step: 'idle' })
+    const sectionTitle = schemas.find((s) => s.name === section)?.title ?? section
+    // Queue = selected library entries (library order) + the uploaded file. Sequential on purpose: the local LLM
+    // is one GPU, parallel requests would only queue there and we'd lose the per-report progress line.
+    const queue = [
+      ...library
+        .filter((e) => selected.has(e.file))
+        .map((e) => ({ label: e.company, getReport: () => registerLibraryReport(e.file) })),
+      ...(file ? [{ label: file.name, getReport: () => uploadReport(file) }] : []),
+    ] satisfies { label: string; getReport: () => Promise<Report> }[]
+    const results: Result[] = []
+    for (const [i, item] of queue.entries()) {
+      const n = `(${i + 1}/${queue.length})`
+      try {
+        setProgress(`Preparing ${item.label} ${n}…`)
+        const report = await item.getReport()
+        setProgress(`Extracting ${item.label} ${n}… about a minute per report with a local model.`)
+        const extraction = await extractSection(report.report_id, section)
+        // Library entries keep the curated name; the upload gets whatever the backend/LLM guessed.
+        const label = item.label === file?.name ? (extraction.company ?? report.company ?? item.label) : item.label
+        results.push({ label, sectionTitle, extraction })
+      } catch (e) {
+        results.push({ label: item.label, sectionTitle, error: (e as Error).message })
+      }
     }
+    setProgress(null)
+    if (results.every((r) => r.error)) setError(results.map((r) => `${r.label}: ${r.error}`).join('\n'))
+    else onDone(results)
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-3xl">
       <header className="mb-8">
         <h1 className="text-2xl font-semibold tracking-tight">Annual Report Parser</h1>
         <p className="mt-1 text-sm text-muted-foreground">PDF in → structured, source-linked data out</p>
@@ -68,6 +108,84 @@ export function UploadView({ onDone }: Props) {
 
       <Card>
         <CardContent className="space-y-6">
+          {/* Library picker: chips = tag collections, grid = individual reports. */}
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <span className="text-sm font-medium">Companies</span>
+              {library.length > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  {selected.size} of {library.length} selected
+                </span>
+              )}
+            </div>
+            {libraryError ? (
+              <p className="text-xs text-muted-foreground">Bundled library unavailable ({libraryError}).</p>
+            ) : library.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                No bundled reports on disk — run <code>python data/fetch.py</code>, or upload a PDF below.
+              </p>
+            ) : (
+              <>
+                <div className="flex flex-wrap gap-1.5">
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => setSelected(new Set(library.map((e) => e.file)))}
+                  >
+                    All
+                  </Button>
+                  <Button size="xs" variant="outline" disabled={busy} onClick={() => setSelected(new Set())}>
+                    None
+                  </Button>
+                  {tags.map((t) => {
+                    const files = library.filter((e) => e.tags.includes(t)).map((e) => e.file)
+                    return (
+                      <Button
+                        key={t}
+                        size="xs"
+                        variant={allSelected(files) ? 'default' : 'outline'}
+                        disabled={busy}
+                        onClick={() => toggleAll(files)}
+                      >
+                        {t}
+                      </Button>
+                    )
+                  })}
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {library.map((e) => (
+                    <label
+                      key={e.file}
+                      className={`flex cursor-pointer gap-3 rounded-lg border p-3 text-sm transition-colors hover:bg-muted/50 ${
+                        selected.has(e.file) ? 'border-primary bg-primary/5' : ''
+                      } ${busy ? 'pointer-events-none opacity-60' : ''}`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 accent-primary"
+                        checked={selected.has(e.file)}
+                        disabled={busy}
+                        onChange={() => toggleOne(e.file)}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-medium">{e.company}</span>
+                          <span className="text-muted-foreground">FY {e.fiscal_year}</span>
+                          <Badge variant="secondary" className="uppercase">
+                            {e.language}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">{e.pages} p</span>
+                        </span>
+                        {e.note && <span className="mt-0.5 block text-xs text-muted-foreground">{e.note}</span>}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
           {/* Dropzone. The <label> makes the whole area click-to-open the hidden input. */}
           <label
             htmlFor="pdf"
@@ -82,7 +200,7 @@ export function UploadView({ onDone }: Props) {
               pickFile(e.dataTransfer.files[0])
             }}
             className={[
-              'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-6 py-12 text-center transition-colors',
+              'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-6 py-8 text-center transition-colors',
               dragging ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50',
               busy ? 'pointer-events-none opacity-60' : '',
             ].join(' ')}
@@ -96,8 +214,8 @@ export function UploadView({ onDone }: Props) {
             ) : (
               <>
                 <UploadCloud className="size-6 text-muted-foreground" />
-                <span className="text-sm font-medium">Drop an annual report PDF here</span>
-                <span className="text-xs text-muted-foreground">or click to browse</span>
+                <span className="text-sm font-medium">…or upload your own annual report PDF</span>
+                <span className="text-xs text-muted-foreground">drop it here or click to browse</span>
               </>
             )}
             <input
@@ -141,18 +259,16 @@ export function UploadView({ onDone }: Props) {
           <div className="flex items-center gap-4">
             <Button onClick={run} disabled={!canExtract}>
               {busy && <Loader2 className="animate-spin" />}
-              Extract
+              {count > 1 ? `Extract ${count} reports` : 'Extract'}
             </Button>
-            {status.step === 'uploading' && <span className="text-sm text-muted-foreground">Uploading…</span>}
-            {status.step === 'extracting' && (
-              <span className="text-sm text-muted-foreground">
-                Reading {status.pages} pages… this can take about a minute with a local model.
-              </span>
-            )}
+            {progress && <span className="text-sm text-muted-foreground">{progress}</span>}
           </div>
 
           {error && (
-            <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            <p
+              role="alert"
+              className="whitespace-pre-wrap rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+            >
               {error}
             </p>
           )}
