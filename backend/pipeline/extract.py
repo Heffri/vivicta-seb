@@ -151,7 +151,7 @@ WEIGHTS = {"quote_on_page": 0.35, "value_in_quote": 0.20, "arith_ok": 0.20, "lab
 
 
 _DASHES = str.maketrans({"–": "-", "−": "-", " ": " "})
-_SPACE_GROUPS = re.compile(r"(?<![\d,.])\d{1,3}(?:[  ]\d{3})+(?![,.'\d])")  # Swedish thousands; "7 176,658" (note ref + number) and "1,051 969" (two columns) stay apart
+_SPACE_GROUPS = re.compile(r"(?<![\d,.])\d{1,3}(?:[  ]\d{3})+(?![.'\d]|,\d{3})")  # Clas Ohlson "1 478,6" is 1478.6; only a 3-digit tail after the comma is a thousands group  # Swedish thousands; "7 176,658" (note ref + number) and "1,051 969" (two columns) stay apart
 _FOOTNOTE = re.compile(r"(?<=\d{3})\d\)(?=\s|$)")  # Volvo Cars "Cost of sales 3 -297,0421) -320,821": a footnote marker glued to the amount
 _AMOUNT = re.compile(r"[-(]?(\d{1,3}(?:[ ,.']\d{3})*|\d+)(?:([.,])(\d{1,4}))?\)?")  # Asmodee prints EPS to four decimals: 0.1186
 
@@ -173,6 +173,7 @@ def _year_run(text: str) -> list[str]:
     head = re.sub(r"\b\d{1,2}[/.]\d{1,2}[/.](20\d\d)\s*[-\u2013]\s*\d{1,2}[/.]\d{1,2}[/.](20\d\d)|\b(20\d\d)-\d\d-\d\d\s*[-\u2013]\s*(20\d\d)-\d\d-\d\d",
                   lambda m: m.group(2) or m.group(4), head)  # Catena "01/01/2025 -31/12/2025": the period's end year is the column
     head = re.sub(r"\b\d{1,2}[/.]\d{1,2}[/.](20\d\d)|\b(20\d\d)-\d\d-\d\d", lambda m: m.group(1) or m.group(2), head)  # "31/12/2025", "2025-12-31"
+    head = re.sub(r"\b(\d\d)(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\s*[-\u2013\u2212]\s*\d{6}\b", lambda m: "20" + m.group(1), head)  # Clas Ohlson "250501 − 260430": YYMMDD range, fiscal 2025
     head = _MONTH_RANGE.sub(lambda m: "20" + m.group(1)[-2:], head)  # Asmodee "Apr 25-Mar 26 Apr 24-Mar 25": a broken fiscal year named by its first year
     head = _SPLIT_YEAR.sub(r"\1", head)  # Sectra "2025/2026 2024/2025": a broken fiscal year is one column, named by its first year
     for m in year.finditer(head):
@@ -225,7 +226,7 @@ def _row_amounts(quote: str, ncols: int | None = None) -> list:
     if re.search(r"\d\.\d{1,2}\b|\d,\d{3}\b", q):  # "." is the decimal here, so "6,12" is a note reference, not 6.12
         toks = [t for t in toks if not re.fullmatch(r"\d{1,2},\d{1,2}", t)]
     last_alpha = max((i for i, t in enumerate(toks) if re.search(r"[^\W\d_]", t)), default=-1)
-    out, noteish = [], []  # noteish: a bare one- or two-digit token; "6" / "12" is a note reference, "(19)" / "-19" (Arion) is an amount
+    out, noteish, small = [], [], []  # noteish: a bare one- or two-digit token; "6" / "12" is a note reference, "(19)" / "-19" (Arion) is an amount
     for t in toks[last_alpha + 1:]:
         t = t.rstrip(",;")
         if t == "-":  # Volvo "Income taxes 10 -11,669 -15,542 -1,016 -1,092 – – -12,685 -16,634": the eliminations columns are nil
@@ -239,9 +240,12 @@ def _row_amounts(quote: str, ncols: int | None = None) -> list:
         v = -v if t[0] in "-(" else v
         out.append(int(v) if float(v).is_integer() else round(v, 4))
         noteish.append(len(re.sub(r"\D", "", t)) < 3 and not m.group(3) and t[0].isdigit())
+        small.append(len(re.sub(r"\D", "", t)) < 3 and t[0].isdigit())
     if ncols:  # note references sit between the label and the amounts; after an amount a small number is a column
         while out and noteish[0]:  # Vitrolife "Net sales 4, 5 3,440 3,609 15 25": the parent company's 15 and 25 are amounts
-            out, noteish = out[1:], noteish[1:]
+            out, noteish, small = out[1:], noteish[1:], small[1:]
+        while len(out) > ncols and small[0]:  # Clas Ohlson "Nettoomsättning 2,3 12 513,9 11 626,7": "2,3" is notes 2 and 3 once the columns are full
+            out, small = out[1:], small[1:]
         return out
     return [v for v, n in zip(out, noteish) if not n]
 
@@ -292,7 +296,7 @@ _CCY = re.compile(r"(?<![A-Za-z])(?:[MTk]|Mdr?)?(?:SEK|EUR|USD|NOK|DKK|GBP|CHF|I
 def _ccy(unit) -> str:
     """'MSEK' / 'SEKm' / 'USD m' / 'SEK million' -> 'SEK' / 'USD': the currency without the scale."""
     unit = str(unit or "").translate(_SYMBOLS)  # Medicover "€m"
-    c = re.sub(r"(?i)\b(m|mn|million|millions|thousand|thousands|bn|billion|k|cent|cents|öre)\b|[^A-Za-z]", "", unit).upper()
+    c = re.sub(r"(?i)\b(m|mn|million|millions|thousand|thousands|bn|billion|k|cent|cents|öre|in|i)\b|[^A-Za-z]", "", unit).upper()  # Alvotech "USD in thousands"
     c = {"EURO": "EUR", "KR": "SEK", "KRONOR": "SEK", "MKR": "SEK", "MDKR": "SEK", "TKR": "SEK"}.get(c, c)  # Hexagon prints EPS in "Euro cent"
     if len(c) == 4 and c[0] in "MKT":  # MSEK, KSEK (Paradox), TEUR
         c = c[1:]
@@ -739,7 +743,10 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                     or "value_derived" in f["evidence"] or (c["passed"] and _value_in_quote(f["value"], f["source"]["quote"])):
                 continue
             taken = {g["source"]["quote"] for g in fields if g is not f and g["value"] is not None and g.get("source")}  # Nordea: tax row + net profit row offered as net profit
-            fix = _derived_value(f, texts, fiscal_year, sc, _column_values(f, fields, defaults, texts, fiscal_year), taken)
+            own_row = _value_in_quote(f["value"], f["source"]["quote"]) and _clean_label(_row_label(f["source"]["quote"])) in {x.lower() for x in sf.get("synonyms", [])}                 and _clean_label(f.get("raw_label")) == _clean_label(_row_label(f["source"]["quote"]))  # IPC: "Cost of sales" heading over a "Production costs" row is not the row
+            # Sagax: "Profit before tax 4,485" is the row; it may be corrected by the rows above it summing differently (Röko), never extended
+            # by a neighbour ("Profit before tax + Deferred tax") -- the failing identity is the tax row's problem (current tax only)
+            fix = _derived_value(f, texts, fiscal_year, None if own_row else sc, _column_values(f, fields, defaults, texts, fiscal_year), taken)
             if fix and _check(sc, {**defaults, **values, f["key"]: fix[0]})["passed"]:
                 if fix[0] != f["value"]:
                     warnings.append(f"{f['key']}: {f['value']} fails {c['name']}; {fix[1]!r} sums to {fix[0]} in every column, which passes")

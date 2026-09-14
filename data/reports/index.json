@@ -892,5 +892,45 @@
     "tags": ["fetched"],
     "note": null,
     "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "bonesupport_holding_2025.pdf",
+    "company": "BONESUPPORT HOLDING",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/f2a17bd7-b949-420a-818f-a4ae9f5f365c/bonesupport-2025-en.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "lundin_mining_corporation_2025.pdf",
+    "company": "Lundin Mining Corporation",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://attachment.news.eu.nasdaq.com/ad9015123db6e6e2fe47a146602125058",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "sagax_2025.pdf",
+    "company": "Sagax",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/9de2598b-ff45-49f2-8ceb-9ea77d378d6f/annual-report-2025.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "alvotech_2025.pdf",
+    "company": "Alvotech",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://ml-eu.globenewswire.com/Resource/Download/d923a562-18d2-4858-b4af-1e9cfa02f26f",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
   }
 ]

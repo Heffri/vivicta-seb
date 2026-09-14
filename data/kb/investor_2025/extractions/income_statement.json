@@ -200,6 +200,6 @@
     }
   ],
   "warnings": [
-    "gross_profit: 'Net sales' 31007 dropped: the same row as revenue, and not a gross profit label"
+    "gross_profit: 31007 is printed on none of pages [121, 122]; dropped as computed, not read"
   ]
 }

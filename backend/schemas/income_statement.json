@@ -14,6 +14,11 @@
     "statement of income",
     "consolidated statement of income",
     "statement of profit or loss",
+    "statements of profit or loss",
+    "statement of earnings",
+    "statements of earnings",
+    "statement of operations",
+    "statements of operations",
     "koncernens resultaträkning",
     "rapport över resultat",
     "resultaträkning",
@@ -83,6 +88,7 @@
         "rental income",
         "rental and service income",
         "rental income and service income",
+        "rental revenue",
         "hyresintäkter",
         "hyres- och serviceintäkter",
         "net turnover",
@@ -261,6 +267,10 @@
         "net profit, discontinued operations",
         "profit, discontinued operations",
         "net profit from discontinued operations",
+        "net earnings from discontinued operations",
+        "earnings from discontinued operations",
+        "net income from discontinued operations",
+        "income from discontinued operations",
         "result from discontinued operations",
         "profit for the year from discontinued operations",
         "profit for the period, discontinued operations",
@@ -336,7 +346,11 @@
         "resultat efter skatt per aktie",
         "nettoresultat per aktie",
         "vinst per aktie",
-        "vinst per aktie före utspädning"
+        "vinst per aktie före utspädning",
+        "earnings per class a and b share",
+        "basic profit for the year per share",
+        "profit for the year per share",
+        "earnings per class a and class b share"
       ]
     }
   ],

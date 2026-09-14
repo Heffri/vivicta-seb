@@ -1,0 +1,183 @@
+{
+  "report_id": "lib-alvotech_2025",
+  "company": "Alvotech",
+  "fiscal_year": 2025,
+  "currency": "USD IN THOUSANDS",
+  "section": "income_statement",
+  "fields": [
+    {
+      "key": "revenue",
+      "label": "Revenue",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "cost_of_sales",
+      "label": "Cost of sales",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "gross_profit",
+      "label": "Gross profit",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "operating_profit",
+      "label": "Operating profit",
+      "value": 78207,
+      "unit": "USD IN THOUSANDS",
+      "period": "2025",
+      "raw_label": "Operating profit",
+      "source": {
+        "page": 16,
+        "quote": "Operating profit 78,207 69,644"
+      },
+      "confidence": 0.95,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_before_tax",
+      "label": "Profit before tax",
+      "value": 136348,
+      "unit": "USD IN THOUSANDS",
+      "period": "2025",
+      "raw_label": "Profit / (loss) before taxes",
+      "source": {
+        "page": 16,
+        "quote": "Profit / (loss) before taxes 136,348 (217,563)"
+      },
+      "confidence": 0.95,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "income_tax",
+      "label": "Income tax",
+      "value": -108429,
+      "unit": "USD IN THOUSANDS",
+      "period": "2025",
+      "raw_label": "Income tax (expense) benefit",
+      "source": {
+        "page": 16,
+        "quote": "Income tax (expense) benefit 10 (108,429) (14,301)"
+      },
+      "confidence": 0.95,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_discontinued",
+      "label": "Profit from discontinued operations",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "net_profit",
+      "label": "Profit for the year",
+      "value": 27919,
+      "unit": "USD IN THOUSANDS",
+      "period": "2025",
+      "raw_label": "Profit / (loss) for the year",
+      "source": {
+        "page": 16,
+        "quote": "Profit / (loss) for the year 27,919 (231,864)"
+      },
+      "confidence": 0.95,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "eps_basic",
+      "label": "EPS, basic",
+      "value": 0.1,
+      "unit": "USD",
+      "period": "2025",
+      "raw_label": "Basic profit / (loss) for the year per share",
+      "source": {
+        "page": 16,
+        "quote": "Basic profit / (loss) for the year per share 11 0.10 (0.87) The accompanying notes are an integral part of these Consolidated Financial Statements."
+      },
+      "confidence": 0.8,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "gross_profit_arith",
+      "passed": false,
+      "detail": "missing: revenue"
+    },
+    {
+      "name": "net_profit_arith",
+      "passed": true,
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((136348 + -108429 + 0) - 27919) <= 2"
+    },
+    {
+      "name": "margin_sanity",
+      "passed": false,
+      "detail": "missing: revenue"
+    }
+  ],
+  "warnings": [
+    "operating_profit: quoted 'Effects resulting from business combination'; the 'Operating profit' row prints 78207",
+    "profit_before_tax: quoted 'Profit / (loss) for the year'; the 'Profit / (loss) before taxes' row prints 136348",
+    "income_tax: quoted 'Profit / (loss) for the year'; the 'Income tax (expense) benefit' row prints -108429",
+    "net_profit: quoted 'Total comprehensive profit / (loss)'; the 'Profit / (loss) for the year' row prints 27919",
+    "revenue: 586321 is printed on none of pages [16, 49, 50]; dropped as computed, not read",
+    "gross_profit: 250763 is printed on none of pages [16, 49, 50]; dropped as computed, not read",
+    "cost_of_sales: 'Cost of product and service revenue' -235558 dropped: not a known cost of sales label and the statement has no gross_profit",
+    "currency: the model says USD in thousands, but the statement names only USD and the report mostly USD; USD it is"
+  ]
+}

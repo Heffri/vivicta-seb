@@ -1,20 +1,20 @@
 {
-  "report_id": "lib-catena_2025",
-  "company": "Catena",
+  "report_id": "lib-bonesupport_holding_2025",
+  "company": "BONESUPPORT HOLDING",
   "fiscal_year": 2025,
-  "currency": "SEK M",
+  "currency": "SEK",
   "section": "income_statement",
   "fields": [
     {
       "key": "revenue",
       "label": "Revenue",
-      "value": 2651,
-      "unit": "SEK M",
+      "value": 1174661,
+      "unit": "SEK",
       "period": "2025",
-      "raw_label": "Rental income",
+      "raw_label": "Net sales",
       "source": {
-        "page": 96,
-        "quote": "Rental income 4 2,651 2,193"
+        "page": 17,
+        "quote": "Net sales 4 1,174,661 898,727"
       },
       "confidence": 1.0,
       "evidence": [
@@ -30,13 +30,13 @@
     {
       "key": "cost_of_sales",
       "label": "Cost of sales",
-      "value": -453,
-      "unit": "SEK M",
+      "value": -87333,
+      "unit": "SEK",
       "period": "2025",
-      "raw_label": "Property expenses",
+      "raw_label": "Cost of sales",
       "source": {
-        "page": 96,
-        "quote": "Property expenses 5 -453 -404"
+        "page": 17,
+        "quote": "Cost of sales 4, 6, 7 -87,333 -66,476"
       },
       "confidence": 1.0,
       "evidence": [
@@ -52,13 +52,13 @@
     {
       "key": "gross_profit",
       "label": "Gross profit",
-      "value": 2198,
-      "unit": "SEK M",
+      "value": 1087328,
+      "unit": "SEK",
       "period": "2025",
-      "raw_label": "Net operating surplus",
+      "raw_label": "Gross profit",
       "source": {
-        "page": 96,
-        "quote": "Net operating surplus 2,198 1,789"
+        "page": 17,
+        "quote": "Gross profit 4 1,087,328 832,251"
       },
       "confidence": 1.0,
       "evidence": [
@@ -74,24 +74,13 @@
     {
       "key": "operating_profit",
       "label": "Operating profit",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
-    },
-    {
-      "key": "profit_before_tax",
-      "label": "Profit before tax",
-      "value": 2067,
-      "unit": "SEK M",
+      "value": 231675,
+      "unit": "SEK",
       "period": "2025",
-      "raw_label": "Profit before tax",
+      "raw_label": "Operating result",
       "source": {
-        "page": 96,
-        "quote": "Profit before tax 2,067 1,344"
+        "page": 17,
+        "quote": "Operating result 4 231,675 166,147"
       },
       "confidence": 1.0,
       "evidence": [
@@ -105,20 +94,43 @@
       ]
     },
     {
-      "key": "income_tax",
-      "label": "Income tax",
-      "value": -423,
-      "unit": "SEK M",
+      "key": "profit_before_tax",
+      "label": "Profit before tax",
+      "value": 199518,
+      "unit": "SEK",
       "period": "2025",
-      "raw_label": "Current tax + Deferred tax",
+      "raw_label": "Profit before income tax",
       "source": {
-        "page": 96,
-        "quote": "Current tax 10 -56 -53 Deferred tax 10 -367 -211"
+        "page": 17,
+        "quote": "Profit before income tax 4 199,518 172,624"
       },
       "confidence": 1.0,
       "evidence": [
         "quote_on_page",
-        "value_derived",
+        "identity_all_columns",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "income_tax",
+      "label": "Income tax",
+      "value": -57364,
+      "unit": "SEK",
+      "period": "2025",
+      "raw_label": "Income tax",
+      "source": {
+        "page": 17,
+        "quote": "Income tax 16 -57,364 -38,870"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
         "arith_ok",
         "label_known",
         "period_ok",
@@ -140,13 +152,13 @@
     {
       "key": "net_profit",
       "label": "Profit for the year",
-      "value": 1644,
-      "unit": "SEK M",
+      "value": 142154,
+      "unit": "SEK",
       "period": "2025",
       "raw_label": "Net profit for the year",
       "source": {
-        "page": 96,
-        "quote": "Net profit for the year 19 1,644 1,080"
+        "page": 17,
+        "quote": "Net profit for the year 142,154 133,754"
       },
       "confidence": 1.0,
       "evidence": [
@@ -162,13 +174,13 @@
     {
       "key": "eps_basic",
       "label": "EPS, basic",
-      "value": 27.24,
+      "value": 2.16,
       "unit": "SEK",
       "period": "2025",
-      "raw_label": "Earnings per share, SEK ",
+      "raw_label": "Earnings per share before dilution, SEK",
       "source": {
-        "page": 96,
-        "quote": "Earnings per share, SEK 19 27.24 19.36"
+        "page": 17,
+        "quote": "Earnings per share before dilution, SEK 23 2.16 2.04"
       },
       "confidence": 1.0,
       "evidence": [
@@ -186,23 +198,20 @@
     {
       "name": "gross_profit_arith",
       "passed": true,
-      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((2651 + -453) - 2198) <= 2"
+      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((1174661 + -87333) - 1087328) <= 2"
     },
     {
       "name": "net_profit_arith",
       "passed": true,
-      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((2067 + -423 + 0) - 1644) <= 2"
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((199518 + -57364 + 0) - 142154) <= 2"
     },
     {
       "name": "margin_sanity",
-      "passed": false,
-      "detail": "missing: operating_profit"
+      "passed": true,
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 231675 / 1174661 < 10"
     }
   ],
   "warnings": [
-    "cost_of_sales: model returned null, filled from page 96 row 'Property expenses 5 -453 -404'",
-    "gross_profit: model returned null, filled from page 96 row 'Net operating surplus 2,198 1,789'",
-    "operating_profit: 'Net operating surplus' 2198 dropped: an excluded label, and the statement has no operating profit row",
-    "income_tax: -56 fails net_profit_arith; 'Current tax 10 -56 -53 Deferred tax 10 -367 -211' sums to -423 in every column, which passes"
+    "profit_before_tax: 'Profit before income tax' is not a known profit before tax label, but net_profit_arith holds with that row in every column"
   ]
 }

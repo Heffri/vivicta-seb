@@ -2,14 +2,14 @@
   "report_id": "lib-clas_ohlson_2025",
   "company": "Clas Ohlson",
   "fiscal_year": 2025,
-  "currency": "Mkr",
+  "currency": "MSEK",
   "section": "income_statement",
   "fields": [
     {
       "key": "revenue",
       "label": "Revenue",
       "value": 12513.9,
-      "unit": "Mkr",
+      "unit": "MSEK",
       "period": "2025",
       "raw_label": "Nettoomsättning",
       "source": {
@@ -52,8 +52,8 @@
     {
       "key": "operating_profit",
       "label": "Operating profit",
-      "value": 1171.2,
-      "unit": "Mkr",
+      "value": 1527.1,
+      "unit": "MSEK",
       "period": "2025",
       "raw_label": "Rörelseresultat",
       "source": {
@@ -74,19 +74,17 @@
     {
       "key": "profit_before_tax",
       "label": "Profit before tax",
-      "value": 1117.9,
-      "unit": "Mkr",
+      "value": 1527.1,
+      "unit": "MSEK",
       "period": "2025",
       "raw_label": "Resultat efter finansiella poster",
       "source": {
         "page": 98,
         "quote": "Resultat efter finansiella poster 1 478,6 1 117,9"
       },
-      "confidence": 1.0,
+      "confidence": 0.5,
       "evidence": [
         "quote_on_page",
-        "value_in_quote",
-        "arith_ok",
         "label_known",
         "period_ok",
         "page_is_statement",
@@ -96,19 +94,18 @@
     {
       "key": "income_tax",
       "label": "Income tax",
-      "value": -235.7,
-      "unit": "Mkr",
+      "value": -309.7,
+      "unit": "MSEK",
       "period": "2025",
       "raw_label": "Inkomstskatt",
       "source": {
         "page": 98,
         "quote": "Inkomstskatt 9 -309,7 -235,7"
       },
-      "confidence": 1.0,
+      "confidence": 0.5,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
-        "arith_ok",
         "label_known",
         "period_ok",
         "page_is_statement",
@@ -129,19 +126,18 @@
     {
       "key": "net_profit",
       "label": "Profit for the year",
-      "value": 882.2,
-      "unit": "Mkr",
+      "value": 1168.9,
+      "unit": "MSEK",
       "period": "2025",
       "raw_label": "Årets resultat",
       "source": {
         "page": 98,
         "quote": "Årets resultat 1 168,9 882,2"
       },
-      "confidence": 1.0,
+      "confidence": 0.5,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
-        "arith_ok",
         "label_known",
         "period_ok",
         "page_is_statement",
@@ -151,8 +147,8 @@
     {
       "key": "eps_basic",
       "label": "EPS, basic",
-      "value": 13.91,
-      "unit": "kr",
+      "value": 18.4,
+      "unit": "SEK",
       "period": "2025",
       "raw_label": "Vinst per aktie före utspädning, kr",
       "source": {
@@ -179,17 +175,17 @@
     },
     {
       "name": "net_profit_arith",
-      "passed": true,
-      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((1117.9 + -235.7 + 0) - 882.2) <= 2"
+      "passed": false,
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((1527.1 + -309.7 + 0) - 1168.9) <= 2"
     },
     {
       "name": "margin_sanity",
       "passed": true,
-      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 1171.2 / 12513.9 < 10"
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 1527.1 / 12513.9 < 10"
     }
   ],
   "warnings": [
-    "gross_profit: 'Rörelseresultat' 1527.1 dropped: the same row as operating_profit, and not a gross profit label",
-    "cost_of_sales: 'Handelsvaror' -6320.8 dropped: not a known cost of sales label and the statement has no gross_profit"
+    "gross_profit: 'Rörelseresultat' 5970.6 dropped: the same row as operating_profit, and not a gross profit label",
+    "cost_of_sales: 'Handelsvaror' -6543.3 dropped: not a known cost of sales label and the statement has no gross_profit"
   ]
 }
