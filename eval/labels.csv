@@ -18,3 +18,83 @@ saab_2025_sv.pdf,income_statement,profit_before_tax,8019,151,
 saab_2025_sv.pdf,income_statement,income_tax,-1663,151,printed as 'Skatt'
 saab_2025_sv.pdf,income_statement,net_profit,6356,151,
 saab_2025_sv.pdf,income_statement,eps_basic,11.77,151,"'före utspädning' = basic; model returned diluted 11.70 once — label split over two lines"
+hexagon_2025.pdf,income_statement,revenue,5424.6,177,Net sales; MEUR
+hexagon_2025.pdf,income_statement,cost_of_sales,-1827.9,177,Cost of goods sold
+hexagon_2025.pdf,income_statement,gross_profit,3596.7,177,Gross earnings
+hexagon_2025.pdf,income_statement,operating_profit,924.4,177,"Operating earnings¹ (footnote 1: of which adjustments -550.5 — disclosure, not a separate line)"
+hexagon_2025.pdf,income_statement,profit_before_tax,793.5,177,Earnings before tax
+hexagon_2025.pdf,income_statement,income_tax,-166.7,177,Tax on earnings for the year
+hexagon_2025.pdf,income_statement,net_profit,626.8,177,Net earnings (total incl. NCI 9.4; attributable to parent 617.4)
+hexagon_2025.pdf,income_statement,eps_basic,0.23,177,"Earnings per share, Euro cent — printed 23.0 Euro cent, stored as 0.23 EUR per labelling instruction; extractor may return the printed 23.0"
+telia_2025.pdf,income_statement,revenue,80982,133,Revenue (continuing operations); SEK in millions
+telia_2025.pdf,income_statement,cost_of_sales,null,133,"not reported — by-nature P&L (Goods and services purchased -28,277 is not cost of sales)"
+telia_2025.pdf,income_statement,gross_profit,null,133,"not reported — by-nature P&L (EBITDA 27,740 is the only subtotal above operating income)"
+telia_2025.pdf,income_statement,operating_profit,10426,133,Operating income (continuing operations)
+telia_2025.pdf,income_statement,profit_before_tax,7300,133,Income after financial items (continuing operations)
+telia_2025.pdf,income_statement,income_tax,-1467,133,Income taxes (continuing operations)
+telia_2025.pdf,income_statement,net_profit,4291,133,"Total net income — total operations incl. discontinued TV & Media -1,543; continuing-only would be 5,834"
+telia_2025.pdf,income_statement,eps_basic,0.90,133,"Earnings per share (SEK), basic and diluted, total — total operations; continuing-only EPS is 1.29"
+sca_2025.pdf,income_statement,revenue,20427,167,"Net sales; SEKm; printed folio 165. Page also shows a subtotal literally labelled 'Revenue' 23,447 (= net sales + other operating income 3,020) — not used"
+sca_2025.pdf,income_statement,cost_of_sales,null,167,"not reported — by-nature P&L (Raw materials and consumables -5,610 is not cost of sales)"
+sca_2025.pdf,income_statement,gross_profit,null,167,"not reported — by-nature P&L (EBITDA 6,564 is the subtotal shown)"
+sca_2025.pdf,income_statement,operating_profit,4432,167,Operating profit
+sca_2025.pdf,income_statement,profit_before_tax,3999,167,Profit before tax
+sca_2025.pdf,income_statement,income_tax,-794,167,Income taxes; minus printed as en-dash
+sca_2025.pdf,income_statement,net_profit,3205,167,Profit for the year (NCI 0)
+sca_2025.pdf,income_statement,eps_basic,4.56,167,Earnings per share (SEK) – owners of the Parent1); footnote: no dilution effects
+husqvarna_2025.pdf,income_statement,revenue,46613,84,Net sales; SEKm
+husqvarna_2025.pdf,income_statement,cost_of_sales,-32514,84,Cost of goods sold; minus printed as en-dash
+husqvarna_2025.pdf,income_statement,gross_profit,14099,84,Gross income
+husqvarna_2025.pdf,income_statement,operating_profit,2898,84,Operating income
+husqvarna_2025.pdf,income_statement,profit_before_tax,2149,84,Income after financial items
+husqvarna_2025.pdf,income_statement,income_tax,-380,84,Income tax
+husqvarna_2025.pdf,income_statement,net_profit,1769,84,Net income for the period (total incl. NCI 1)
+husqvarna_2025.pdf,income_statement,eps_basic,3.09,84,"Earnings per share: Before dilution, SEK (diluted also 3.09)"
+skanska_2025.pdf,income_statement,revenue,176658,121,"Revenue; SEK M; printed folio 119; IFRS consolidated — segment-basis 179,291 on p114/p214 is NOT the statement"
+skanska_2025.pdf,income_statement,cost_of_sales,-161906,121,Cost of sales
+skanska_2025.pdf,income_statement,gross_profit,14753,121,"Gross income (revenue - cost of sales = 14,752; 1 rounding)"
+skanska_2025.pdf,income_statement,operating_profit,6574,121,"Operating income (segment-basis 7,241 on p114 is NOT the statement)"
+skanska_2025.pdf,income_statement,profit_before_tax,7268,121,Income after financial items
+skanska_2025.pdf,income_statement,income_tax,-1496,121,Income taxes
+skanska_2025.pdf,income_statement,net_profit,5772,121,"Profit for the year (total incl. NCI 70; attributable to parent 5,702)"
+skanska_2025.pdf,income_statement,eps_basic,13.82,121,"Earnings per share, SEK (word 'basic' not used; 'after dilution' row is 13.76)"
+getinge_2025.pdf,income_statement,revenue,34969,140,Net sales; SEK M; printed folio 139
+getinge_2025.pdf,income_statement,cost_of_sales,-18315,140,Cost of goods sold
+getinge_2025.pdf,income_statement,gross_profit,16654,140,Gross profit
+getinge_2025.pdf,income_statement,operating_profit,3789,140,Operating profit (EBIT)
+getinge_2025.pdf,income_statement,profit_before_tax,3145,140,Profit after financial items
+getinge_2025.pdf,income_statement,income_tax,-869,140,Taxes
+getinge_2025.pdf,income_statement,net_profit,2276,140,Net profit for the year (total incl. NCI 17)
+getinge_2025.pdf,income_statement,eps_basic,8.29,140,"Earnings per share, SEK1 — footnote 1: before and after dilution"
+sandvik_2025.pdf,income_statement,revenue,120680,115,"Revenue; MSEK; column order reversed: 2024 LEFT (122,878), 2025 RIGHT"
+sandvik_2025.pdf,income_statement,cost_of_sales,-71678,115,"Cost of goods and services sold (2024 column shows -73,742)"
+sandvik_2025.pdf,income_statement,gross_profit,49002,115,"Gross profit (2024 column shows 49,136)"
+sandvik_2025.pdf,income_statement,operating_profit,20809,115,"Operating profit (2024 column shows 18,420)"
+sandvik_2025.pdf,income_statement,profit_before_tax,19458,115,"Profit before tax (2024 column shows 16,461)"
+sandvik_2025.pdf,income_statement,income_tax,-4767,115,"Income tax (2024 column shows -4,216)"
+sandvik_2025.pdf,income_statement,net_profit,14691,115,"Profit for the year (2024 column shows 12,245); total incl. NCI 1"
+sandvik_2025.pdf,income_statement,eps_basic,11.71,115,"Basic earnings per share, SEK (2024 column shows 9.76)"
+abb_2025.pdf,income_statement,revenue,33220,55,"Total revenues; USD millions, US GAAP; printed folio 53; 'Financial Report 2025' volume"
+abb_2025.pdf,income_statement,cost_of_sales,-19580,55,Total cost of sales; negatives printed in parentheses
+abb_2025.pdf,income_statement,gross_profit,13640,55,Gross profit
+abb_2025.pdf,income_statement,operating_profit,6047,55,Income from operations
+abb_2025.pdf,income_statement,profit_before_tax,6219,55,Income from continuing operations before taxes
+abb_2025.pdf,income_statement,income_tax,-1570,55,Income tax expense
+abb_2025.pdf,income_statement,net_profit,4823,55,"Net income — total incl. discontinued operations 174 and NCI 89; continuing-only is 4,649"
+abb_2025.pdf,income_statement,eps_basic,2.59,55,Basic earnings per share attributable to ABB shareholders: Net income (continuing-only basic EPS is 2.50)
+trelleborg_2025.pdf,income_statement,revenue,34329,105,Net sales; sek m
+trelleborg_2025.pdf,income_statement,cost_of_sales,-21413,105,Cost of goods sold; minus printed as en-dash
+trelleborg_2025.pdf,income_statement,gross_profit,12916,105,Gross profit
+trelleborg_2025.pdf,income_statement,operating_profit,5317,105,"EBIT (reported, after items affecting comparability -389; 'EBIT, excluding items affecting comparability' 5,706 not used)"
+trelleborg_2025.pdf,income_statement,profit_before_tax,4811,105,Profit before tax
+trelleborg_2025.pdf,income_statement,income_tax,-1215,105,Income tax
+trelleborg_2025.pdf,income_statement,net_profit,3596,105,"Net profit, Group (NCI 0)"
+trelleborg_2025.pdf,income_statement,eps_basic,15.76,106,"Group — in separate EARNINGS PER SHARE table on p106, NOT on statement page 105 (expected_page set to 106); 17.09 is excl. items affecting comparability; no dilutive effects"
+securitas_2025.pdf,income_statement,revenue,155113,106,"Total sales; MSEK; thousands separator is a space (= Sales 155 054 + Sales, acquired business 59)"
+securitas_2025.pdf,income_statement,cost_of_sales,-121972,106,Production expenses (Securitas' cost-of-sales line)
+securitas_2025.pdf,income_statement,gross_profit,33141,106,Gross income
+securitas_2025.pdf,income_statement,operating_profit,9073,106,Operating income (after amortization of acquisition-related intangibles and items affecting comparability -1 848)
+securitas_2025.pdf,income_statement,profit_before_tax,7295,106,Income before taxes
+securitas_2025.pdf,income_statement,income_tax,-2151,106,Income tax
+securitas_2025.pdf,income_statement,net_profit,5144,106,Net income for the year (total incl. NCI 29)
+securitas_2025.pdf,income_statement,eps_basic,8.93,106,Earnings per share before and after dilution (SEK); next line 11.55 (before items affecting comparability) is an APM — not used

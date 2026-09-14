@@ -52,5 +52,95 @@
     "source_url": "https://cdn.skfmediahub.skf.com/api/public/096ee325b273e74a/pdf_preview_medium/SKF_ASR_2025_ENG_locked_pdf_preview_medium.pdf",
     "tags": ["wallenberg", "industrials"],
     "note": null
+  },
+  {
+    "file": "hexagon_2025.pdf",
+    "company": "Hexagon",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/387/4324219/3996400.pdf",
+    "tags": ["random-draw-2026-09-14", "industrials"],
+    "note": "reports in EUR millions; EPS printed in Euro cent (23.0), labelled as 0.23 EUR"
+  },
+  {
+    "file": "telia_2025.pdf",
+    "company": "Telia Company",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://www.teliacompany.com/downloads/u5c1v3pt22v8/5rdR72LuLgRQ5Ge4bOprhJ/1d446df8ad766c19090613b162b24952/Telia_Annual_report_2025.pdf",
+    "tags": ["random-draw-2026-09-14", "telecom"],
+    "note": "by-nature P&L: no cost of sales / gross profit; discontinued operations (TV & Media) — revenue/EBIT/PBT/tax are continuing, net_profit and EPS are total operations"
+  },
+  {
+    "file": "sca_2025.pdf",
+    "company": "SCA",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://www.sca.com/siteassets/media/press-releases-and-reports/documents/2026/20260304-sca-publishes-annual-report-for-2025-en-0-5317244.pdf",
+    "tags": ["random-draw-2026-09-14", "forest"],
+    "note": "by-nature P&L: no cost of sales / gross profit; statement also shows a 'Revenue' subtotal 23,447 (net sales + other operating income) — label uses Net sales 20,427"
+  },
+  {
+    "file": "husqvarna_2025.pdf",
+    "company": "Husqvarna Group",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://www.husqvarnagroup.com/sites/husqvarna/files/pr/202603249629-1.pdf",
+    "tags": ["random-draw-2026-09-14", "consumer"],
+    "note": null
+  },
+  {
+    "file": "skanska_2025.pdf",
+    "company": "Skanska",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://group.skanska.com/493a91/siteassets/investors/reports-publications/annual-reports/2025/skanska-s-annual-and-sustainability-report-2025-pdf-.pdf",
+    "tags": ["random-draw-2026-09-14", "construction"],
+    "note": "IFRS consolidated statement on p121; segment-basis figures (revenue 179,291 / operating income 7,241) on p114 and p214 are not the statement"
+  },
+  {
+    "file": "getinge_2025.pdf",
+    "company": "Getinge",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://www.getinge.com/dam/corporate/documents/investors/annual-reports/english/getinge_annual_report_2025-115632-en.pdf",
+    "tags": ["random-draw-2026-09-14", "medtech"],
+    "note": null
+  },
+  {
+    "file": "sandvik_2025.pdf",
+    "company": "Sandvik",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://www.annualreport.sandvik/en/2025/_assets/downloads/entire-en-svk-ar25.pdf",
+    "tags": ["random-draw-2026-09-14", "industrials"],
+    "note": "column order reversed on the income statement: 2024 left, 2025 right"
+  },
+  {
+    "file": "abb_2025.pdf",
+    "company": "ABB",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://library.e.abb.com/public/b32991481e8b4418a5c5261c5ff25440/ABB%20Financial%20Report%202025.pdf?x-sign=VUIc2%2FXU0KamNKfZuTAst4Jxc%2FFcjbcqZak4rq88pIrFaq+QhRZpHqLfH81WD9mJ",
+    "tags": ["random-draw-2026-09-14", "industrials"],
+    "note": "'Financial Report 2025' volume; US GAAP, reports in USD millions; net_profit includes discontinued operations (174); negatives in parentheses"
+  },
+  {
+    "file": "trelleborg_2025.pdf",
+    "company": "Trelleborg AB",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://www.trelleborg.com/-/media/group/about-us/agm/2026/en/trelleborg-annual-report-2025.pdf?rev=f9c04a7bc37d4b5abb4939f28ee31965",
+    "tags": ["random-draw-2026-09-14", "industrials"],
+    "note": "EPS is in a separate table on p106, not on the income statement page 105"
+  },
+  {
+    "file": "securitas_2025.pdf",
+    "company": "Securitas",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://www.securitas.com/globalassets/com/files/annual-reports/eng/securitas_annual_report_2025_en.pdf",
+    "tags": ["random-draw-2026-09-14", "services"],
+    "note": "cost of sales is labelled 'Production expenses'; thousands separator is a space"
   }
 ]

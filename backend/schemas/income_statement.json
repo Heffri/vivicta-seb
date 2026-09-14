@@ -33,49 +33,130 @@
       "key": "revenue",
       "label": "Revenue",
       "description": "Total revenues / net sales for the group, current fiscal year.",
-      "unit_hint": "currency_millions"
+      "unit_hint": "currency_millions",
+      "synonyms": [
+        "revenue",
+        "revenues",
+        "net sales",
+        "sales",
+        "total revenue",
+        "intäkter",
+        "nettoomsättning",
+        "försäljningsintäkter",
+        "omsättning"
+      ]
     },
     {
       "key": "cost_of_sales",
       "label": "Cost of sales",
       "description": "Cost of sales / cost of goods sold, as printed (typically negative).",
-      "unit_hint": "currency_millions"
+      "unit_hint": "currency_millions",
+      "synonyms": [
+        "cost of sales",
+        "cost of goods sold",
+        "cost of revenues",
+        "production expenses",
+        "kostnad för sålda varor",
+        "kostnad sålda varor",
+        "kostnader för sålda varor"
+      ]
     },
     {
       "key": "gross_profit",
       "label": "Gross profit",
       "description": "Revenue minus cost of sales.",
-      "unit_hint": "currency_millions"
+      "unit_hint": "currency_millions",
+      "synonyms": [
+        "gross profit",
+        "gross income",
+        "gross earnings",
+        "gross margin",
+        "bruttoresultat"
+      ]
     },
     {
       "key": "operating_profit",
       "label": "Operating profit",
       "description": "Operating profit / EBIT / rörelseresultat.",
-      "unit_hint": "currency_millions"
+      "unit_hint": "currency_millions",
+      "synonyms": [
+        "operating profit",
+        "operating income",
+        "operating earnings",
+        "income from operations",
+        "ebit",
+        "rörelseresultat"
+      ]
     },
     {
       "key": "profit_before_tax",
       "label": "Profit before tax",
       "description": "Profit before income tax / resultat före skatt.",
-      "unit_hint": "currency_millions"
+      "unit_hint": "currency_millions",
+      "synonyms": [
+        "profit before tax",
+        "profit before taxes",
+        "income before taxes",
+        "income before income taxes",
+        "earnings before tax",
+        "income after financial items",
+        "profit after financial items",
+        "resultat före skatt",
+        "resultat efter finansiella poster"
+      ]
     },
     {
       "key": "income_tax",
       "label": "Income tax",
       "description": "Income tax expense, as printed (typically negative).",
-      "unit_hint": "currency_millions"
+      "unit_hint": "currency_millions",
+      "synonyms": [
+        "income tax",
+        "income taxes",
+        "tax",
+        "taxes",
+        "taxes on income",
+        "income tax expense",
+        "tax expense",
+        "skatt",
+        "inkomstskatt",
+        "skatt på årets resultat",
+        "årets skatt"
+      ]
     },
     {
       "key": "net_profit",
       "label": "Profit for the year",
       "description": "Profit for the year / årets resultat, total (before split to owners / NCI).",
-      "unit_hint": "currency_millions"
+      "unit_hint": "currency_millions",
+      "synonyms": [
+        "profit for the year",
+        "profit for the period",
+        "net income",
+        "net earnings",
+        "net income for the period",
+        "net income for the year",
+        "total net income",
+        "net profit",
+        "årets resultat",
+        "periodens resultat"
+      ]
     },
     {
       "key": "eps_basic",
       "label": "EPS, basic",
       "description": "Basic earnings per share attributable to owners of the parent.",
-      "unit_hint": "currency_per_share"
+      "unit_hint": "currency_per_share",
+      "synonyms": [
+        "earnings per share",
+        "earnings per share, basic",
+        "basic earnings per share",
+        "earnings per share before dilution",
+        "earnings per share, before dilution",
+        "eps basic",
+        "resultat per aktie",
+        "resultat per aktie före utspädning"
+      ]
     }
   ],
   "checks": [

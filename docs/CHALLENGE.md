@@ -12,7 +12,9 @@
 
 Organised by 2Hero, sponsors Vivicta + Microsoft.
 
-## Intro call with SEB — 2026-09-10 (notes from recording)
+## Intro call with SEB — 2026-09-10 (condensed)
+
+Condensed from memory + transcript. The verified, timestamped record is [docs/meetings/2026-09-10-seb-intro.md](meetings/2026-09-10-seb-intro.md) — where the two differ, the minutes win.
 
 ### People
 
@@ -22,29 +24,29 @@ Organised by 2Hero, sponsors Vivicta + Microsoft.
 | Björn | Consultant in the Hub, agentic AI daily | **Structured + validated** output. Not "PDF into LLM and hope". |
 | Pontus | Global Banking, business development | Brings end-user **Kristian** who consumes one specific note. |
 | Jesper | Sopra consultant, AI platform | Bank drowns in unstructured PDFs generally → is the technique generalisable? |
-| Sebastian F, Isabel | SEB devs (agentic since Nov / Apr) | Observing, will attend hack day + final in person. |
+| Sebastian F, Isabel | SEB / Sopra devs (agentic since Nov / Apr) | Observing. SEB will *try* to be on site for hack day + final. |
 
 Our team: Sebastijan B (lead, frontend), Sinji Chen (backend), Borg (backend), Sara (eval/testing).
 
 ### Problem as they described it
 
-- No central solution in the bank. Today: download from company website or email subscription → SharePoint → copy/paste into whatever downstream tool. Zero automation, no shared solution.
+- No central solution in the bank. Today: download from company website or email subscription → upload somewhere internal → copy/paste into whatever downstream tool. Zero automation, no shared solution.
 - Many CIB AI use cases need annual-report data as an input datapoint. It's the unstructured bottleneck.
-- Data is a mix of **text and numbers**. The same concept is presented differently across companies (table in one, prose in another, different labels, sv/en). Needs "intelligence" to map equivalents onto one schema. (ESEF/XBRL rules exist for the primary statements; "not everyone follows them yet".)
+- Data is a mix of **text and numbers**. The same concept is presented differently across companies (table in one, prose in another, different labels, sv/en). Needs "intelligence" to map equivalents onto one schema. (They mentioned naming rules that "not everyone follows yet" — our reading: ESEF/XBRL.)
 - Annual reports are the slow track; quarterly/monthly is another speed. We focus on annual.
 
 ### Scope guidance
 
 - **Don't do the whole report.** Pick one section/note → unstructured → structured → visualised the way the end-user wants.
-- Kristian meeting **Tue 2026-09-15 10:00–11:00**: he shows how he uses the data today. Scope locks there.
-- Homework: read a few annual reports. Wallenberg sphere suggested: Investor, ABB, AstraZeneca, Atlas Copco, Ericsson, SEB, Saab, Electrolux, SKF.
+- Kristian meeting **Tue 2026-09-15 10:00–11:00** (Björn sends a Teams booking; Kristian's attendance was likely but not final on the call): we watch how he uses the data today. Exact scope is worked out after that, with SEB helping keep it small.
+- Homework: read a few annual reports from the Wallenberg sphere (ABB, AstraZeneca, Atlas Copco, Saab, SEB were named; we added Investor, Ericsson, Electrolux, SKF ourselves).
 
 ### Constraints / freedoms
 
 - Stack: free choice. Public data → cloud LLMs fine. We go local-first (Ollama) anyway; the OpenAI-compatible client swaps to hosted with env vars.
 - Input: **PDF only**. Not Excel/CSV — PDFs are the trusted source.
 - No sensitive data. Only GDPR item is board-member names. A future in-house version would be C2-classified — irrelevant now.
-- Comms: Discord. SEB on-site at hack day + final.
+- Comms: Discord (Pontus and Kristian opt out — meetings with them go via Teams bookings). SEB will try to be on-site at hack day + final.
 
 ## Prep for Kristian, Tue 15 Sept 10:00
 

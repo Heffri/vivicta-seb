@@ -1,6 +1,6 @@
 # SEB intro call — 2026-09-10 09:15 CEST — raw transcript
 
-Auto-transcribed (faster-whisper `small`, Swedish, VAD) from the Teams recording. Names and some words are mangled by the model — e.g. "S&B" = SEB, "Alinor"/"Lupa" are mis-hearings. The first ~4 minutes were silence/lobby. Curated minutes: [2026-09-10-seb-intro.md](2026-09-10-seb-intro.md).
+Auto-transcribed (faster-whisper `small`, Swedish, VAD) from the video-call recording. Names and some words are mangled by the model — e.g. "S&B" = SEB, "Alinor"/"Lupa" are mis-hearings. The first ~4 minutes were silence/lobby. Curated minutes: [2026-09-10-seb-intro.md](2026-09-10-seb-intro.md).
 
 ```
 [04:20] Hallå!

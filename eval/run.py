@@ -36,6 +36,8 @@ def extract_section(api, report_id, section):
     return json.load(urllib.request.urlopen(req))
 
 def values_match(expected, got):
+    if str(expected).strip().lower() == "null":  # label says "this company does not report the line" => must be absent
+        return got is None
     if got is None or expected in (None, ""):
         return False
     try:
