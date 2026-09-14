@@ -540,17 +540,28 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                                 break
         fields.append(field)
 
+    segs = {}
     for page in sorted({f["source"]["page"] for f in fields if f["source"] and "quote_on_page" in f["evidence"]}):
         on_page = [f for f in fields if f["value"] is not None and f["source"] and f["source"].get("page") == page]
         seg = _segment_column(texts[page - 1], fiscal_year, on_page) if fiscal_year else None
         if not seg:
             continue
-        col, ncols = seg
+        col, ncols = segs[page] = seg
         for f in on_page:  # Volvo: income tax read from the Industrial Operations pair, the other rows from Volvo Group
             am = _row_amounts(f["source"]["quote"], ncols)
             if len(am) == ncols and am[col] != f["value"]:
                 warnings.append(f"{f['key']}: {f['value']} is another segment's column; the page's rows are read from column {col + 1} of {ncols}, which prints {am[col]}")
                 f["value"], f["period"] = am[col], str(fiscal_year)
+    if pages and fiscal_year and (h := _year_column(texts[pages[0] - 1], fiscal_year) or segs.get(pages[0])):
+        first = _page_rows(texts[pages[0] - 1])
+        for sf, f in zip(sfs, fields):  # Volvo: profit before tax answered as "Income for the period * 34,707 50,576", a row the page does not print;
+            if "quote_on_page" in f["evidence"] or not (hit := _statement_row(first, sf, h[1])):  # the statement's own "Income after financial items" row is the answer
+                continue
+            am = _row_amounts(hit, h[1])
+            reason = "model returned null" if f["value"] is None else f"{f['value']} is not printed on the statement"
+            warnings.append(f"{sf['key']}: {reason}; filled from page {pages[0]} row {hit!r}")
+            f.update(value=am[h[0]], period=str(fiscal_year), raw_label=_row_label(hit), source={"page": pages[0], "quote": hit}, evidence=["quote_on_page"])
+            filled.add(sf["key"])
 
     by_key = {f["key"]: f for f in fields}
     for sf, f in zip(sfs, fields):  # Lundbergs: "Rörelseresultat 16 077" offered as gross profit and as operating profit; the row belongs to the key whose label it is

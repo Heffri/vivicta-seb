@@ -266,6 +266,11 @@ def demo():
     out = x.extract([vo], [1], {**sch, "fields": [real[k] for k in ("revenue", "profit_before_tax", "income_tax", "net_profit")]}, {"fiscal_year": 2025})
     assert [(f["value"], f["confidence"]) for f in out["fields"]] == [(479183, 1.0), (47391, 1.0), (-12685, 1.0), (34707, 1.0)], (out["fields"], out["warnings"])
     assert sum("segment" in w for w in out["warnings"]) == 1, out["warnings"]
+    vo_fields = x.call_llm()["fields"]  # second run: profit before tax answered as the net income row with a quote the page does not print
+    x.call_llm = lambda *a, **k: {"fields": [dict(f, value=34707, raw_label="Income for the period *", source={"page": 1, "quote": "Income for the period * 34,707 50,576"}) if f["key"] == "profit_before_tax" else f for f in vo_fields]}
+    out = x.extract([vo], [1], {**sch, "fields": [real[k] for k in ("revenue", "profit_before_tax", "income_tax", "net_profit")]}, {"fiscal_year": 2025})
+    assert [(f["value"], f["confidence"]) for f in out["fields"]] == [(479183, 1.0), (47391, 1.0), (-12685, 1.0), (34707, 1.0)], (out["fields"], out["warnings"])
+    assert any("not printed on the statement" in w for w in out["warnings"]) and out["fields"][1]["raw_label"] == "Income after financial items", out["warnings"]
     assert x._row_amounts("Cost of sales 3 –297,0421) –320,821", 2) == [-297042, -320821] and x._value_in_quote(-297042, "Cost of sales 3 –297,0421) –320,821")  # Volvo Cars footnote marker
     # Volvo Cars: "Net income" is a prefix of "net income from discontinued operations", not a discontinued-operations row (the null fill took it, then "repaired" net profit)
     assert not x._label_known("Net income", real["profit_discontinued"]) and x._label_known("Income before tax", real["profit_before_tax"]) and x._label_known("Net income", real["net_profit"])

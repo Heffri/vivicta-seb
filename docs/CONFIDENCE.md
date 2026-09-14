@@ -72,7 +72,8 @@ model copied. Deterministic **repairs** run on that row before scoring, each lea
 - the statement row (SEB): when a variant row is replaced or a null is filled from the page, the row whose label is exactly a synonym wins over a prefix match ("Operating profit", not "Operating profit before items affecting comparability").
 - a quote on the neighbouring row (Lundbergs: every label paired with the row below it): when the model's label is a known one and the page prints a row with exactly that label, that row is the quote and its figure the value.
 - an unknown label whose identity holds in every column (Addnode: "Purchases of goods and services" between net sales and gross profit, both years) earns `label_known`; one column is one equation and proves nothing.
-- segments printed side by side (Volvo: "2025 2024" four times, Industrial Operations to Volvo Group) have no usable year header; the model's column stands and the checks decide.
+- segments printed side by side (Volvo: "2025 2024" four times, Industrial Operations to Volvo Group): every row on the page is read from the same fiscal-year column, the one most of the fields already sit in (the model took income taxes from the first pair and the rest from the last). A lone dash in a row is nil, so the columns stay aligned; a footnote marker glued to a number ("-297,0421)", Volvo Cars) is dropped.
+- a printed label counts as a known synonym only when it *starts with* one: "Net income" is not a discontinued-operations row just because "net income from discontinued operations" is. Volvo Cars: the null fill had taken it, the identity then failed, and net profit was "repaired" to a wrong sum at full confidence.
 - a property company's `Net operating surplus` is its gross profit (rental income - property expenses); operating profit it is not.
 
 Swedish space-grouped rows are split by the column count from the year header (`155 054 161 900` is two amounts; no regex can
