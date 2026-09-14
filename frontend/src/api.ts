@@ -1,4 +1,4 @@
-import type { Answer, Company, Extraction, IndexStatus, LibraryEntry, Report, Schema } from './types'
+import type { Answer, Company, Extraction, IndexStatus, KbEntry, LibraryEntry, Report, Schema } from './types'
 
 export type ApiError = Error & { status: number; tried?: string[] }
 
@@ -62,3 +62,10 @@ export const pageUrl = (reportId: string, page: number) => `/api/reports/${repor
 export const csvUrl = (reportId: string) => `/api/reports/${reportId}/extraction.csv`
 export const pdfUrl = (reportId: string, page?: number) =>
   `/api/reports/${reportId}/pdf${page ? `#page=${page}` : ''}`
+
+export type Config = { model: string; embed_model: string; base_url: string | null; llm: boolean }
+export const getConfig = () => request<Config>('/api/config')
+export const getKb = () => request<KbEntry[]>('/api/kb')
+// Stored extraction, no model call; the backend re-registers the PDF so pageUrl/csvUrl work.
+export const openKbExtraction = (stem: string, section: string) =>
+  request<Extraction>(`/api/kb/${encodeURIComponent(stem)}/${encodeURIComponent(section)}`)

@@ -139,8 +139,9 @@ export function UploadView({ onDone }: Props) {
   return (
     <div className="mx-auto max-w-3xl">
       <header className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Annual Report Parser</h1>
-        <p className="mt-1 text-sm text-muted-foreground">PDF in → structured, source-linked data out</p>
+        <p className="text-xs text-muted-foreground uppercase tracking-wide">Extract</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Pick reports, get source-linked numbers</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Search the directory, tick cached reports or drop a PDF. One report opens Results, several open Compare.</p>
       </header>
 
       <Card>

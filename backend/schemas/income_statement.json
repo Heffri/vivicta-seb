@@ -79,7 +79,11 @@
         "omsättning",
         "total sales",
         "total revenues",
-        "rental income", "rental and service income", "rental income and service income", "hyresintäkter", "hyres- och serviceintäkter"
+        "rental income",
+        "rental and service income",
+        "rental income and service income",
+        "hyresintäkter",
+        "hyres- och serviceintäkter"
       ],
       "fallback_synonyms": [
         "total operating income",
@@ -167,7 +171,8 @@
       "synonyms": [
         "profit before tax",
         "profit before taxes",
-        "income before tax", "income before taxes",
+        "income before tax",
+        "income before taxes",
         "income before income taxes",
         "earnings before tax",
         "income after financial items",
@@ -176,7 +181,8 @@
         "resultat efter finansiella poster",
         "income from continuing operations before taxes",
         "resultat efter finansnetto",
-        "profit after net financial items"
+        "profit after net financial items",
+        "earnings before income tax"
       ],
       "fallback_synonyms": [
         "operating profit",
@@ -211,7 +217,14 @@
         "skatt på årets resultat",
         "årets skatt"
       ],
-      "exclude_labels": ["attributable to items", "reclassif", "other comprehensive", "övrigt totalresultat", "omklassificer", "hänförlig till poster"],
+      "exclude_labels": [
+        "attributable to items",
+        "reclassif",
+        "other comprehensive",
+        "övrigt totalresultat",
+        "omklassificer",
+        "hänförlig till poster"
+      ],
       "expense": true
     },
     {

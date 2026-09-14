@@ -607,6 +607,18 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
     periods = Counter(f["period"] for f in fields if re.fullmatch(r"\d{4}", str(f["period"])))
     defaults = {sf["key"]: sf["default"] for sf in schema["fields"] if "default" in sf}  # optional rows (discontinued ops) count as 0
     checks = [_check(c, {**defaults, **values}) for c in schema.get("checks", [])]
+    for c, sc in zip(checks, schema.get("checks", [])):  # NCC: "Result from sales of Group companies 20" offered as discontinued operations; the identity holds without it
+        if c["passed"] or c["detail"].startswith("missing:") or not sc.get("identity"):
+            continue
+        for sf, f in zip(sfs, fields):
+            k = sf["key"]
+            if k in defaults and k in values and not _label_known(f.get("raw_label"), sf) and re.search(rf"\b{re.escape(k)}\b", sc["expr"]) \
+                    and _check(sc, {**defaults, **values, k: defaults[k]})["passed"]:
+                warnings.append(f"{k}: {f.get('raw_label')!r} {f['value']} dropped: not a known {sf['label'].lower()} label, and {c['name']} holds without it")
+                f.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
+                del values[k]
+                c.update(_check(sc, {**defaults, **values}))
+                break
     for c, sc in zip(checks, schema.get("checks", [])):
         if c["passed"] or c["detail"].startswith("missing:") or not sc.get("identity"):
             continue

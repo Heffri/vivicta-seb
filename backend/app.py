@@ -252,6 +252,26 @@ def list_kb():
     return [e | {"report_id": by_stem.get(e["stem"])} for e in kb.entries()]
 
 
+@app.get("/api/kb/{stem}/{section}")
+def kb_extraction(stem: str, section: str):
+    """Stored extraction from the knowledge base, re-attached to a live report_id so page images and CSV work. No model call."""
+    path = kb.kb_dir() / stem / "extractions" / f"{section}.json"
+    if not re.fullmatch(r"[a-z0-9_]+", stem) or not re.fullmatch(r"[a-z0-9_]+", section) or not path.exists():
+        raise HTTPException(404, f"no {section!r} extraction for {stem!r}; see GET /api/kb")
+    entry = next((e for e in library_index() if e["file"] == f"{stem}.pdf"), None)
+    if not entry:
+        raise HTTPException(409, f"the PDF for {stem!r} is no longer cached; fetch it again to open the pages")
+    report_id = register_library(entry)["report_id"]
+    extractions[report_id] = json.loads(path.read_text(encoding="utf-8")) | {"report_id": report_id}
+    return extractions[report_id]
+
+
+@app.get("/api/config")
+def config():
+    return {"model": os.getenv("LLM_MODEL") or "fixture", "embed_model": kb.embed_model(), "base_url": os.getenv("LLM_BASE_URL"),
+            "llm": bool(os.getenv("LLM_BASE_URL"))}
+
+
 @app.get("/api/reports/{report_id}/extraction.csv")
 def extraction_csv(report_id: str):
     get_report(report_id)

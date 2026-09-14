@@ -292,6 +292,18 @@ def demo():
     assert parse._numeric_run("Notes" + "".join(f"{chr(10)}{i}" for i in range(12)) + f"{chr(10)}Label") == 12 and parse._numeric_run(f"Gross income{chr(10)}14,753{chr(10)}14,480") == 2
     from . import locate
     assert locate.strip_boilerplate(["Financial statements Group and Parent company_ _____124\nNotes ......... 136\nConsolidated income statement\nNet sales 26 46,021 45,052"])[0] == "Consolidated income statement\nNet sales 26 46,021 45,052"  # AAK nav bar
+    # NCC: "Result from sales of Group companies 20" offered as discontinued operations; the identity holds without it
+    ncc2 = ("Consolidated income statement\nSEK M\nNote\n2025\n2024\nResult from sales of Group companies\n8\n20\n3\n"
+            "Profit after financial items\n630\n1,863\nTax on profit for the year\n23, 39\n–489\n–292\nNet profit for the year\n142\n1,571\n")
+    sch = {"name": "is", "keywords": [], "fields": [real[k] for k in ("profit_before_tax", "income_tax", "profit_discontinued", "net_profit")],
+           "checks": [{"name": "net_profit_arith", "expr": "abs((profit_before_tax + income_tax + profit_discontinued) - net_profit) <= 2", "identity": True}]}
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "profit_before_tax", "value": 630, "unit": "SEK M", "period": "2025", "raw_label": "Profit after financial items", "source": {"page": 1, "quote": "Profit after financial items 630 1,863"}},
+        {"key": "income_tax", "value": -489, "unit": "SEK M", "period": "2025", "raw_label": "Tax on profit for the year", "source": {"page": 1, "quote": "Tax on profit for the year 23, 39 –489 –292"}},
+        {"key": "profit_discontinued", "value": 20, "unit": "SEK M", "period": "2025", "raw_label": "Result from sales of Group companies", "source": {"page": 1, "quote": "Result from sales of Group companies 8 20 3"}},
+        {"key": "net_profit", "value": 142, "unit": "SEK M", "period": "2025", "raw_label": "Net profit for the year", "source": {"page": 1, "quote": "Net profit for the year 142 1,571"}}]}
+    out = x.extract([ncc2], [1], sch, {"fiscal_year": 2025})
+    assert out["fields"][2]["value"] is None and out["checks"][0]["passed"] and all(f["confidence"] == 1.0 for f in out["fields"] if f["value"] is not None), (out["fields"], out["warnings"])
     print("confidence self-check ok")
 
 
