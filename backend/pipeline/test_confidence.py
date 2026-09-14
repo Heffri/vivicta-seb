@@ -253,6 +253,22 @@ def demo():
     assert [f["confidence"] for f in out["fields"]] == [1.0, 1.0, 1.0] and "identity_all_columns" in out["fields"][1]["evidence"], (out["fields"], out["warnings"])
     out = x.extract([an.replace("-3,559", "-3,000")], [1], {"name": "is", "keywords": [], "checks": [gp], "fields": [real[k] for k in ("revenue", "cost_of_sales", "gross_profit")]}, {"fiscal_year": 2025})
     assert out["fields"][1]["confidence"] == 0.9, out["fields"][1]  # only one year adds up: the label stays unknown
+    # Volvo: "2025 2024" per segment; the model took income taxes from Industrial Operations and the rest from Volvo Group
+    vo = ("Consolidated income statement\nIndustrial Operations Financial Services Eliminations Volvo Group\nSEK M Note 2025 2024 2025 2024 2025 2024 2025 2024\n"
+          "Net sales 6, 7 457,509 504,975 26,469 26,982 -4,795 -5,140 479,183 526,816\nIncome after financial items 43,522 63,168 3,869 4,042 – – 47,391 67,210\n"
+          "Income taxes 10 -11,669 -15,542 -1,016 -1,092 – – -12,685 -16,634\nIncome for the period * 31,853 47,626 2,853 2,949 – – 34,707 50,576\n")
+    assert x._row_amounts("Income taxes 10 -11,669 -15,542 -1,016 -1,092 – – -12,685 -16,634", 8) == [-11669, -15542, -1016, -1092, 0, 0, -12685, -16634]
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "revenue", "value": 479183, "unit": "SEK M", "period": "2025", "raw_label": "Net sales", "source": {"page": 1, "quote": "Net sales 6, 7 457,509 504,975 26,469 26,982 -4,795 -5,140 479,183 526,816"}},
+        {"key": "profit_before_tax", "value": 47391, "unit": "SEK M", "period": "2025", "raw_label": "Income after financial items", "source": {"page": 1, "quote": "Income after financial items 43,522 63,168 3,869 4,042 – – 47,391 67,210"}},
+        {"key": "income_tax", "value": -11669, "unit": "SEK M", "period": "2025", "raw_label": "Income taxes", "source": {"page": 1, "quote": "Income taxes 10 -11,669 -15,542 -1,016 -1,092 – – -12,685 -16,634"}},
+        {"key": "net_profit", "value": 34707, "unit": "SEK M", "period": "2025", "raw_label": "Income for the period", "source": {"page": 1, "quote": "Income for the period * 31,853 47,626 2,853 2,949 – – 34,707 50,576"}}]}
+    out = x.extract([vo], [1], {**sch, "fields": [real[k] for k in ("revenue", "profit_before_tax", "income_tax", "net_profit")]}, {"fiscal_year": 2025})
+    assert [(f["value"], f["confidence"]) for f in out["fields"]] == [(479183, 1.0), (47391, 1.0), (-12685, 1.0), (34707, 1.0)], (out["fields"], out["warnings"])
+    assert sum("segment" in w for w in out["warnings"]) == 1, out["warnings"]
+    assert x._row_amounts("Cost of sales 3 –297,0421) –320,821", 2) == [-297042, -320821] and x._value_in_quote(-297042, "Cost of sales 3 –297,0421) –320,821")  # Volvo Cars footnote marker
+    # Volvo Cars: "Net income" is a prefix of "net income from discontinued operations", not a discontinued-operations row (the null fill took it, then "repaired" net profit)
+    assert not x._label_known("Net income", real["profit_discontinued"]) and x._label_known("Income before tax", real["profit_before_tax"]) and x._label_known("Net income", real["net_profit"])
     from . import locate
     assert locate.strip_boilerplate(["Financial statements Group and Parent company_ _____124\nNotes ......... 136\nConsolidated income statement\nNet sales 26 46,021 45,052"])[0] == "Consolidated income statement\nNet sales 26 46,021 45,052"  # AAK nav bar
     print("confidence self-check ok")

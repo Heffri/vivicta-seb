@@ -19,6 +19,7 @@ import re
 
 HEADING_CHARS = 150
 YEARS = re.compile(r"\b20\d\d\b")
+DATE = re.compile(r"\d{1,2}[/.]\d{1,2}[/.]20\d\d|20\d\d-\d\d-\d\d")
 QUARTER = re.compile(r"\bq[1-4]\b|quarter|kvartal")
 GROUP = re.compile(r"\b(group|koncern|consolidated)")
 BOILERPLATE_SHARE = 0.10  # a line on >10% of pages is a running header/footer/nav, not content
@@ -55,7 +56,7 @@ def candidate_pages(texts: list[str], schema: dict, top_n: int = 8) -> list[int]
         heading = any(k in head for k in keywords)
         fields = sum(s in low for s in synonyms)  # the statement names most of its rows; a currency note or a liabilities table does not
         density = min(sum(c.isdigit() for c in text) / max(len(text), 1), 0.2)  # tables ~0.15-0.3, prose ~0.01; capped so summaries don't win on digits
-        years = YEARS.findall(head)
+        years = YEARS.findall(DATE.sub("", head))  # AQ prints the income statement and comprehensive income side by side, each headed "01/01/2025 31/12/2025 ...": dates, not a multi-year table
         summary = len(set(years)) >= 3 or len(years) >= 5 or QUARTER.search(head)  # "2023 2022 2021" / "Oct-Dec 2025 Jul-Sep 2025 ...": multi-year or quarterly table
         group_at = (GROUP.search(head) or re.compile(r"$").search(head)).start()
         parent = any(k in head and head.index(k) < group_at for k in excluded)  # Saab SV: parent-company statement outranked the group one;

@@ -143,12 +143,20 @@ WEIGHTS = {"quote_on_page": 0.35, "value_in_quote": 0.20, "arith_ok": 0.20, "lab
 
 _DASHES = str.maketrans({"–": "-", "−": "-", " ": " "})
 _SPACE_GROUPS = re.compile(r"(?<![\d,.])\d{1,3}(?:[  ]\d{3})+(?![,.'\d])")  # Swedish thousands; "7 176,658" (note ref + number) and "1,051 969" (two columns) stay apart
+_FOOTNOTE = re.compile(r"(?<=\d{3})\d\)(?=\s|$)")  # Volvo Cars "Cost of sales 3 -297,0421) -320,821": a footnote marker glued to the amount
 _AMOUNT = re.compile(r"[-(]?(\d{1,3}(?:[ ,.']\d{3})*|\d+)(?:([.,])(\d{1,2}))?\)?")
 
 
 def _year_column(text: str, fiscal_year) -> tuple[int, int] | None:
     """(position of the fiscal year, number of year columns) from the table's year header ("Note 2024 2025" -> (1, 2)).
-    None without a header or when the fiscal year is not in it."""
+    None without a header, when the fiscal year is not in it, or when it repeats (Volvo prints "2025 2024" per segment:
+    Industrial Operations ... Volvo Group; which pair is the group is not knowable here, see _segment_column)."""
+    run = _year_run(text)
+    return (run.index(str(fiscal_year)), len(run)) if run.count(str(fiscal_year)) == 1 else None
+
+
+def _year_run(text: str) -> list[str]:
+    """The table's year header as printed: ["2024", "2025"]; [] without one."""
     head, year = " ".join(text[:4000].split()), re.compile(r"\b20\d\d\b")  # Beijer Ref prints a contents list above the statement
     head = re.sub(r"\b\d{1,2}[/.]\d{1,2}[/.](20\d\d)\s*[-\u2013]\s*\d{1,2}[/.]\d{1,2}[/.](20\d\d)|\b(20\d\d)-\d\d-\d\d\s*[-\u2013]\s*(20\d\d)-\d\d-\d\d",
                   lambda m: m.group(2) or m.group(4), head)  # Catena "01/01/2025 -31/12/2025": the period's end year is the column
@@ -158,16 +166,33 @@ def _year_column(text: str, fiscal_year) -> tuple[int, int] | None:
         while (n := year.search(head, end)) and n.start() - end <= 12 and not re.search(r"\d", head[end:n.start()]):
             run.append(n.group())  # "2025 2024" or Telia's "2025 Jan-Dec 2024": one word between years is still the header
             end = n.end()
-        if len(run) >= 2:  # Volvo prints "2025 2024" per segment (Industrial Operations ... Volvo Group): which pair is the group is not knowable here
-            return (run.index(str(fiscal_year)), len(run)) if run.count(str(fiscal_year)) == 1 else None
-    return None
+        if len(run) >= 2:
+            return run
+    return []
+
+
+def _segment_column(text: str, fiscal_year, fields: list[dict]) -> tuple[int, int] | None:
+    """Volvo prints "2025 2024" once per segment (Industrial Operations, Financial Services, Eliminations, Volvo Group) and the
+    model read the tax from the first pair and the rest from the last. The fiscal-year column is the one most of the page's
+    fields already sit in: (position, number of columns). None unless the year repeats in the header."""
+    run = _year_run(text)
+    slots = [i for i, y in enumerate(run) if y == str(fiscal_year)]
+    if len(slots) < 2:
+        return None
+    votes: Counter = Counter()
+    for f in fields:
+        am = _row_amounts(f["source"]["quote"], len(run))
+        hit = [i for i in slots if len(am) == len(run) and am[i] == f["value"]]
+        if len(hit) == 1:
+            votes[hit[0]] += 1
+    return (max(votes, key=lambda i: (votes[i], i)), len(run)) if votes else None  # ponytail: tie -> the rightmost pair, where the group total conventionally sits
 
 
 def _row_amounts(quote: str, ncols: int | None = None) -> list:
-    """Numbers after the row label, parsed; note references ("6, 7", "G2") dropped.
+    """Numbers after the row label, parsed; note references ("6, 7", "G2") dropped; a lone dash is nil (0), so columns stay aligned.
     With the column count known, Swedish space-grouped rows are split by it: "Total sales 6, 10 155 113 161 921"
     is a note reference plus two 6-digit amounts, which no regex can tell from five small numbers."""
-    q = quote.translate(_DASHES)
+    q = _FOOTNOTE.sub("", quote.translate(_DASHES))
     toks = q.split()
     last_alpha = max((i for i, t in enumerate(toks) if re.search(r"[^\W\d_]", t)), default=-1)
     tail = [t.rstrip(",;") for t in toks[last_alpha + 1:]]
@@ -185,6 +210,9 @@ def _row_amounts(quote: str, ncols: int | None = None) -> list:
     out = []
     for t in toks[last_alpha + 1:]:
         t = t.rstrip(",;")
+        if t == "-":  # Volvo "Income taxes 10 -11,669 -15,542 -1,016 -1,092 – – -12,685 -16,634": the eliminations columns are nil
+            out.append(0)
+            continue
         m = _AMOUNT.fullmatch(t)
         if not m or (len(re.sub(r"\D", "", t)) < 3 and not m.group(3)):  # "6" / "12" alone is a note reference
             continue
@@ -219,7 +247,7 @@ def _label_known(label, sf: dict) -> bool:
     rl = _clean_label(label)
     if not rl or any(re.search(p, rl) for p in sf.get("exclude_labels", [])):
         return False
-    return any(rl.startswith(s.lower()) or s.lower().startswith(rl) for s in sf.get("synonyms", []))
+    return any(rl.startswith(s.lower()) for s in sf.get("synonyms", []))
 
 
 def _row_label(row: str) -> str:
@@ -263,7 +291,7 @@ def _num_pattern(value) -> str | None:
 
 def _value_in_quote(value, quote: str) -> bool:
     pat = _num_pattern(value)
-    return pat is not None and re.search(pat, quote) is not None
+    return pat is not None and re.search(pat, _FOOTNOTE.sub("", quote)) is not None
 
 
 def repair_value(value, quote: str):
@@ -511,6 +539,18 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                                 field["value"], field["raw_label"], src["quote"] = pa[header[0]], _row_label(part), part
                                 break
         fields.append(field)
+
+    for page in sorted({f["source"]["page"] for f in fields if f["source"] and "quote_on_page" in f["evidence"]}):
+        on_page = [f for f in fields if f["value"] is not None and f["source"] and f["source"].get("page") == page]
+        seg = _segment_column(texts[page - 1], fiscal_year, on_page) if fiscal_year else None
+        if not seg:
+            continue
+        col, ncols = seg
+        for f in on_page:  # Volvo: income tax read from the Industrial Operations pair, the other rows from Volvo Group
+            am = _row_amounts(f["source"]["quote"], ncols)
+            if len(am) == ncols and am[col] != f["value"]:
+                warnings.append(f"{f['key']}: {f['value']} is another segment's column; the page's rows are read from column {col + 1} of {ncols}, which prints {am[col]}")
+                f["value"], f["period"] = am[col], str(fiscal_year)
 
     by_key = {f["key"]: f for f in fields}
     for sf, f in zip(sfs, fields):  # Lundbergs: "Rörelseresultat 16 077" offered as gross profit and as operating profit; the row belongs to the key whose label it is
