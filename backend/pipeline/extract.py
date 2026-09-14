@@ -369,6 +369,31 @@ def _derived_value(field: dict, texts: list[str], fiscal_year, check: dict | Non
     return None
 
 
+def _between_rows(sf: dict, fields: list[dict], sfs: list[dict], defaults: dict, texts: list[str], fiscal_year, check: dict, page: int):
+    """A missing operand of an identity when the model answered nothing: the full rows printed strictly between the other
+    operands' rows, when their sums close the identity in every column (Addnode: "Profit after financial items 514 536",
+    "Current tax -157 -154", "Deferred tax 27 20", "Profit for the year 384 402"; no total tax row exists). None of the rows may
+    carry another field's label. (value, quote, label, number of rows) or None."""
+    text = texts[page - 1]
+    header, rows = _year_column(text, fiscal_year), _page_rows(text)
+    if not header or header[1] < 2:
+        return None
+    col, ncols = header
+    idx = [rows.index(g["source"]["quote"]) for g in fields if g["value"] is not None and (g.get("source") or {}).get("page") == page
+           and g["source"]["quote"] in rows and re.search(rf"\b{re.escape(g['key'])}\b", check["expr"])]
+    if len(idx) < 2:
+        return None
+    between = [r for r in rows[min(idx) + 1:max(idx)] if len(_row_amounts(r, ncols)) == ncols]
+    if not between or any(_label_known(_row_label(r), gs) for r in between for gs in sfs if gs is not sf):
+        return None
+    parts = [_row_amounts(r, ncols) for r in between]
+    sums = [round(sum(a[c] for a in parts), 2) for c in range(ncols)]
+    others, quote = _column_values({"source": {"page": page}}, fields, defaults, texts, fiscal_year), " ".join(between)
+    if others and all(_check(check, {**others[c], sf["key"]: sums[c]})["passed"] for c in range(ncols)) and quote_on_page(quote, text):
+        return sums[col], quote, " + ".join(_row_label(r) for r in between), len(between)
+    return None
+
+
 def _statement_row(rows: list[str], sf: dict, ncols: int) -> str | None:
     """The field's row on a statement page: the full row whose label is exactly a synonym ("Operating profit" for a bank's
     profit before tax), else the one full row with a known, unexcluded label prefix. None when ambiguous."""
@@ -592,6 +617,17 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                 c.update(_check(sc, {**defaults, **values}))
                 break
     for c, sc in zip(checks, schema.get("checks", [])):
+        if sc.get("identity") and c["detail"].startswith("missing: ") and pages and fiscal_year:
+            key = c["detail"].split(": ", 1)[1]  # Addnode after two LLM timeouts: no tax answer, and the statement prints no total tax row
+            sf, f = next(((s, g) for s, g in zip(sfs, fields) if g["key"] == key), (None, None))
+            fix = f and f["value"] is None and _between_rows(sf, fields, sfs, defaults, texts, fiscal_year, sc, pages[0])
+            if fix:
+                warnings.append(f"{key}: model returned null; {fix[1]!r} sits between the other rows of {c['name']} and closes it in every column")
+                f.update(value=fix[0], period=str(fiscal_year), raw_label=fix[2], source={"page": pages[0], "quote": fix[1]},
+                         evidence=["quote_on_page", "value_derived" if fix[3] > 1 else "identity_all_columns"])
+                values[key] = fix[0]
+                filled.add(key)
+                c.update(_check(sc, {**defaults, **values}))
         if c["detail"].startswith("missing:") or not sc.get("identity"):  # only an equality proves a sum of rows; margin_sanity would accept anything
             continue
         for f in fields:  # an operand whose figure is proven by the rows around its quote: Röko "1,01", Catena's two tax rows

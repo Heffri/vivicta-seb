@@ -212,6 +212,7 @@
         "skatt på årets resultat",
         "årets skatt"
       ],
+      "exclude_labels": ["attributable to items", "reclassif", "other comprehensive", "övrigt totalresultat", "omklassificer", "hänförlig till poster"],
       "expense": true
     },
     {

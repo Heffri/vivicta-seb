@@ -274,6 +274,14 @@ def demo():
     assert x._row_amounts("Cost of sales 3 –297,0421) –320,821", 2) == [-297042, -320821] and x._value_in_quote(-297042, "Cost of sales 3 –297,0421) –320,821")  # Volvo Cars footnote marker
     # Volvo Cars: "Net income" is a prefix of "net income from discontinued operations", not a discontinued-operations row (the null fill took it, then "repaired" net profit)
     assert not x._label_known("Net income", real["profit_discontinued"]) and x._label_known("Income before tax", real["profit_before_tax"]) and x._label_known("Net income", real["net_profit"])
+    # Addnode after two LLM timeouts: nothing answered; the statement rows fill the fields, tax = current + deferred between profit after financial items and profit for the year
+    an2 = an + "Operating profit 2, 7 607 598\nProfit after financial items 514 536\nCurrent tax 11, 12 -157 -154\nDeferred tax 11, 12 27 20\nProfit for the year 384 402\nTax attributable to items that may be reclassified -11 14\n"
+    x.call_llm = lambda *a, **k: {"fields": []}
+    npa = {"name": "net_profit_arith", "expr": "abs((profit_before_tax + income_tax + profit_discontinued) - net_profit) <= 2", "identity": True}
+    out = x.extract([an2], [1], {"name": "is", "keywords": [], "checks": [gp, npa], "fields": [real[k] for k in ("revenue", "cost_of_sales", "gross_profit", "profit_before_tax", "income_tax", "profit_discontinued", "net_profit")]}, {"fiscal_year": 2025})
+    assert [(f["value"], f["confidence"]) for f in out["fields"]] == [(5793, 1.0), (-1350, 1.0), (4443, 1.0), (514, 1.0), (-130, 1.0), (None, 0.0), (384, 1.0)], (out["fields"], out["warnings"])
+    assert out["fields"][4]["raw_label"] == "Current tax + Deferred tax" and "value_derived" in out["fields"][4]["evidence"] and "identity_all_columns" in out["fields"][1]["evidence"], out["fields"]
+    assert not x._label_known("Tax attributable to items that may be reclassified", real["income_tax"])
     from . import locate
     assert locate.strip_boilerplate(["Financial statements Group and Parent company_ _____124\nNotes ......... 136\nConsolidated income statement\nNet sales 26 46,021 45,052"])[0] == "Consolidated income statement\nNet sales 26 46,021 45,052"  # AAK nav bar
     print("confidence self-check ok")
