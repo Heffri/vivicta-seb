@@ -92,3 +92,6 @@ Random draw 2026-09-14 (seed 20260914, Nasdaq Stockholm large caps excluding ban
 - Wrong-entity detection: require a `group` keyword (koncernen / consolidated) in the page heading for `page_is_statement`; penalise `moderbolaget` / `parent company` (already in `exclude_keywords`).
 - Second opinion: re-run the extraction with a different page window or model and add `agrees_with_second_pass` (weight taken from `label_known`).
 - ESEF/iXBRL: for the primary statements the tagged XHTML is ground truth; when present, `matches_esef` should be worth 0.5 on its own.
+- **Component rows** (IPC): the model quotes the first row under a "Cost of sales" heading. The identity check fails, and the run of rows starting at (or ending at) the quote whose sums make the identity hold in *every* column becomes the value and the quote, labelled by the heading. `value_derived`, not `value_in_quote`.
+- **Twin rows** (Lundbergs): the same printed row offered for two keys ("Rörelseresultat" as gross profit and as operating profit) belongs to the key whose label it is; the other is dropped, and a row that `requires` it follows.
+- **Statement row** (SEB): when a variant row is replaced or a null is filled from the page, the row whose label is exactly a synonym wins over a prefix match ("Operating profit", not "Operating profit before items affecting comparability").

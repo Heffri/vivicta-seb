@@ -237,7 +237,7 @@ def _ccy(unit) -> str:
     return c
 
 
-_UNIT = re.compile(r"\b(?:[MKT](?:SEK|EUR|USD|NOK|DKK|GBP)|[MT]kr|(?:SEK|EUR|USD|NOK|DKK|GBP|CHF)\s?(?:m|mn|million|millions|thousand|thousands|k|bn|billion))\b", re.I)  # "SEK m", "USD Thousands"
+_UNIT = re.compile(r"\b(?:[MKT](?:SEK|EUR|USD|NOK|DKK|GBP)|[MT]kr|mnkr|mdkr|(?:SEK|EUR|USD|NOK|DKK|GBP|CHF)\s?(?:m|mn|million|millions|thousand|thousands|k|bn|billion))\b", re.I)  # "SEK m", "USD Thousands"
 
 
 def _page_unit(text: str):
@@ -323,20 +323,33 @@ def _derived_value(field: dict, texts: list[str], fiscal_year, check: dict | Non
         quote = " ".join(rows[i - k:i])
         if all(sums[c] == own[c] for c in range(ncols) if c != col) and sums[col] != field["value"] and quote_on_page(quote, text):
             return sums[col], quote, field.get("raw_label")
-    if not check or others is None or _value_in_quote(field["value"], src["quote"]):
+    if not check or others is None:
         return None
     for k in range(2, 9):
-        parts = [_row_amounts(r, ncols) for r in rows[max(i + 1 - k, 0):i + 1]]
-        if len(parts) < k or any(len(a) != ncols for a in parts):
-            break
-        sums = [round(sum(a[c] for a in parts), 2) for c in range(ncols)]
-        if abs(sums[col] - field["value"]) > 1 or not all(_check(check, {**others[c], field["key"]: sums[c]})["passed"] for c in range(ncols)):
-            continue
-        quote = " ".join(rows[i + 1 - k:i + 1])
-        heading = rows[i - k] if i - k >= 0 and not _row_amounts(rows[i - k], ncols) else None
-        if quote_on_page(quote, text):
-            return field["value"], quote, _row_label(heading) if heading else " + ".join(_row_label(r) for r in rows[i + 1 - k:i + 1])
+        for start in range(max(i + 1 - k, 0), i + 1):  # the k rows ending at the quote (Catena), or starting at it (IPC)
+            parts = [_row_amounts(r, ncols) for r in rows[start:start + k]]
+            if len(parts) < k or any(len(a) != ncols for a in parts):
+                continue
+            sums = [round(sum(a[c] for a in parts), 2) for c in range(ncols)]
+            if not all(_check(check, {**others[c], field["key"]: sums[c]})["passed"] for c in range(ncols)):
+                continue
+            quote = " ".join(rows[start:start + k])
+            heading = rows[start - 1] if start >= 1 and not _row_amounts(rows[start - 1], ncols) else None
+            if quote_on_page(quote, text):
+                return sums[col], quote, _row_label(heading) if heading else " + ".join(_row_label(r) for r in rows[start:start + k])
     return None
+
+
+def _statement_row(rows: list[str], sf: dict, ncols: int) -> str | None:
+    """The field's row on a statement page: the full row whose label is exactly a synonym ("Operating profit" for a bank's
+    profit before tax), else the one full row with a known, unexcluded label prefix. None when ambiguous."""
+    full = [r for r in rows if len(_row_amounts(r, ncols)) == ncols]
+    syn = {s.lower() for s in sf.get("synonyms", [])}
+    hit = next((r for r in full if _clean_label(_row_label(r)) in syn), None)
+    if hit:
+        return hit
+    cands = [r for r in full if _label_known(_row_label(r), sf)]
+    return cands[0] if len(cands) == 1 else None
 
 
 def score_field(field: dict, sf: dict, checks: list[dict], schema: dict, currency, fiscal_year, statement_pages: set[int]) -> None:
@@ -408,11 +421,9 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             # Telia: the model answered null although "Income after financial items 7,300 6,234" is printed on the statement
             # page under a synonym label. Fill it from the page; everything below then verifies it like a model answer.
             first = texts[pages[0] - 1]
-            hit = next((r for r in _page_rows(first) if _clean_label(_row_label(r)) in {s.lower() for s in sf.get("synonyms", [])}), None)
-            if not hit:  # SEB "Basic earnings per share, SEK": the one row with a known, unexcluded label prefix
-                cands = [r for r in _page_rows(first) if _label_known(_row_label(r), sf) and _row_amounts(r)]
-                hit = cands[0] if len(cands) == 1 else None
-            if hit and (h := _year_column(first, fiscal_year)) and len(am := _row_amounts(hit, h[1])) == h[1]:
+            h = _year_column(first, fiscal_year)
+            if h and (hit := _statement_row(_page_rows(first), sf, h[1])):  # SEB "Basic earnings per share, SEK"
+                am = _row_amounts(hit, h[1])
                 warnings.append(f"{sf['key']}: model returned null, filled from page {pages[0]} row {hit!r}")
                 field.update(value=am[h[0]], period=str(fiscal_year), raw_label=_row_label(hit), source={"page": pages[0], "quote": hit})
                 filled.add(sf["key"])
@@ -457,7 +468,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                 if header and any(re.search(p, _clean_label(_row_label(row))) for p in sf.get("exclude_labels", [])):
                     # Securitas: "...before and after dilution and before items affecting comparability 11.55" is the adjusted
                     # EPS; Saab: "efter utspädning" is diluted. The statement row with a known, unexcluded label wins.
-                    alt = next((r for r in rows if _label_known(_row_label(r), sf) and len(_row_amounts(r, ncols)) == ncols), None)
+                    alt = _statement_row(rows, sf, ncols)
                     if alt:
                         amounts = _row_amounts(alt, ncols)
                         warnings.append(f"{sf['key']}: {_row_label(row)!r} {field['value']} is a variant row; {_row_label(alt)!r} {amounts[header[0]]} is the statement row")
@@ -491,6 +502,13 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
         fields.append(field)
 
     by_key = {f["key"]: f for f in fields}
+    for sf, f in zip(sfs, fields):  # Lundbergs: "Rörelseresultat 16 077" offered as gross profit and as operating profit; the row belongs to the key whose label it is
+        if f["value"] is None or _label_known(f.get("raw_label"), sf):
+            continue
+        twin = next((g for g, gs in zip(fields, sfs) if g is not f and g["value"] is not None and g["source"] == f["source"] and _label_known(g.get("raw_label"), gs)), None)
+        if twin:
+            warnings.append(f"{sf['key']}: {f.get('raw_label')!r} {f['value']} dropped: the same row as {twin['key']}, and not a {sf['label'].lower()} label")
+            f.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
     for sf, f in zip(sfs, fields):  # Stora Enso: "Materials and services" offered as cost of sales in a by-nature statement with no gross profit
         req = sf.get("requires")
         if req and f["value"] is not None and by_key[req]["value"] is None and not _label_known(f.get("raw_label"), sf):
@@ -521,7 +539,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             fix = _derived_value(f, texts, fiscal_year, sc, _column_values(f, fields, defaults, texts, fiscal_year))
             if fix and _check(sc, {**defaults, **values, f["key"]: fix[0]})["passed"]:
                 if fix[0] != f["value"]:
-                    warnings.append(f"{f['key']}: {f['value']} fails {c['name']}; the rows above {f['source']['quote']!r} sum to {fix[0]} in every column, which passes")
+                    warnings.append(f"{f['key']}: {f['value']} fails {c['name']}; {fix[1]!r} sums to {fix[0]} in every column, which passes")
                 else:
                     warnings.append(f"{f['key']}: {f['value']} is not printed; it is the sum of {fix[1]!r}, and {c['name']} holds with those rows in every column")
                 f["value"], f["source"]["quote"], f["raw_label"], values[f["key"]] = fix[0], fix[1], fix[2], fix[0]

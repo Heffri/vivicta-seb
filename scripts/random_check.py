@@ -34,6 +34,7 @@ def main():
     ap.add_argument("--year", type=int, default=2025)
     ap.add_argument("--section", default="income_statement")
     ap.add_argument("--market", default="Large Cap", help="substring of the market field; '' for all")
+    ap.add_argument("--only", nargs="*", default=[], help="re-check only companies whose name contains one of these")
     a = ap.parse_args()
 
     companies = json.loads((ROOT / "data" / "companies.json").read_text("utf-8"))
@@ -41,6 +42,8 @@ def main():
     pool = [c for c in companies if a.market.lower() in c.get("market", "").lower()
             and c["name"].split()[0].lower() not in known]
     random.Random(a.seed).shuffle(pool)
+    if a.only:
+        pool = [c for c in pool if any(o.lower() in c["name"].lower() for o in a.only)]
 
     results, tried = [], 0
     for c in pool:

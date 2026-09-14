@@ -193,6 +193,40 @@ def demo():
     assert out["currency"] == "SEK m" and sum("llm:" in w for w in out["warnings"]) == 2, out  # the spread and the single page; not the four-page window
     assert x._page_unit("Consolidated Statement of Operations\nUSD Thousands\nNote 2025 2024") == "USD Thousands" and x._page_unit("SEK M\nNote 2025") == "SEK M"
     assert not x._label_known("Earnings per share fully diluted - USD1", real["eps_basic"]) and x._label_known("Earnings per share - USD1", real["eps_basic"])  # IPC
+    # SEB, model answered: profit before tax offered as "Profit before credit losses..." (a variant); the statement row is the
+    # exact synonym "Operating profit", not the prefix match "Operating profit before items affecting comparability"
+    seb2 = seb.replace("Operating profit\n38,898", "Profit before credit losses and imposed levies\n44,342\n51,000\nOperating profit\n38,898")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "profit_before_tax", "value": 44342, "unit": "SEK m", "period": "2025", "raw_label": "Profit before credit losses and imposed levies", "source": {"page": 1, "quote": "Profit before credit losses and imposed levies 44,342"}},
+        {"key": "income_tax", "value": 7835, "unit": "SEK m", "period": "2025", "raw_label": "Income tax expense", "source": {"page": 1, "quote": "Income tax expense 14 7,835"}},
+        {"key": "net_profit", "value": 31063, "unit": "SEK m", "period": "2025", "raw_label": "NET PROFIT", "source": {"page": 1, "quote": "NET PROFIT 31,063"}}]}
+    out = x.extract([seb2], [1], {**sch, "fields": [real[k] for k in ("profit_before_tax", "income_tax", "net_profit")]}, {"fiscal_year": 2025})
+    assert [(f["value"], f["confidence"]) for f in out["fields"]] == [(38898, 1.0), (-7835, 1.0), (31063, 1.0)], (out["fields"], out["warnings"])
+    # IPC: the model quoted the first row under the "Cost of sales" heading; the four rows sum to revenue - gross profit in both columns
+    ipc = ("Consolidated Statement of Operations\nUSD Thousands\nNote 2025 2024\nRevenue 3 685,888 797,783\nCost of sales\nProduction costs 4 (427,623) (448,218)\n"
+           "Depletion and decommissioning costs 3,9 (122,749) (128,392)\nDepreciation of other tangible fixed assets 3,9 (5,597) (8,933)\n"
+           "Exploration and business development costs 3 (1,799) (2,069)\nGross profit 3 128,120 210,171\nOther income / (expense) 751 1,137\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "revenue", "value": 685888, "unit": "USD Thousands", "period": "2025", "raw_label": "Revenue", "source": {"page": 1, "quote": "Revenue 3 685,888"}},
+        {"key": "cost_of_sales", "value": -427623, "unit": "USD Thousands", "period": "2025", "raw_label": "Cost of sales", "source": {"page": 1, "quote": "Production costs 4 (427,623)"}},
+        {"key": "gross_profit", "value": 128120, "unit": "USD Thousands", "period": "2025", "raw_label": "Gross profit", "source": {"page": 1, "quote": "Gross profit 3 128,120"}}]}
+    gp = {"name": "gross_profit_arith", "expr": "abs((revenue + cost_of_sales) - gross_profit) <= 2", "identity": True}
+    out = x.extract([ipc], [1], {"name": "is", "keywords": [], "checks": [gp], "fields": [real[k] for k in ("revenue", "cost_of_sales", "gross_profit")]}, {"fiscal_year": 2025})
+    cos = out["fields"][1]
+    assert [(f["value"], f["confidence"]) for f in out["fields"]] == [(685888, 1.0), (-557768, 1.0), (128120, 1.0)], (out["fields"], out["warnings"])
+    assert cos["raw_label"] == "Cost of sales" and cos["source"]["quote"].startswith("Production costs") and "value_derived" in cos["evidence"], cos
+    # Lundbergs (by nature, no gross profit): "Rörelseresultat" offered as gross profit as well as operating profit -> the twin without the label goes,
+    # then the cost row it required
+    lb = ("Resultaträkning\nKONCERNEN, mnkr\nNot 2025 2024\nNettoomsättning m m 3 28 781 29 311\nRåvaror, förnödenheter samt kostnad sålda lageraktier -12 455 -13 494\n"
+          "Personalkostnader 5 -4 038 -3 996\nRörelseresultat 11 16 077 10 334\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "revenue", "value": 28781, "unit": "mnkr", "period": "2025", "raw_label": "Nettoomsättning m m", "source": {"page": 1, "quote": "Nettoomsättning m m 3 28 781"}},
+        {"key": "cost_of_sales", "value": -12455, "unit": "mnkr", "period": "2025", "raw_label": "Råvaror, förnödenheter samt kostnad sålda lageraktier", "source": {"page": 1, "quote": "Råvaror, förnödenheter samt kostnad sålda lageraktier -12 455"}},
+        {"key": "gross_profit", "value": 16077, "unit": "mnkr", "period": "2025", "raw_label": "Rörelseresultat", "source": {"page": 1, "quote": "Rörelseresultat 11 16 077"}},
+        {"key": "operating_profit", "value": 16077, "unit": "mnkr", "period": "2025", "raw_label": "Rörelseresultat", "source": {"page": 1, "quote": "Rörelseresultat 11 16 077"}}]}
+    out = x.extract([lb], [1], {"name": "is", "keywords": [], "checks": [gp], "fields": [real[k] for k in ("revenue", "cost_of_sales", "gross_profit", "operating_profit")]}, {"fiscal_year": 2025})
+    assert [(f["value"], f["confidence"]) for f in out["fields"]] == [(28781, 1.0), (None, 0.0), (None, 0.0), (16077, 1.0)], (out["fields"], out["warnings"])
+    assert x._page_unit(lb) == "mnkr", x._page_unit(lb)
     print("confidence self-check ok")
 
 
