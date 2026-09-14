@@ -172,9 +172,9 @@ def demo():
     out = x.extract([cat], [1], sch, {"fiscal_year": 2025})
     tax = out["fields"][1]
     assert (tax["value"], tax["confidence"], tax["raw_label"]) == (-423, 1.0, "Current tax + Deferred tax") and "value_derived" in tax["evidence"], (tax, out["warnings"])
-    # ... but not when the comparative column disagrees (a coincidence in the fiscal year is not a proof)
+    # ... but not when the comparative column disagrees (a coincidence in the fiscal year is not a proof): then -423 is printed nowhere and is dropped
     out = x.extract([cat.replace("-53", "-99")], [1], sch, {"fiscal_year": 2025})
-    assert out["fields"][1]["confidence"] == 0.5, out["fields"][1]
+    assert out["fields"][1]["value"] is None and any("printed on none of pages" in w for w in out["warnings"]), (out["fields"][1], out["warnings"])
     # ... and "Net operating surplus" is not operating profit; with no operating profit row on the page the value is dropped
     x.call_llm = lambda *a, **k: {"fields": [{"key": "operating_profit", "value": 2198, "unit": "SEK M", "period": "2025", "raw_label": "Net operating surplus",
                                              "source": {"page": 1, "quote": "Net operating surplus 2,198 1,789"}}]}

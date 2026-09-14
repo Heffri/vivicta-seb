@@ -731,6 +731,21 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                 f["evidence"].append("value_derived")
                 c.update(_check(sc, {**defaults, **values}))
                 break
+    for f, sf in zip(fields, sfs):  # Sectra (by nature): net sales minus goods for resale offered as gross profit, quoting "Total income 3,689,793"
+        src = f["source"] or {}
+        if f["value"] is None or "value_derived" in f["evidence"] or not src.get("page") or _value_in_quote(f["value"], src.get("quote", "")):
+            continue
+        nearby = sorted({src["page"], *pages[:2]})
+        if not any(_value_in_quote(f["value"], texts[q - 1]) for q in nearby if 0 < q <= len(texts)):  # nothing above could read or derive it
+            warnings.append(f"{f['key']}: {f['value']} is printed on none of pages {nearby}; dropped as computed, not read")
+            f.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
+            values.pop(f["key"], None)
+    for sf, f in zip(sfs, fields):  # requires, again: a gross profit dropped just now takes Sectra's "Goods for resale" with it
+        req = sf.get("requires")
+        if req and f["value"] is not None and by_key[req]["value"] is None and not _label_known(f.get("raw_label"), sf):
+            warnings.append(f"{sf['key']}: {f.get('raw_label')!r} {f['value']} dropped: not a known {sf['label'].lower()} label and the statement has no {req}")
+            f.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
+            values.pop(sf["key"], None)
     checks = [_check(c, {**defaults, **values}) for c in schema.get("checks", [])]
     for c, sc in zip(checks, schema.get("checks", [])):
         if not c["passed"] or not sc.get("identity"):
