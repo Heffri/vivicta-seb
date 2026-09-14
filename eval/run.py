@@ -1,0 +1,149 @@
+#!/usr/bin/env python
+"""Eval harness: replay hand-labelled fields against the extraction API and score accuracy.
+Usage: python eval/run.py [--api URL] [--reports-dir DIR] [--labels CSV] [--dry-run] [--no-fail]"""
+import argparse, csv, json, mimetypes, os, sys, urllib.error, urllib.request
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+FIXTURE_PATH = os.path.join(HERE, "..", "backend", "fixtures", "sample_extraction.json")
+OK, BAD, NA = "✓", "✗", "-"
+
+try:  # ponytail: Windows console defaults to cp1252; force utf-8 so the check/cross marks print cleanly.
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
+def load_labels(path):
+    with open(path, newline="", encoding="utf-8-sig") as f:
+        return list(csv.DictReader(f))
+
+def upload_report(api, path):
+    boundary = "evalharnessboundary"
+    filename = os.path.basename(path)
+    ctype = mimetypes.guess_type(filename)[0] or "application/pdf"
+    with open(path, "rb") as f:
+        content = f.read()
+    head = (f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{filename}"\r\n'
+            f"Content-Type: {ctype}\r\n\r\n").encode()
+    body = head + content + f"\r\n--{boundary}--\r\n".encode()
+    headers = {"Content-Type": f"multipart/form-data; boundary={boundary}"}
+    req = urllib.request.Request(f"{api}/api/reports", data=body, method="POST", headers=headers)
+    return json.load(urllib.request.urlopen(req))["report_id"]
+
+def extract_section(api, report_id, section):
+    data = json.dumps({"section": section}).encode()
+    req = urllib.request.Request(f"{api}/api/reports/{report_id}/extract", data=data, method="POST",
+                                  headers={"Content-Type": "application/json"})
+    return json.load(urllib.request.urlopen(req))
+
+def values_match(expected, got):
+    if got is None or expected in (None, ""):
+        return False
+    try:
+        e, g = float(expected), float(got)
+    except (TypeError, ValueError):
+        return str(expected).strip().lower() == str(got).strip().lower()
+    return abs(e - g) <= max(abs(e) * 0.005, 1)
+
+def page_match(expected_page, got_page):
+    if not expected_page:
+        return None  # not asserted for this row
+    if got_page is None:
+        return False
+    try:
+        return int(float(expected_page)) == int(got_page)
+    except (TypeError, ValueError):
+        return False
+
+def evaluate(rows, extractions):
+    results = []
+    for row in rows:
+        extraction = extractions.get(row["section"]) or {}
+        field = next((f for f in extraction.get("fields", []) if f.get("key") == row["key"]), None)
+        got_value = field.get("value") if field else None
+        got_page = (field.get("source") or {}).get("page") if field else None
+        results.append(dict(row, got_value=got_value, got_page=got_page,
+                             confidence=field.get("confidence") if field else None,
+                             value_ok=values_match(row["expected_value"], got_value),
+                             page_ok=page_match(row.get("expected_page"), got_page)))
+    return results
+
+def mark(ok):
+    return NA if ok is None else (OK if ok else BAD)
+
+def print_report(results, no_fail):
+    hdr = f'{"report":<28}{"key":<18}{"expected":>10}{"got":>10}{"val":^5}{"page":^5}{"conf":>6}'
+    print(hdr)
+    print("-" * len(hdr))
+    for r in results:
+        conf = f'{r["confidence"]:.2f}' if r["confidence"] is not None else "-"
+        print(f'{r["report_file"]:<28}{r["key"]:<18}{str(r["expected_value"]):>10}{str(r["got_value"]):>10}'
+              f'{mark(r["value_ok"]):^5}{mark(r["page_ok"]):^5}{conf:>6}')
+
+    total = len(results)
+    if total == 0:
+        print("\nNo rows evaluated (all reports skipped).")
+        return 1
+    value_correct = sum(r["value_ok"] for r in results)
+    page_rows = [r for r in results if r["page_ok"] is not None]
+    page_correct = sum(r["page_ok"] for r in page_rows)
+    avg = lambda xs: sum(xs) / len(xs) if xs else None
+    ac = avg([r["confidence"] for r in results if r["value_ok"] and r["confidence"] is not None])
+    aw = avg([r["confidence"] for r in results if not r["value_ok"] and r["confidence"] is not None])
+
+    print(f"\nvalue accuracy: {value_correct}/{total} ({100 * value_correct / total:.1f}%)")
+    if page_rows:
+        print(f"page hit-rate: {page_correct}/{len(page_rows)} ({100 * page_correct / len(page_rows):.1f}%)")
+    else:
+        print("page hit-rate: n/a (no expected_page given)")
+    ac_s = f"{ac:.2f}" if ac is not None else "n/a"
+    aw_s = f"{aw:.2f}" if aw is not None else "n/a"
+    print(f"mean confidence -- correct: {ac_s}  incorrect: {aw_s}")
+
+    misses = [r for r in results if not r["value_ok"]]
+    if misses:
+        print("\nmisses:")
+        for r in misses:
+            print(f'  {r["report_file"]} / {r["section"]} / {r["key"]}: '
+                  f'expected {r["expected_value"]!r}, got {r["got_value"]!r}')
+    return 0 if (value_correct == total or no_fail) else 1
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("--api", default="http://localhost:8000")
+    p.add_argument("--reports-dir", default="data/reports")
+    p.add_argument("--labels", default="eval/labels.csv")
+    p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--no-fail", action="store_true")
+    args = p.parse_args()
+
+    by_report = {}
+    for row in load_labels(args.labels):
+        by_report.setdefault(row["report_file"], []).append(row)
+
+    all_results = []
+    for report_file, rows in by_report.items():
+        sections = list(dict.fromkeys(r["section"] for r in rows))
+        extractions = {}
+        if args.dry_run:
+            # ponytail: dry-run ignores --reports-dir entirely; it only proves the scoring logic works.
+            with open(FIXTURE_PATH, encoding="utf-8") as f:
+                fixture = json.load(f)
+            extractions = {s: fixture for s in sections}
+        else:
+            report_path = os.path.join(args.reports_dir, report_file)
+            if not os.path.isfile(report_path):
+                print(f"WARNING: {report_path} not found, skipping {report_file}")
+                continue
+            try:
+                report_id = upload_report(args.api, report_path)
+                for s in sections:
+                    extractions[s] = extract_section(args.api, report_id, s)
+            except (urllib.error.URLError, OSError) as e:
+                print(f"WARNING: API call failed for {report_file}: {e}")
+                extractions = {s: {"fields": []} for s in sections}
+        all_results.extend(evaluate(rows, extractions))
+
+    sys.exit(print_report(all_results, args.no_fail))
+
+if __name__ == "__main__":
+    main()

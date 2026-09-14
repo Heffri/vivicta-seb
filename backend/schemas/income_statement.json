@@ -1,0 +1,29 @@
+{
+  "name": "income_statement",
+  "title": "Consolidated income statement",
+  "description": "PLACEHOLDER section until the end-user (Kristian, SEB) tells us which note he needs on 2026-09-15. Demonstrates the schema format; swap or add files here, no code changes needed.",
+  "keywords": [
+    "consolidated income statement", "income statement", "statement of profit or loss",
+    "koncernens resultaträkning", "resultaträkning",
+    "revenues", "net sales", "intäkter", "nettoomsättning",
+    "operating profit", "rörelseresultat",
+    "profit before tax", "resultat före skatt",
+    "profit for the year", "årets resultat"
+  ],
+  "value_convention": "Numbers exactly as printed in the report (costs usually negative). Unit = the unit stated in the table header (MSEK, SEK m, MEUR, USD m ...). Period = fiscal year the column refers to, as 'YYYY'.",
+  "fields": [
+    { "key": "revenue",            "label": "Revenue",             "description": "Total revenues / net sales for the group, current fiscal year.", "unit_hint": "currency_millions" },
+    { "key": "cost_of_sales",      "label": "Cost of sales",       "description": "Cost of sales / cost of goods sold, as printed (typically negative).", "unit_hint": "currency_millions" },
+    { "key": "gross_profit",       "label": "Gross profit",        "description": "Revenue minus cost of sales.", "unit_hint": "currency_millions" },
+    { "key": "operating_profit",   "label": "Operating profit",    "description": "Operating profit / EBIT / rörelseresultat.", "unit_hint": "currency_millions" },
+    { "key": "profit_before_tax",  "label": "Profit before tax",   "description": "Profit before income tax / resultat före skatt.", "unit_hint": "currency_millions" },
+    { "key": "income_tax",         "label": "Income tax",          "description": "Income tax expense, as printed (typically negative).", "unit_hint": "currency_millions" },
+    { "key": "net_profit",         "label": "Profit for the year", "description": "Profit for the year / årets resultat, total (before split to owners / NCI).", "unit_hint": "currency_millions" },
+    { "key": "eps_basic",          "label": "EPS, basic",          "description": "Basic earnings per share attributable to owners of the parent.", "unit_hint": "currency_per_share" }
+  ],
+  "checks": [
+    { "name": "gross_profit_arith",  "expr": "abs((revenue + cost_of_sales) - gross_profit) <= 2",        "detail": "revenue + cost_of_sales == gross_profit (±2 rounding)" },
+    { "name": "net_profit_arith",    "expr": "abs((profit_before_tax + income_tax) - net_profit) <= 2",   "detail": "profit_before_tax + income_tax == net_profit (±2 rounding)" },
+    { "name": "margin_sanity",       "expr": "0 < operating_profit / revenue < 0.6",                        "detail": "operating margin between 0 and 60%" }
+  ]
+}

@@ -1,0 +1,4 @@
+report_file,section,key,expected_value,expected_page,notes
+nordic_industrials_2025.pdf,income_statement,revenue,152340,64,example row — replace with real labels
+nordic_industrials_2025.pdf,income_statement,operating_profit,31890,64,example row — replace with real labels
+nordic_industrials_2025.pdf,income_statement,net_profit,23445,64,example row — replace with real labels

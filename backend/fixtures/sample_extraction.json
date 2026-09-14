@@ -1,0 +1,25 @@
+{
+  "report_id": "fixture",
+  "company": "Nordic Industrials AB (fictional fixture)",
+  "fiscal_year": 2025,
+  "currency": "MSEK",
+  "section": "income_statement",
+  "fields": [
+    { "key": "revenue",           "label": "Revenue",             "value": 152340,  "unit": "MSEK", "period": "2025", "raw_label": "Intäkter",                    "source": { "page": 64, "quote": "Intäkter 152 340 141 902" },              "confidence": 0.96 },
+    { "key": "cost_of_sales",     "label": "Cost of sales",       "value": -88120,  "unit": "MSEK", "period": "2025", "raw_label": "Kostnad för sålda varor",     "source": { "page": 64, "quote": "Kostnad för sålda varor –88 120 –83 455" }, "confidence": 0.94 },
+    { "key": "gross_profit",      "label": "Gross profit",        "value": 64220,   "unit": "MSEK", "period": "2025", "raw_label": "Bruttoresultat",              "source": { "page": 64, "quote": "Bruttoresultat 64 220 58 447" },           "confidence": 0.95 },
+    { "key": "operating_profit",  "label": "Operating profit",    "value": 31890,   "unit": "MSEK", "period": "2025", "raw_label": "Rörelseresultat",             "source": { "page": 64, "quote": "Rörelseresultat 31 890 28 011" },          "confidence": 0.97 },
+    { "key": "profit_before_tax", "label": "Profit before tax",   "value": 30455,   "unit": "MSEK", "period": "2025", "raw_label": "Resultat före skatt",         "source": { "page": 64, "quote": "Resultat före skatt 30 455 26 730" },      "confidence": 0.95 },
+    { "key": "income_tax",        "label": "Income tax",          "value": -7010,   "unit": "MSEK", "period": "2025", "raw_label": "Inkomstskatt",                "source": { "page": 64, "quote": "Inkomstskatt –7 010 –6 205" },             "confidence": 0.91 },
+    { "key": "net_profit",        "label": "Profit for the year", "value": 23445,   "unit": "MSEK", "period": "2025", "raw_label": "Årets resultat",              "source": { "page": 64, "quote": "Årets resultat 23 445 20 525" },           "confidence": 0.96 },
+    { "key": "eps_basic",         "label": "EPS, basic",          "value": 4.81,    "unit": "SEK",  "period": "2025", "raw_label": "Resultat per aktie före utspädning", "source": { "page": 65, "quote": "Resultat per aktie före utspädning, SEK 4,81 4,21" }, "confidence": 0.78 }
+  ],
+  "checks": [
+    { "name": "gross_profit_arith", "passed": true,  "detail": "152340 + -88120 = 64220 == 64220" },
+    { "name": "net_profit_arith",   "passed": true,  "detail": "30455 + -7010 = 23445 == 23445" },
+    { "name": "margin_sanity",      "passed": true,  "detail": "operating margin 20.9%" }
+  ],
+  "warnings": [
+    "eps_basic: quote found on page 65 but value column ambiguous (basic vs diluted) — confidence lowered"
+  ]
+}

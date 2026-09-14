@@ -1,0 +1,18 @@
+# data
+data/reports/*
+!data/reports/.gitkeep
+backend/uploads/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+backend/.env
+
+# node
+node_modules/
+frontend/dist/
+
+# misc
+.DS_Store
+*.log
