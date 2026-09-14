@@ -30,7 +30,10 @@ def strip_boilerplate(texts: list[str]) -> list[str]:
     from collections import Counter
     freq = Counter(line for t in texts for line in set(t.splitlines()))
     limit = max(3, BOILERPLATE_SHARE * len(texts))
-    return ["\n".join(l for l in t.splitlines() if freq[l] <= limit) for t in texts]
+    return ["\n".join(l for l in t.splitlines() if freq[l] <= limit and not TOC_LINE.search(l)) for t in texts]
+
+
+TOC_LINE = re.compile(r"(?:[_.]\s*){3,}\d{1,3}\s*$")  # AAK's nav bar "Financial statements Group and Parent company_ _____124": leader dots + page number, differs per page
 
 
 PROMPT_BUDGET = 14000  # chars of page text per LLM call; qwen3:8b runs with a 16k context and thinks out loud before the JSON
