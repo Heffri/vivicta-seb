@@ -65,8 +65,11 @@ model copied. Deterministic **repairs** run on that row before scoring, each lea
 - a row on the statement page returned without a unit takes the statement's unit from the page header (`SEK m`, `MSEK`,
   `USD Thousands`); the header also serves when the model answered nothing at all (SEB: both calls timed out, the page rows
   filled every field).
-- a model call that times out on the statement spread is not retried on more pages (it would time out again); the page rows
-  fill what they can.
+- a model call that times out on the statement spread is retried once on the statement page alone (IPC: two pages hang,
+  one answers in a minute); a hung single page ends the attempts and the page rows fill what they can.
+- component rows (IPC): the model quotes the first row under a "Cost of sales" heading. The identity check fails, and the run of rows starting at (or ending at) the quote whose sums make the identity hold in *every* column becomes the value and the quote, labelled by the heading. `value_derived`, not `value_in_quote`.
+- twin rows (Lundbergs): the same printed row offered for two keys ("Rörelseresultat" as gross profit and as operating profit) belongs to the key whose label it is; the other is dropped, and a row that `requires` it follows.
+- the statement row (SEB): when a variant row is replaced or a null is filled from the page, the row whose label is exactly a synonym wins over a prefix match ("Operating profit", not "Operating profit before items affecting comparability").
 
 Swedish space-grouped rows are split by the column count from the year header (`155 054 161 900` is two amounts; no regex can
 tell that from four small numbers), so the repairs only run on pages where that header was found.
@@ -92,6 +95,3 @@ Random draw 2026-09-14 (seed 20260914, Nasdaq Stockholm large caps excluding ban
 - Wrong-entity detection: require a `group` keyword (koncernen / consolidated) in the page heading for `page_is_statement`; penalise `moderbolaget` / `parent company` (already in `exclude_keywords`).
 - Second opinion: re-run the extraction with a different page window or model and add `agrees_with_second_pass` (weight taken from `label_known`).
 - ESEF/iXBRL: for the primary statements the tagged XHTML is ground truth; when present, `matches_esef` should be worth 0.5 on its own.
-- **Component rows** (IPC): the model quotes the first row under a "Cost of sales" heading. The identity check fails, and the run of rows starting at (or ending at) the quote whose sums make the identity hold in *every* column becomes the value and the quote, labelled by the heading. `value_derived`, not `value_in_quote`.
-- **Twin rows** (Lundbergs): the same printed row offered for two keys ("Rörelseresultat" as gross profit and as operating profit) belongs to the key whose label it is; the other is dropped, and a row that `requires` it follows.
-- **Statement row** (SEB): when a variant row is replaced or a null is filled from the page, the row whose label is exactly a synonym wins over a prefix match ("Operating profit", not "Operating profit before items affecting comparability").
