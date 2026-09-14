@@ -1,20 +1,20 @@
 {
-  "report_id": "lib-vitrolife_2025",
-  "company": "Vitrolife",
+  "report_id": "lib-traton_2025",
+  "company": "TRATON",
   "fiscal_year": 2025,
-  "currency": "SEK million",
+  "currency": "€ million",
   "section": "income_statement",
   "fields": [
     {
       "key": "revenue",
       "label": "Revenue",
-      "value": 15,
-      "unit": "SEK million",
+      "value": 44052,
+      "unit": "€ million",
       "period": "2025",
-      "raw_label": "Net sales",
+      "raw_label": "Sales revenue",
       "source": {
-        "page": 155,
-        "quote": "Net sales 4, 5 3,440 3,609 15 25"
+        "page": 139,
+        "quote": "Sales revenue [1] 44,052 47,473"
       },
       "confidence": 1.0,
       "evidence": [
@@ -30,17 +30,18 @@
     {
       "key": "cost_of_sales",
       "label": "Cost of sales",
-      "value": 0,
-      "unit": "SEK million",
+      "value": -35630,
+      "unit": "€ million",
       "period": "2025",
       "raw_label": "Cost of sales",
       "source": {
-        "page": 155,
-        "quote": "Cost of sales -1,443 -1,470 – –"
+        "page": 139,
+        "quote": "Cost of sales [2] –35,630 –37,373"
       },
-      "confidence": 0.5,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
+        "value_in_quote",
         "arith_ok",
         "label_known",
         "period_ok",
@@ -51,13 +52,13 @@
     {
       "key": "gross_profit",
       "label": "Gross profit",
-      "value": 15,
-      "unit": "SEK million",
+      "value": 8421,
+      "unit": "€ million",
       "period": "2025",
-      "raw_label": "Gross income",
+      "raw_label": "Gross profit",
       "source": {
-        "page": 155,
-        "quote": "Gross income 1,997 2,139 15 25"
+        "page": 139,
+        "quote": "Gross profit 8,421 10,100"
       },
       "confidence": 1.0,
       "evidence": [
@@ -73,13 +74,13 @@
     {
       "key": "operating_profit",
       "label": "Operating profit",
-      "value": -29,
-      "unit": "SEK million",
+      "value": 2426,
+      "unit": "€ million",
       "period": "2025",
-      "raw_label": "Operating income",
+      "raw_label": "Operating result",
       "source": {
-        "page": 155,
-        "quote": "Operating income 7, 8, 9, 11, 26 -4,835 783 -29 -22"
+        "page": 139,
+        "quote": "Operating result 2,426 4,209"
       },
       "confidence": 1.0,
       "evidence": [
@@ -95,18 +96,19 @@
     {
       "key": "profit_before_tax",
       "label": "Profit before tax",
-      "value": -4491,
-      "unit": "SEK million",
+      "value": 2024,
+      "unit": "€ million",
       "period": "2025",
-      "raw_label": "Income after financial items",
+      "raw_label": "Earnings before tax",
       "source": {
-        "page": 155,
-        "quote": "Income after financial items -4,886 674 -4,491 25"
+        "page": 139,
+        "quote": "Earnings before tax 2,024 3,569"
       },
-      "confidence": 0.5,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
+        "arith_ok",
         "label_known",
         "period_ok",
         "page_is_statement",
@@ -116,18 +118,19 @@
     {
       "key": "income_tax",
       "label": "Income tax",
-      "value": -22,
-      "unit": "SEK million",
+      "value": -479,
+      "unit": "€ million",
       "period": "2025",
       "raw_label": "Income taxes",
       "source": {
-        "page": 155,
-        "quote": "Income taxes 12 -127 -160 -22 -15"
+        "page": 139,
+        "quote": "Income taxes [6] –479 –766"
       },
-      "confidence": 0.5,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
+        "arith_ok",
         "label_known",
         "period_ok",
         "page_is_statement",
@@ -148,18 +151,20 @@
     {
       "key": "net_profit",
       "label": "Profit for the year",
-      "value": -4382,
-      "unit": "SEK million",
+      "value": 1545,
+      "unit": "€ million",
       "period": "2025",
-      "raw_label": "Income for the year",
+      "raw_label": "Earnings after tax",
       "source": {
-        "page": 155,
-        "quote": "Income for the year -5,013 514 -4,382 140"
+        "page": 139,
+        "quote": "Earnings after tax 1,545 2,803"
       },
-      "confidence": 0.5,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
+        "identity_all_columns",
         "value_in_quote",
+        "arith_ok",
         "label_known",
         "period_ok",
         "page_is_statement",
@@ -169,47 +174,34 @@
     {
       "key": "eps_basic",
       "label": "EPS, basic",
-      "value": 0,
-      "unit": "SEK",
-      "period": "2025",
-      "raw_label": "Earnings per share before dilution, SEK",
-      "source": {
-        "page": 155,
-        "quote": "Earnings per share before dilution, SEK 20 -37.01 3.79 – –"
-      },
-      "confidence": 0.5,
-      "evidence": [
-        "quote_on_page",
-        "arith_ok",
-        "label_known",
-        "period_ok",
-        "page_is_statement",
-        "unit_ok"
-      ]
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
     }
   ],
   "checks": [
     {
       "name": "gross_profit_arith",
       "passed": true,
-      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((15 + 0) - 15) <= 2"
+      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((44052 + -35630) - 8421) <= 2"
     },
     {
       "name": "net_profit_arith",
-      "passed": false,
-      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((-4491 + -22 + 0) - -4382) <= 2"
+      "passed": true,
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((2024 + -479 + 0) - 1545) <= 2"
     },
     {
       "name": "margin_sanity",
       "passed": true,
-      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < -29 / 15 < 10"
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 2426 / 44052 < 10"
     }
   ],
   "warnings": [
-    "revenue: 3609 is another segment's column; the page's rows are read from column 3 of 4, which prints 15",
-    "cost_of_sales: -1470 is another segment's column; the page's rows are read from column 3 of 4, which prints 0",
-    "gross_profit: 2139 is another segment's column; the page's rows are read from column 3 of 4, which prints 15",
-    "income_tax: -160 is another segment's column; the page's rows are read from column 3 of 4, which prints -22",
-    "eps_basic: 3.79 is another segment's column; the page's rows are read from column 3 of 4, which prints 0"
+    "eps_basic: 'Earnings per share in € (diluted/basic) [7]' 3.09 dropped: an excluded label, and the statement has no eps, basic row",
+    "net_profit: 'Earnings after tax' is not a known profit for the year label, but net_profit_arith holds with that row in every column"
   ]
 }

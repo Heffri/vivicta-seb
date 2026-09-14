@@ -1,20 +1,20 @@
 {
-  "report_id": "lib-lundbergforetagen_2025",
-  "company": "Lundbergföretagen",
+  "report_id": "lib-lindab_international_2025",
+  "company": "Lindab International",
   "fiscal_year": 2025,
-  "currency": "MSEK",
+  "currency": "SEK m",
   "section": "income_statement",
   "fields": [
     {
       "key": "revenue",
       "label": "Revenue",
-      "value": 28781,
-      "unit": "MSEK",
+      "value": 12854,
+      "unit": "SEK m",
       "period": "2025",
-      "raw_label": "Nettoomsättning m m",
+      "raw_label": "Net sales",
       "source": {
-        "page": 80,
-        "quote": "Nettoomsättning m m 3 28 781 29 311"
+        "page": 70,
+        "quote": "Net sales 7, 8 12,854 13,323"
       },
       "confidence": 1.0,
       "evidence": [
@@ -30,35 +30,57 @@
     {
       "key": "cost_of_sales",
       "label": "Cost of sales",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "value": -9210,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Cost of goods sold",
+      "source": {
+        "page": 70,
+        "quote": "Cost of goods sold 6, 9, 10, 30 –9,210 –9,632"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "gross_profit",
       "label": "Gross profit",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "value": 3644,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Gross profit",
+      "source": {
+        "page": 70,
+        "quote": "Gross profit 3,644 3,691"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "operating_profit",
       "label": "Operating profit",
-      "value": 16077,
-      "unit": "MSEK",
+      "value": 1097,
+      "unit": "SEK m",
       "period": "2025",
-      "raw_label": "Rörelseresultat",
+      "raw_label": "Operating profit",
       "source": {
-        "page": 80,
-        "quote": "Rörelseresultat 11 16 077 10 334"
+        "page": 70,
+        "quote": "Operating profit 1,097 736"
       },
       "confidence": 1.0,
       "evidence": [
@@ -74,13 +96,13 @@
     {
       "key": "profit_before_tax",
       "label": "Profit before tax",
-      "value": 15465,
-      "unit": "MSEK",
+      "value": 888,
+      "unit": "SEK m",
       "period": "2025",
-      "raw_label": "Resultat efter finansiella poster",
+      "raw_label": "Profit before tax",
       "source": {
-        "page": 80,
-        "quote": "Resultat efter finansiella poster 15 465 9 808"
+        "page": 70,
+        "quote": "Profit before tax 888 461"
       },
       "confidence": 1.0,
       "evidence": [
@@ -96,13 +118,13 @@
     {
       "key": "income_tax",
       "label": "Income tax",
-      "value": -1044,
-      "unit": "MSEK",
+      "value": -128,
+      "unit": "SEK m",
       "period": "2025",
-      "raw_label": "Skatt",
+      "raw_label": "Tax on profit for the year",
       "source": {
-        "page": 80,
-        "quote": "Skatt 13 -1 044 -1 425"
+        "page": 70,
+        "quote": "Tax on profit for the year 15 –128 –146"
       },
       "confidence": 1.0,
       "evidence": [
@@ -129,13 +151,13 @@
     {
       "key": "net_profit",
       "label": "Profit for the year",
-      "value": 14421,
-      "unit": "MSEK",
+      "value": 760,
+      "unit": "SEK m",
       "period": "2025",
-      "raw_label": "Årets resultat",
+      "raw_label": "Profit for the year",
       "source": {
-        "page": 80,
-        "quote": "Årets resultat 14 421 8 383"
+        "page": 70,
+        "quote": "Profit for the year 760 315"
       },
       "confidence": 1.0,
       "evidence": [
@@ -151,13 +173,13 @@
     {
       "key": "eps_basic",
       "label": "EPS, basic",
-      "value": 48.7,
-      "unit": "kr",
+      "value": 9.86,
+      "unit": "SEK",
       "period": "2025",
-      "raw_label": "Resultat per aktie hänförligt till moderbolagets aktieägare, kr \n(någon utspädning föreligger inte)",
+      "raw_label": "Earnings per share before dilution, SEK",
       "source": {
-        "page": 80,
-        "quote": "(någon utspädning föreligger inte) 48,70 25,41"
+        "page": 70,
+        "quote": "Earnings per share before dilution, SEK 16 9.86 4.10"
       },
       "confidence": 1.0,
       "evidence": [
@@ -174,24 +196,19 @@
   "checks": [
     {
       "name": "gross_profit_arith",
-      "passed": false,
-      "detail": "missing: cost_of_sales"
+      "passed": true,
+      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((12854 + -9210) - 3644) <= 2"
     },
     {
       "name": "net_profit_arith",
       "passed": true,
-      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((15465 + -1044 + 0) - 14421) <= 2"
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((888 + -128 + 0) - 760) <= 2"
     },
     {
       "name": "margin_sanity",
       "passed": true,
-      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 16077 / 28781 < 10"
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 1097 / 12854 < 10"
     }
   ],
-  "warnings": [
-    "revenue: 30615 is not printed in 'Nettoomsättning m m'; the row's 2025 figure is 28781",
-    "gross_profit: 'Rörelseresultat' 18160 dropped: the same row as operating_profit, and not a gross profit label",
-    "cost_of_sales: 'Råvaror, förnödenheter samt kostnad sålda lageraktier' -12455 dropped: not a known cost of sales label and the statement has no gross_profit",
-    "currency: the model says mnkr, but the statement names only SEK and the report mostly SEK; SEK it is"
-  ]
+  "warnings": []
 }

@@ -9,6 +9,7 @@ the model's "leftmost number" habit; (4) tune SYSTEM_PROMPT_TEMPLATE against eva
 import json
 import os
 import re
+import unicodedata
 import urllib.request
 from collections import Counter
 
@@ -152,9 +153,10 @@ WEIGHTS = {"quote_on_page": 0.35, "value_in_quote": 0.20, "arith_ok": 0.20, "lab
 _DASHES = str.maketrans({"–": "-", "−": "-", " ": " "})
 _SPACE_GROUPS = re.compile(r"(?<![\d,.])\d{1,3}(?:[  ]\d{3})+(?![,.'\d])")  # Swedish thousands; "7 176,658" (note ref + number) and "1,051 969" (two columns) stay apart
 _FOOTNOTE = re.compile(r"(?<=\d{3})\d\)(?=\s|$)")  # Volvo Cars "Cost of sales 3 -297,0421) -320,821": a footnote marker glued to the amount
-_AMOUNT = re.compile(r"[-(]?(\d{1,3}(?:[ ,.']\d{3})*|\d+)(?:([.,])(\d{1,2}))?\)?")
+_AMOUNT = re.compile(r"[-(]?(\d{1,3}(?:[ ,.']\d{3})*|\d+)(?:([.,])(\d{1,4}))?\)?")  # Asmodee prints EPS to four decimals: 0.1186
 
 _SPLIT_YEAR = re.compile(r"\b(20\d\d)/(?:20)?\d\d\b")
+_MONTH_RANGE = re.compile(r"(?i)\b(?:jan|feb|mar|apr|maj|may|jun|jul|aug|sep|okt|oct|nov|dec)[a-z]*\.? ?((?:20)?\d\d)\s*[-\u2013]\s*(?:jan|feb|mar|apr|maj|may|jun|jul|aug|sep|okt|oct|nov|dec)[a-z]*\.? ?(?:20)?\d\d\b")
 
 
 def _year_column(text: str, fiscal_year) -> tuple[int, int] | None:
@@ -171,6 +173,7 @@ def _year_run(text: str) -> list[str]:
     head = re.sub(r"\b\d{1,2}[/.]\d{1,2}[/.](20\d\d)\s*[-\u2013]\s*\d{1,2}[/.]\d{1,2}[/.](20\d\d)|\b(20\d\d)-\d\d-\d\d\s*[-\u2013]\s*(20\d\d)-\d\d-\d\d",
                   lambda m: m.group(2) or m.group(4), head)  # Catena "01/01/2025 -31/12/2025": the period's end year is the column
     head = re.sub(r"\b\d{1,2}[/.]\d{1,2}[/.](20\d\d)|\b(20\d\d)-\d\d-\d\d", lambda m: m.group(1) or m.group(2), head)  # "31/12/2025", "2025-12-31"
+    head = _MONTH_RANGE.sub(lambda m: "20" + m.group(1)[-2:], head)  # Asmodee "Apr 25-Mar 26 Apr 24-Mar 25": a broken fiscal year named by its first year
     head = _SPLIT_YEAR.sub(r"\1", head)  # Sectra "2025/2026 2024/2025": a broken fiscal year is one column, named by its first year
     for m in year.finditer(head):
         run, end = [m.group()], m.end()
@@ -190,6 +193,10 @@ def _segment_column(text: str, fiscal_year, fields: list[dict]) -> tuple[int, in
     slots = [i for i, y in enumerate(run) if y == str(fiscal_year)]
     if len(slots) < 2:
         return None
+    head = " ".join(text[:4000].split()).lower()
+    g, e = locate.GROUP.search(head[:300]), locate.ENTITY.search(head[:300])
+    if g and e:  # Vitrolife: "Group | Parent Company" pairs on one page; the group pair is on the side named first, whatever the model read
+        return (slots[0] if g.start() < e.start() else slots[-1], len(run))
     votes: Counter = Counter()
     for f in fields:
         am = _row_amounts(f["source"]["quote"], len(run))
@@ -230,7 +237,7 @@ def _row_amounts(quote: str, ncols: int | None = None) -> list:
             continue
         v = int(re.sub(r"\D", "", m.group(1))) + (float(f"0.{m.group(3)}") if m.group(3) else 0)  # ponytail: "1,234" is read as a thousand, not a Swedish decimal
         v = -v if t[0] in "-(" else v
-        out.append(int(v) if float(v).is_integer() else round(v, 2))
+        out.append(int(v) if float(v).is_integer() else round(v, 4))
         noteish.append(len(re.sub(r"\D", "", t)) < 3 and not m.group(3) and t[0].isdigit())
     if ncols:  # note references sit between the label and the amounts; after an amount a small number is a column
         while out and noteish[0]:  # Vitrolife "Net sales 4, 5 3,440 3,609 15 25": the parent company's 15 and 25 are amounts
@@ -258,7 +265,7 @@ def _page_rows(text: str) -> list[str]:
 
 
 def _clean_label(label) -> str:
-    label = re.sub(r"(?i)\bresult\b", "profit", str(label or ""))  # SSAB / Elekta / Stora Enso: "Operating result", "Result before tax", "Result for the year"
+    label = re.sub(r"(?i)\bresult\b", "profit", unicodedata.normalize("NFKC", str(label or "")))  # Ericsson prints "ﬁnancial" with a ligature  # SSAB / Elekta / Stora Enso: "Operating result", "Result before tax", "Result for the year"
     label = re.sub(r"\s*[/(]\s*\(?loss\)?|/förlust", "", normalize_ws(label), flags=re.I)  # "Profit/loss before tax", "Profit (loss)"; normalize_ws glues digits to the word before
     label = re.sub(r",?\s*\(?\b(?:SEK|EUR|USD|NOK|DKK|ISK|GBP|CHF|kr)\b\)?", "", label, flags=re.I)  # Castellum "Earnings, SEK per share before and after dilution"; "Resultat per aktie (SEK)"
     label = re.sub(r"(?:\s+[A-Z]{1,3}\.?\d{1,2}(?:[-–]\d{1,2})?,?)+$", "", label)  # "Net sales IE.3", "Net sales B1, B2"
@@ -336,6 +343,11 @@ def repair_value(value, quote: str):
     return None
 
 
+def _signed(amounts: list, col: int, value) -> list:
+    """Swedbank prints expenses positive, the field carries them negative: the whole row flips with the fiscal-year figure."""
+    return [-a for a in amounts] if col < len(amounts) and amounts[col] == -value and value else amounts
+
+
 def _column_values(field: dict, fields: list[dict], defaults: dict, texts: list[str], fiscal_year) -> list[dict] | None:
     """Per table column, the other fields' printed figures ({key: amount}), for fields whose verified quote is a full row
     of the same table layout. Lets a check be evaluated in the comparative column too."""
@@ -351,7 +363,7 @@ def _column_values(field: dict, fields: list[dict], defaults: dict, texts: list[
             continue
         if _year_column(texts[gs["page"] - 1], fiscal_year) != header:
             continue
-        am = _row_amounts(gs["quote"], ncols)
+        am = _signed(_row_amounts(gs["quote"], ncols), col, g["value"])
         if len(am) == ncols and am[col] == g["value"]:
             for c in range(ncols):
                 cols[c][g["key"]] = am[c]
@@ -557,7 +569,10 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                 if header and len(amounts) == ncols and field["value"] in amounts and amounts[header[0]] != field["value"]:
                     warnings.append(f"{sf['key']}: {field['value']} is not the {fiscal_year} column, {amounts[header[0]]} is")  # Sandvik prints 2024 first
                     field["value"], field["period"] = amounts[header[0]], str(fiscal_year)
-                elif header and len(amounts) == ncols and abs(field["value"]) not in {abs(a) for a in amounts} and _label_known(_row_label(row), sf)                         and not _value_in_quote(field["value"], row) \
+                elif header and len(amounts) == ncols and amounts[header[0]] == field["value"] and str(field.get("period")) != str(fiscal_year):
+                    warnings.append(f"{sf['key']}: {field['value']} sits in the {fiscal_year} column, which the model dated {field.get('period')}; period set to {fiscal_year}")  # Asmodee: "Apr 25-Mar 26" stamped 2026
+                    field["period"] = str(fiscal_year)
+                if header and len(amounts) == ncols and abs(field["value"]) not in {abs(a) for a in amounts} and _label_known(_row_label(row), sf)                         and not _value_in_quote(field["value"], row) \
                         and not any(abs(field["value"] * k - amounts[header[0]]) <= abs(amounts[header[0]]) * 1e-3 + 1 for k in (1e3, 1e6, 1e-3, 1e-6)):
                     # Pandox: "Bruttoresultat 4 222 3 855" returned as 3622. The row is the field's own (known label) and holds one figure per
                     # year column, so the printed figure wins over the model's misreading; a value off by a factor of 1000 is a unit mix-up, left alone.
@@ -760,7 +775,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             header, others = _year_column(texts[src["page"] - 1], fiscal_year), _column_values(f, fields, defaults, texts, fiscal_year)
             if not header or header[1] < 2 or others is None:
                 continue  # one column is one equation; two independent years name the row
-            own = _row_amounts(src["quote"], header[1])
+            own = _signed(_row_amounts(src["quote"], header[1]), header[0], f["value"])
             if len(own) == header[1] and own[header[0]] == f["value"] and all(_check(sc, {**others[k], f["key"]: own[k]})["passed"] for k in range(header[1])):
                 warnings.append(f"{f['key']}: {f['raw_label']!r} is not a known {sf['label'].lower()} label, but {c['name']} holds with that row in every column")
                 f["evidence"].append("identity_all_columns")
