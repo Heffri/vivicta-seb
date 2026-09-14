@@ -2,14 +2,14 @@
   "report_id": "lib-ssab_2025",
   "company": "SSAB",
   "fiscal_year": 2025,
-  "currency": "MSEK",
+  "currency": "SEK millions",
   "section": "income_statement",
   "fields": [
     {
       "key": "revenue",
       "label": "Revenue",
       "value": 96220,
-      "unit": "MSEK",
+      "unit": "SEK millions",
       "period": "2025",
       "raw_label": "Revenue",
       "source": {
@@ -31,18 +31,19 @@
       "key": "cost_of_sales",
       "label": "Cost of sales",
       "value": -83830,
-      "unit": "MSEK",
+      "unit": "SEK millions",
       "period": "2025",
       "raw_label": "Costs of goods sold",
       "source": {
         "page": 117,
         "quote": "Costs of goods sold B.3 -83,830 -88,926"
       },
-      "confidence": 0.9,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
         "arith_ok",
+        "label_known",
         "period_ok",
         "page_is_statement",
         "unit_ok"
@@ -52,7 +53,7 @@
       "key": "gross_profit",
       "label": "Gross profit",
       "value": 12390,
-      "unit": "MSEK",
+      "unit": "SEK millions",
       "period": "2025",
       "raw_label": "Gross profit",
       "source": {
@@ -74,18 +75,19 @@
       "key": "operating_profit",
       "label": "Operating profit",
       "value": 6116,
-      "unit": "MSEK",
+      "unit": "SEK millions",
       "period": "2025",
       "raw_label": "Operating result",
       "source": {
         "page": 117,
         "quote": "Operating result 6,116 7,860"
       },
-      "confidence": 0.9,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
         "arith_ok",
+        "label_known",
         "period_ok",
         "page_is_statement",
         "unit_ok"
@@ -95,18 +97,19 @@
       "key": "profit_before_tax",
       "label": "Profit before tax",
       "value": 6232,
-      "unit": "MSEK",
+      "unit": "SEK millions",
       "period": "2025",
       "raw_label": "Result before tax",
       "source": {
         "page": 117,
         "quote": "Result before tax 6,232 8,313"
       },
-      "confidence": 0.9,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
         "arith_ok",
+        "label_known",
         "period_ok",
         "page_is_statement",
         "unit_ok"
@@ -116,7 +119,7 @@
       "key": "income_tax",
       "label": "Income tax",
       "value": -1326,
-      "unit": "MSEK",
+      "unit": "SEK millions",
       "period": "2025",
       "raw_label": "Income taxes",
       "source": {
@@ -149,18 +152,19 @@
       "key": "net_profit",
       "label": "Profit for the year",
       "value": 4906,
-      "unit": "MSEK",
+      "unit": "SEK millions",
       "period": "2025",
       "raw_label": "Result for the year",
       "source": {
         "page": 117,
         "quote": "Result for the year 4,906 6,527"
       },
-      "confidence": 0.9,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
         "arith_ok",
+        "label_known",
         "period_ok",
         "page_is_statement",
         "unit_ok"
@@ -203,7 +207,7 @@
     {
       "name": "margin_sanity",
       "passed": true,
-      "detail": "operating margin between 0 and 60% | 0 < 6116 / 96220 < 0.6"
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 6116 / 96220 < 10"
     }
   ],
   "warnings": []

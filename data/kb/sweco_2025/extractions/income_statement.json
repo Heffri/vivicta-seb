@@ -32,7 +32,7 @@
       "label": "Cost of sales",
       "value": null,
       "unit": null,
-      "period": null,
+      "period": "2025",
       "raw_label": null,
       "source": null,
       "confidence": 0.0,
@@ -43,7 +43,7 @@
       "label": "Gross profit",
       "value": null,
       "unit": null,
-      "period": null,
+      "period": "2025",
       "raw_label": null,
       "source": null,
       "confidence": 0.0,
@@ -120,7 +120,7 @@
       "label": "Profit from discontinued operations",
       "value": null,
       "unit": null,
-      "period": null,
+      "period": "2025",
       "raw_label": null,
       "source": null,
       "confidence": 0.0,
@@ -132,7 +132,7 @@
       "value": 2226,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "PROFIT FOR THE YEAR",
+      "raw_label": "Profit for the year",
       "source": {
         "page": 131,
         "quote": "PROFIT FOR THE YEAR 2,226 2,072"
@@ -185,7 +185,7 @@
     {
       "name": "margin_sanity",
       "passed": true,
-      "detail": "operating margin between 0 and 60% | 0 < 3203 / 31586 < 0.6"
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 3203 / 31586 < 10"
     }
   ],
   "warnings": []

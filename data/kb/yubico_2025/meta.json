@@ -5,5 +5,6 @@
   "source_url": "https://storage.mfn.se/8b6c7d69-93ce-4b02-a29b-fb0e0bcf56f2/yubico-ar25-eng.pdf",
   "pages": 95,
   "sha256": "b4ab26269220192749b047684f8c18ef61895baf6dac54fced079bf87538761b",
-  "filename": "yubico_2025.pdf"
+  "filename": "yubico_2025.pdf",
+  "parser": 2
 }

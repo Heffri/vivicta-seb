@@ -104,11 +104,12 @@
         "page": 91,
         "quote": "Result after financial items 11,198 9,996"
       },
-      "confidence": 0.9,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
         "arith_ok",
+        "label_known",
         "period_ok",
         "page_is_statement",
         "unit_ok"
@@ -141,7 +142,7 @@
       "label": "Profit from discontinued operations",
       "value": null,
       "unit": null,
-      "period": null,
+      "period": "2025",
       "raw_label": null,
       "source": null,
       "confidence": 0.0,
@@ -206,7 +207,7 @@
     {
       "name": "margin_sanity",
       "passed": true,
-      "detail": "operating margin between 0 and 60% | 0 < 11749 / 69674 < 0.6"
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 11749 / 69674 < 10"
     }
   ],
   "warnings": []

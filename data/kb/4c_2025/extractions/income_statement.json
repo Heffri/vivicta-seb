@@ -1,0 +1,194 @@
+{
+  "report_id": "lib-4c_2025",
+  "company": "4C Group",
+  "fiscal_year": 2025,
+  "currency": "kSEK",
+  "section": "income_statement",
+  "fields": [
+    {
+      "key": "revenue",
+      "label": "Revenue",
+      "value": 353111,
+      "unit": "kSEK",
+      "period": "2025",
+      "raw_label": "Total revenue",
+      "source": {
+        "page": 18,
+        "quote": "Total revenue 353,111 346,257"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "cost_of_sales",
+      "label": "Cost of sales",
+      "value": null,
+      "unit": "kSEK",
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "gross_profit",
+      "label": "Gross profit",
+      "value": null,
+      "unit": "kSEK",
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "operating_profit",
+      "label": "Operating profit",
+      "value": 8573,
+      "unit": "kSEK",
+      "period": "2025",
+      "raw_label": "Operating income",
+      "source": {
+        "page": 18,
+        "quote": "Operating income 8,573 -5,932"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_before_tax",
+      "label": "Profit before tax",
+      "value": -18936,
+      "unit": "kSEK",
+      "period": "2025",
+      "raw_label": "Income after financial items",
+      "source": {
+        "page": 18,
+        "quote": "Income after financial items -18,936 -3,057"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "income_tax",
+      "label": "Income tax",
+      "value": 2181,
+      "unit": "kSEK",
+      "period": "2025",
+      "raw_label": "Taxes",
+      "source": {
+        "page": 18,
+        "quote": "Taxes 9 2,181 -411"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_discontinued",
+      "label": "Profit from discontinued operations",
+      "value": null,
+      "unit": "kSEK",
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "net_profit",
+      "label": "Profit for the year",
+      "value": -16755,
+      "unit": "kSEK",
+      "period": "2025",
+      "raw_label": "Net income for the year",
+      "source": {
+        "page": 18,
+        "quote": "Net income for the year -16,755 -3,468"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "eps_basic",
+      "label": "EPS, basic",
+      "value": -0.44,
+      "unit": "SEK",
+      "period": "2025",
+      "raw_label": "Earnings per share before dilution (SEK)",
+      "source": {
+        "page": 18,
+        "quote": "Earnings per share before dilution (SEK) 18 -0.44 -0.10"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "gross_profit_arith",
+      "passed": false,
+      "detail": "missing: cost_of_sales"
+    },
+    {
+      "name": "net_profit_arith",
+      "passed": true,
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((-18936 + 2181 + 0) - -16755) <= 2"
+    },
+    {
+      "name": "margin_sanity",
+      "passed": true,
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 8573 / 353111 < 10"
+    }
+  ],
+  "warnings": [
+    "llm: APITimeoutError: Request timed out. (pages [18, 19])"
+  ]
+}

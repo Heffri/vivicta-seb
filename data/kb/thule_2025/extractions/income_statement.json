@@ -1,0 +1,214 @@
+{
+  "report_id": "lib-thule_2025",
+  "company": "Thule Group",
+  "fiscal_year": 2025,
+  "currency": "SEKm",
+  "section": "income_statement",
+  "fields": [
+    {
+      "key": "revenue",
+      "label": "Revenue",
+      "value": 10429,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "Net sales",
+      "source": {
+        "page": 147,
+        "quote": "Net sales 6, 7 10,429 9,541"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "cost_of_sales",
+      "label": "Cost of sales",
+      "value": -5635,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "Cost of goods sold",
+      "source": {
+        "page": 147,
+        "quote": "Cost of goods sold -5,635 -5,467"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "gross_profit",
+      "label": "Gross profit",
+      "value": 4794,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "Gross income",
+      "source": {
+        "page": 147,
+        "quote": "Gross income 4,794 4,074"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "operating_profit",
+      "label": "Operating profit",
+      "value": 1640,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "Operating income",
+      "source": {
+        "page": 147,
+        "quote": "Operating income 9, 11, 12, 13 1,640 1,522"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_before_tax",
+      "label": "Profit before tax",
+      "value": 1474,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "Income before taxes",
+      "source": {
+        "page": 147,
+        "quote": "Income before taxes 1,474 1,447"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "income_tax",
+      "label": "Income tax",
+      "value": -360,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "Taxes",
+      "source": {
+        "page": 147,
+        "quote": "Taxes 15 -360 -325"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_discontinued",
+      "label": "Profit from discontinued operations",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "net_profit",
+      "label": "Profit for the year",
+      "value": 1114,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "Net income",
+      "source": {
+        "page": 147,
+        "quote": "Net income 1,114 1,122"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "eps_basic",
+      "label": "EPS, basic",
+      "value": 10.33,
+      "unit": "SEK",
+      "period": "2025",
+      "raw_label": "Earnings per share, SEK\nbefore dilution",
+      "source": {
+        "page": 147,
+        "quote": "before dilution 10.33 10.59"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "gross_profit_arith",
+      "passed": true,
+      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((10429 + -5635) - 4794) <= 2"
+    },
+    {
+      "name": "net_profit_arith",
+      "passed": true,
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((1474 + -360 + 0) - 1114) <= 2"
+    },
+    {
+      "name": "margin_sanity",
+      "passed": true,
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 1640 / 10429 < 10"
+    }
+  ],
+  "warnings": []
+}

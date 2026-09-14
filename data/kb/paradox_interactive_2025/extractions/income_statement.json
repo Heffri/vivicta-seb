@@ -176,19 +176,20 @@
       "value": 1.19,
       "unit": "SEK",
       "period": "2025",
-      "raw_label": "Earnings per share attributable to parent company shareholders: before dilution",
+      "raw_label": "Earnings per share attributable to parent company shareholders (SEK): - before dilution",
       "source": {
         "page": 47,
         "quote": "- before dilution 42 1.19 5.54"
       },
-      "confidence": 0.95,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
         "arith_ok",
         "label_known",
         "period_ok",
-        "page_is_statement"
+        "page_is_statement",
+        "unit_ok"
       ]
     }
   ],
@@ -206,7 +207,7 @@
     {
       "name": "margin_sanity",
       "passed": true,
-      "detail": "operating margin between 0 and 60% | 0 < 145999 / 2191918 < 0.6"
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 145999 / 2191918 < 10"
     }
   ],
   "warnings": []

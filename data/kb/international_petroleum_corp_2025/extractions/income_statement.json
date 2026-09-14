@@ -36,11 +36,12 @@
       "raw_label": "Cost of sales",
       "source": {
         "page": 10,
-        "quote": "Exploration and business development costs 3 (1,799) (2,069)"
+        "quote": "Production costs 4 (427,623) (448,218) Depletion and decommissioning costs 3,9 (122,749) (128,392) Depreciation of other tangible fixed assets 3,9 (5,597) (8,933) Exploration and business development costs 3 (1,799) (2,069)"
       },
-      "confidence": 0.5,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
+        "value_derived",
         "arith_ok",
         "label_known",
         "period_ok",
@@ -54,7 +55,7 @@
       "value": 128120,
       "unit": "USD Thousands",
       "period": "2025",
-      "raw_label": "Gross profit",
+      "raw_label": "Gross profit ",
       "source": {
         "page": 10,
         "quote": "Gross profit 3 128,120 210,171"
@@ -81,11 +82,12 @@
         "page": 10,
         "quote": "Profit before financial items 112,087 195,253"
       },
-      "confidence": 0.9,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
         "arith_ok",
+        "label_known",
         "period_ok",
         "page_is_statement",
         "unit_ok"
@@ -209,6 +211,6 @@
     }
   ],
   "warnings": [
-    "llm: APITimeoutError: Request timed out. (pages [10, 11])"
+    "cost_of_sales: -427623 fails gross_profit_arith; 'Production costs 4 (427,623) (448,218) Depletion and decommissioning costs 3,9 (122,749) (128,392) Depreciation of other tangible fixed assets 3,9 (5,597) (8,933) Exploration and business development costs 3 (1,799) (2,069)' sums to -557768 in every column, which passes"
   ]
 }

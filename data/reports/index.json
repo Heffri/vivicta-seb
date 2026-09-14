@@ -482,5 +482,375 @@
     "tags": ["fetched"],
     "note": null,
     "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "nolato_2025.pdf",
+    "company": "Nolato",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/b8022bbe-6642-499b-b4e6-d6b38f35790b/nolato-annual-report-2025.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "addnode_2025.pdf",
+    "company": "Addnode Group",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/5381abe2-7f07-4af4-a798-63945397fccf/addnode-group-annual-report-2025.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "peab_2025.pdf",
+    "company": "Peab",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/424/4329693/4018676.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "lifco_2025.pdf",
+    "company": "Lifco",
+    "fiscal_year": 2025,
+    "language": "sv",
+    "source_url": "https://network.s-z.se/app/uploads/sites/16/Lifco-arsredovisning-2025.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "aak_2025.pdf",
+    "company": "AAK",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/c0ccfa59-3ca3-4597-9f78-1f0588efbc27/aak-annual-report-2025.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "volvo_car_2025.pdf",
+    "company": "Volvo Car",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/20685/4317073/3967032.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "castellum_2025.pdf",
+    "company": "Castellum",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/963638c8-0fda-4368-85b6-1559341d193e/castellum-annual-report-2025.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "bilia_2025.pdf",
+    "company": "Bilia",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/a/bilia/e0028fc3-0527-4ace-87c0-f4ea838252de/bilia-annual-report-2025.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "holmen_2025.pdf",
+    "company": "Holmen",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/308/4318038/3970154.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "4c_2025.pdf",
+    "company": "4C Group",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/b4b80bc2-340b-486b-9d40-e91740b20b00/4c-group-annual-report-2025.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "acroud_2025.pdf",
+    "company": "ACROUD",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/11576/4358074/4135142.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "pandox_2025.pdf",
+    "company": "Pandox",
+    "fiscal_year": 2025,
+    "language": "sv",
+    "source_url": "https://storage.mfn.se/b1bf1f4e-94db-4a98-ac06-56ede7584c71/pandox-arsredovisning-2025.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "new_wave_2025.pdf",
+    "company": "New Wave",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/27b3cb44-9d9f-4a4c-856c-1242c0793d73/nwg-annual-report-2025-mars-31-en-lq.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "hms_networks_2025.pdf",
+    "company": "HMS Networks",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://hmsnetworks.blob.core.windows.net/nlw/docs/default-source/finance/annual-reports/annual-reports-(english)/hms-networks-annual-report-2025-flip.pdf?sfvrsn=acf1ea8c_11",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "bioarctic_2025.pdf",
+    "company": "BioArctic",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/9978/4337913/4049798.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "mips_2025.pdf",
+    "company": "Mips",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/e527ab77-2fbd-4d36-93f1-eee59a26231d/mips-annual-and-sustainability-report-2025.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "lagercrantz_2025.pdf",
+    "company": "Lagercrantz Group",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/53239dd4-7c76-4c3f-ac6a-5bffe2e0456f/lagercrantz-ar-incl-sustainability-2025-26.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "thule_2025.pdf",
+    "company": "Thule Group",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/1445e96a-2588-405e-a28a-93d6f72b61b9/thule-ar-2025-eng.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "medicover_2025.pdf",
+    "company": "Medicover",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/b05e68fa-9240-44a1-b79b-ef6943ec3a9c/medicover-annual-report-2025.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "sectra_2025.pdf",
+    "company": "SECTRA",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/1263/4371898/4186258.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "clas_ohlson_2025.pdf",
+    "company": "Clas Ohlson",
+    "fiscal_year": 2025,
+    "language": "sv",
+    "source_url": "https://mb.cision.com/Main/1116/4370482/4179924.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "billerud_2025.pdf",
+    "company": "Billerud",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/66/4329451/4017760.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "atrium_ljungberg_2025.pdf",
+    "company": "Atrium Ljungberg",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/1145/4343160/4071296.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "bravida_holding_2025.pdf",
+    "company": "Bravida Holding",
+    "fiscal_year": 2025,
+    "language": "sv",
+    "source_url": "https://mb.cision.com/Main/8835/4328780/4019510.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "truecaller_2025.pdf",
+    "company": "Truecaller",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/20429/4339933/4057716.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "wihlborgs_fastigheter_2025.pdf",
+    "company": "Wihlborgs Fastigheter",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/890/4328704/4015532.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "nordea_bank_abp_2025.pdf",
+    "company": "Nordea Bank Abp",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://attachment.news.eu.nasdaq.com/a874cb923b5ad64885537abdbe75f462d",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "bufab_2025.pdf",
+    "company": "Bufab",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/e65b248b-4b6b-435d-b4e4-4887ea2cf7ba/bufab-annual-report-2025.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "corem_property_2025.pdf",
+    "company": "Corem Property Group",
+    "fiscal_year": 2025,
+    "language": "sv",
+    "source_url": "https://mb.cision.com/Main/9683/4327171/4008141.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "addtech_2025.pdf",
+    "company": "Addtech",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/3619/4370691/4179580.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "tele2_2025.pdf",
+    "company": "Tele2",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/3372/4327560/4018678.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "mycronic_2025.pdf",
+    "company": "Mycronic",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/74466bcb-9f6d-45f8-9c6a-71c20d3e0d6e/annual-report-2025.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "verisure_2025.pdf",
+    "company": "Verisure",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/5387/4327186/4009474.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "evolution_2025.pdf",
+    "company": "Evolution",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/12069/4329954/4021102.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "hufvudstaden_2025.pdf",
+    "company": "Hufvudstaden",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/2433/4313552/3955019.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "vitec_software_2025.pdf",
+    "company": "Vitec Software Group",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/a/vitec-software-group/0f7770f2-234f-4832-a654-5d2da3905f56/vitec-software-group-annual-report-2025.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "oem_international_2025.pdf",
+    "company": "OEM International",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://attachment.news.eu.nasdaq.com/aadc032712dc5dd232284c75812a183d5",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
   }
 ]

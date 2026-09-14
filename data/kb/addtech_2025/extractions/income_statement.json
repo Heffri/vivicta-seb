@@ -1,0 +1,214 @@
+{
+  "report_id": "lib-addtech_2025",
+  "company": "Addtech",
+  "fiscal_year": 2025,
+  "currency": "SEK million",
+  "section": "income_statement",
+  "fields": [
+    {
+      "key": "revenue",
+      "label": "Revenue",
+      "value": 22703,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "Net sales",
+      "source": {
+        "page": 94,
+        "quote": "Net sales 4, 5 22,703 21,796"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "cost_of_sales",
+      "label": "Cost of sales",
+      "value": -15143,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "Cost of sales",
+      "source": {
+        "page": 94,
+        "quote": "Cost of sales -15,143 -14,804"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "gross_profit",
+      "label": "Gross profit",
+      "value": 7560,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "GROSS PROFIT",
+      "source": {
+        "page": 94,
+        "quote": "GROSS PROFIT 7,560 6,992"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "operating_profit",
+      "label": "Operating profit",
+      "value": 3085,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "OPERATING PROFIT",
+      "source": {
+        "page": 94,
+        "quote": "OPERATING PROFIT 3–10, 16 3,085 2,757"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_before_tax",
+      "label": "Profit before tax",
+      "value": 2878,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "PROFIT BEFORE TAX",
+      "source": {
+        "page": 94,
+        "quote": "PROFIT BEFORE TAX 2,878 2,515"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "income_tax",
+      "label": "Income tax",
+      "value": -672,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "Tax",
+      "source": {
+        "page": 94,
+        "quote": "Tax 13 -672 -575"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_discontinued",
+      "label": "Profit from discontinued operations",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "net_profit",
+      "label": "Profit for the year",
+      "value": 2206,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "PROFIT FOR THE YEAR",
+      "source": {
+        "page": 94,
+        "quote": "PROFIT FOR THE YEAR 2,206 1,940"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "eps_basic",
+      "label": "EPS, basic",
+      "value": 7.95,
+      "unit": "SEK",
+      "period": "2025",
+      "raw_label": "Earnings per share before dilution (SEK)",
+      "source": {
+        "page": 94,
+        "quote": "Earnings per share before dilution (SEK) 30 7.95 7.00"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "gross_profit_arith",
+      "passed": true,
+      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((22703 + -15143) - 7560) <= 2"
+    },
+    {
+      "name": "net_profit_arith",
+      "passed": true,
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((2878 + -672 + 0) - 2206) <= 2"
+    },
+    {
+      "name": "margin_sanity",
+      "passed": true,
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 3085 / 22703 < 10"
+    }
+  ],
+  "warnings": []
+}

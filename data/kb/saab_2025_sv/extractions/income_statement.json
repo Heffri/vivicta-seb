@@ -207,8 +207,16 @@
     {
       "name": "margin_sanity",
       "passed": true,
-      "detail": "operating margin between 0 and 60% | 0 < 8066 / 79146 < 0.6"
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 8066 / 79146 < 10"
     }
   ],
-  "warnings": []
+  "warnings": [
+    "revenue: quote replaced by page 151 row 'Försäljningsintäkter 4 79 146 63 751'",
+    "cost_of_sales: quote replaced by page 151 row 'Kostnad för sålda varor 5 -61 978 -50 088'",
+    "gross_profit: quote replaced by page 151 row 'Bruttoresultat 17 168 13 663'",
+    "operating_profit: quote replaced by page 151 row 'Rörelseresultat 41 8 066 5 662'",
+    "profit_before_tax: quote replaced by page 151 row 'Resultat före skatt 8 019 5 289'",
+    "income_tax: quote replaced by page 151 row 'Skatt 13 -1 663 -1 079'",
+    "net_profit: quote replaced by page 151 row 'Årets resultat 6 356 4 210'"
+  ]
 }

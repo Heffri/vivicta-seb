@@ -1,0 +1,212 @@
+{
+  "report_id": "lib-corem_property_2025",
+  "company": "Corem Property Group",
+  "fiscal_year": 2025,
+  "currency": "Mkr",
+  "section": "income_statement",
+  "fields": [
+    {
+      "key": "revenue",
+      "label": "Revenue",
+      "value": 3465,
+      "unit": "Mkr",
+      "period": "2025",
+      "raw_label": "Intäkter",
+      "source": {
+        "page": 70,
+        "quote": "Intäkter 2 3 465 3 695"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "cost_of_sales",
+      "label": "Cost of sales",
+      "value": -1240,
+      "unit": "Mkr",
+      "period": "2025",
+      "raw_label": "Fastighetskostnader",
+      "source": {
+        "page": 70,
+        "quote": "Fastighetskostnader 4, 6 –1 240 –1 333"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "gross_profit",
+      "label": "Gross profit",
+      "value": 2225,
+      "unit": "Mkr",
+      "period": "2025",
+      "raw_label": "Driftsöverskott",
+      "source": {
+        "page": 70,
+        "quote": "Driftsöverskott 3 2 225 2 362"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "operating_profit",
+      "label": "Operating profit",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "profit_before_tax",
+      "label": "Profit before tax",
+      "value": -3868,
+      "unit": "Mkr",
+      "period": "2025",
+      "raw_label": "Resultat före skatt",
+      "source": {
+        "page": 70,
+        "quote": "Resultat före skatt 3 –3 868 –1 205"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "income_tax",
+      "label": "Income tax",
+      "value": 557,
+      "unit": "Mkr",
+      "period": "2025",
+      "raw_label": "Skatt",
+      "source": {
+        "page": 70,
+        "quote": "Skatt 9 557 147"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_discontinued",
+      "label": "Profit from discontinued operations",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "net_profit",
+      "label": "Profit for the year",
+      "value": -3311,
+      "unit": "Mkr",
+      "period": "2025",
+      "raw_label": "Årets resultat",
+      "source": {
+        "page": 70,
+        "quote": "ÅRETS RESULTAT –3 311 –1 058"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "eps_basic",
+      "label": "EPS, basic",
+      "value": -2.96,
+      "unit": "kr",
+      "period": "2025",
+      "raw_label": "Resultat per aktie: Resultat per stamaktie A och B före och efter utspädning, kr1)",
+      "source": {
+        "page": 70,
+        "quote": "Resultat per stamaktie A och B före och efter utspädning, kr1) 19 –2,96 –1,43"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "gross_profit_arith",
+      "passed": true,
+      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((3465 + -1240) - 2225) <= 2"
+    },
+    {
+      "name": "net_profit_arith",
+      "passed": true,
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((-3868 + 557 + 0) - -3311) <= 2"
+    },
+    {
+      "name": "margin_sanity",
+      "passed": false,
+      "detail": "missing: operating_profit"
+    }
+  ],
+  "warnings": [
+    "revenue: 3695 is not the 2025 column, 3465 is",
+    "cost_of_sales: model returned null, filled from page 70 row 'Fastighetskostnader 4, 6 –1 240 –1 333'",
+    "gross_profit: model returned null, filled from page 70 row 'Driftsöverskott 3 2 225 2 362'",
+    "operating_profit: 2362 is not the 2025 column, 2225 is",
+    "operating_profit: 'Driftsöverskott' 2225 dropped: an excluded label, and the statement has no operating profit row",
+    "profit_before_tax: -1205 is not the 2025 column, -3868 is",
+    "income_tax: 147 is not the 2025 column, 557 is",
+    "net_profit: -1058 is not the 2025 column, -3311 is"
+  ]
+}

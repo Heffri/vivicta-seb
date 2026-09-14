@@ -5,5 +5,6 @@
   "source_url": "https://webapp.sebgroup.com/mb/mblib.nsf/alldocsbyunid/1C740093062958DDC1258DAE003DFAF7/$FILE/SEB_Annual_Report_2025_ENG.pdf",
   "pages": 350,
   "sha256": "1bf07071afbab0269914a1a78d16e4e840e73e5efbe901af97b148d288b28083",
-  "filename": "seb_2025.pdf"
+  "filename": "seb_2025.pdf",
+  "parser": 2
 }

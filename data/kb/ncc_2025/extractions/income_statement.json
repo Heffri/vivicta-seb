@@ -38,11 +38,12 @@
         "page": 105,
         "quote": "Production costs 4, 5, 9, 15, 16, 24, 33, 39 –50,245 –56,330"
       },
-      "confidence": 0.9,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
         "arith_ok",
+        "label_known",
         "period_ok",
         "page_is_statement",
         "unit_ok"
@@ -172,19 +173,20 @@
     {
       "key": "eps_basic",
       "label": "EPS, basic",
-      "value": 13.89,
+      "value": 1.45,
       "unit": "SEK",
       "period": "2025",
-      "raw_label": "Earnings per share before and after dilution: Earnings per share, SEK, before items affecting comparability",
+      "raw_label": "Earnings per share, SEK, after items affecting comparability",
       "source": {
         "page": 105,
-        "quote": "Earnings per share, SEK, before items affecting comparability 13.89 16.08"
+        "quote": "Earnings per share, SEK, after items affecting comparability 1.45 16.08"
       },
-      "confidence": 0.9,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
         "arith_ok",
+        "label_known",
         "period_ok",
         "page_is_statement",
         "unit_ok"
@@ -205,8 +207,10 @@
     {
       "name": "margin_sanity",
       "passed": true,
-      "detail": "operating margin between 0 and 60% | 0 < 768 / 55717 < 0.6"
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 768 / 55717 < 10"
     }
   ],
-  "warnings": []
+  "warnings": [
+    "eps_basic: 'Earnings per share, SEK, before items affecting comparability' 13.89 is a variant row; 'Earnings per share, SEK, after items affecting comparability' 1.45 is the statement row"
+  ]
 }

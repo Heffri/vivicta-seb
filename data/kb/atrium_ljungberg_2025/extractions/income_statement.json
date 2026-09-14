@@ -1,0 +1,207 @@
+{
+  "report_id": "lib-atrium_ljungberg_2025",
+  "company": "Atrium Ljungberg",
+  "fiscal_year": 2025,
+  "currency": "SEK m",
+  "section": "income_statement",
+  "fields": [
+    {
+      "key": "revenue",
+      "label": "Revenue",
+      "value": 3446,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Net sales, project and construction work",
+      "source": {
+        "page": 35,
+        "quote": "Net sales IE.3 3,446 3,516"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "cost_of_sales",
+      "label": "Cost of sales",
+      "value": -1319,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "IE.4-7 + Project and construction work costs",
+      "source": {
+        "page": 35,
+        "quote": "IE.4-7 −833 −838 Project and construction work costs −486 −527"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_derived",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "gross_profit",
+      "label": "Gross profit",
+      "value": 2126,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Gross profit/loss",
+      "source": {
+        "page": 35,
+        "quote": "Gross profit/loss IE.3 2,126 2,151"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "operating_profit",
+      "label": "Operating profit",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "profit_before_tax",
+      "label": "Profit before tax",
+      "value": 1114,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Profit/loss before tax",
+      "source": {
+        "page": 35,
+        "quote": "Profit/loss before tax 1,114 1,027"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "income_tax",
+      "label": "Income tax",
+      "value": -291,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Current tax T.1 + Deferred tax T.1–2",
+      "source": {
+        "page": 35,
+        "quote": "Current tax T.1 −29 −44 Deferred tax T.1–2 −262 −134"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_derived",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_discontinued",
+      "label": "Profit from discontinued operations",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "net_profit",
+      "label": "Profit for the year",
+      "value": 823,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Net profit/loss for the year, entirely attributable to the parent company’s shareholders",
+      "source": {
+        "page": 35,
+        "quote": "Net profit/loss for the year, entirely attributa- ble to the parent company’s shareholders 823 850"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "eps_basic",
+      "label": "EPS, basic",
+      "value": 1.31,
+      "unit": "SEK",
+      "period": "2025",
+      "raw_label": "Earnings per share before and after dilution, SEK",
+      "source": {
+        "page": 35,
+        "quote": "Earnings per share before and after dilution, SEK 1.31 1.35"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "gross_profit_arith",
+      "passed": true,
+      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((3446 + -1319) - 2126) <= 2"
+    },
+    {
+      "name": "net_profit_arith",
+      "passed": true,
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((1114 + -291 + 0) - 823) <= 2"
+    },
+    {
+      "name": "margin_sanity",
+      "passed": false,
+      "detail": "missing: operating_profit"
+    }
+  ],
+  "warnings": [
+    "operating_profit: 'Profit/loss before tax' 1114 dropped: the same row as profit_before_tax, and not a operating profit label",
+    "cost_of_sales: -833 fails gross_profit_arith; 'IE.4-7 −833 −838 Project and construction work costs −486 −527' sums to -1319 in every column, which passes",
+    "income_tax: -291 is not printed; it is the sum of 'Current tax T.1 −29 −44 Deferred tax T.1–2 −262 −134', and net_profit_arith holds with those rows in every column"
+  ]
+}

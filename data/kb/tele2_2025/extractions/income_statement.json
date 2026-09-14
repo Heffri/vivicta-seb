@@ -1,0 +1,229 @@
+{
+  "report_id": "lib-tele2_2025",
+  "company": "Tele2",
+  "fiscal_year": 2025,
+  "currency": "SEK million",
+  "section": "income_statement",
+  "fields": [
+    {
+      "key": "revenue",
+      "label": "Revenue",
+      "value": 29890,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "Revenue",
+      "source": {
+        "page": 122,
+        "quote": "Revenue 3, 4 29,890 29,583"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "cost_of_sales",
+      "label": "Cost of sales",
+      "value": -16890,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "Cost of services provided and equipment sold",
+      "source": {
+        "page": 122,
+        "quote": "Cost of services provided and equipment sold 5 -16,890 -16,854"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "identity_all_columns",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "gross_profit",
+      "label": "Gross profit",
+      "value": 13000,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "Gross profit",
+      "source": {
+        "page": 122,
+        "quote": "Gross profit 13,000 12,729"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "operating_profit",
+      "label": "Operating profit",
+      "value": 6615,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "Operating profit",
+      "source": {
+        "page": 122,
+        "quote": "Operating profit 6,615 5,817"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_before_tax",
+      "label": "Profit before tax",
+      "value": 5678,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "Profit after financial items",
+      "source": {
+        "page": 122,
+        "quote": "Profit after financial items 5,678 4,749"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "income_tax",
+      "label": "Income tax",
+      "value": -1099,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "Income tax",
+      "source": {
+        "page": 122,
+        "quote": "Income tax 10 -1,099 -915"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_discontinued",
+      "label": "Profit from discontinued operations",
+      "value": 7,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "Net profit, discontinued operations",
+      "source": {
+        "page": 122,
+        "quote": "Net profit, discontinued operations 32 7 36"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "net_profit",
+      "label": "Profit for the year",
+      "value": 4587,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "NET PROFIT",
+      "source": {
+        "page": 122,
+        "quote": "NET PROFIT 4,587 3,870"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "eps_basic",
+      "label": "EPS, basic",
+      "value": 6.61,
+      "unit": "SEK",
+      "period": "2025",
+      "raw_label": "Earnings per share (SEK)",
+      "source": {
+        "page": 122,
+        "quote": "Earnings per share (SEK) 23 6.61 5.54"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "gross_profit_arith",
+      "passed": true,
+      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((29890 + -16890) - 13000) <= 2"
+    },
+    {
+      "name": "net_profit_arith",
+      "passed": true,
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((5678 + -1099 + 7) - 4587) <= 2"
+    },
+    {
+      "name": "margin_sanity",
+      "passed": true,
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 6615 / 29890 < 10"
+    }
+  ],
+  "warnings": [
+    "profit_discontinued: model returned null, filled from page 122 row 'Net profit, discontinued operations 32 7 36'",
+    "cost_of_sales: 'Cost of services provided and equipment sold' is not a known cost of sales label, but gross_profit_arith holds with that row in every column"
+  ]
+}

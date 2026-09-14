@@ -210,5 +210,13 @@
       "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 199.9 / 2218 < 10"
     }
   ],
-  "warnings": []
+  "warnings": [
+    "revenue: 3000 is not printed in 'Net sales'; the row's 2025 figure is 2218",
+    "cost_of_sales: value -4907 rescaled to -490.7 as printed in the quote",
+    "gross_profit: value 17273 rescaled to 1727.3 as printed in the quote",
+    "operating_profit: value 1999 rescaled to 199.9 as printed in the quote",
+    "profit_before_tax: value 1669 rescaled to 166.9 as printed in the quote",
+    "income_tax: value -388 rescaled to -38.8 as printed in the quote",
+    "net_profit: value 1281 rescaled to 128.1 as printed in the quote"
+  ]
 }

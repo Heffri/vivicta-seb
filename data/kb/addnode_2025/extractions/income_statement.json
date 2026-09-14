@@ -1,0 +1,220 @@
+{
+  "report_id": "lib-addnode_2025",
+  "company": "Addnode Group",
+  "fiscal_year": 2025,
+  "currency": "SEK m",
+  "section": "income_statement",
+  "fields": [
+    {
+      "key": "revenue",
+      "label": "Revenue",
+      "value": 5793,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Net sales",
+      "source": {
+        "page": 92,
+        "quote": "Net sales 2, 3, 38 5,793 7,757"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "cost_of_sales",
+      "label": "Cost of sales",
+      "value": -1350,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Purchases of goods and services",
+      "source": {
+        "page": 92,
+        "quote": "Purchases of goods and services 38 -1,350 -3,559"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "identity_all_columns",
+        "identity_all_columns",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "gross_profit",
+      "label": "Gross profit",
+      "value": 4443,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Gross profit",
+      "source": {
+        "page": 92,
+        "quote": "Gross profit 4,443 4,198"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "operating_profit",
+      "label": "Operating profit",
+      "value": 607,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Operating profit",
+      "source": {
+        "page": 92,
+        "quote": "Operating profit 2, 7 607 598"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_before_tax",
+      "label": "Profit before tax",
+      "value": 514,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Profit after financial items",
+      "source": {
+        "page": 92,
+        "quote": "Profit after financial items 514 536"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "income_tax",
+      "label": "Income tax",
+      "value": -130,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Current tax + Deferred tax",
+      "source": {
+        "page": 92,
+        "quote": "Current tax 11, 12 -157 -154 Deferred tax 11, 12 27 20"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_derived",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_discontinued",
+      "label": "Profit from discontinued operations",
+      "value": null,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "net_profit",
+      "label": "Profit for the year",
+      "value": 384,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Profit for the year",
+      "source": {
+        "page": 92,
+        "quote": "Profit for the year 384 402"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "eps_basic",
+      "label": "EPS, basic",
+      "value": 2.87,
+      "unit": "SEK",
+      "period": "2025",
+      "raw_label": "Earnings per share before dilution, SEK",
+      "source": {
+        "page": 92,
+        "quote": "Earnings per share before dilution, SEK 13 2.87 3.02"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "gross_profit_arith",
+      "passed": true,
+      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((5793 + -1350) - 4443) <= 2"
+    },
+    {
+      "name": "net_profit_arith",
+      "passed": true,
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((514 + -130 + 0) - 384) <= 2"
+    },
+    {
+      "name": "margin_sanity",
+      "passed": true,
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 607 / 5793 < 10"
+    }
+  ],
+  "warnings": [
+    "cost_of_sales: model returned null; 'Purchases of goods and services 38 -1,350 -3,559' sits between the other rows of gross_profit_arith and closes it in every column",
+    "income_tax: -157 fails net_profit_arith; 'Current tax 11, 12 -157 -154 Deferred tax 11, 12 27 20' sums to -130 in every column, which passes",
+    "cost_of_sales: 'Purchases of goods and services' is not a known cost of sales label, but gross_profit_arith holds with that row in every column"
+  ]
+}

@@ -279,6 +279,9 @@ def _row_label(row: str) -> str:
     return re.split(r"\s+(?=[-(–−]?\d)", row.strip(), 1)[0].rstrip(" ,.:;*")
 
 
+_CCY = re.compile(r"(?<![A-Za-z])(?:[MTk]|Mdr?)?(?:SEK|EUR|USD|NOK|DKK|GBP|CHF|ISK|PLN|EURO|[Kk][Rr]|€|\$|£)(?:m|mn|bn|k|t)?(?![A-Za-z])")  # currency codes as printed: "MSEK", "Mkr", "EUR", "€m"
+
+
 def _ccy(unit) -> str:
     """'MSEK' / 'SEKm' / 'USD m' / 'SEK million' -> 'SEK' / 'USD': the currency without the scale."""
     unit = str(unit or "").translate(_SYMBOLS)  # Medicover "€m"
@@ -762,6 +765,16 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                 warnings.append(f"{f['key']}: {f['raw_label']!r} is not a known {sf['label'].lower()} label, but {c['name']} holds with that row in every column")
                 f["evidence"].append("identity_all_columns")
     currency = units.most_common(1)[0][0] if units else (_page_unit(texts[pages[0] - 1]) if pages else None)
+    if currency and pages:  # Evolution: a Swedish issuer reporting in EUR; the model votes SEK from habit, the statement names only EUR
+        spread = {_ccy(t) for q in pages[:2] for t in _CCY.findall(texts[q - 1])}
+        doc = Counter(_ccy(t) for t in _CCY.findall(" ".join(texts)))
+        if spread and _ccy(currency) not in spread and doc and doc.most_common(1)[0][0] in spread:
+            new = doc.most_common(1)[0][0]
+            warnings.append(f"currency: the model says {currency}, but the statement names only {'/'.join(sorted(spread))} and the report mostly {new}; {new} it is")
+            swap = lambda u: re.sub(re.escape(_ccy(u)), new, str(u).translate(_SYMBOLS).upper()) if _ccy(u) == _ccy(currency) else u
+            for f in fields:
+                f["unit"] = swap(f["unit"]) if f["unit"] else f["unit"]
+            currency = swap(currency)
     for f, sf in zip(fields, sfs):
         if currency and (f["key"] in filled or (not f["unit"] and (f["source"] or {}).get("page") in pages[:2])):
             # a row filled from the page, or one the model returned without a unit, has the statement's unit

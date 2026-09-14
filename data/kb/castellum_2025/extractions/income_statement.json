@@ -1,0 +1,196 @@
+{
+  "report_id": "lib-castellum_2025",
+  "company": "Castellum",
+  "fiscal_year": 2025,
+  "currency": "SEK M",
+  "section": "income_statement",
+  "fields": [
+    {
+      "key": "revenue",
+      "label": "Revenue",
+      "value": 9593,
+      "unit": "SEK M",
+      "period": "2025",
+      "raw_label": "Rental and service income",
+      "source": {
+        "page": 114,
+        "quote": "Rental and service income 9,593 9,784"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "cost_of_sales",
+      "label": "Cost of sales",
+      "value": null,
+      "unit": "SEK M",
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "gross_profit",
+      "label": "Gross profit",
+      "value": 6524,
+      "unit": "SEK M",
+      "period": "2025",
+      "raw_label": "Net operating income",
+      "source": {
+        "page": 114,
+        "quote": "Net operating income 6,524 6,786"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "operating_profit",
+      "label": "Operating profit",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "profit_before_tax",
+      "label": "Profit before tax",
+      "value": 1334,
+      "unit": "SEK M",
+      "period": "2025",
+      "raw_label": "Income before tax",
+      "source": {
+        "page": 114,
+        "quote": "Income before tax 1,334 2,761"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "income_tax",
+      "label": "Income tax",
+      "value": -396,
+      "unit": "SEK M",
+      "period": "2025",
+      "raw_label": "Current tax + Deferred tax",
+      "source": {
+        "page": 114,
+        "quote": "Current tax 8 −257 −172 Deferred tax 8 −139 −232"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_derived",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_discontinued",
+      "label": "Profit from discontinued operations",
+      "value": null,
+      "unit": "SEK M",
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "net_profit",
+      "label": "Profit for the year",
+      "value": 938,
+      "unit": "SEK M",
+      "period": "2025",
+      "raw_label": "Net income for the year²",
+      "source": {
+        "page": 114,
+        "quote": "Net income for the year² 938 2,357"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "eps_basic",
+      "label": "EPS, basic",
+      "value": 1.91,
+      "unit": "SEK",
+      "period": "2025",
+      "raw_label": "Earnings, SEK per share before and after dilution",
+      "source": {
+        "page": 114,
+        "quote": "Earnings, SEK per share before and after dilution 1.91 4.79"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "gross_profit_arith",
+      "passed": false,
+      "detail": "missing: cost_of_sales"
+    },
+    {
+      "name": "net_profit_arith",
+      "passed": true,
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((1334 + -396 + 0) - 938) <= 2"
+    },
+    {
+      "name": "margin_sanity",
+      "passed": false,
+      "detail": "missing: operating_profit"
+    }
+  ],
+  "warnings": [
+    "gross_profit: model returned null, filled from page 114 row 'Net operating income 6,524 6,786'",
+    "operating_profit: 'Net operating income' 6524 dropped: an excluded label, and the statement has no operating profit row",
+    "income_tax: -396 is not printed; it is the sum of 'Current tax 8 −257 −172 Deferred tax 8 −139 −232', and net_profit_arith holds with those rows in every column"
+  ]
+}
