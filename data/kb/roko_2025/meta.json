@@ -5,5 +5,6 @@
   "source_url": "https://storage.mfn.se/61964d86-f8de-4994-8ea7-1ae1502a0b53/roko-annual-report-2025.pdf",
   "pages": 104,
   "sha256": "284d5b3ca87d5172fe1a79dd5b5fee22d5860208b12d768f9aae2cbbff7316cd",
-  "filename": "roko_2025.pdf"
+  "filename": "roko_2025.pdf",
+  "parser": 2
 }

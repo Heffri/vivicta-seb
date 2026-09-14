@@ -96,18 +96,19 @@
     {
       "key": "profit_before_tax",
       "label": "Profit before tax",
-      "value": 923,
+      "value": 1010,
       "unit": "MSEK",
       "period": "2025",
       "raw_label": "Profit before tax",
       "source": {
         "page": 48,
-        "quote": "Profit before tax 1,01 923"
+        "quote": "Operating profit 8, 9, 10, 11, 12 1,051 969 Financial income 7, 13 49 66 Financial expenses 7, 12, 13 -90 -112"
       },
-      "confidence": 0.5,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
-        "value_in_quote",
+        "value_derived",
+        "arith_ok",
         "label_known",
         "period_ok",
         "page_is_statement",
@@ -125,10 +126,11 @@
         "page": 48,
         "quote": "Tax on net profit for the year 14 -254 -221"
       },
-      "confidence": 0.5,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
+        "arith_ok",
         "label_known",
         "period_ok",
         "page_is_statement",
@@ -139,8 +141,8 @@
       "key": "profit_discontinued",
       "label": "Profit from discontinued operations",
       "value": null,
-      "unit": "MSEK",
-      "period": "2025",
+      "unit": null,
+      "period": null,
       "raw_label": null,
       "source": null,
       "confidence": 0.0,
@@ -157,10 +159,11 @@
         "page": 48,
         "quote": "Net profit for the year1 755 702"
       },
-      "confidence": 0.5,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
+        "arith_ok",
         "label_known",
         "period_ok",
         "page_is_statement",
@@ -198,14 +201,24 @@
     },
     {
       "name": "net_profit_arith",
-      "passed": false,
-      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((923 + -254 + 0) - 755) <= 2"
+      "passed": true,
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((1010 + -254 + 0) - 755) <= 2"
     },
     {
       "name": "margin_sanity",
       "passed": true,
-      "detail": "operating margin between 0 and 60% | 0 < 1051 / 6452 < 0.6"
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 1051 / 6452 < 10"
     }
   ],
-  "warnings": []
+  "warnings": [
+    "revenue: 6182 is not the 2025 column, 6452 is",
+    "cost_of_sales: -3543 is not the 2025 column, -3567 is",
+    "gross_profit: 2639 is not the 2025 column, 2884 is",
+    "operating_profit: 969 is not the 2025 column, 1051 is",
+    "profit_before_tax: 923 is not the 2025 column, 1.01 is",
+    "income_tax: -221 is not the 2025 column, -254 is",
+    "net_profit: 702 is not the 2025 column, 755 is",
+    "eps_basic: 47.33 is not the 2025 column, 51.52 is",
+    "profit_before_tax: 1.01 fails net_profit_arith; 'Operating profit 8, 9, 10, 11, 12 1,051 969 Financial income 7, 13 49 66 Financial expenses 7, 12, 13 -90 -112' sums to 1010 in every column, which passes"
+  ]
 }

@@ -1,20 +1,20 @@
 {
-  "report_id": "lib-beijer_ref_2025",
-  "company": "Beijer Ref",
+  "report_id": "lib-fenix_outdoor_international_2025",
+  "company": "Fenix Outdoor International",
   "fiscal_year": 2025,
-  "currency": "SEK M",
+  "currency": "TEUR",
   "section": "income_statement",
   "fields": [
     {
       "key": "revenue",
       "label": "Revenue",
-      "value": 37067,
-      "unit": "SEK M",
+      "value": 694710,
+      "unit": "TEUR",
       "period": "2025",
       "raw_label": "Net sales",
       "source": {
-        "page": 96,
-        "quote": "Net sales 5 37,067 35,662"
+        "page": 28,
+        "quote": "Net sales 4 694,710 685,582"
       },
       "confidence": 1.0,
       "evidence": [
@@ -52,13 +52,13 @@
     {
       "key": "operating_profit",
       "label": "Operating profit",
-      "value": 3594,
-      "unit": "SEK M",
+      "value": 33061,
+      "unit": "TEUR",
       "period": "2025",
       "raw_label": "Operating profit",
       "source": {
-        "page": 96,
-        "quote": "Operating profit 3,594 3,571"
+        "page": 28,
+        "quote": "Operating profit 4 33,061 37,407"
       },
       "confidence": 1.0,
       "evidence": [
@@ -74,13 +74,13 @@
     {
       "key": "profit_before_tax",
       "label": "Profit before tax",
-      "value": 3101,
-      "unit": "SEK M",
+      "value": 21943,
+      "unit": "TEUR",
       "period": "2025",
       "raw_label": "Profit before tax",
       "source": {
-        "page": 96,
-        "quote": "Profit before tax 3,101 3,008"
+        "page": 28,
+        "quote": "Profit before tax 21,943 35,272"
       },
       "confidence": 1.0,
       "evidence": [
@@ -96,13 +96,13 @@
     {
       "key": "income_tax",
       "label": "Income tax",
-      "value": -759,
-      "unit": "SEK M",
+      "value": -16685,
+      "unit": "TEUR",
       "period": "2025",
-      "raw_label": "Tax on the year's profit",
+      "raw_label": "Income tax expense",
       "source": {
-        "page": 96,
-        "quote": "Tax on the year's profit 11, 23 -759 -749"
+        "page": 28,
+        "quote": "Income tax expense 9 −16,685 –20,657"
       },
       "confidence": 1.0,
       "evidence": [
@@ -129,13 +129,13 @@
     {
       "key": "net_profit",
       "label": "Profit for the year",
-      "value": 2342,
-      "unit": "SEK M",
+      "value": 5258,
+      "unit": "TEUR",
       "period": "2025",
       "raw_label": "Net profit for the year",
       "source": {
-        "page": 96,
-        "quote": "Net profit for the year 12 2,342 2,259"
+        "page": 28,
+        "quote": "Net profit for the year 5,258 14,615"
       },
       "confidence": 1.0,
       "evidence": [
@@ -151,20 +151,19 @@
     {
       "key": "eps_basic",
       "label": "EPS, basic",
-      "value": 4.59,
-      "unit": "SEK",
+      "value": 0.039,
+      "unit": "EUR",
       "period": "2025",
-      "raw_label": "Profit per share, attributable to the parent company's shareholders, SEK: Before dilution",
+      "raw_label": "A shares, before dilution",
       "source": {
-        "page": 96,
-        "quote": "Before dilution 4.59 4.39"
+        "page": 28,
+        "quote": "A shares, before dilution 0.039 0.108"
       },
-      "confidence": 1.0,
+      "confidence": 0.9,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
         "arith_ok",
-        "label_known",
         "period_ok",
         "page_is_statement",
         "unit_ok"
@@ -180,17 +179,17 @@
     {
       "name": "net_profit_arith",
       "passed": true,
-      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((3101 + -759 + 0) - 2342) <= 2"
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((21943 + -16685 + 0) - 5258) <= 2"
     },
     {
       "name": "margin_sanity",
       "passed": true,
-      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 3594 / 37067 < 10"
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 33061 / 694710 < 10"
     }
   ],
   "warnings": [
-    "revenue: 37324 is not printed in 'Net sales'; the row's 2025 figure is 37067",
-    "cost_of_sales: -25729 is printed on none of pages [96, 97]; dropped as computed, not read",
-    "gross_profit: 11595 is printed on none of pages [96, 97]; dropped as computed, not read"
+    "revenue: 707716 is not printed in 'Net sales'; the row's 2025 figure is 694710",
+    "gross_profit: 417864 is printed on none of pages [28, 29]; dropped as computed, not read",
+    "cost_of_sales: 'Cost of goods' -289852 dropped: not a known cost of sales label and the statement has no gross_profit"
   ]
 }

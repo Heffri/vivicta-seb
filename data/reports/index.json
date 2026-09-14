@@ -962,5 +962,45 @@
     "tags": ["fetched"],
     "note": null,
     "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "axfood_2025.pdf",
+    "company": "Axfood",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/1306/4310375/3943712.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "fenix_outdoor_international_2025.pdf",
+    "company": "Fenix Outdoor International",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://attachment.news.eu.nasdaq.com/a11dbeb5d16270da774113db7cba42a2c",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "bure_equity_2025.pdf",
+    "company": "Bure Equity",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/b41125c0-ab2d-4bf3-91e2-1fed9c730f4c/bure2025-en-final.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "hacksaw_2025.pdf",
+    "company": "Hacksaw",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/6a3007ff-d6c3-48ad-8bc5-ee59deeeb113/annual-report-2025.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
   }
 ]

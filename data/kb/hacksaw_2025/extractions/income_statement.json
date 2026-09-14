@@ -1,20 +1,20 @@
 {
-  "report_id": "lib-beijer_ref_2025",
-  "company": "Beijer Ref",
+  "report_id": "lib-hacksaw_2025",
+  "company": "Hacksaw",
   "fiscal_year": 2025,
-  "currency": "SEK M",
+  "currency": "EUR thousands",
   "section": "income_statement",
   "fields": [
     {
       "key": "revenue",
       "label": "Revenue",
-      "value": 37067,
-      "unit": "SEK M",
+      "value": 197368,
+      "unit": "EUR thousands",
       "period": "2025",
       "raw_label": "Net sales",
       "source": {
-        "page": 96,
-        "quote": "Net sales 5 37,067 35,662"
+        "page": 33,
+        "quote": "Net sales 4 197,368 136,664"
       },
       "confidence": 1.0,
       "evidence": [
@@ -52,13 +52,13 @@
     {
       "key": "operating_profit",
       "label": "Operating profit",
-      "value": 3594,
-      "unit": "SEK M",
+      "value": 157426,
+      "unit": "EUR thousands",
       "period": "2025",
-      "raw_label": "Operating profit",
+      "raw_label": "Operating profit (EBIT)",
       "source": {
-        "page": 96,
-        "quote": "Operating profit 3,594 3,571"
+        "page": 33,
+        "quote": "Operating profit (EBIT) 157,426 114,969"
       },
       "confidence": 1.0,
       "evidence": [
@@ -74,13 +74,13 @@
     {
       "key": "profit_before_tax",
       "label": "Profit before tax",
-      "value": 3101,
-      "unit": "SEK M",
+      "value": 152360,
+      "unit": "EUR thousands",
       "period": "2025",
       "raw_label": "Profit before tax",
       "source": {
-        "page": 96,
-        "quote": "Profit before tax 3,101 3,008"
+        "page": 33,
+        "quote": "Profit before tax 152,360 115,471"
       },
       "confidence": 1.0,
       "evidence": [
@@ -96,13 +96,13 @@
     {
       "key": "income_tax",
       "label": "Income tax",
-      "value": -759,
-      "unit": "SEK M",
+      "value": -9525,
+      "unit": "EUR thousands",
       "period": "2025",
-      "raw_label": "Tax on the year's profit",
+      "raw_label": "Income tax",
       "source": {
-        "page": 96,
-        "quote": "Tax on the year's profit 11, 23 -759 -749"
+        "page": 33,
+        "quote": "Income tax 9 -9,525 -6,114"
       },
       "confidence": 1.0,
       "evidence": [
@@ -129,13 +129,13 @@
     {
       "key": "net_profit",
       "label": "Profit for the year",
-      "value": 2342,
-      "unit": "SEK M",
+      "value": 142835,
+      "unit": "EUR thousands",
       "period": "2025",
-      "raw_label": "Net profit for the year",
+      "raw_label": "Profit for the year",
       "source": {
-        "page": 96,
-        "quote": "Net profit for the year 12 2,342 2,259"
+        "page": 33,
+        "quote": "Profit for the year 142,835 109,357"
       },
       "confidence": 1.0,
       "evidence": [
@@ -151,13 +151,13 @@
     {
       "key": "eps_basic",
       "label": "EPS, basic",
-      "value": 4.59,
-      "unit": "SEK",
+      "value": 0.496,
+      "unit": "EUR",
       "period": "2025",
-      "raw_label": "Profit per share, attributable to the parent company's shareholders, SEK: Before dilution",
+      "raw_label": "Earnings per share, EUR: Basic",
       "source": {
-        "page": 96,
-        "quote": "Before dilution 4.59 4.39"
+        "page": 33,
+        "quote": "Basic 0.496 0.380"
       },
       "confidence": 1.0,
       "evidence": [
@@ -180,17 +180,18 @@
     {
       "name": "net_profit_arith",
       "passed": true,
-      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((3101 + -759 + 0) - 2342) <= 2"
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((152360 + -9525 + 0) - 142835) <= 2"
     },
     {
       "name": "margin_sanity",
       "passed": true,
-      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 3594 / 37067 < 10"
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 157426 / 197368 < 10"
     }
   ],
   "warnings": [
-    "revenue: 37324 is not printed in 'Net sales'; the row's 2025 figure is 37067",
-    "cost_of_sales: -25729 is printed on none of pages [96, 97]; dropped as computed, not read",
-    "gross_profit: 11595 is printed on none of pages [96, 97]; dropped as computed, not read"
+    "revenue: 197481 is not printed in 'Net sales'; it is the 2025 figure of 'Total revenue'",
+    "revenue: 'Total revenue' 197481 is a subtotal including 'Other operating income'; 'Net sales' 197368 is the row",
+    "gross_profit: 185802 is printed on none of pages [33, 34]; dropped as computed, not read",
+    "cost_of_sales: 'Cost of services sold' -11679 dropped: not a known cost of sales label and the statement has no gross_profit"
   ]
 }

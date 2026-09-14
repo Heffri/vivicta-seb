@@ -1,20 +1,20 @@
 {
-  "report_id": "lib-beijer_ref_2025",
-  "company": "Beijer Ref",
+  "report_id": "lib-axfood_2025",
+  "company": "Axfood",
   "fiscal_year": 2025,
-  "currency": "SEK M",
+  "currency": "SEK m",
   "section": "income_statement",
   "fields": [
     {
       "key": "revenue",
       "label": "Revenue",
-      "value": 37067,
-      "unit": "SEK M",
+      "value": 89152,
+      "unit": "SEK m",
       "period": "2025",
       "raw_label": "Net sales",
       "source": {
-        "page": 96,
-        "quote": "Net sales 5 37,067 35,662"
+        "page": 122,
+        "quote": "Net sales 3 89,152 84,057"
       },
       "confidence": 1.0,
       "evidence": [
@@ -30,35 +30,57 @@
     {
       "key": "cost_of_sales",
       "label": "Cost of sales",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "value": -76020,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Cost of goods sold",
+      "source": {
+        "page": 122,
+        "quote": "Cost of goods sold 5, 6, 8 –76,020 –71,826"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "gross_profit",
       "label": "Gross profit",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "value": 13132,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Gross profit",
+      "source": {
+        "page": 122,
+        "quote": "Gross profit 13,132 12,231"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "operating_profit",
       "label": "Operating profit",
-      "value": 3594,
-      "unit": "SEK M",
+      "value": 3572,
+      "unit": "SEK m",
       "period": "2025",
       "raw_label": "Operating profit",
       "source": {
-        "page": 96,
-        "quote": "Operating profit 3,594 3,571"
+        "page": 122,
+        "quote": "Operating profit 3 3,572 3,290"
       },
       "confidence": 1.0,
       "evidence": [
@@ -74,13 +96,13 @@
     {
       "key": "profit_before_tax",
       "label": "Profit before tax",
-      "value": 3101,
-      "unit": "SEK M",
+      "value": 3031,
+      "unit": "SEK m",
       "period": "2025",
       "raw_label": "Profit before tax",
       "source": {
-        "page": 96,
-        "quote": "Profit before tax 3,101 3,008"
+        "page": 122,
+        "quote": "Profit before tax 3,031 2,885"
       },
       "confidence": 1.0,
       "evidence": [
@@ -96,18 +118,18 @@
     {
       "key": "income_tax",
       "label": "Income tax",
-      "value": -759,
-      "unit": "SEK M",
+      "value": -656,
+      "unit": "SEK m",
       "period": "2025",
-      "raw_label": "Tax on the year's profit",
+      "raw_label": "Current tax + Deferred tax",
       "source": {
-        "page": 96,
-        "quote": "Tax on the year's profit 11, 23 -759 -749"
+        "page": 122,
+        "quote": "Current tax 14 –470 –586 Deferred tax 14 –186 –80"
       },
       "confidence": 1.0,
       "evidence": [
         "quote_on_page",
-        "value_in_quote",
+        "value_derived",
         "arith_ok",
         "label_known",
         "period_ok",
@@ -129,13 +151,13 @@
     {
       "key": "net_profit",
       "label": "Profit for the year",
-      "value": 2342,
-      "unit": "SEK M",
+      "value": 2375,
+      "unit": "SEK m",
       "period": "2025",
       "raw_label": "Net profit for the year",
       "source": {
-        "page": 96,
-        "quote": "Net profit for the year 12 2,342 2,259"
+        "page": 122,
+        "quote": "Net profit for the year 2,375 2,219"
       },
       "confidence": 1.0,
       "evidence": [
@@ -151,13 +173,13 @@
     {
       "key": "eps_basic",
       "label": "EPS, basic",
-      "value": 4.59,
+      "value": 10.84,
       "unit": "SEK",
       "period": "2025",
-      "raw_label": "Profit per share, attributable to the parent company's shareholders, SEK: Before dilution",
+      "raw_label": "Earnings per share before dilution, SEK",
       "source": {
-        "page": 96,
-        "quote": "Before dilution 4.59 4.39"
+        "page": 122,
+        "quote": "Earnings per share before dilution, SEK 20 10.84 10.16"
       },
       "confidence": 1.0,
       "evidence": [
@@ -174,23 +196,21 @@
   "checks": [
     {
       "name": "gross_profit_arith",
-      "passed": false,
-      "detail": "missing: cost_of_sales"
+      "passed": true,
+      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((89152 + -76020) - 13132) <= 2"
     },
     {
       "name": "net_profit_arith",
       "passed": true,
-      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((3101 + -759 + 0) - 2342) <= 2"
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((3031 + -656 + 0) - 2375) <= 2"
     },
     {
       "name": "margin_sanity",
       "passed": true,
-      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 3594 / 37067 < 10"
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 3572 / 89152 < 10"
     }
   ],
   "warnings": [
-    "revenue: 37324 is not printed in 'Net sales'; the row's 2025 figure is 37067",
-    "cost_of_sales: -25729 is printed on none of pages [96, 97]; dropped as computed, not read",
-    "gross_profit: 11595 is printed on none of pages [96, 97]; dropped as computed, not read"
+    "income_tax: -655 fails net_profit_arith; 'Current tax 14 –470 –586 Deferred tax 14 –186 –80' sums to -656 in every column, which passes"
   ]
 }

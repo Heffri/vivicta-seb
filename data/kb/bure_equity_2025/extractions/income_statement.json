@@ -1,6 +1,6 @@
 {
-  "report_id": "lib-beijer_ref_2025",
-  "company": "Beijer Ref",
+  "report_id": "lib-bure_equity_2025",
+  "company": "Bure Equity",
   "fiscal_year": 2025,
   "currency": "SEK M",
   "section": "income_statement",
@@ -8,19 +8,18 @@
     {
       "key": "revenue",
       "label": "Revenue",
-      "value": 37067,
+      "value": 0,
       "unit": "SEK M",
       "period": "2025",
       "raw_label": "Net sales",
       "source": {
-        "page": 96,
-        "quote": "Net sales 5 37,067 35,662"
+        "page": 63,
+        "quote": "Net sales 0 0"
       },
-      "confidence": 1.0,
+      "confidence": 0.5,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
-        "arith_ok",
         "label_known",
         "period_ok",
         "page_is_statement",
@@ -52,19 +51,18 @@
     {
       "key": "operating_profit",
       "label": "Operating profit",
-      "value": 3594,
+      "value": -4688,
       "unit": "SEK M",
       "period": "2025",
-      "raw_label": "Operating profit",
+      "raw_label": "Operating result",
       "source": {
-        "page": 96,
-        "quote": "Operating profit 3,594 3,571"
+        "page": 63,
+        "quote": "Operating result -4,688 5,701"
       },
-      "confidence": 1.0,
+      "confidence": 0.5,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
-        "arith_ok",
         "label_known",
         "period_ok",
         "page_is_statement",
@@ -74,13 +72,13 @@
     {
       "key": "profit_before_tax",
       "label": "Profit before tax",
-      "value": 3101,
+      "value": -4676,
       "unit": "SEK M",
       "period": "2025",
-      "raw_label": "Profit before tax",
+      "raw_label": "Profit/loss after financial items",
       "source": {
-        "page": 96,
-        "quote": "Profit before tax 3,101 3,008"
+        "page": 63,
+        "quote": "Profit/loss after financial items -4,676 5,735"
       },
       "confidence": 1.0,
       "evidence": [
@@ -96,13 +94,13 @@
     {
       "key": "income_tax",
       "label": "Income tax",
-      "value": -759,
+      "value": 0,
       "unit": "SEK M",
       "period": "2025",
-      "raw_label": "Tax on the year's profit",
+      "raw_label": "Income tax expense",
       "source": {
-        "page": 96,
-        "quote": "Tax on the year's profit 11, 23 -759 -749"
+        "page": 63,
+        "quote": "Income tax expense 7 0 0"
       },
       "confidence": 1.0,
       "evidence": [
@@ -119,9 +117,9 @@
       "key": "profit_discontinued",
       "label": "Profit from discontinued operations",
       "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
+      "unit": "SEK M",
+      "period": "2025",
+      "raw_label": "Profit/loss for the year",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -129,13 +127,13 @@
     {
       "key": "net_profit",
       "label": "Profit for the year",
-      "value": 2342,
+      "value": -4676,
       "unit": "SEK M",
       "period": "2025",
-      "raw_label": "Net profit for the year",
+      "raw_label": "Profit/loss for the year",
       "source": {
-        "page": 96,
-        "quote": "Net profit for the year 12 2,342 2,259"
+        "page": 63,
+        "quote": "Profit/loss for the year -4,676 5,735"
       },
       "confidence": 1.0,
       "evidence": [
@@ -151,13 +149,13 @@
     {
       "key": "eps_basic",
       "label": "EPS, basic",
-      "value": 4.59,
+      "value": -63.16,
       "unit": "SEK",
       "period": "2025",
-      "raw_label": "Profit per share, attributable to the parent company's shareholders, SEK: Before dilution",
+      "raw_label": "Earnings per share attributable to owners of the Parent Company, basic, SEK1)",
       "source": {
-        "page": 96,
-        "quote": "Before dilution 4.59 4.39"
+        "page": 63,
+        "quote": "Earnings per share attributable to owners of the Parent Company, basic, SEK1) 8 -63.16 77.44"
       },
       "confidence": 1.0,
       "evidence": [
@@ -180,17 +178,17 @@
     {
       "name": "net_profit_arith",
       "passed": true,
-      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((3101 + -759 + 0) - 2342) <= 2"
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((-4676 + 0 + 0) - -4676) <= 2"
     },
     {
       "name": "margin_sanity",
-      "passed": true,
-      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 3594 / 37067 < 10"
+      "passed": false,
+      "detail": "ZeroDivisionError: division by zero"
     }
   ],
   "warnings": [
-    "revenue: 37324 is not printed in 'Net sales'; the row's 2025 figure is 37067",
-    "cost_of_sales: -25729 is printed on none of pages [96, 97]; dropped as computed, not read",
-    "gross_profit: 11595 is printed on none of pages [96, 97]; dropped as computed, not read"
+    "eps_basic: quote replaced by page 63 row 'Earnings per share attributable to owners of the Parent Company, basic, SEK1) 8 -63.16 77.44'",
+    "cost_of_sales: 'Net sales' 0 dropped: the same row as revenue, and not a cost of sales label",
+    "gross_profit: 'Net sales' 0 dropped: the same row as revenue, and not a gross profit label"
   ]
 }
