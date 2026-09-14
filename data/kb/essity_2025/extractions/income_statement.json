@@ -1,0 +1,140 @@
+{
+  "report_id": "lib-essity_2025",
+  "company": "Essity",
+  "fiscal_year": 2025,
+  "currency": "MSEK",
+  "section": "income_statement",
+  "fields": [
+    {
+      "key": "revenue",
+      "label": "Revenue",
+      "value": 138494,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Net sales",
+      "source": {
+        "page": 189,
+        "quote": "Net sales – Revenues from contracts with customers 138,494 MSEK"
+      },
+      "confidence": 0.475
+    },
+    {
+      "key": "cost_of_sales",
+      "label": "Cost of sales",
+      "value": -92439,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Cost of sales",
+      "source": {
+        "page": 189,
+        "quote": "Cost of sales 92,439 MSEK"
+      },
+      "confidence": 0.45
+    },
+    {
+      "key": "gross_profit",
+      "label": "Gross profit",
+      "value": 46055,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Gross profit",
+      "source": {
+        "page": 189,
+        "quote": "Gross profit 46,055 MSEK"
+      },
+      "confidence": 0.45
+    },
+    {
+      "key": "operating_profit",
+      "label": "Operating profit",
+      "value": 18531,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Operating profit",
+      "source": {
+        "page": 189,
+        "quote": "Operating profit 18,531 MSEK"
+      },
+      "confidence": 0.475
+    },
+    {
+      "key": "profit_before_tax",
+      "label": "Profit before tax",
+      "value": 17161,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Profit before tax",
+      "source": {
+        "page": 189,
+        "quote": "Profit before tax 17,161 MSEK"
+      },
+      "confidence": 0.475
+    },
+    {
+      "key": "income_tax",
+      "label": "Income tax",
+      "value": -4443,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Income tax",
+      "source": {
+        "page": 189,
+        "quote": "Income tax -4,443 MSEK"
+      },
+      "confidence": 0.475
+    },
+    {
+      "key": "net_profit",
+      "label": "Profit for the year",
+      "value": 12718,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Profit for the period",
+      "source": {
+        "page": 189,
+        "quote": "Profit for the period 12,718 MSEK"
+      },
+      "confidence": 0.475
+    },
+    {
+      "key": "eps_basic",
+      "label": "EPS, basic",
+      "value": 18.37,
+      "unit": "SEK",
+      "period": "2025",
+      "raw_label": "Earnings per share, SEK",
+      "source": {
+        "page": 37,
+        "quote": "Earnings per share, SEK 18.37"
+      },
+      "confidence": 0.45
+    }
+  ],
+  "checks": [
+    {
+      "name": "gross_profit_arith",
+      "passed": true,
+      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((138494 + -92439) - 46055) <= 2"
+    },
+    {
+      "name": "net_profit_arith",
+      "passed": true,
+      "detail": "profit_before_tax + income_tax == net_profit (±2 rounding) | abs((17161 + -4443) - 12718) <= 2"
+    },
+    {
+      "name": "margin_sanity",
+      "passed": true,
+      "detail": "operating margin between 0 and 60% | 0 < 18531 / 138494 < 0.6"
+    }
+  ],
+  "warnings": [
+    "revenue: quote not found on page 189",
+    "cost_of_sales: quote not found on page 189",
+    "gross_profit: quote not found on page 189",
+    "operating_profit: quote not found on page 189",
+    "profit_before_tax: quote not found on page 189",
+    "income_tax: quote not found on page 189",
+    "net_profit: quote not found on page 189",
+    "eps_basic: quote not found on page 37"
+  ]
+}

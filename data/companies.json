@@ -1,0 +1,4860 @@
+[
+ {
+  "name": "4C Group",
+  "ticker": "4C",
+  "sector": "Technology",
+  "isin": "SE0017936891",
+  "market": "First North"
+ },
+ {
+  "name": "AAC Clyde Space",
+  "ticker": "AAC",
+  "sector": "Telecommunications",
+  "isin": "SE0021020716",
+  "market": "First North"
+ },
+ {
+  "name": "AAK",
+  "ticker": "AAK",
+  "sector": "Consumer Staples",
+  "isin": "SE0011337708",
+  "market": "Large Cap"
+ },
+ {
+  "name": "ABB Ltd",
+  "ticker": "ABB",
+  "sector": "Industrials",
+  "isin": "CH0012221716",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Absolent Air Care Group",
+  "ticker": "ABSO",
+  "sector": "Industrials",
+  "isin": "SE0006256558",
+  "market": "First North"
+ },
+ {
+  "name": "AcadeMedia",
+  "ticker": "ACAD",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0007897079",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Acarix",
+  "ticker": "ACARIX",
+  "sector": "Health Care",
+  "isin": "SE0009268717",
+  "market": "First North"
+ },
+ {
+  "name": "Acast",
+  "ticker": "ACAST",
+  "sector": "Technology",
+  "isin": "SE0015960935",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Acconeer",
+  "ticker": "ACCON",
+  "sector": "Technology",
+  "isin": "SE0010546242",
+  "market": "First North"
+ },
+ {
+  "name": "Acenta Group",
+  "ticker": "PADEL",
+  "sector": "Technology",
+  "isin": "SE0024173728",
+  "market": "First North"
+ },
+ {
+  "name": "AcouSort",
+  "ticker": "ACOU",
+  "sector": "Health Care",
+  "isin": "SE0009189608",
+  "market": "First North"
+ },
+ {
+  "name": "Acrinova",
+  "ticker": "ACRI B",
+  "sector": "Real Estate",
+  "isin": "SE0015660030",
+  "market": "Small Cap"
+ },
+ {
+  "name": "ACROUD",
+  "ticker": "ACROUD",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0001863291",
+  "market": "First North"
+ },
+ {
+  "name": "Actic Group",
+  "ticker": "ATIC",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0009269467",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Active Biotech",
+  "ticker": "ACTI",
+  "sector": "Health Care",
+  "isin": "SE0029278555",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Acuvi",
+  "ticker": "ACUVI",
+  "sector": "Industrials",
+  "isin": "SE0017833171",
+  "market": "First North"
+ },
+ {
+  "name": "AddLife",
+  "ticker": "ALIF B",
+  "sector": "Health Care",
+  "isin": "SE0014401378",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Addnode Group",
+  "ticker": "ANOD B",
+  "sector": "Technology",
+  "isin": "SE0017885767",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Addtech",
+  "ticker": "ADDT B",
+  "sector": "Industrials",
+  "isin": "SE0014781795",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Adtraction Group",
+  "ticker": "ADTR",
+  "sector": "Technology",
+  "isin": "SE0016833149",
+  "market": "First North"
+ },
+ {
+  "name": "Advenica AB",
+  "ticker": "ADVE",
+  "sector": "Technology",
+  "isin": "SE0006219473",
+  "market": "First North"
+ },
+ {
+  "name": "AFRICA ENERGY CORP.",
+  "ticker": "AEC",
+  "sector": "Energy",
+  "isin": "CA00830W5019",
+  "market": "First North"
+ },
+ {
+  "name": "AFRY",
+  "ticker": "AFRY",
+  "sector": "Industrials",
+  "isin": "SE0005999836",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Ages Industri",
+  "ticker": "AGES B",
+  "sector": "Basic Materials",
+  "isin": "SE0005799046",
+  "market": "First North"
+ },
+ {
+  "name": "Agtira",
+  "ticker": "AGTIRA B",
+  "sector": "Consumer Staples",
+  "isin": "SE0008588354",
+  "market": "First North"
+ },
+ {
+  "name": "AI Revenue Assistant Software",
+  "ticker": "AIRA",
+  "sector": "Technology",
+  "isin": "SE0028778498",
+  "market": "First North"
+ },
+ {
+  "name": "Aino Health",
+  "ticker": "AINO",
+  "sector": "Health Care",
+  "isin": "SE0009242555",
+  "market": "First North"
+ },
+ {
+  "name": "Alcadon Group",
+  "ticker": "ALCA",
+  "sector": "Telecommunications",
+  "isin": "SE0008732218",
+  "market": "First North"
+ },
+ {
+  "name": "Alfa Laval",
+  "ticker": "ALFA",
+  "sector": "Industrials",
+  "isin": "SE0000695876",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Alimak Group",
+  "ticker": "ALIG",
+  "sector": "Industrials",
+  "isin": "SE0007158910",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Alleima",
+  "ticker": "ALLEI",
+  "sector": "Basic Materials",
+  "isin": "SE0017615644",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Alligator Bioscience",
+  "ticker": "ATORX",
+  "sector": "Health Care",
+  "isin": "SE0024173637",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Alligo",
+  "ticker": "ALLIGO B",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0009922305",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "ALM Equity",
+  "ticker": "ALM PREF",
+  "sector": "Real Estate",
+  "isin": "SE0004109627",
+  "market": "First North"
+ },
+ {
+  "name": "Alpcot Holding",
+  "ticker": "ALPCOT B",
+  "sector": "Financials",
+  "isin": "SE0016845655",
+  "market": "First North"
+ },
+ {
+  "name": "Altra Fastigheter",
+  "ticker": "ALTRA",
+  "sector": "Real Estate",
+  "isin": "SE0011426428",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Alvotech",
+  "ticker": "ALVO SDB",
+  "sector": "Health Care",
+  "isin": "SE0025011463",
+  "market": "Large Cap"
+ },
+ {
+  "name": "AlzeCure Pharma",
+  "ticker": "ALZCUR",
+  "sector": "Health Care",
+  "isin": "SE0010133785",
+  "market": "First North"
+ },
+ {
+  "name": "Alzinova",
+  "ticker": "ALZ",
+  "sector": "Health Care",
+  "isin": "SE0007413455",
+  "market": "First North"
+ },
+ {
+  "name": "Ambea",
+  "ticker": "AMBEA",
+  "sector": "Health Care",
+  "isin": "SE0009663826",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Annehem Fastigheter",
+  "ticker": "ANNE B",
+  "sector": "Real Estate",
+  "isin": "SE0015221684",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Annexin Pharmaceuticals",
+  "ticker": "ANNX",
+  "sector": "Health Care",
+  "isin": "SE0025159387",
+  "market": "First North"
+ },
+ {
+  "name": "Apotea",
+  "ticker": "APOTEA",
+  "sector": "Consumer Staples",
+  "isin": "SE0023313762",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "AQ Group",
+  "ticker": "AQ",
+  "sector": "Industrials",
+  "isin": "SE0022062196",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Arcoma",
+  "ticker": "ARCOMA",
+  "sector": "Health Care",
+  "isin": "SE0006219176",
+  "market": "First North"
+ },
+ {
+  "name": "Arctic Blue Beverages",
+  "ticker": "ARCTIC",
+  "sector": "Consumer Staples",
+  "isin": "SE0017769136",
+  "market": "First North"
+ },
+ {
+  "name": "Arctic Falls",
+  "ticker": "ARFA",
+  "sector": "Industrials",
+  "isin": "SE0026821076",
+  "market": "First North"
+ },
+ {
+  "name": "Arctic Minerals",
+  "ticker": "ARCT",
+  "sector": "Basic Materials",
+  "isin": "SE0024172779",
+  "market": "First North"
+ },
+ {
+  "name": "Arctic Paper",
+  "ticker": "ARP",
+  "sector": "Basic Materials",
+  "isin": "PLARTPR00012",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "ARENIT Industrie",
+  "ticker": "ARENIT SDB",
+  "sector": "Industrials",
+  "isin": "SE0027767849",
+  "market": "First North"
+ },
+ {
+  "name": "Arion Banki",
+  "ticker": "ARION SDB",
+  "sector": "Financials",
+  "isin": "SE0010413567",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Arjo",
+  "ticker": "ARJO B",
+  "sector": "Health Care",
+  "isin": "SE0010468116",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Arla Plast",
+  "ticker": "ARPL",
+  "sector": "Industrials",
+  "isin": "SE0015810817",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Arlandastad Group",
+  "ticker": "AGROUP",
+  "sector": "Real Estate",
+  "isin": "SE0016276851",
+  "market": "First North"
+ },
+ {
+  "name": "Ascelia Pharma",
+  "ticker": "ACE",
+  "sector": "Health Care",
+  "isin": "SE0010573113",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Asker Healthcare Group",
+  "ticker": "ASKER",
+  "sector": "Health Care",
+  "isin": "SE0024171458",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Asmodee Group",
+  "ticker": "ASMDEE B",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0023615638",
+  "market": "Large Cap"
+ },
+ {
+  "name": "ASSA ABLOY",
+  "ticker": "ASSA B",
+  "sector": "Industrials",
+  "isin": "SE0007100581",
+  "market": "Large Cap"
+ },
+ {
+  "name": "AstraZeneca",
+  "ticker": "AZN",
+  "sector": "Health Care",
+  "isin": "GB0009895292",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Athanase Innovation",
+  "ticker": "ATIN",
+  "sector": "Real Estate",
+  "isin": "SE0018014060",
+  "market": "First North"
+ },
+ {
+  "name": "Atlas Copco",
+  "ticker": "ATCO A",
+  "sector": "Industrials",
+  "isin": "SE0017486889",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Atrium Ljungberg",
+  "ticker": "ATRLJ B",
+  "sector": "Real Estate",
+  "isin": "SE0024320832",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Attendo",
+  "ticker": "ATT",
+  "sector": "Health Care",
+  "isin": "SE0007666110",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Autoliv",
+  "ticker": "ALIV SDB",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0021309614",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Avanza Bank Holding",
+  "ticker": "AZA",
+  "sector": "Financials",
+  "isin": "SE0012454072",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Avarda Bank",
+  "ticker": "AVARDA",
+  "sector": "Financials",
+  "isin": "SE0025666969",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Avensia",
+  "ticker": "AVEN",
+  "sector": "Technology",
+  "isin": "SE0000671745",
+  "market": "First North"
+ },
+ {
+  "name": "Avtech Sweden",
+  "ticker": "AVT B",
+  "sector": "Technology",
+  "isin": "SE0004270445",
+  "market": "First North"
+ },
+ {
+  "name": "Axfood",
+  "ticker": "AXFO",
+  "sector": "Consumer Staples",
+  "isin": "SE0006993770",
+  "market": "Large Cap"
+ },
+ {
+  "name": "aXichem",
+  "ticker": "AXIC A",
+  "sector": "Basic Materials",
+  "isin": "SE0005250719",
+  "market": "First North"
+ },
+ {
+  "name": "Axolot Solutions Holding",
+  "ticker": "AXOLOT",
+  "sector": "Industrials",
+  "isin": "SE0009414303",
+  "market": "First North"
+ },
+ {
+  "name": "B3 Consulting Group",
+  "ticker": "B3",
+  "sector": "Technology",
+  "isin": "SE0008347660",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Bactiguard Holding",
+  "ticker": "BACTI B",
+  "sector": "Health Care",
+  "isin": "SE0005878741",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Bahnhof",
+  "ticker": "BAHN B",
+  "sector": "Telecommunications",
+  "isin": "SE0010442418",
+  "market": "First North"
+ },
+ {
+  "name": "Balco Group",
+  "ticker": "BALCO",
+  "sector": "Industrials",
+  "isin": "SE0010323998",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Bambuser",
+  "ticker": "BUSER",
+  "sector": "Technology",
+  "isin": "SE0027099326",
+  "market": "First North"
+ },
+ {
+  "name": "Bawat Water Technologies",
+  "ticker": "BAWAT",
+  "sector": "Industrials",
+  "isin": "SE0017487424",
+  "market": "First North"
+ },
+ {
+  "name": "BE Group",
+  "ticker": "BEGR",
+  "sector": "Basic Materials",
+  "isin": "SE0008321921",
+  "market": "Small Cap"
+ },
+ {
+  "name": "BeammWave",
+  "ticker": "BEAMMW B",
+  "sector": "Technology",
+  "isin": "SE0016799068",
+  "market": "First North"
+ },
+ {
+  "name": "Beijer Alma",
+  "ticker": "BEIA B",
+  "sector": "Basic Materials",
+  "isin": "SE0011090547",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Beijer Ref",
+  "ticker": "BEIJ B",
+  "sector": "Industrials",
+  "isin": "SE0015949748",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Bergman & Beving",
+  "ticker": "BERG B",
+  "sector": "Industrials",
+  "isin": "SE0000101362",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Berner Industrier",
+  "ticker": "BERNER B",
+  "sector": "Industrials",
+  "isin": "SE0006143129",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Besqab",
+  "ticker": "BESQAB",
+  "sector": "Real Estate",
+  "isin": "SE0010547786",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Besqab Pref",
+  "ticker": "BESQAB PREF B",
+  "sector": "Real Estate",
+  "isin": "SE0015195706",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Betsson",
+  "ticker": "BETS B",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0022726485",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Better Collective",
+  "ticker": "BETCO",
+  "sector": "Technology",
+  "isin": "DK0060952240",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "BHG Group",
+  "ticker": "BHG",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0010948588",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "BICO Group",
+  "ticker": "BICO",
+  "sector": "Health Care",
+  "isin": "SE0013647385",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Bilia",
+  "ticker": "BILI A",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0009921588",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Billerud",
+  "ticker": "BILL",
+  "sector": "Basic Materials",
+  "isin": "SE0000862997",
+  "market": "Large Cap"
+ },
+ {
+  "name": "BIMobject",
+  "ticker": "BIM",
+  "sector": "Technology",
+  "isin": "SE0011644376",
+  "market": "First North"
+ },
+ {
+  "name": "Binero Group",
+  "ticker": "BINERO",
+  "sector": "Technology",
+  "isin": "SE0005249570",
+  "market": "First North"
+ },
+ {
+  "name": "BioArctic",
+  "ticker": "BIOA B",
+  "sector": "Health Care",
+  "isin": "SE0010323311",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Bioextrax",
+  "ticker": "BIOEX",
+  "sector": "Basic Materials",
+  "isin": "SE0016276752",
+  "market": "First North"
+ },
+ {
+  "name": "BioGaia",
+  "ticker": "BIOG B",
+  "sector": "Health Care",
+  "isin": "SE0017769995",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "BioInvent International",
+  "ticker": "BINV",
+  "sector": "Health Care",
+  "isin": "SE0015244520",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Biosergen",
+  "ticker": "BIOSGN",
+  "sector": "Health Care",
+  "isin": "SE0026821852",
+  "market": "First North"
+ },
+ {
+  "name": "Biovica International",
+  "ticker": "BIOVIC B",
+  "sector": "Health Care",
+  "isin": "SE0008613731",
+  "market": "First North"
+ },
+ {
+  "name": "Björn Borg",
+  "ticker": "BORG",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0021921327",
+  "market": "Small Cap"
+ },
+ {
+  "name": "BlincVision AB",
+  "ticker": "BLINC B",
+  "sector": "Technology",
+  "isin": "SE0009806045",
+  "market": "First North"
+ },
+ {
+  "name": "Boho Group",
+  "ticker": "BOHO PREF",
+  "sector": "Real Estate",
+  "isin": "SE0009697212",
+  "market": "First North"
+ },
+ {
+  "name": "Bokusgruppen",
+  "ticker": "BOKUS",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0016074256",
+  "market": "First North"
+ },
+ {
+  "name": "Boliden",
+  "ticker": "BOL",
+  "sector": "Basic Materials",
+  "isin": "SE0020050417",
+  "market": "Large Cap"
+ },
+ {
+  "name": "BoMill",
+  "ticker": "BOMILL",
+  "sector": "Industrials",
+  "isin": "SE0014583332",
+  "market": "First North"
+ },
+ {
+  "name": "Bonava",
+  "ticker": "BONAV B",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0008091581",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "BONESUPPORT HOLDING",
+  "ticker": "BONEX",
+  "sector": "Health Care",
+  "isin": "SE0009858152",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Bong",
+  "ticker": "BONG",
+  "sector": "Industrials",
+  "isin": "SE0000396061",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Bonäsudden Holding",
+  "ticker": "BONAS",
+  "sector": "Real Estate",
+  "isin": "SE0007157953",
+  "market": "First North"
+ },
+ {
+  "name": "Boozt",
+  "ticker": "BOOZT",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0009888738",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Botnia Gold",
+  "ticker": "BOTX",
+  "sector": "Basic Materials",
+  "isin": "SE0010494708",
+  "market": "First North"
+ },
+ {
+  "name": "Boule Diagnostics",
+  "ticker": "BOUL",
+  "sector": "Health Care",
+  "isin": "SE0011231158",
+  "market": "Small Cap"
+ },
+ {
+  "name": "BrainCool",
+  "ticker": "BRAIN",
+  "sector": "Health Care",
+  "isin": "SE0005731833",
+  "market": "First North"
+ },
+ {
+  "name": "Bravida Holding",
+  "ticker": "BRAV",
+  "sector": "Industrials",
+  "isin": "SE0007491303",
+  "market": "Large Cap"
+ },
+ {
+  "name": "BrightBid Group",
+  "ticker": "BRIGHT",
+  "sector": "Technology",
+  "isin": "SE0017937279",
+  "market": "First North"
+ },
+ {
+  "name": "Brilliant Future",
+  "ticker": "BRILL",
+  "sector": "Technology",
+  "isin": "SE0015811625",
+  "market": "First North"
+ },
+ {
+  "name": "Brinova Fastigheter",
+  "ticker": "BRIN B",
+  "sector": "Real Estate",
+  "isin": "SE0008347652",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Brock Milton Capital",
+  "ticker": "BMC",
+  "sector": "Financials",
+  "isin": "SE0022757860",
+  "market": "First North"
+ },
+ {
+  "name": "BTS Group",
+  "ticker": "BTS B",
+  "sector": "Industrials",
+  "isin": "SE0000805426",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Bufab",
+  "ticker": "BUFAB",
+  "sector": "Industrials",
+  "isin": "SE0025010671",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Bulten",
+  "ticker": "BULTEN",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0003849223",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Bure Equity",
+  "ticker": "BURE",
+  "sector": "Financials",
+  "isin": "SE0000195810",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Byggmax Group",
+  "ticker": "BMAX",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0003303627",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Byggmästare A J Ahlström H",
+  "ticker": "AJA B",
+  "sector": "Industrials",
+  "isin": "SE0026876476",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "ByggPartner Gruppen",
+  "ticker": "BYGGP",
+  "sector": "Industrials",
+  "isin": "SE0009242324",
+  "market": "First North"
+ },
+ {
+  "name": "C-RAD",
+  "ticker": "CRAD B",
+  "sector": "Health Care",
+  "isin": "SE0002016352",
+  "market": "Small Cap"
+ },
+ {
+  "name": "CAG Group",
+  "ticker": "CAG",
+  "sector": "Technology",
+  "isin": "SE0011923341",
+  "market": "First North"
+ },
+ {
+  "name": "Calviks",
+  "ticker": "CALVIK",
+  "sector": "Industrials",
+  "isin": "SE0017564800",
+  "market": "First North"
+ },
+ {
+  "name": "Camurus",
+  "ticker": "CAMX",
+  "sector": "Health Care",
+  "isin": "SE0007692850",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Candles Scandinavia",
+  "ticker": "CANDLE B",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0016797773",
+  "market": "First North"
+ },
+ {
+  "name": "Cantargia",
+  "ticker": "CANTA",
+  "sector": "Health Care",
+  "isin": "SE0006371126",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Carasent",
+  "ticker": "CARA",
+  "sector": "Health Care",
+  "isin": "SE0023261599",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Careium",
+  "ticker": "CARE",
+  "sector": "Industrials",
+  "isin": "SE0017131824",
+  "market": "First North"
+ },
+ {
+  "name": "Case Group",
+  "ticker": "CASE",
+  "sector": "Financials",
+  "isin": "SE0017082514",
+  "market": "First North"
+ },
+ {
+  "name": "Castellum",
+  "ticker": "CAST",
+  "sector": "Real Estate",
+  "isin": "SE0000379190",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Catella",
+  "ticker": "CAT B",
+  "sector": "Financials",
+  "isin": "SE0000188518",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Catena",
+  "ticker": "CATE",
+  "sector": "Real Estate",
+  "isin": "SE0001664707",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Catena Media",
+  "ticker": "CTM",
+  "sector": "Consumer Discretionary",
+  "isin": "MT0001000109",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Cavotec Group",
+  "ticker": "CCC",
+  "sector": "Industrials",
+  "isin": "SE0025010887",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "CDON",
+  "ticker": "CDON",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0015191911",
+  "market": "First North"
+ },
+ {
+  "name": "Cedergrenska",
+  "ticker": "CEDER",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0015949946",
+  "market": "First North"
+ },
+ {
+  "name": "Cell Impact",
+  "ticker": "CI",
+  "sector": "Industrials",
+  "isin": "SE0025940513",
+  "market": "First North"
+ },
+ {
+  "name": "CellaVision",
+  "ticker": "CEVI",
+  "sector": "Health Care",
+  "isin": "SE0000683484",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Cereno Scientific",
+  "ticker": "CRNO B",
+  "sector": "Health Care",
+  "isin": "SE0008241558",
+  "market": "First North"
+ },
+ {
+  "name": "ChargePanel",
+  "ticker": "CHARGE",
+  "sector": "Technology",
+  "isin": "SE0017083835",
+  "market": "First North"
+ },
+ {
+  "name": "Checkin.com Group",
+  "ticker": "CHECK",
+  "sector": "Technology",
+  "isin": "SE0015810502",
+  "market": "First North"
+ },
+ {
+  "name": "Cheffelo",
+  "ticker": "CHEF",
+  "sector": "Consumer Staples",
+  "isin": "SE0015556873",
+  "market": "First North"
+ },
+ {
+  "name": "Cibus Real Estate",
+  "ticker": "CIBUS",
+  "sector": "Real Estate",
+  "isin": "SE0010832204",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Cinclus Pharma Holding",
+  "ticker": "CINPHA",
+  "sector": "Health Care",
+  "isin": "SE0020388577",
+  "market": "Small Cap"
+ },
+ {
+  "name": "CirChem",
+  "ticker": "CIRCHE",
+  "sector": "Utilities",
+  "isin": "SE0015193529",
+  "market": "First North"
+ },
+ {
+  "name": "Clas Ohlson",
+  "ticker": "CLAS B",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0000584948",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Clavister",
+  "ticker": "CLAV",
+  "sector": "Technology",
+  "isin": "SE0005308558",
+  "market": "First North"
+ },
+ {
+  "name": "Clean Motion",
+  "ticker": "CLEMO",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0008216303",
+  "market": "First North"
+ },
+ {
+  "name": "Clemondo Group",
+  "ticker": "CLEM",
+  "sector": "Basic Materials",
+  "isin": "SE0023468400",
+  "market": "First North"
+ },
+ {
+  "name": "Climeon",
+  "ticker": "CLIME B",
+  "sector": "Energy",
+  "isin": "SE0023837182",
+  "market": "First North"
+ },
+ {
+  "name": "Clinical Laserthermia Syst.",
+  "ticker": "CLS B",
+  "sector": "Health Care",
+  "isin": "SE0022049920",
+  "market": "First North"
+ },
+ {
+  "name": "Cloetta",
+  "ticker": "CLA B",
+  "sector": "Consumer Staples",
+  "isin": "SE0002626861",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "CodeMill",
+  "ticker": "CDMIL",
+  "sector": "Technology",
+  "isin": "SE0013914819",
+  "market": "First North"
+ },
+ {
+  "name": "Coffee Stain Group",
+  "ticker": "COFFEE B",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0026599557",
+  "market": "First North"
+ },
+ {
+  "name": "Collaxio",
+  "ticker": "COLLAX",
+  "sector": "Financials",
+  "isin": "SE0016609333",
+  "market": "First North"
+ },
+ {
+  "name": "CombinedX",
+  "ticker": "CX",
+  "sector": "Technology",
+  "isin": "SE0012065589",
+  "market": "First North"
+ },
+ {
+  "name": "Compodium International",
+  "ticker": "COMPDM",
+  "sector": "Technology",
+  "isin": "SE0022088233",
+  "market": "First North"
+ },
+ {
+  "name": "Concejo",
+  "ticker": "CNCJO B",
+  "sector": "Industrials",
+  "isin": "SE0000236382",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Coor Service Management Hold.",
+  "ticker": "COOR",
+  "sector": "Industrials",
+  "isin": "SE0007158829",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Corem Property Group",
+  "ticker": "CORE B",
+  "sector": "Real Estate",
+  "isin": "SE0010714287",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Corline Biomedical",
+  "ticker": "CLBIO",
+  "sector": "Health Care",
+  "isin": "SE0006887451",
+  "market": "First North"
+ },
+ {
+  "name": "Creades",
+  "ticker": "CRED A",
+  "sector": "Financials",
+  "isin": "SE0015661236",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Crunchfish",
+  "ticker": "CFISH",
+  "sector": "Technology",
+  "isin": "SE0009190192",
+  "market": "First North"
+ },
+ {
+  "name": "CTEK",
+  "ticker": "CTEK",
+  "sector": "Industrials",
+  "isin": "SE0016798763",
+  "market": "Small Cap"
+ },
+ {
+  "name": "CTT Systems",
+  "ticker": "CTT",
+  "sector": "Industrials",
+  "isin": "SE0000418923",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Cynca Nordic",
+  "ticker": "CYNCA",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0017134125",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Dedicare",
+  "ticker": "DEDI",
+  "sector": "Health Care",
+  "isin": "SE0003909282",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Desenio Group",
+  "ticker": "DSNO",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0015657853",
+  "market": "First North"
+ },
+ {
+  "name": "DevPort",
+  "ticker": "DEVP B",
+  "sector": "Technology",
+  "isin": "SE0010546622",
+  "market": "First North"
+ },
+ {
+  "name": "Devyser Diagnostics",
+  "ticker": "DVYSR",
+  "sector": "Health Care",
+  "isin": "SE0016588867",
+  "market": "First North"
+ },
+ {
+  "name": "Diamyd Medical",
+  "ticker": "DMYD B",
+  "sector": "Health Care",
+  "isin": "SE0005162880",
+  "market": "First North"
+ },
+ {
+  "name": "Dicot Pharma",
+  "ticker": "DICOT",
+  "sector": "Health Care",
+  "isin": "SE0011178458",
+  "market": "First North"
+ },
+ {
+  "name": "Disruptive Pharma",
+  "ticker": "DPHA",
+  "sector": "Health Care",
+  "isin": "SE0021181559",
+  "market": "First North"
+ },
+ {
+  "name": "DistIT",
+  "ticker": "DIST",
+  "sector": "Technology",
+  "isin": "SE0003883800",
+  "market": "First North"
+ },
+ {
+  "name": "District Metals Corp.",
+  "ticker": "DMXSE SDB",
+  "sector": "Basic Materials",
+  "isin": "SE0023112941",
+  "market": "First North"
+ },
+ {
+  "name": "Divio Technologies",
+  "ticker": "DIVIO B",
+  "sector": "Technology",
+  "isin": "SE0011311554",
+  "market": "First North"
+ },
+ {
+  "name": "Diös Fastigheter",
+  "ticker": "DIOS",
+  "sector": "Real Estate",
+  "isin": "SE0001634262",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Dlaboratory Sweden",
+  "ticker": "DLAB",
+  "sector": "Technology",
+  "isin": "SE0015658380",
+  "market": "First North"
+ },
+ {
+  "name": "Dometic Group",
+  "ticker": "DOM",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0007691613",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Done.ai Group",
+  "ticker": "DONE",
+  "sector": "Technology",
+  "isin": "SE0010546911",
+  "market": "First North"
+ },
+ {
+  "name": "Doxa",
+  "ticker": "DOXA",
+  "sector": "Real Estate",
+  "isin": "SE0005624756",
+  "market": "First North"
+ },
+ {
+  "name": "Drillcon",
+  "ticker": "DRIL",
+  "sector": "Basic Materials",
+  "isin": "SE0001770702",
+  "market": "First North"
+ },
+ {
+  "name": "Duni",
+  "ticker": "DUNI",
+  "sector": "Consumer Staples",
+  "isin": "SE0000616716",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Duroc",
+  "ticker": "DURC B",
+  "sector": "Basic Materials",
+  "isin": "SE0000331266",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Dustin Group",
+  "ticker": "DUST",
+  "sector": "Technology",
+  "isin": "SE0006625471",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Dynavox Group",
+  "ticker": "DYVOX",
+  "sector": "Technology",
+  "isin": "SE0017105620",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Eastnine",
+  "ticker": "EAST",
+  "sector": "Real Estate",
+  "isin": "SE0022050183",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "eEducation Albert",
+  "ticker": "ALBERT",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0016797989",
+  "market": "First North"
+ },
+ {
+  "name": "Effnetplattformen Holding",
+  "ticker": "EFFH",
+  "sector": "Telecommunications",
+  "isin": "SE0015987565",
+  "market": "First North"
+ },
+ {
+  "name": "Egetis Therapeutics",
+  "ticker": "EGTX",
+  "sector": "Health Care",
+  "isin": "SE0003815604",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Elanders",
+  "ticker": "ELAN B",
+  "sector": "Industrials",
+  "isin": "SE0000119299",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Electrolux",
+  "ticker": "ELUX B",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0016589188",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Electrolux Professional",
+  "ticker": "EPRO B",
+  "sector": "Industrials",
+  "isin": "SE0013747870",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Elekta",
+  "ticker": "EKTA B",
+  "sector": "Health Care",
+  "isin": "SE0000163628",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Elicera Therapeutics",
+  "ticker": "ELIC",
+  "sector": "Health Care",
+  "isin": "SE0015382080",
+  "market": "First North"
+ },
+ {
+  "name": "Ellos Holding",
+  "ticker": "ELLOS",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0028799429",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Elon",
+  "ticker": "ELON",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0001572520",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Eltel",
+  "ticker": "ELTEL",
+  "sector": "Industrials",
+  "isin": "SE0006509949",
+  "market": "Small Cap"
+ },
+ {
+  "name": "EMB Mission Bound",
+  "ticker": "EMB",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0015797873",
+  "market": "First North"
+ },
+ {
+  "name": "Embellence Group",
+  "ticker": "EMBELL",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0013888831",
+  "market": "First North"
+ },
+ {
+  "name": "Embracer Group",
+  "ticker": "EMBRAC B",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0023615885",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Enad Global 7",
+  "ticker": "EG7",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0010520106",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Enea",
+  "ticker": "ENEA",
+  "sector": "Technology",
+  "isin": "SE0009697220",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Enersize",
+  "ticker": "ENERS",
+  "sector": "Technology",
+  "isin": "FI4000233317",
+  "market": "First North"
+ },
+ {
+  "name": "engcon",
+  "ticker": "ENGCON B",
+  "sector": "Industrials",
+  "isin": "SE0017769847",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Eniro Group",
+  "ticker": "ENRO",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0029300995",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Enity Holding",
+  "ticker": "ENITY",
+  "sector": "Financials",
+  "isin": "SE0025011554",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Enorama Pharma",
+  "ticker": "ERMA",
+  "sector": "Health Care",
+  "isin": "SE0008216329",
+  "market": "First North"
+ },
+ {
+  "name": "Envar Holding",
+  "ticker": "ENVAR",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0023134895",
+  "market": "First North"
+ },
+ {
+  "name": "Enzymatica",
+  "ticker": "ENZY",
+  "sector": "Health Care",
+  "isin": "SE0003943620",
+  "market": "First North"
+ },
+ {
+  "name": "Eolus",
+  "ticker": "EOLU B",
+  "sector": "Energy",
+  "isin": "SE0007075056",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Ependion",
+  "ticker": "EPEN",
+  "sector": "Industrials",
+  "isin": "SE0000671711",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Epiroc",
+  "ticker": "EPI A",
+  "sector": "Industrials",
+  "isin": "SE0015658109",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Episurf",
+  "ticker": "EPIS B",
+  "sector": "Health Care",
+  "isin": "SE0003491562",
+  "market": "Small Cap"
+ },
+ {
+  "name": "EQL Pharma",
+  "ticker": "EQL",
+  "sector": "Health Care",
+  "isin": "SE0005497732",
+  "market": "Small Cap"
+ },
+ {
+  "name": "EQT",
+  "ticker": "EQT",
+  "sector": "Financials",
+  "isin": "SE0012853455",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Ericsson",
+  "ticker": "ERIC B",
+  "sector": "Telecommunications",
+  "isin": "SE0000108656",
+  "market": "Large Cap"
+ },
+ {
+  "name": "ES Group",
+  "ticker": "ESGR B",
+  "sector": "Industrials",
+  "isin": "SE0014428447",
+  "market": "First North"
+ },
+ {
+  "name": "Essity",
+  "ticker": "ESSITY B",
+  "sector": "Consumer Staples",
+  "isin": "SE0009922164",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Evolution",
+  "ticker": "EVO",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0012673267",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Ework Group",
+  "ticker": "EWRK",
+  "sector": "Industrials",
+  "isin": "SE0002402701",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "ExpreS2ion Biotech Holding",
+  "ticker": "EXPRS2",
+  "sector": "Health Care",
+  "isin": "SE0023261292",
+  "market": "First North"
+ },
+ {
+  "name": "Exsitec Holding",
+  "ticker": "EXS",
+  "sector": "Technology",
+  "isin": "SE0014035762",
+  "market": "First North"
+ },
+ {
+  "name": "Fabege",
+  "ticker": "FABG",
+  "sector": "Real Estate",
+  "isin": "SE0011166974",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Fagerhult Group",
+  "ticker": "FAG",
+  "sector": "Industrials",
+  "isin": "SE0010048884",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Fasadgruppen Group",
+  "ticker": "FG",
+  "sector": "Industrials",
+  "isin": "SE0015195771",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Fast. Balder",
+  "ticker": "BALD B",
+  "sector": "Real Estate",
+  "isin": "SE0017832488",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Fastator",
+  "ticker": "FASTAT",
+  "sector": "Real Estate",
+  "isin": "SE0015407382",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Fastighetsbolag. Emilshus",
+  "ticker": "EMIL PREF",
+  "sector": "Real Estate",
+  "isin": "SE0016785794",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Fastighetsbolaget Emilshus",
+  "ticker": "EMIL B",
+  "sector": "Real Estate",
+  "isin": "SE0016785786",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Fastpartner",
+  "ticker": "FPAR A",
+  "sector": "Real Estate",
+  "isin": "SE0013512506",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Fenix Outdoor International",
+  "ticker": "FOI B",
+  "sector": "Consumer Discretionary",
+  "isin": "CH0242214887",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Ferroamp",
+  "ticker": "FERRO",
+  "sector": "Industrials",
+  "isin": "SE0012229920",
+  "market": "First North"
+ },
+ {
+  "name": "Ferronordic",
+  "ticker": "FNM",
+  "sector": "Industrials",
+  "isin": "SE0005468717",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Firefly",
+  "ticker": "FIRE",
+  "sector": "Industrials",
+  "isin": "SE0000395428",
+  "market": "First North"
+ },
+ {
+  "name": "First Venture Sweden",
+  "ticker": "FIRST B",
+  "sector": "Financials",
+  "isin": "SE0016075451",
+  "market": "First North"
+ },
+ {
+  "name": "Flat Capital",
+  "ticker": "FLAT B",
+  "sector": "Financials",
+  "isin": "SE0016609846",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Flerie",
+  "ticker": "FLERIE",
+  "sector": "Financials",
+  "isin": "SE0022447348",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Flexion Mobile",
+  "ticker": "FLEXM",
+  "sector": "Technology",
+  "isin": "GB00BZ1MDB19",
+  "market": "First North"
+ },
+ {
+  "name": "FlexQube",
+  "ticker": "FLEXQ",
+  "sector": "Industrials",
+  "isin": "SE0010547075",
+  "market": "First North"
+ },
+ {
+  "name": "Flowscape Technology",
+  "ticker": "FLOWS",
+  "sector": "Technology",
+  "isin": "SE0018042046",
+  "market": "First North"
+ },
+ {
+  "name": "Fluicell",
+  "ticker": "FLUI",
+  "sector": "Health Care",
+  "isin": "SE0023595459",
+  "market": "First North"
+ },
+ {
+  "name": "FluoGuide",
+  "ticker": "FLUO",
+  "sector": "Health Care",
+  "isin": "DK0061123312",
+  "market": "First North"
+ },
+ {
+  "name": "FM Mattsson",
+  "ticker": "FMM B",
+  "sector": "Industrials",
+  "isin": "SE0018040883",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Fortinova Fastigheter ser.",
+  "ticker": "FNOVA B",
+  "sector": "Real Estate",
+  "isin": "SE0014608915",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Fractal Gaming Group",
+  "ticker": "FRACTL",
+  "sector": "Technology",
+  "isin": "SE0015504477",
+  "market": "First North"
+ },
+ {
+  "name": "Fragbite Group",
+  "ticker": "FRAG",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0023287347",
+  "market": "First North"
+ },
+ {
+  "name": "Fram Skandinavien",
+  "ticker": "FRAM B",
+  "sector": "Technology",
+  "isin": "SE0010296269",
+  "market": "First North"
+ },
+ {
+  "name": "Freemelt Holding",
+  "ticker": "FREEM",
+  "sector": "Industrials",
+  "isin": "SE0011167170",
+  "market": "First North"
+ },
+ {
+  "name": "Freja eID Group",
+  "ticker": "FREJA",
+  "sector": "Technology",
+  "isin": "SE0015950308",
+  "market": "First North"
+ },
+ {
+  "name": "FSport",
+  "ticker": "FSPORT",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0016288641",
+  "market": "First North"
+ },
+ {
+  "name": "G5 Entertainment",
+  "ticker": "G5EN",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0001824004",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Gabather",
+  "ticker": "GABA",
+  "sector": "Health Care",
+  "isin": "SE0010869552",
+  "market": "First North"
+ },
+ {
+  "name": "Gaming Corps",
+  "ticker": "GCOR",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0014694691",
+  "market": "First North"
+ },
+ {
+  "name": "Gapwaves",
+  "ticker": "GAPW B",
+  "sector": "Telecommunications",
+  "isin": "SE0009155518",
+  "market": "First North"
+ },
+ {
+  "name": "Garo",
+  "ticker": "GARO",
+  "sector": "Technology",
+  "isin": "SE0015812417",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Gasporox",
+  "ticker": "GPX",
+  "sector": "Industrials",
+  "isin": "SE0008991624",
+  "market": "First North"
+ },
+ {
+  "name": "Generic Sweden",
+  "ticker": "GENI",
+  "sector": "Technology",
+  "isin": "SE0001790791",
+  "market": "First North"
+ },
+ {
+  "name": "Genova Property Group",
+  "ticker": "GPG",
+  "sector": "Real Estate",
+  "isin": "SE0007184189",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Genovis",
+  "ticker": "GENO",
+  "sector": "Health Care",
+  "isin": "SE0002485979",
+  "market": "First North"
+ },
+ {
+  "name": "Gentoo Media",
+  "ticker": "G2M",
+  "sector": "Consumer Discretionary",
+  "isin": "US36467X2062",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Getinge",
+  "ticker": "GETI B",
+  "sector": "Health Care",
+  "isin": "SE0000202624",
+  "market": "Large Cap"
+ },
+ {
+  "name": "GiG Software",
+  "ticker": "GIG SDB",
+  "sector": "Technology",
+  "isin": "SE0022760229",
+  "market": "First North"
+ },
+ {
+  "name": "Gigasun",
+  "ticker": "GIGA",
+  "sector": "Utilities",
+  "isin": "SE0016101521",
+  "market": "First North"
+ },
+ {
+  "name": "Goldsky Resources",
+  "ticker": "GSKR SDB",
+  "sector": "Basic Materials",
+  "isin": "SE0027099318",
+  "market": "First North"
+ },
+ {
+  "name": "GomSpace Group",
+  "ticker": "GOMX",
+  "sector": "Telecommunications",
+  "isin": "SE0008348304",
+  "market": "First North"
+ },
+ {
+  "name": "Goodbye Kansas Group",
+  "ticker": "GBK",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0021627353",
+  "market": "First North"
+ },
+ {
+  "name": "Gotlandsbolaget",
+  "ticker": "GOTL B",
+  "sector": "Industrials",
+  "isin": "SE0029278209",
+  "market": "First North"
+ },
+ {
+  "name": "GRANGEX",
+  "ticker": "GRANGX",
+  "sector": "Basic Materials",
+  "isin": "SE0018014243",
+  "market": "First North"
+ },
+ {
+  "name": "Greater Than",
+  "ticker": "GREAT",
+  "sector": "Technology",
+  "isin": "SE0005881554",
+  "market": "First North"
+ },
+ {
+  "name": "Green Landscaping Group",
+  "ticker": "GREEN",
+  "sector": "Industrials",
+  "isin": "SE0010985028",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Gruvaktiebolaget Viscaria",
+  "ticker": "VISC",
+  "sector": "Basic Materials",
+  "isin": "SE0021148160",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Gränges",
+  "ticker": "GRNG",
+  "sector": "Basic Materials",
+  "isin": "SE0006288015",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Guideline Geo",
+  "ticker": "GGEO",
+  "sector": "Industrials",
+  "isin": "SE0005562014",
+  "market": "First North"
+ },
+ {
+  "name": "Guldbrev Holding",
+  "ticker": "GULD",
+  "sector": "Basic Materials",
+  "isin": "SE0025667033",
+  "market": "First North"
+ },
+ {
+  "name": "Hacksaw",
+  "ticker": "HACK",
+  "sector": "Technology",
+  "isin": "SE0025138357",
+  "market": "Large Cap"
+ },
+ {
+  "name": "HAKI Safety",
+  "ticker": "HAKI B",
+  "sector": "Industrials",
+  "isin": "SE0000122673",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Hansa Biopharma",
+  "ticker": "HNSA",
+  "sector": "Health Care",
+  "isin": "SE0002148817",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "HANZA",
+  "ticker": "HANZA",
+  "sector": "Industrials",
+  "isin": "SE0005878543",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Havsfrun Investment",
+  "ticker": "HAV B",
+  "sector": "Financials",
+  "isin": "SE0000312043",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Haypp Group",
+  "ticker": "HAYPP",
+  "sector": "Consumer Staples",
+  "isin": "SE0016829469",
+  "market": "First North"
+ },
+ {
+  "name": "HEBA",
+  "ticker": "HEBA B",
+  "sector": "Real Estate",
+  "isin": "SE0017911480",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Hedera Group",
+  "ticker": "HEGR",
+  "sector": "Industrials",
+  "isin": "SE0007815113",
+  "market": "First North"
+ },
+ {
+  "name": "Heimstaden",
+  "ticker": "HEIM PREF",
+  "sector": "Real Estate",
+  "isin": "SE0015949037",
+  "market": "First North"
+ },
+ {
+  "name": "Hemnet Group",
+  "ticker": "HEM",
+  "sector": "Real Estate",
+  "isin": "SE0015671995",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Hennes & Mauritz",
+  "ticker": "HM B",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0000106270",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Hernö Gin",
+  "ticker": "HERNO B",
+  "sector": "Consumer Staples",
+  "isin": "SE0017767494",
+  "market": "First North"
+ },
+ {
+  "name": "Hexagon",
+  "ticker": "HEXA B",
+  "sector": "Technology",
+  "isin": "SE0015961909",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Hexatronic Group",
+  "ticker": "HTRO",
+  "sector": "Telecommunications",
+  "isin": "SE0018040677",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Hexicon",
+  "ticker": "HEXI",
+  "sector": "Energy",
+  "isin": "SE0004898799",
+  "market": "First North"
+ },
+ {
+  "name": "HEXPOL",
+  "ticker": "HPOL B",
+  "sector": "Basic Materials",
+  "isin": "SE0007074281",
+  "market": "Large Cap"
+ },
+ {
+  "name": "High Coast Distillery",
+  "ticker": "HIGHCO B",
+  "sector": "Consumer Staples",
+  "isin": "SE0003848613",
+  "market": "First North"
+ },
+ {
+  "name": "Hilbert Group ser.",
+  "ticker": "HILB B",
+  "sector": "Industrials",
+  "isin": "SE0016278154",
+  "market": "First North"
+ },
+ {
+  "name": "HMS Networks",
+  "ticker": "HMS",
+  "sector": "Telecommunications",
+  "isin": "SE0009997018",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Hoist Finance",
+  "ticker": "HOFI",
+  "sector": "Financials",
+  "isin": "SE0006887063",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Holmen",
+  "ticker": "HOLM B",
+  "sector": "Basic Materials",
+  "isin": "SE0011090018",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Hufvudstaden",
+  "ticker": "HUFV A",
+  "sector": "Real Estate",
+  "isin": "SE0000170375",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Humana",
+  "ticker": "HUM",
+  "sector": "Health Care",
+  "isin": "SE0008040653",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Humble Group",
+  "ticker": "HUMBLE",
+  "sector": "Consumer Staples",
+  "isin": "SE0006261046",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Husqvarna",
+  "ticker": "HUSQ B",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0001662230",
+  "market": "Large Cap"
+ },
+ {
+  "name": "I-Tech",
+  "ticker": "ITECH",
+  "sector": "Basic Materials",
+  "isin": "SE0011167725",
+  "market": "First North"
+ },
+ {
+  "name": "Iconovo",
+  "ticker": "ICO",
+  "sector": "Health Care",
+  "isin": "SE0010868943",
+  "market": "First North"
+ },
+ {
+  "name": "IDL Diagnostics",
+  "ticker": "IDLDX",
+  "sector": "Health Care",
+  "isin": "SE0003883990",
+  "market": "First North"
+ },
+ {
+  "name": "Idun Industrier",
+  "ticker": "IDUN B",
+  "sector": "Industrials",
+  "isin": "SE0013512464",
+  "market": "First North"
+ },
+ {
+  "name": "Image Systems",
+  "ticker": "IS",
+  "sector": "Industrials",
+  "isin": "SE0006421871",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Immunovia",
+  "ticker": "IMMNOV",
+  "sector": "Health Care",
+  "isin": "SE0006091997",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Impact Coatings",
+  "ticker": "IMPC",
+  "sector": "Basic Materials",
+  "isin": "SE0001279142",
+  "market": "First North"
+ },
+ {
+  "name": "Implantica",
+  "ticker": "IMP A SDB",
+  "sector": "Health Care",
+  "isin": "SE0014855029",
+  "market": "First North"
+ },
+ {
+  "name": "InCoax Networks",
+  "ticker": "INCOAX",
+  "sector": "Telecommunications",
+  "isin": "SE0009832595",
+  "market": "First North"
+ },
+ {
+  "name": "Industrivärden",
+  "ticker": "INDU C",
+  "sector": "Financials",
+  "isin": "SE0000107203",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Indutrade",
+  "ticker": "INDT",
+  "sector": "Industrials",
+  "isin": "SE0001515552",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Infant Bacterial TherapeuticsB",
+  "ticker": "IBT B",
+  "sector": "Health Care",
+  "isin": "SE0008015259",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Infrea",
+  "ticker": "INFREA",
+  "sector": "Industrials",
+  "isin": "SE0010600106",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Inission",
+  "ticker": "INISS B",
+  "sector": "Industrials",
+  "isin": "SE0016275069",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Initiator Pharma",
+  "ticker": "INIT",
+  "sector": "Health Care",
+  "isin": "DK0060775872",
+  "market": "First North"
+ },
+ {
+  "name": "INQ Group",
+  "ticker": "INQ",
+  "sector": "Technology",
+  "isin": "SE0010415281",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Instalco",
+  "ticker": "INSTAL",
+  "sector": "Industrials",
+  "isin": "SE0017483506",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Intea Fastigheter",
+  "ticker": "INTEA D",
+  "sector": "Real Estate",
+  "isin": "SE0017072267",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Integrum",
+  "ticker": "INTEG B",
+  "sector": "Health Care",
+  "isin": "SE0009807266",
+  "market": "First North"
+ },
+ {
+  "name": "International Petroleum Corp.",
+  "ticker": "IPCO",
+  "sector": "Energy",
+  "isin": "CA46016U1084",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Intervacc",
+  "ticker": "IVACC",
+  "sector": "Health Care",
+  "isin": "SE0009607252",
+  "market": "First North"
+ },
+ {
+  "name": "Intrum",
+  "ticker": "INTRUM",
+  "sector": "Financials",
+  "isin": "SE0000936478",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Investor",
+  "ticker": "INVE B",
+  "sector": "Financials",
+  "isin": "SE0015811963",
+  "market": "Large Cap"
+ },
+ {
+  "name": "INVISIO",
+  "ticker": "IVSO",
+  "sector": "Industrials",
+  "isin": "SE0001200015",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Inwido",
+  "ticker": "INWI",
+  "sector": "Industrials",
+  "isin": "SE0006220018",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Irisity",
+  "ticker": "IRIS",
+  "sector": "Technology",
+  "isin": "SE0005365681",
+  "market": "First North"
+ },
+ {
+  "name": "IRLAB Therapeutics",
+  "ticker": "IRLAB A",
+  "sector": "Health Care",
+  "isin": "SE0012675361",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Isofol Medical",
+  "ticker": "ISOFOL",
+  "sector": "Health Care",
+  "isin": "SE0009581051",
+  "market": "Small Cap"
+ },
+ {
+  "name": "ITAB Group",
+  "ticker": "ITAB",
+  "sector": "Industrials",
+  "isin": "SE0015962097",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "iZafe Group",
+  "ticker": "IZAFE B",
+  "sector": "Health Care",
+  "isin": "SE0003656834",
+  "market": "First North"
+ },
+ {
+  "name": "JLT Mobile Computers",
+  "ticker": "JLT",
+  "sector": "Technology",
+  "isin": "SE0000725624",
+  "market": "First North"
+ },
+ {
+  "name": "JM",
+  "ticker": "JM",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0000806994",
+  "market": "Large Cap"
+ },
+ {
+  "name": "John Mattson Fastighetsföret.",
+  "ticker": "JOMA",
+  "sector": "Real Estate",
+  "isin": "SE0012481364",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "K-Fast Holding",
+  "ticker": "KFAST B",
+  "sector": "Real Estate",
+  "isin": "SE0016101679",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "K2A Knaust & Andersson",
+  "ticker": "K2A B",
+  "sector": "Real Estate",
+  "isin": "SE0010520254",
+  "market": "Small Cap"
+ },
+ {
+  "name": "K33",
+  "ticker": "K33",
+  "sector": "Technology",
+  "isin": "SE0007614722",
+  "market": "First North"
+ },
+ {
+  "name": "KABE Group",
+  "ticker": "KABE B",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0000107724",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Kakel Max",
+  "ticker": "KAKEL",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0009921075",
+  "market": "First North"
+ },
+ {
+  "name": "Kallebäck Property Invest",
+  "ticker": "KAPIAB",
+  "sector": "Real Estate",
+  "isin": "SE0005704079",
+  "market": "First North"
+ },
+ {
+  "name": "Kambi Group Plc",
+  "ticker": "KAMBI",
+  "sector": "Consumer Discretionary",
+  "isin": "MT0000780107",
+  "market": "First North"
+ },
+ {
+  "name": "Karnell Group",
+  "ticker": "KARNEL B",
+  "sector": "Industrials",
+  "isin": "SE0017832173",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Karnov Group",
+  "ticker": "KAR",
+  "sector": "Industrials",
+  "isin": "SE0012323715",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "KB Components",
+  "ticker": "KBC",
+  "sector": "Industrials",
+  "isin": "SE0022725743",
+  "market": "First North"
+ },
+ {
+  "name": "KDventures",
+  "ticker": "KDV B",
+  "sector": "Health Care",
+  "isin": "SE0002190926",
+  "market": "Small Cap"
+ },
+ {
+  "name": "KebNi",
+  "ticker": "KEBNI B",
+  "sector": "Telecommunications",
+  "isin": "SE0012904803",
+  "market": "First North"
+ },
+ {
+  "name": "Kentima Holding",
+  "ticker": "KENH",
+  "sector": "Technology",
+  "isin": "SE0005100757",
+  "market": "First North"
+ },
+ {
+  "name": "Keo Capital",
+  "ticker": "KEOC",
+  "sector": "Energy",
+  "isin": "SE0008374383",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Kinda Brave Entertainment",
+  "ticker": "BRAVE",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0021921822",
+  "market": "First North"
+ },
+ {
+  "name": "Kinnevik",
+  "ticker": "KINV B",
+  "sector": "Financials",
+  "isin": "SE0022060521",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Kjell Group",
+  "ticker": "KJELL",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0028354936",
+  "market": "First North"
+ },
+ {
+  "name": "KlaraBo Sverige",
+  "ticker": "KLARA B",
+  "sector": "Real Estate",
+  "isin": "SE0010832287",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Klaria Pharma Holding",
+  "ticker": "KLAR",
+  "sector": "Health Care",
+  "isin": "SE0007280326",
+  "market": "First North"
+ },
+ {
+  "name": "Klimator",
+  "ticker": "KLIMAT",
+  "sector": "Technology",
+  "isin": "SE0014401329",
+  "market": "First North"
+ },
+ {
+  "name": "Knowit",
+  "ticker": "KNOW",
+  "sector": "Technology",
+  "isin": "SE0000421273",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Lagercrantz Group",
+  "ticker": "LAGR B",
+  "sector": "Technology",
+  "isin": "SE0014990966",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Lammhults Design Group",
+  "ticker": "LAMM B",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0000386138",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Latour",
+  "ticker": "LATO B",
+  "sector": "Financials",
+  "isin": "SE0010100958",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Lea Bank",
+  "ticker": "LEA",
+  "sector": "Financials",
+  "isin": "SE0023261300",
+  "market": "First North"
+ },
+ {
+  "name": "Leading Edge Materials Corp.",
+  "ticker": "LEMSE",
+  "sector": "Basic Materials",
+  "isin": "CA52171T1003",
+  "market": "First North"
+ },
+ {
+  "name": "Lifco",
+  "ticker": "LIFCO B",
+  "sector": "Industrials",
+  "isin": "SE0015949201",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Lifeclean International",
+  "ticker": "LCLEAN",
+  "sector": "Basic Materials",
+  "isin": "SE0014829271",
+  "market": "First North"
+ },
+ {
+  "name": "Lime Technologies",
+  "ticker": "LIME",
+  "sector": "Technology",
+  "isin": "SE0011870195",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Linc",
+  "ticker": "LINC",
+  "sector": "Financials",
+  "isin": "SE0015949433",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Lindab International",
+  "ticker": "LIAB",
+  "sector": "Industrials",
+  "isin": "SE0001852419",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Litium",
+  "ticker": "LITI",
+  "sector": "Technology",
+  "isin": "SE0007387246",
+  "market": "First North"
+ },
+ {
+  "name": "Logistea",
+  "ticker": "LOGI B",
+  "sector": "Real Estate",
+  "isin": "SE0017131337",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Loomis",
+  "ticker": "LOOMIS",
+  "sector": "Industrials",
+  "isin": "SE0014504817",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Loyal Solutions",
+  "ticker": "LOYAL",
+  "sector": "Technology",
+  "isin": "DK0061535507",
+  "market": "First North"
+ },
+ {
+  "name": "Lucara Diamond Corp",
+  "ticker": "LUC",
+  "sector": "Basic Materials",
+  "isin": "CA54928Q1081",
+  "market": "First North"
+ },
+ {
+  "name": "LumenRadio",
+  "ticker": "LUMEN",
+  "sector": "Telecommunications",
+  "isin": "SE0019072158",
+  "market": "First North"
+ },
+ {
+  "name": "Lundbergföretagen",
+  "ticker": "LUND B",
+  "sector": "Financials",
+  "isin": "SE0000108847",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Lundin Gold",
+  "ticker": "LUG",
+  "sector": "Basic Materials",
+  "isin": "CA5503711080",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Lundin Mining Corporation",
+  "ticker": "LUMI",
+  "sector": "Basic Materials",
+  "isin": "CA5503721063",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Luxbright",
+  "ticker": "LXB",
+  "sector": "Industrials",
+  "isin": "SE0015192075",
+  "market": "First North"
+ },
+ {
+  "name": "Lyckegård Group",
+  "ticker": "LYGRD",
+  "sector": "Industrials",
+  "isin": "SE0017160575",
+  "market": "First North"
+ },
+ {
+  "name": "Lyko Group",
+  "ticker": "LYKO A",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0010468918",
+  "market": "First North"
+ },
+ {
+  "name": "Lärkberget",
+  "ticker": "LARK",
+  "sector": "Financials",
+  "isin": "SE0016101935",
+  "market": "First North"
+ },
+ {
+  "name": "M.O.B.A. Network",
+  "ticker": "MOBA",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0016277909",
+  "market": "First North"
+ },
+ {
+  "name": "MAG Interactive",
+  "ticker": "MAGI",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0010520908",
+  "market": "First North"
+ },
+ {
+  "name": "Magle Chemoswed Holding",
+  "ticker": "MAGLE",
+  "sector": "Health Care",
+  "isin": "SE0014401014",
+  "market": "First North"
+ },
+ {
+  "name": "Malmbergs Elektriska",
+  "ticker": "MEAB B",
+  "sector": "Industrials",
+  "isin": "SE0000507659",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Mangold",
+  "ticker": "MANG",
+  "sector": "Financials",
+  "isin": "SE0001449380",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Mantex",
+  "ticker": "MANTEX",
+  "sector": "Industrials",
+  "isin": "SE0023467451",
+  "market": "First North"
+ },
+ {
+  "name": "Maven Wireless Sweden",
+  "ticker": "MAVEN",
+  "sector": "Telecommunications",
+  "isin": "SE0015961180",
+  "market": "First North"
+ },
+ {
+  "name": "Mavshack",
+  "ticker": "MAV",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0020998854",
+  "market": "First North"
+ },
+ {
+  "name": "Maximum Entertainment",
+  "ticker": "MAXENT B",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0011725506",
+  "market": "First North"
+ },
+ {
+  "name": "MedCap",
+  "ticker": "MCAP",
+  "sector": "Health Care",
+  "isin": "SE0009160872",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Medicover",
+  "ticker": "MCOV B",
+  "sector": "Health Care",
+  "isin": "SE0009778848",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Medivir",
+  "ticker": "MVIR",
+  "sector": "Health Care",
+  "isin": "SE0020181014",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Meds Apotek",
+  "ticker": "MEDS",
+  "sector": "Consumer Staples",
+  "isin": "SE0018014110",
+  "market": "First North"
+ },
+ {
+  "name": "MEKO",
+  "ticker": "MEKO",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0002110064",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Mendus",
+  "ticker": "IMMU",
+  "sector": "Health Care",
+  "isin": "SE0022239950",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Mentice",
+  "ticker": "MNTC",
+  "sector": "Technology",
+  "isin": "SE0012673291",
+  "market": "First North"
+ },
+ {
+  "name": "Meren Energy",
+  "ticker": "MER",
+  "sector": "Energy",
+  "isin": "CA5889141019",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Metacon",
+  "ticker": "META",
+  "sector": "Energy",
+  "isin": "SE0003086214",
+  "market": "First North"
+ },
+ {
+  "name": "Micro Systemation",
+  "ticker": "MSAB B",
+  "sector": "Technology",
+  "isin": "SE0000526626",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Midsona",
+  "ticker": "MSON B",
+  "sector": "Consumer Staples",
+  "isin": "SE0000565228",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Midsummer",
+  "ticker": "MIDS",
+  "sector": "Energy",
+  "isin": "SE0011281757",
+  "market": "First North"
+ },
+ {
+  "name": "Mildef Group",
+  "ticker": "MILDEF",
+  "sector": "Industrials",
+  "isin": "SE0016074249",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Minesto",
+  "ticker": "MINEST",
+  "sector": "Energy",
+  "isin": "SE0007578141",
+  "market": "First North"
+ },
+ {
+  "name": "Mips",
+  "ticker": "MIPS",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0009216278",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Moberg Pharma",
+  "ticker": "MOB",
+  "sector": "Health Care",
+  "isin": "SE0020353928",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Modelon",
+  "ticker": "MODEL",
+  "sector": "Technology",
+  "isin": "SE0023112438",
+  "market": "First North"
+ },
+ {
+  "name": "Modern Times Group",
+  "ticker": "MTG B",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0018012494",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Modus Therapeutics Holding",
+  "ticker": "MODTX",
+  "sector": "Health Care",
+  "isin": "SE0015987904",
+  "market": "First North"
+ },
+ {
+  "name": "Moment Group",
+  "ticker": "MOMENT",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0020388932",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Momentum Group",
+  "ticker": "MMGR B",
+  "sector": "Industrials",
+  "isin": "SE0017562523",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Morrow Bank",
+  "ticker": "MORROW",
+  "sector": "Financials",
+  "isin": "SE0026852725",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "MTI Investment",
+  "ticker": "MTI",
+  "sector": "Financials",
+  "isin": "SE0017105539",
+  "market": "First North"
+ },
+ {
+  "name": "Munters Group",
+  "ticker": "MTRS",
+  "sector": "Industrials",
+  "isin": "SE0009806607",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Mycronic",
+  "ticker": "MYCR",
+  "sector": "Technology",
+  "isin": "SE0025158629",
+  "market": "Large Cap"
+ },
+ {
+  "name": "mySafety Group",
+  "ticker": "SAFETY B",
+  "sector": "Technology",
+  "isin": "SE0010769182",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Nanexa",
+  "ticker": "NANEXA",
+  "sector": "Health Care",
+  "isin": "SE0007074166",
+  "market": "First North"
+ },
+ {
+  "name": "NanoCap Group",
+  "ticker": "NANOC B",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0004020931",
+  "market": "First North"
+ },
+ {
+  "name": "NanoEcho",
+  "ticker": "NANECH",
+  "sector": "Health Care",
+  "isin": "SE0017133705",
+  "market": "First North"
+ },
+ {
+  "name": "Nanoform Finland Oyj",
+  "ticker": "NANOFS",
+  "sector": "Health Care",
+  "isin": "FI4000330972",
+  "market": "First North"
+ },
+ {
+  "name": "Nanologica",
+  "ticker": "NICA",
+  "sector": "Health Care",
+  "isin": "SE0005454873",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Navigo Invest",
+  "ticker": "NAVIGO PREF",
+  "sector": "Financials",
+  "isin": "SE0007100540",
+  "market": "First North"
+ },
+ {
+  "name": "NAXS",
+  "ticker": "NAXS",
+  "sector": "Financials",
+  "isin": "SE0001965369",
+  "market": "Small Cap"
+ },
+ {
+  "name": "NCAB Group",
+  "ticker": "NCAB",
+  "sector": "Technology",
+  "isin": "SE0017160773",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "NCC",
+  "ticker": "NCC B",
+  "sector": "Industrials",
+  "isin": "SE0000117970",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Nederman Holding",
+  "ticker": "NMAN",
+  "sector": "Industrials",
+  "isin": "SE0011204510",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Neem's Hill",
+  "ticker": "NEEMS B",
+  "sector": "Health Care",
+  "isin": "SE0009242654",
+  "market": "First North"
+ },
+ {
+  "name": "Nelly Group",
+  "ticker": "NELLY",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0015245535",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Neobo Fastigheter",
+  "ticker": "NEOBO",
+  "sector": "Real Estate",
+  "isin": "SE0005034550",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Neola Medical",
+  "ticker": "NEOLA",
+  "sector": "Health Care",
+  "isin": "SE0014829255",
+  "market": "First North"
+ },
+ {
+  "name": "Neovici Holding",
+  "ticker": "NEO B",
+  "sector": "Technology",
+  "isin": "SE0016830038",
+  "market": "First North"
+ },
+ {
+  "name": "Nepa",
+  "ticker": "NEPA",
+  "sector": "Industrials",
+  "isin": "SE0008066302",
+  "market": "First North"
+ },
+ {
+  "name": "Net Insight",
+  "ticker": "NETI B",
+  "sector": "Telecommunications",
+  "isin": "SE0000366098",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Netel Holding",
+  "ticker": "NETEL",
+  "sector": "Industrials",
+  "isin": "SE0016798417",
+  "market": "Small Cap"
+ },
+ {
+  "name": "New Bubbleroom Sweden",
+  "ticker": "BBROOM",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0016288476",
+  "market": "First North"
+ },
+ {
+  "name": "New Nordic Healthbrands",
+  "ticker": "NNH",
+  "sector": "Consumer Staples",
+  "isin": "SE0001838038",
+  "market": "First North"
+ },
+ {
+  "name": "New Wave",
+  "ticker": "NEWA B",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0020356970",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Newbury Pharmaceuticals",
+  "ticker": "NEWBRY",
+  "sector": "Health Care",
+  "isin": "SE0015244884",
+  "market": "First North"
+ },
+ {
+  "name": "Nexam Chemical Holding",
+  "ticker": "NEXAM",
+  "sector": "Basic Materials",
+  "isin": "SE0005101003",
+  "market": "First North"
+ },
+ {
+  "name": "NextCell Pharma",
+  "ticker": "NXTCL",
+  "sector": "Health Care",
+  "isin": "SE0009723125",
+  "market": "First North"
+ },
+ {
+  "name": "NIBE Industrier",
+  "ticker": "NIBE B",
+  "sector": "Industrials",
+  "isin": "SE0015988019",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Nicoccino Holding",
+  "ticker": "NICO",
+  "sector": "Consumer Staples",
+  "isin": "SE0005506185",
+  "market": "First North"
+ },
+ {
+  "name": "Nimbus Group",
+  "ticker": "BOAT",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0015407390",
+  "market": "First North"
+ },
+ {
+  "name": "Nitro Games",
+  "ticker": "NITRO",
+  "sector": "Consumer Discretionary",
+  "isin": "FI4000242961",
+  "market": "First North"
+ },
+ {
+  "name": "Nivika Fastigheter",
+  "ticker": "NIVI B",
+  "sector": "Real Estate",
+  "isin": "SE0017083272",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "NOBA Bank Group",
+  "ticker": "NOBA",
+  "sector": "Financials",
+  "isin": "SE0023135298",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Nobia",
+  "ticker": "NOBI",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0028900134",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Nolato",
+  "ticker": "NOLA B",
+  "sector": "Industrials",
+  "isin": "SE0015962477",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Nordea Bank Abp",
+  "ticker": "NDA SE",
+  "sector": "Financials",
+  "isin": "FI4000297767",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Nordic Flanges Group",
+  "ticker": "NFGAB",
+  "sector": "Financials",
+  "isin": "SE0023641311",
+  "market": "First North"
+ },
+ {
+  "name": "Nordic Iron Ore",
+  "ticker": "NIO",
+  "sector": "Basic Materials",
+  "isin": "SE0011528017",
+  "market": "First North"
+ },
+ {
+  "name": "Nordic LEVEL Group",
+  "ticker": "LEVEL",
+  "sector": "Industrials",
+  "isin": "SE0012313302",
+  "market": "First North"
+ },
+ {
+  "name": "Nordisk Bergteknik",
+  "ticker": "NORB B",
+  "sector": "Basic Materials",
+  "isin": "SE0015812128",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Norditek Group",
+  "ticker": "NOTEK",
+  "sector": "Industrials",
+  "isin": "SE0016843486",
+  "market": "First North"
+ },
+ {
+  "name": "Nordnet",
+  "ticker": "SAVE",
+  "sector": "Financials",
+  "isin": "SE0015192067",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Nordrest Holding",
+  "ticker": "NREST",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0022088217",
+  "market": "First North"
+ },
+ {
+  "name": "Norion Bank",
+  "ticker": "NORION",
+  "sector": "Financials",
+  "isin": "SE0017831795",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Nosa Plugs",
+  "ticker": "NOSA",
+  "sector": "Technology",
+  "isin": "SE0006994539",
+  "market": "First North"
+ },
+ {
+  "name": "NOTE",
+  "ticker": "NOTE",
+  "sector": "Technology",
+  "isin": "SE0001161654",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "NOVOTEK",
+  "ticker": "NTEK B",
+  "sector": "Technology",
+  "isin": "SE0000567752",
+  "market": "Small Cap"
+ },
+ {
+  "name": "NP3 Fastigheter",
+  "ticker": "NP3 PREF",
+  "sector": "Real Estate",
+  "isin": "SE0010820514",
+  "market": "Large Cap"
+ },
+ {
+  "name": "NYAB",
+  "ticker": "NYAB",
+  "sector": "Industrials",
+  "isin": "SE0022242434",
+  "market": "First North"
+ },
+ {
+  "name": "Nyorda",
+  "ticker": "NYOR",
+  "sector": "Technology",
+  "isin": "SE0001552357",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Observit",
+  "ticker": "OBSE",
+  "sector": "Technology",
+  "isin": "SE0017911704",
+  "market": "First North"
+ },
+ {
+  "name": "Octave Intelligence",
+  "ticker": "OCTV SDB",
+  "sector": "Technology",
+  "isin": "SE0028329433",
+  "market": "Large Cap"
+ },
+ {
+  "name": "OEM International",
+  "ticker": "OEM B",
+  "sector": "Industrials",
+  "isin": "SE0017766843",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Ogunsen",
+  "ticker": "OGUN B",
+  "sector": "Industrials",
+  "isin": "SE0008406151",
+  "market": "First North"
+ },
+ {
+  "name": "Oncopeptides",
+  "ticker": "ONCO",
+  "sector": "Health Care",
+  "isin": "SE0009414576",
+  "market": "Small Cap"
+ },
+ {
+  "name": "OncoZenge",
+  "ticker": "ONCOZ",
+  "sector": "Health Care",
+  "isin": "SE0015504097",
+  "market": "First North"
+ },
+ {
+  "name": "Oneflow",
+  "ticker": "ONEF",
+  "sector": "Technology",
+  "isin": "SE0017564461",
+  "market": "First North"
+ },
+ {
+  "name": "Online Brands Nordic",
+  "ticker": "OBAB",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0017133838",
+  "market": "First North"
+ },
+ {
+  "name": "OODA AI",
+  "ticker": "OODA",
+  "sector": "Technology",
+  "isin": "SE0020699296",
+  "market": "First North"
+ },
+ {
+  "name": "Opter",
+  "ticker": "OPTER",
+  "sector": "Technology",
+  "isin": "SE0016829501",
+  "market": "First North"
+ },
+ {
+  "name": "OptiCept Technologies",
+  "ticker": "OPTI",
+  "sector": "Industrials",
+  "isin": "SE0005881786",
+  "market": "First North"
+ },
+ {
+  "name": "Orexo",
+  "ticker": "ORX",
+  "sector": "Health Care",
+  "isin": "SE0000736415",
+  "market": "Small Cap"
+ },
+ {
+  "name": "OrganoClick",
+  "ticker": "ORGC",
+  "sector": "Basic Materials",
+  "isin": "SE0006510335",
+  "market": "First North"
+ },
+ {
+  "name": "Orrön Energy",
+  "ticker": "ORRON",
+  "sector": "Energy",
+  "isin": "SE0000825820",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Ortelius International",
+  "ticker": "ORTIN",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0020551679",
+  "market": "First North"
+ },
+ {
+  "name": "Ortivus",
+  "ticker": "ORTI B",
+  "sector": "Health Care",
+  "isin": "SE0000123085",
+  "market": "First North"
+ },
+ {
+  "name": "Ortoma",
+  "ticker": "ORT B",
+  "sector": "Health Care",
+  "isin": "SE0005676103",
+  "market": "First North"
+ },
+ {
+  "name": "OssDsign",
+  "ticker": "OSSD",
+  "sector": "Health Care",
+  "isin": "SE0012570448",
+  "market": "First North"
+ },
+ {
+  "name": "Ovzon",
+  "ticker": "OVZON",
+  "sector": "Telecommunications",
+  "isin": "SE0010948711",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "OXE Marine",
+  "ticker": "OXE",
+  "sector": "Industrials",
+  "isin": "SE0009888613",
+  "market": "First North"
+ },
+ {
+  "name": "Pandox",
+  "ticker": "PNDX B",
+  "sector": "Real Estate",
+  "isin": "SE0007100359",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Paradox Interactive",
+  "ticker": "PDX",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0008294953",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Paxman",
+  "ticker": "PAX",
+  "sector": "Health Care",
+  "isin": "SE0009806284",
+  "market": "First North"
+ },
+ {
+  "name": "Peab",
+  "ticker": "PEAB B",
+  "sector": "Industrials",
+  "isin": "SE0000106205",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Perpetua Medical",
+  "ticker": "PERP B",
+  "sector": "Health Care",
+  "isin": "SE0022726311",
+  "market": "First North"
+ },
+ {
+  "name": "Physitrack",
+  "ticker": "PTRK",
+  "sector": "Health Care",
+  "isin": "GB00BK80TJ35",
+  "market": "First North"
+ },
+ {
+  "name": "Pierce Group",
+  "ticker": "PIERCE",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0015658364",
+  "market": "Small Cap"
+ },
+ {
+  "name": "PILA PHARMA",
+  "ticker": "PILA",
+  "sector": "Health Care",
+  "isin": "SE0015988274",
+  "market": "First North"
+ },
+ {
+  "name": "PION Group",
+  "ticker": "PION B",
+  "sector": "Industrials",
+  "isin": "SE0000567539",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Platzer Fastigheter Holding",
+  "ticker": "PLAZ B",
+  "sector": "Real Estate",
+  "isin": "SE0004977692",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Polygiene Group",
+  "ticker": "POLYG",
+  "sector": "Basic Materials",
+  "isin": "SE0007692157",
+  "market": "First North"
+ },
+ {
+  "name": "PowerCell Sweden",
+  "ticker": "PCELL",
+  "sector": "Industrials",
+  "isin": "SE0006425815",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "PPI Public Property Invest",
+  "ticker": "PUBLI",
+  "sector": "Real Estate",
+  "isin": "SE0028799411",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Precio Fishbone",
+  "ticker": "PRCO B",
+  "sector": "Technology",
+  "isin": "SE0000141137",
+  "market": "First North"
+ },
+ {
+  "name": "Precise Biometrics",
+  "ticker": "PREC",
+  "sector": "Technology",
+  "isin": "SE0018013849",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Precomp Solutions",
+  "ticker": "PCOM B",
+  "sector": "Industrials",
+  "isin": "SE0006091724",
+  "market": "First North"
+ },
+ {
+  "name": "Premium Snacks Nordic",
+  "ticker": "SNX",
+  "sector": "Consumer Staples",
+  "isin": "SE0006260865",
+  "market": "First North"
+ },
+ {
+  "name": "Prevas",
+  "ticker": "PREV B",
+  "sector": "Technology",
+  "isin": "SE0000356008",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Pricer",
+  "ticker": "PRIC B",
+  "sector": "Technology",
+  "isin": "SE0000233934",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Prisma Properties",
+  "ticker": "PRISMA",
+  "sector": "Real Estate",
+  "isin": "SE0022062055",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Proact IT Group",
+  "ticker": "PACT",
+  "sector": "Technology",
+  "isin": "SE0015961222",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Profilgruppen",
+  "ticker": "PROF B",
+  "sector": "Basic Materials",
+  "isin": "SE0000393860",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Profoto Holding",
+  "ticker": "PRFO",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0015962147",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Promimic",
+  "ticker": "PRO",
+  "sector": "Health Care",
+  "isin": "SE0017487242",
+  "market": "First North"
+ },
+ {
+  "name": "Prostatype Genomics",
+  "ticker": "PROGEN",
+  "sector": "Health Care",
+  "isin": "SE0023261532",
+  "market": "First North"
+ },
+ {
+  "name": "Q-Linea",
+  "ticker": "QLINEA",
+  "sector": "Health Care",
+  "isin": "SE0025420714",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Qben Infra",
+  "ticker": "QBEN",
+  "sector": "Industrials",
+  "isin": "SE0023114012",
+  "market": "First North"
+ },
+ {
+  "name": "QBIM",
+  "ticker": "QBIM",
+  "sector": "Industrials",
+  "isin": "SE0025667009",
+  "market": "First North"
+ },
+ {
+  "name": "Qiiwi Games",
+  "ticker": "QIIWI",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0010245373",
+  "market": "First North"
+ },
+ {
+  "name": "QleanAir",
+  "ticker": "QAIR",
+  "sector": "Industrials",
+  "isin": "SE0013382066",
+  "market": "First North"
+ },
+ {
+  "name": "QLife Holding",
+  "ticker": "QLIFE",
+  "sector": "Health Care",
+  "isin": "SE0022574331",
+  "market": "First North"
+ },
+ {
+  "name": "Qliro",
+  "ticker": "QLIRO",
+  "sector": "Financials",
+  "isin": "SE0013719077",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Qlucore",
+  "ticker": "QCORE",
+  "sector": "Technology",
+  "isin": "SE0016829824",
+  "market": "First North"
+ },
+ {
+  "name": "Qualisys Holding",
+  "ticker": "QSYS",
+  "sector": "Industrials",
+  "isin": "SE0023837091",
+  "market": "First North"
+ },
+ {
+  "name": "Railcare Group",
+  "ticker": "RAIL",
+  "sector": "Industrials",
+  "isin": "SE0010441139",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Raketech Group Holding",
+  "ticker": "RAKE",
+  "sector": "Consumer Discretionary",
+  "isin": "MT0001390104",
+  "market": "First North"
+ },
+ {
+  "name": "Ranplan Group",
+  "ticker": "RPLAN",
+  "sector": "Technology",
+  "isin": "SE0011178201",
+  "market": "First North"
+ },
+ {
+  "name": "Ratos",
+  "ticker": "RATO B",
+  "sector": "Financials",
+  "isin": "SE0000111940",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "RaySearch Laboratories",
+  "ticker": "RAY B",
+  "sector": "Health Care",
+  "isin": "SE0000135485",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Realfiction Holding",
+  "ticker": "REALFI",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0009920994",
+  "market": "First North"
+ },
+ {
+  "name": "Rejlers",
+  "ticker": "REJL B",
+  "sector": "Industrials",
+  "isin": "SE0000123671",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Rottneros",
+  "ticker": "RROS",
+  "sector": "Basic Materials",
+  "isin": "SE0000112252",
+  "market": "Small Cap"
+ },
+ {
+  "name": "RugVista Group",
+  "ticker": "RUG",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0015659834",
+  "market": "First North"
+ },
+ {
+  "name": "Rusta",
+  "ticker": "RUSTA",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0020848356",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "RVRC Holding",
+  "ticker": "RVRC",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0015962485",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Röko",
+  "ticker": "ROKO B",
+  "sector": "Financials",
+  "isin": "SE0023950795",
+  "market": "Large Cap"
+ },
+ {
+  "name": "S2Medical",
+  "ticker": "S2M",
+  "sector": "Health Care",
+  "isin": "SE0011725084",
+  "market": "First North"
+ },
+ {
+  "name": "SAAB",
+  "ticker": "SAAB B",
+  "sector": "Industrials",
+  "isin": "SE0021921269",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Safello Group",
+  "ticker": "SFL",
+  "sector": "Financials",
+  "isin": "SE0015346895",
+  "market": "First North"
+ },
+ {
+  "name": "Safeture",
+  "ticker": "SFTR",
+  "sector": "Technology",
+  "isin": "SE0006117297",
+  "market": "First North"
+ },
+ {
+  "name": "Sagax",
+  "ticker": "SAGA B",
+  "sector": "Real Estate",
+  "isin": "SE0005127818",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Salix Group",
+  "ticker": "SALIX",
+  "sector": "Industrials",
+  "isin": "SE0028329540",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "SaltX Technology Holding",
+  "ticker": "SALT B",
+  "sector": "Industrials",
+  "isin": "SE0005308541",
+  "market": "First North"
+ },
+ {
+  "name": "Samhällsbyggnadsbo. i Norden",
+  "ticker": "SBB B",
+  "sector": "Real Estate",
+  "isin": "SE0009554454",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Sampo Oyj",
+  "ticker": "SAMPO SEK",
+  "sector": "Financials",
+  "isin": "FI4000552500",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Sandvik",
+  "ticker": "SAND",
+  "sector": "Industrials",
+  "isin": "SE0000667891",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Saniona",
+  "ticker": "SANION",
+  "sector": "Health Care",
+  "isin": "SE0005794617",
+  "market": "Small Cap"
+ },
+ {
+  "name": "SaveLend Group",
+  "ticker": "YIELD",
+  "sector": "Financials",
+  "isin": "SE0015961024",
+  "market": "First North"
+ },
+ {
+  "name": "Saxlund Group",
+  "ticker": "SAXG",
+  "sector": "Industrials",
+  "isin": "SE0023439500",
+  "market": "First North"
+ },
+ {
+  "name": "SCA",
+  "ticker": "SCA B",
+  "sector": "Basic Materials",
+  "isin": "SE0000112724",
+  "market": "Large Cap"
+ },
+ {
+  "name": "ScandBook Holding",
+  "ticker": "SBOK B",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0029301258",
+  "market": "First North"
+ },
+ {
+  "name": "Scandi Standard",
+  "ticker": "SCST",
+  "sector": "Consumer Staples",
+  "isin": "SE0005999760",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Scandic Hotels Group",
+  "ticker": "SHOT",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0007640156",
+  "market": "Large Cap"
+ },
+ {
+  "name": "ScandiDos",
+  "ticker": "SDOS",
+  "sector": "Health Care",
+  "isin": "SE0005768124",
+  "market": "First North"
+ },
+ {
+  "name": "Scandinavian Enviro Systems",
+  "ticker": "SES",
+  "sector": "Industrials",
+  "isin": "SE0005877560",
+  "market": "First North"
+ },
+ {
+  "name": "Scandinavian Real Heart",
+  "ticker": "HEART",
+  "sector": "Health Care",
+  "isin": "SE0023286836",
+  "market": "First North"
+ },
+ {
+  "name": "Scibase Holding",
+  "ticker": "SCIB",
+  "sector": "Health Care",
+  "isin": "SE0029277631",
+  "market": "First North"
+ },
+ {
+  "name": "Sdiptech",
+  "ticker": "SDIP B",
+  "sector": "Industrials",
+  "isin": "SE0003756758",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Seafire",
+  "ticker": "SEAF",
+  "sector": "Financials",
+  "isin": "SE0009779796",
+  "market": "Small Cap"
+ },
+ {
+  "name": "SeaTwirl",
+  "ticker": "STW",
+  "sector": "Energy",
+  "isin": "SE0009242175",
+  "market": "First North"
+ },
+ {
+  "name": "SEB",
+  "ticker": "SEB A",
+  "sector": "Financials",
+  "isin": "SE0000148884",
+  "market": "Large Cap"
+ },
+ {
+  "name": "SECTRA",
+  "ticker": "SECT B",
+  "sector": "Health Care",
+  "isin": "SE0022419784",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Securitas",
+  "ticker": "SECU B",
+  "sector": "Industrials",
+  "isin": "SE0000163594",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Sedana Medical",
+  "ticker": "SEDANA",
+  "sector": "Health Care",
+  "isin": "SE0015988373",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Sensys Gatso Group",
+  "ticker": "SGG",
+  "sector": "Technology",
+  "isin": "SE0020356244",
+  "market": "Small Cap"
+ },
+ {
+  "name": "SenzaGen",
+  "ticker": "SENZA",
+  "sector": "Health Care",
+  "isin": "SE0010219626",
+  "market": "First North"
+ },
+ {
+  "name": "Senzime",
+  "ticker": "SEZI",
+  "sector": "Health Care",
+  "isin": "SE0002478776",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Serstech",
+  "ticker": "SERT",
+  "sector": "Industrials",
+  "isin": "SE0005365095",
+  "market": "First North"
+ },
+ {
+  "name": "ShaMaran Petroleum Ltd",
+  "ticker": "SNM SDB",
+  "sector": "Energy",
+  "isin": "SE0028000992",
+  "market": "First North"
+ },
+ {
+  "name": "SIBEK",
+  "ticker": "SIBEK",
+  "sector": "Industrials",
+  "isin": "SE0020050359",
+  "market": "First North"
+ },
+ {
+  "name": "Silex Microsystems",
+  "ticker": "SILEX",
+  "sector": "Technology",
+  "isin": "SE0028000190",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Siljansvik",
+  "ticker": "SIVI",
+  "sector": "Utilities",
+  "isin": "SE0000201253",
+  "market": "First North"
+ },
+ {
+  "name": "Simris Group",
+  "ticker": "SIMRIS B",
+  "sector": "Consumer Staples",
+  "isin": "SE0008091664",
+  "market": "First North"
+ },
+ {
+  "name": "Sinch",
+  "ticker": "SINCH",
+  "sector": "Technology",
+  "isin": "SE0016101844",
+  "market": "Large Cap"
+ },
+ {
+  "name": "SinterCast",
+  "ticker": "SINT",
+  "sector": "Industrials",
+  "isin": "SE0000950982",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Sivers Semiconductors",
+  "ticker": "SIVE",
+  "sector": "Technology",
+  "isin": "SE0003917798",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Skanska",
+  "ticker": "SKA B",
+  "sector": "Industrials",
+  "isin": "SE0000113250",
+  "market": "Large Cap"
+ },
+ {
+  "name": "SKF",
+  "ticker": "SKF B",
+  "sector": "Basic Materials",
+  "isin": "SE0000108227",
+  "market": "Large Cap"
+ },
+ {
+  "name": "SkiStar",
+  "ticker": "SKIS B",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0012141687",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Skolon",
+  "ticker": "SKOLON",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0017615784",
+  "market": "First North"
+ },
+ {
+  "name": "Skåne-möllan",
+  "ticker": "SKMO",
+  "sector": "Consumer Staples",
+  "isin": "SE0017885338",
+  "market": "First North"
+ },
+ {
+  "name": "Sleep Cycle",
+  "ticker": "SLEEP",
+  "sector": "Technology",
+  "isin": "SE0015961404",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Smart Eye",
+  "ticker": "SEYE",
+  "sector": "Industrials",
+  "isin": "SE0009268279",
+  "market": "First North"
+ },
+ {
+  "name": "SmartCraft Group",
+  "ticker": "SMCRT",
+  "sector": "Technology",
+  "isin": "SE0027597691",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Softronic",
+  "ticker": "SOF B",
+  "sector": "Technology",
+  "isin": "SE0000323305",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Solid Försäkringsaktiebolag",
+  "ticker": "SFAB",
+  "sector": "Financials",
+  "isin": "SE0017082548",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Solnaberg Property",
+  "ticker": "SOLNA",
+  "sector": "Real Estate",
+  "isin": "SE0009155211",
+  "market": "First North"
+ },
+ {
+  "name": "SolTech Energy Sweden",
+  "ticker": "SOLT",
+  "sector": "Energy",
+  "isin": "SE0005392537",
+  "market": "First North"
+ },
+ {
+  "name": "Sonetel",
+  "ticker": "SONE",
+  "sector": "Technology",
+  "isin": "SE0009580517",
+  "market": "First North"
+ },
+ {
+  "name": "Space Nord Invest",
+  "ticker": "SPACEN B",
+  "sector": "Technology",
+  "isin": "SE0000483943",
+  "market": "First North"
+ },
+ {
+  "name": "Spago Nanomedical",
+  "ticker": "SPAGO",
+  "sector": "Health Care",
+  "isin": "SE0004899474",
+  "market": "First North"
+ },
+ {
+  "name": "SpectraCure",
+  "ticker": "SPEC",
+  "sector": "Health Care",
+  "isin": "SE0007158118",
+  "market": "First North"
+ },
+ {
+  "name": "SpectrumOne",
+  "ticker": "SPEONE",
+  "sector": "Technology",
+  "isin": "SE0006994448",
+  "market": "First North"
+ },
+ {
+  "name": "Sprint Bioscience",
+  "ticker": "SPRINT",
+  "sector": "Health Care",
+  "isin": "SE0006343745",
+  "market": "First North"
+ },
+ {
+  "name": "SSAB",
+  "ticker": "SSAB B",
+  "sector": "Basic Materials",
+  "isin": "SE0000120669",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Starbreeze",
+  "ticker": "STAR B",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0005992831",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Stendörren Fastigheter",
+  "ticker": "STEF B",
+  "sector": "Real Estate",
+  "isin": "SE0006543344",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Stenhus Fastigheter i Norden",
+  "ticker": "SFAST",
+  "sector": "Real Estate",
+  "isin": "SE0014956819",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Stille",
+  "ticker": "STIL",
+  "sector": "Health Care",
+  "isin": "SE0000998650",
+  "market": "First North"
+ },
+ {
+  "name": "Stillfront Group",
+  "ticker": "SF",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0015346135",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Stockholm Nordtech Group",
+  "ticker": "NTECH",
+  "sector": "Technology",
+  "isin": "SE0028825042",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Stockwik",
+  "ticker": "STWK",
+  "sector": "Financials",
+  "isin": "SE0012257970",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Stora Enso",
+  "ticker": "STE R",
+  "sector": "Industrials",
+  "isin": "FI0009007611",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Storskogen Group",
+  "ticker": "STOR B",
+  "sector": "Financials",
+  "isin": "SE0016797732",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Storytel",
+  "ticker": "STORY B",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0007439443",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Studentbostäder i Norden",
+  "ticker": "STUDBO",
+  "sector": "Real Estate",
+  "isin": "SE0015657697",
+  "market": "First North"
+ },
+ {
+  "name": "Studsvik",
+  "ticker": "SVIK",
+  "sector": "Industrials",
+  "isin": "SE0000653230",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Subgen AI",
+  "ticker": "SUBGEN",
+  "sector": "Technology",
+  "isin": "SE0026820854",
+  "market": "First North"
+ },
+ {
+  "name": "Summa Defence Oyj",
+  "ticker": "SUMMAS",
+  "sector": "Industrials",
+  "isin": "FI4000592282",
+  "market": "First North"
+ },
+ {
+  "name": "Surgical Science Sweden",
+  "ticker": "SUS",
+  "sector": "Health Care",
+  "isin": "SE0014428512",
+  "market": "First North"
+ },
+ {
+  "name": "Sv. Handelsbanken",
+  "ticker": "SHB A",
+  "sector": "Financials",
+  "isin": "SE0007100599",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Sveafastigheter",
+  "ticker": "SVEAF",
+  "sector": "Real Estate",
+  "isin": "SE0022243812",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Svedbergs Group",
+  "ticker": "SVED B",
+  "sector": "Industrials",
+  "isin": "SE0000407991",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Svenska Aerogel Holding",
+  "ticker": "AERO",
+  "sector": "Basic Materials",
+  "isin": "SE0023440557",
+  "market": "First North"
+ },
+ {
+  "name": "Svolder",
+  "ticker": "SVOL B",
+  "sector": "Financials",
+  "isin": "SE0017161458",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "SWECO",
+  "ticker": "SWEC B",
+  "sector": "Industrials",
+  "isin": "SE0014960373",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Swedbank",
+  "ticker": "SWED A",
+  "sector": "Financials",
+  "isin": "SE0000242455",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Sweden BuyersClub",
+  "ticker": "BUY",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0015660287",
+  "market": "First North"
+ },
+ {
+  "name": "Swedencare",
+  "ticker": "SECARE",
+  "sector": "Consumer Staples",
+  "isin": "SE0015988167",
+  "market": "First North"
+ },
+ {
+  "name": "Swedish Logistic Property",
+  "ticker": "SLP B",
+  "sector": "Real Estate",
+  "isin": "SE0017565476",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Swedish Orphan Biovitrum",
+  "ticker": "SOBI",
+  "sector": "Health Care",
+  "isin": "SE0000872095",
+  "market": "Large Cap"
+ },
+ {
+  "name": "SynAct Pharma",
+  "ticker": "SYNACT",
+  "sector": "Health Care",
+  "isin": "SE0008241491",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Synsam",
+  "ticker": "SYNSAM",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0016829709",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Systemair",
+  "ticker": "SYSR",
+  "sector": "Industrials",
+  "isin": "SE0016609499",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Söder Sportfiske",
+  "ticker": "SODER",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0016276539",
+  "market": "First North"
+ },
+ {
+  "name": "TagMaster",
+  "ticker": "TAGM B",
+  "sector": "Industrials",
+  "isin": "SE0015950399",
+  "market": "First North"
+ },
+ {
+  "name": "TalkPool",
+  "ticker": "TALK",
+  "sector": "Telecommunications",
+  "isin": "CH0322161768",
+  "market": "First North"
+ },
+ {
+  "name": "Tele2",
+  "ticker": "TEL2 B",
+  "sector": "Telecommunications",
+  "isin": "SE0005190238",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Telia Company",
+  "ticker": "TELIA",
+  "sector": "Telecommunications",
+  "isin": "SE0000667925",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Tellusgruppen",
+  "ticker": "TELLUS",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0015504519",
+  "market": "First North"
+ },
+ {
+  "name": "Tempest Security",
+  "ticker": "TSEC",
+  "sector": "Industrials",
+  "isin": "SE0010469221",
+  "market": "First North"
+ },
+ {
+  "name": "Teneo AI",
+  "ticker": "TENEO",
+  "sector": "Technology",
+  "isin": "SE0018397184",
+  "market": "First North"
+ },
+ {
+  "name": "Teqnion",
+  "ticker": "TEQ",
+  "sector": "Financials",
+  "isin": "SE0012308088",
+  "market": "First North"
+ },
+ {
+  "name": "Terranor Group",
+  "ticker": "TERNOR",
+  "sector": "Industrials",
+  "isin": "SE0025159023",
+  "market": "First North"
+ },
+ {
+  "name": "Thule Group",
+  "ticker": "THULE",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0006422390",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Tieto Oyj",
+  "ticker": "TIETOS",
+  "sector": "Technology",
+  "isin": "FI0009000277",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Tingsvalvet Fastighets",
+  "ticker": "TINGS A",
+  "sector": "Real Estate",
+  "isin": "SE0018534471",
+  "market": "First North"
+ },
+ {
+  "name": "Tingsvalvet Fastighets PREF",
+  "ticker": "TINGS PREF",
+  "sector": "Real Estate",
+  "isin": "SE0018040727",
+  "market": "First North"
+ },
+ {
+  "name": "Titania Holding",
+  "ticker": "TITA B",
+  "sector": "Real Estate",
+  "isin": "SE0017132129",
+  "market": "First North"
+ },
+ {
+  "name": "Tobii",
+  "ticker": "TOBII",
+  "sector": "Technology",
+  "isin": "SE0002591420",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Tourn International",
+  "ticker": "TOURN",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0005568482",
+  "market": "First North"
+ },
+ {
+  "name": "Traction",
+  "ticker": "TRAC B",
+  "sector": "Financials",
+  "isin": "SE0000391716",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Train Alliance",
+  "ticker": "TRAIN B",
+  "sector": "Industrials",
+  "isin": "SE0020540144",
+  "market": "First North"
+ },
+ {
+  "name": "Transtema Group",
+  "ticker": "TRANS",
+  "sector": "Telecommunications",
+  "isin": "SE0006758587",
+  "market": "Small Cap"
+ },
+ {
+  "name": "TRATON",
+  "ticker": "8TRA",
+  "sector": "Industrials",
+  "isin": "DE000TRAT0N7",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Trelleborg",
+  "ticker": "TREL B",
+  "sector": "Industrials",
+  "isin": "SE0000114837",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Trianon",
+  "ticker": "TRIAN B",
+  "sector": "Real Estate",
+  "isin": "SE0018013658",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Tribox Group",
+  "ticker": "TRIBO B",
+  "sector": "Basic Materials",
+  "isin": "SE0010600429",
+  "market": "First North"
+ },
+ {
+  "name": "Troax Group",
+  "ticker": "TROAX",
+  "sector": "Basic Materials",
+  "isin": "SE0012729366",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Truecaller",
+  "ticker": "TRUE B",
+  "sector": "Technology",
+  "isin": "SE0016787071",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Tången Industrikapital",
+  "ticker": "TANGEN B",
+  "sector": "Financials",
+  "isin": "SE0029278985",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Unibap Space Solutions",
+  "ticker": "UNIBAP",
+  "sector": "Technology",
+  "isin": "SE0009606809",
+  "market": "First North"
+ },
+ {
+  "name": "Unlimited Travel Group",
+  "ticker": "UTG",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0001834821",
+  "market": "First North"
+ },
+ {
+  "name": "Upsales Technology",
+  "ticker": "UPSALE",
+  "sector": "Technology",
+  "isin": "SE0011985514",
+  "market": "First North"
+ },
+ {
+  "name": "USWE Sports",
+  "ticker": "USWE",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0015949771",
+  "market": "First North"
+ },
+ {
+  "name": "VBG GROUP",
+  "ticker": "VBG B",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0000115107",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "VEF",
+  "ticker": "VEFAB",
+  "sector": "Financials",
+  "isin": "SE0016128151",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Verisure",
+  "ticker": "VSURE",
+  "sector": "Industrials",
+  "isin": "GB00BVMN1558",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Vertiseit",
+  "ticker": "VERT B",
+  "sector": "Technology",
+  "isin": "SE0012481133",
+  "market": "First North"
+ },
+ {
+  "name": "Verve Group Media",
+  "ticker": "VER",
+  "sector": "Financials",
+  "isin": "SE0018538068",
+  "market": "First North"
+ },
+ {
+  "name": "Vetted Assets",
+  "ticker": "VETT",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0029301191",
+  "market": "First North"
+ },
+ {
+  "name": "Viaplay Group",
+  "ticker": "VPLAY B",
+  "sector": "Telecommunications",
+  "isin": "SE0012116390",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Vicore Pharma Holding",
+  "ticker": "VICO",
+  "sector": "Health Care",
+  "isin": "SE0007577895",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Viking Supply Ships",
+  "ticker": "VSSAB B",
+  "sector": "Industrials",
+  "isin": "SE0010820613",
+  "market": "First North"
+ },
+ {
+  "name": "Vimab Group",
+  "ticker": "VIMAB",
+  "sector": "Industrials",
+  "isin": "SE0007439633",
+  "market": "First North"
+ },
+ {
+  "name": "Vimian Group",
+  "ticker": "VIMIAN",
+  "sector": "Health Care",
+  "isin": "SE0015961982",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Vitec Software Group",
+  "ticker": "VIT B",
+  "sector": "Technology",
+  "isin": "SE0007871363",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Vitrolife",
+  "ticker": "VITR",
+  "sector": "Health Care",
+  "isin": "SE0011205202",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Viva Wine Group",
+  "ticker": "VIVA",
+  "sector": "Consumer Staples",
+  "isin": "SE0017084361",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Vivesto",
+  "ticker": "VIVE",
+  "sector": "Health Care",
+  "isin": "SE0028925701",
+  "market": "Small Cap"
+ },
+ {
+  "name": "VNV Global",
+  "ticker": "VNV",
+  "sector": "Financials",
+  "isin": "SE0014428835",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "VO2 Cap Holding",
+  "ticker": "VO2",
+  "sector": "Technology",
+  "isin": "SE0016802797",
+  "market": "First North"
+ },
+ {
+  "name": "Volati",
+  "ticker": "VOLO",
+  "sector": "Industrials",
+  "isin": "SE0009143662",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Volvo",
+  "ticker": "VOLV B",
+  "sector": "Industrials",
+  "isin": "SE0000115446",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Volvo Car",
+  "ticker": "VOLCAR B",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0021628898",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Vuxen Group",
+  "ticker": "VUXEN",
+  "sector": "Technology",
+  "isin": "SE0017232838",
+  "market": "First North"
+ },
+ {
+  "name": "Västra Hamnen Corp. Finance",
+  "ticker": "VH",
+  "sector": "Financials",
+  "isin": "SE0017767031",
+  "market": "First North"
+ },
+ {
+  "name": "W5 Solutions",
+  "ticker": "W5",
+  "sector": "Industrials",
+  "isin": "SE0016786040",
+  "market": "First North"
+ },
+ {
+  "name": "Wall to Wall Group",
+  "ticker": "WTW A",
+  "sector": "Industrials",
+  "isin": "SE0016075246",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Wallenstam",
+  "ticker": "WALL B",
+  "sector": "Real Estate",
+  "isin": "SE0017780133",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Waystream Group",
+  "ticker": "WAYS",
+  "sector": "Telecommunications",
+  "isin": "SE0007577077",
+  "market": "First North"
+ },
+ {
+  "name": "WebRock Ventures",
+  "ticker": "WRV",
+  "sector": "Financials",
+  "isin": "SE0016278139",
+  "market": "First North"
+ },
+ {
+  "name": "Westpay",
+  "ticker": "WPAY",
+  "sector": "Industrials",
+  "isin": "SE0002169292",
+  "market": "First North"
+ },
+ {
+  "name": "White Pearl Technology Group",
+  "ticker": "WPTG B",
+  "sector": "Technology",
+  "isin": "SE0020203271",
+  "market": "First North"
+ },
+ {
+  "name": "Wihlborgs Fastigheter",
+  "ticker": "WIHL",
+  "sector": "Real Estate",
+  "isin": "SE0018012635",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Wise Group",
+  "ticker": "WISE",
+  "sector": "Industrials",
+  "isin": "SE0007277876",
+  "market": "Small Cap"
+ },
+ {
+  "name": "WS WeSports Group",
+  "ticker": "WSG",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0026853335",
+  "market": "First North"
+ },
+ {
+  "name": "Wyld Networks",
+  "ticker": "WYLD",
+  "sector": "Telecommunications",
+  "isin": "SE0027099078",
+  "market": "First North"
+ },
+ {
+  "name": "Wästbygg Gruppen",
+  "ticker": "WBGR B",
+  "sector": "Industrials",
+  "isin": "SE0014453874",
+  "market": "Small Cap"
+ },
+ {
+  "name": "XANO Industri",
+  "ticker": "XANO B",
+  "sector": "Industrials",
+  "isin": "SE0018014151",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Xbrane Biopharma",
+  "ticker": "XBRANE",
+  "sector": "Health Care",
+  "isin": "SE0026598583",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Xintela",
+  "ticker": "XINT",
+  "sector": "Health Care",
+  "isin": "SE0007756903",
+  "market": "First North"
+ },
+ {
+  "name": "XMReality",
+  "ticker": "XMR",
+  "sector": "Technology",
+  "isin": "SE0009664188",
+  "market": "First North"
+ },
+ {
+  "name": "XP Chemistries",
+  "ticker": "XPC",
+  "sector": "Health Care",
+  "isin": "SE0016787279",
+  "market": "First North"
+ },
+ {
+  "name": "Xspray Pharma",
+  "ticker": "XSPRAY",
+  "sector": "Health Care",
+  "isin": "SE0009973563",
+  "market": "Small Cap"
+ },
+ {
+  "name": "Xvivo Perfusion",
+  "ticker": "XVIVO",
+  "sector": "Health Care",
+  "isin": "SE0004840718",
+  "market": "Mid Cap"
+ },
+ {
+  "name": "Yubico",
+  "ticker": "YUBICO",
+  "sector": "Technology",
+  "isin": "SE0015657788",
+  "market": "Large Cap"
+ },
+ {
+  "name": "Zaplox",
+  "ticker": "ZAPLOX",
+  "sector": "Technology",
+  "isin": "SE0020354389",
+  "market": "First North"
+ },
+ {
+  "name": "Zinzino",
+  "ticker": "ZZ B",
+  "sector": "Consumer Discretionary",
+  "isin": "SE0002480442",
+  "market": "First North"
+ },
+ {
+  "name": "Öresund",
+  "ticker": "ORES",
+  "sector": "Financials",
+  "isin": "SE0008321608",
+  "market": "Mid Cap"
+ }
+]

@@ -1,19 +1,21 @@
 import { Download } from 'lucide-react'
 import { csvUrl } from '@/api'
-import { confidenceClass, fmtValue } from '@/components/ResultsView'
+import { AskPanel } from '@/components/AskPanel'
+import { confidenceClass, confidenceTitle, fmtValue } from '@/components/ResultsView'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { Result } from '@/types'
 
-type Props = { results: Result[]; onSelect: (index: number) => void; onReset: () => void }
+type Props = { results: Result[]; onSelect: (index: number, page?: number) => void; onReset: () => void }
 
 export function CompareView({ results, onSelect, onReset }: Props) {
   // Row order = first successful extraction's schema order; all reports share the section so keys line up.
   const first = results.find((r) => r.extraction)?.extraction
   const rows = first?.fields ?? []
   const ok = results.filter((r) => r.extraction).length
+  const reports = results.flatMap((r) => (r.extraction ? [{ report_id: r.extraction.report_id, label: r.label }] : []))
 
   return (
     <div className="space-y-6">
@@ -85,7 +87,7 @@ export function CompareView({ results, onSelect, onReset }: Props) {
                       {fmtValue(f?.value ?? null)}
                       {f?.unit && f.value !== null && <span className="ml-1 text-xs text-muted-foreground">{f.unit}</span>}
                       {f && (
-                        <Badge variant="outline" className={`ml-2 px-1.5 tabular-nums ${confidenceClass(f.confidence)}`}>
+                        <Badge variant="outline" className={`ml-2 px-1.5 tabular-nums ${confidenceClass(f.confidence)}`} title={confidenceTitle(f)}>
                           {Math.round(f.confidence * 100)}%
                         </Badge>
                       )}
@@ -121,6 +123,14 @@ export function CompareView({ results, onSelect, onReset }: Props) {
           </TableFooter>
         </Table>
       </Card>
+
+      <AskPanel
+        reports={reports}
+        onCitation={(id, page) => {
+          const i = results.findIndex((r) => r.extraction?.report_id === id)
+          if (i >= 0) onSelect(i, page)
+        }}
+      />
     </div>
   )
 }

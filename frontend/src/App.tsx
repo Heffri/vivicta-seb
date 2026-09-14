@@ -7,6 +7,7 @@ import type { Result } from './types'
 export default function App() {
   const [results, setResults] = useState<Result[]>([])
   const [detail, setDetail] = useState<number | null>(null) // index into results when drilling down from compare
+  const [detailPage, setDetailPage] = useState<number | null>(null) // page a citation chip asked for, if any
   const reset = () => {
     setResults([])
     setDetail(null)
@@ -24,6 +25,7 @@ export default function App() {
           sectionTitle={shown.sectionTitle}
           onReset={reset}
           onBack={single ? undefined : () => setDetail(null)}
+          initialPage={detailPage}
         />
       </main>
     )
@@ -31,7 +33,14 @@ export default function App() {
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
       {results.length > 1 ? (
-        <CompareView results={results} onSelect={setDetail} onReset={reset} />
+        <CompareView
+          results={results}
+          onSelect={(i, page) => {
+            setDetail(i)
+            setDetailPage(page ?? null)
+          }}
+          onReset={reset}
+        />
       ) : (
         <UploadView onDone={setResults} />
       )}

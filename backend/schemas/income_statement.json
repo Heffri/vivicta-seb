@@ -5,6 +5,14 @@
   "keywords": [
     "consolidated income statement",
     "income statement",
+    "resultaträkning för koncernen",
+    "koncernresultaträkning",
+    "statements of comprehensive income",
+    "statement of comprehensive income",
+    "income statements",
+    "statements of income",
+    "statement of income",
+    "consolidated statement of income",
     "statement of profit or loss",
     "koncernens resultaträkning",
     "resultaträkning",
@@ -25,14 +33,35 @@
     "parent company",
     "five-year summary",
     "femårsöversikt",
-    "segment"
+    "segment",
+    "five-year",
+    "ten-year",
+    "multi-year",
+    "tioårsöversikt",
+    "flerårsöversikt",
+    "key figures",
+    "supplementary",
+    "financial model",
+    "nyckeltal",
+    "quarterly",
+    "kvartal",
+    "moderbolag",
+    "statutory financial statements",
+    "holding company",
+    "10-year",
+    "5-year",
+    "ten year",
+    "five year",
+    "10 year",
+    "5 year"
   ],
   "value_convention": "Numbers exactly as printed in the report (costs usually negative). Unit = the unit stated in the table header (MSEK, SEK m, MEUR, USD m ...). Period = fiscal year the column refers to, as 'YYYY'.",
   "fields": [
     {
       "key": "revenue",
+      "excludes": ["other operating income", "other income", "övriga rörelseintäkter"],
       "label": "Revenue",
-      "description": "Total revenues / net sales for the group, current fiscal year.",
+      "description": "Net sales / revenue from contracts with customers for the group. If sales are split into lines of the same kind (e.g. 'Sales' + 'Sales, acquired business' = 'Total sales'), take the total. Not a 'Revenue'/'Total revenue' subtotal that adds other operating income to net sales (then take 'Net sales').",
       "unit_hint": "currency_millions",
       "synonyms": [
         "revenue",
@@ -43,13 +72,15 @@
         "intäkter",
         "nettoomsättning",
         "försäljningsintäkter",
-        "omsättning"
+        "omsättning",
+        "total sales",
+        "total revenues"
       ]
     },
     {
       "key": "cost_of_sales",
       "label": "Cost of sales",
-      "description": "Cost of sales / cost of goods sold, as printed (typically negative).",
+      "description": "The row 'Cost of sales' / 'Cost of goods sold' / 'Kostnad för sålda varor', as printed (negative). Only in a by-function statement; null when the statement is by nature of expense (raw materials, goods and services purchased, personnel costs, other external expenses).",
       "unit_hint": "currency_millions",
       "synonyms": [
         "cost of sales",
@@ -58,13 +89,15 @@
         "production expenses",
         "kostnad för sålda varor",
         "kostnad sålda varor",
-        "kostnader för sålda varor"
+        "kostnader för sålda varor",
+        "total cost of sales",
+        "cost of goods and services sold"
       ]
     },
     {
       "key": "gross_profit",
       "label": "Gross profit",
-      "description": "Revenue minus cost of sales.",
+      "description": "The printed row 'Gross profit' / 'Gross income' / 'Gross earnings' / 'Bruttoresultat'. null if the statement has no such row; never EBITDA, never computed.",
       "unit_hint": "currency_millions",
       "synonyms": [
         "gross profit",
@@ -102,7 +135,8 @@
         "income after financial items",
         "profit after financial items",
         "resultat före skatt",
-        "resultat efter finansiella poster"
+        "resultat efter finansiella poster",
+        "income from continuing operations before taxes"
       ]
     },
     {
@@ -125,9 +159,25 @@
       ]
     },
     {
+      "key": "profit_discontinued",
+      "label": "Profit from discontinued operations",
+      "unit_hint": "currency_millions",
+      "default": 0,
+      "description": "Profit/loss from discontinued operations, net of tax, if the statement has such a row (ABB, Telia). null when there is none.",
+      "synonyms": [
+        "income from discontinued operations",
+        "profit from discontinued operations",
+        "net income from discontinued operations",
+        "loss from discontinued operations",
+        "discontinued operations",
+        "resultat från avvecklad verksamhet",
+        "avvecklad verksamhet"
+      ]
+    },
+    {
       "key": "net_profit",
       "label": "Profit for the year",
-      "description": "Profit for the year / årets resultat, total (before split to owners / NCI).",
+      "description": "Profit for the year / net income / årets resultat, total for the group including discontinued operations (before the split to owners / NCI).",
       "unit_hint": "currency_millions",
       "synonyms": [
         "profit for the year",
@@ -145,7 +195,7 @@
     {
       "key": "eps_basic",
       "label": "EPS, basic",
-      "description": "Basic earnings per share attributable to owners of the parent.",
+      "description": "Basic earnings per share (before dilution / före utspädning; never the diluted row) attributable to owners of the parent, total (including discontinued operations), as printed with its unit (SEK, USD, Euro cent ...).",
       "unit_hint": "currency_per_share",
       "synonyms": [
         "earnings per share",
@@ -167,8 +217,8 @@
     },
     {
       "name": "net_profit_arith",
-      "expr": "abs((profit_before_tax + income_tax) - net_profit) <= 2",
-      "detail": "profit_before_tax + income_tax == net_profit (±2 rounding)"
+      "expr": "abs((profit_before_tax + income_tax + profit_discontinued) - net_profit) <= 2",
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding)"
     },
     {
       "name": "margin_sanity",

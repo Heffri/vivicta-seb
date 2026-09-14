@@ -1,0 +1,214 @@
+{
+  "report_id": "lib-trelleborg_2025",
+  "company": "Trelleborg AB",
+  "fiscal_year": 2025,
+  "currency": "MSEK",
+  "section": "income_statement",
+  "fields": [
+    {
+      "key": "revenue",
+      "label": "Revenue",
+      "value": 34329,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Net sales",
+      "source": {
+        "page": 105,
+        "quote": "Net sales 2, 3 34,329 34,170"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "cost_of_sales",
+      "label": "Cost of sales",
+      "value": -21413,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Cost of goods sold",
+      "source": {
+        "page": 105,
+        "quote": "Cost of goods sold –21,413 –21,730"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "gross_profit",
+      "label": "Gross profit",
+      "value": 12916,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Gross profit",
+      "source": {
+        "page": 105,
+        "quote": "Gross profit 12,916 12,440"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "operating_profit",
+      "label": "Operating profit",
+      "value": 5317,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "EBIT",
+      "source": {
+        "page": 105,
+        "quote": "EBIT 4, 7, 10 5,317 5,287"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_before_tax",
+      "label": "Profit before tax",
+      "value": 4811,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Profit before tax",
+      "source": {
+        "page": 105,
+        "quote": "Profit before tax 4,811 4,990"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "income_tax",
+      "label": "Income tax",
+      "value": -1215,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Income tax",
+      "source": {
+        "page": 105,
+        "quote": "Income tax 9 –1,215 –1,254"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_discontinued",
+      "label": "Profit from discontinued operations",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "net_profit",
+      "label": "Profit for the year",
+      "value": 3596,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Net profit, Group",
+      "source": {
+        "page": 105,
+        "quote": "Net profit, Group 3,596 3,736"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "eps_basic",
+      "label": "EPS, basic",
+      "value": 15.76,
+      "unit": "SEK",
+      "period": "2025",
+      "raw_label": "EARNINGS PER SHARE: Group",
+      "source": {
+        "page": 106,
+        "quote": "Group 15.76 15.73"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "gross_profit_arith",
+      "passed": true,
+      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((34329 + -21413) - 12916) <= 2"
+    },
+    {
+      "name": "net_profit_arith",
+      "passed": true,
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((4811 + -1215 + 0) - 3596) <= 2"
+    },
+    {
+      "name": "margin_sanity",
+      "passed": true,
+      "detail": "operating margin between 0 and 60% | 0 < 5317 / 34329 < 0.6"
+    }
+  ],
+  "warnings": []
+}

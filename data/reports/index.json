@@ -142,5 +142,85 @@
     "source_url": "https://www.securitas.com/globalassets/com/files/annual-reports/eng/securitas_annual_report_2025_en.pdf",
     "tags": ["random-draw-2026-09-14", "services"],
     "note": "cost of sales is labelled 'Production expenses'; thousands separator is a space"
+  },
+  {
+    "file": "alfa_laval_2025.pdf",
+    "company": "Alfa Laval",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/905/4326341/4004513.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "essity_2025.pdf",
+    "company": "Essity",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/15798/4310842/3959544.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "boliden_2025.pdf",
+    "company": "Boliden",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/997/4316518/3967049.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "epiroc_2025.pdf",
+    "company": "Epiroc",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/16899/4323601/3992085.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "nibe_industrier_2025.pdf",
+    "company": "NIBE Industrier",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/a/nibe-industrier/0420b935-fe9e-46ec-8974-ca1872a747f2/gb-w-ar25-nibe.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "volvo_2025.pdf",
+    "company": "Volvo",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/39/4313286/3955013.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "electrolux_2025.pdf",
+    "company": "Electrolux",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/1853/4309679/3941763.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
+  },
+  {
+    "file": "ericsson_2025.pdf",
+    "company": "Ericsson",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/15448/4316310/3963269.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-14"
   }
 ]

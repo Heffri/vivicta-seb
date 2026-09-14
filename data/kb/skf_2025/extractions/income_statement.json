@@ -1,0 +1,131 @@
+{
+  "report_id": "lib-skf_2025",
+  "company": "SKF",
+  "fiscal_year": 2025,
+  "currency": "MSEK",
+  "section": "income_statement",
+  "fields": [
+    {
+      "key": "revenue",
+      "label": "Revenue",
+      "value": 91583,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Net sales",
+      "source": {
+        "page": 99,
+        "quote": "Net sales\n2\n91,583\n98,722"
+      },
+      "confidence": 1.0
+    },
+    {
+      "key": "cost_of_sales",
+      "label": "Cost of sales",
+      "value": -67058,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Cost of goods sold",
+      "source": {
+        "page": 99,
+        "quote": "Cost of goods sold\n6\n–67,058\n–71,349"
+      },
+      "confidence": 1.0
+    },
+    {
+      "key": "gross_profit",
+      "label": "Gross profit",
+      "value": 24525,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Gross profit",
+      "source": {
+        "page": 99,
+        "quote": "Gross profit\n24,525\n27,373"
+      },
+      "confidence": 1.0
+    },
+    {
+      "key": "operating_profit",
+      "label": "Operating profit",
+      "value": 7755,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Operating profit",
+      "source": {
+        "page": 99,
+        "quote": "Operating profit\n7,755\n10,339"
+      },
+      "confidence": 1.0
+    },
+    {
+      "key": "profit_before_tax",
+      "label": "Profit before tax",
+      "value": 6425,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Profit before taxes",
+      "source": {
+        "page": 99,
+        "quote": "Profit before taxes\n6,425\n9,089"
+      },
+      "confidence": 1.0
+    },
+    {
+      "key": "income_tax",
+      "label": "Income tax",
+      "value": -2176,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Income tax",
+      "source": {
+        "page": 99,
+        "quote": "Income tax\n9\n–2,176\n–2,202"
+      },
+      "confidence": 1.0
+    },
+    {
+      "key": "net_profit",
+      "label": "Profit for the year",
+      "value": 4249,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Net profit",
+      "source": {
+        "page": 99,
+        "quote": "Net profit\n4,249\n6,887"
+      },
+      "confidence": 1.0
+    },
+    {
+      "key": "eps_basic",
+      "label": "EPS, basic",
+      "value": 8.62,
+      "unit": "SEK",
+      "period": "2025",
+      "raw_label": "Basic earnings per share (SEK), before and after dilution",
+      "source": {
+        "page": 99,
+        "quote": "Basic earnings per share (SEK), before and after dilution\n17\n8.62\n14.22"
+      },
+      "confidence": 1.0
+    }
+  ],
+  "checks": [
+    {
+      "name": "gross_profit_arith",
+      "passed": true,
+      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((91583 + -67058) - 24525) <= 2"
+    },
+    {
+      "name": "net_profit_arith",
+      "passed": true,
+      "detail": "profit_before_tax + income_tax == net_profit (±2 rounding) | abs((6425 + -2176) - 4249) <= 2"
+    },
+    {
+      "name": "margin_sanity",
+      "passed": true,
+      "detail": "operating margin between 0 and 60% | 0 < 7755 / 91583 < 0.6"
+    }
+  ],
+  "warnings": []
+}

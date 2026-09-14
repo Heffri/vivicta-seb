@@ -1,0 +1,223 @@
+{
+  "report_id": "lib-hexagon_2025",
+  "company": "Hexagon",
+  "fiscal_year": 2025,
+  "currency": "MEUR",
+  "section": "income_statement",
+  "fields": [
+    {
+      "key": "revenue",
+      "label": "Revenue",
+      "value": 5424.6,
+      "unit": "MEUR",
+      "period": "2025",
+      "raw_label": "Net sales",
+      "source": {
+        "page": 177,
+        "quote": "Net sales 3,5,24 5,424.6 5,401.1"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "cost_of_sales",
+      "label": "Cost of sales",
+      "value": -1827.9,
+      "unit": "MEUR",
+      "period": "2025",
+      "raw_label": "Cost of goods sold",
+      "source": {
+        "page": 177,
+        "quote": "Cost of goods sold 6,12 -1,827.9 -1,791.4"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "gross_profit",
+      "label": "Gross profit",
+      "value": 3596.7,
+      "unit": "MEUR",
+      "period": "2025",
+      "raw_label": "Gross earnings",
+      "source": {
+        "page": 177,
+        "quote": "Gross earnings 3,596.7 3,609.7"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "operating_profit",
+      "label": "Operating profit",
+      "value": 924.4,
+      "unit": "MEUR",
+      "period": "2025",
+      "raw_label": "Operating earnings¹",
+      "source": {
+        "page": 177,
+        "quote": "Operating earnings¹ 3,13,22,29,30,31 924.4 1,432.2"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_before_tax",
+      "label": "Profit before tax",
+      "value": 793.5,
+      "unit": "MEUR",
+      "period": "2025",
+      "raw_label": "Earnings before tax",
+      "source": {
+        "page": 177,
+        "quote": "Earnings before tax 3 793.5 1,262.1"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "income_tax",
+      "label": "Income tax",
+      "value": -166.7,
+      "unit": "MEUR",
+      "period": "2025",
+      "raw_label": "Tax on earnings for the year",
+      "source": {
+        "page": 177,
+        "quote": "Tax on earnings for the year 11 -166.7 -227.1"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_discontinued",
+      "label": "Profit from discontinued operations",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "net_profit",
+      "label": "Profit for the year",
+      "value": 626.8,
+      "unit": "MEUR",
+      "period": "2025",
+      "raw_label": "Net earnings",
+      "source": {
+        "page": 177,
+        "quote": "Net earnings 626.8 1,035.0"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "eps_basic",
+      "label": "EPS, basic",
+      "value": 23,
+      "unit": "Euro cent",
+      "period": "2025",
+      "raw_label": "Earnings per share, Euro cent",
+      "source": {
+        "page": 177,
+        "quote": "Earnings per share, Euro cent 23.0 38.1"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "gross_profit_arith",
+      "passed": true,
+      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((5424.6 + -1827.9) - 3596.7) <= 2"
+    },
+    {
+      "name": "net_profit_arith",
+      "passed": true,
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((793.5 + -166.7 + 0) - 626.8) <= 2"
+    },
+    {
+      "name": "margin_sanity",
+      "passed": true,
+      "detail": "operating margin between 0 and 60% | 0 < 924.4 / 5424.6 < 0.6"
+    }
+  ],
+  "warnings": [
+    "revenue: value 5424600 rescaled to 5424.6 as printed in the quote",
+    "cost_of_sales: value -1827900 rescaled to -1827.9 as printed in the quote",
+    "gross_profit: value 3596700 rescaled to 3596.7 as printed in the quote",
+    "operating_profit: value 924400 rescaled to 924.4 as printed in the quote",
+    "profit_before_tax: value 793500 rescaled to 793.5 as printed in the quote",
+    "income_tax: value -166700 rescaled to -166.7 as printed in the quote",
+    "net_profit: value 626800 rescaled to 626.8 as printed in the quote",
+    "eps_basic: value 2300 rescaled to 23 as printed in the quote"
+  ]
+}

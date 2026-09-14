@@ -44,7 +44,7 @@ def values_match(expected, got):
         e, g = float(expected), float(got)
     except (TypeError, ValueError):
         return str(expected).strip().lower() == str(got).strip().lower()
-    return abs(e - g) <= max(abs(e) * 0.005, 1)
+    return abs(e - g) < 0.005  # printed numbers are exact: 11.70 (diluted) is not 11.77
 
 def page_match(expected_page, got_page):
     if not expected_page:

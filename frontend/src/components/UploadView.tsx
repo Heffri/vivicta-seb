@@ -1,11 +1,11 @@
-import { FileText, Loader2, UploadCloud } from 'lucide-react'
+import { FileText, Loader2, Search, UploadCloud, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { extractSection, getLibrary, getSchemas, registerLibraryReport, uploadReport } from '@/api'
+import { type ApiError, extractSection, fetchReport, getCompanies, getLibrary, getSchemas, registerLibraryReport, uploadReport } from '@/api'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import type { LibraryEntry, Report, Result, Schema } from '@/types'
+import type { Company, LibraryEntry, Report, Result, Schema } from '@/types'
 
 type Props = { onDone: (results: Result[]) => void }
 
@@ -19,10 +19,34 @@ export function UploadView({ onDone }: Props) {
   const [library, setLibrary] = useState<LibraryEntry[]>([])
   const [libraryError, setLibraryError] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set()) // LibraryEntry.file
+  const [query, setQuery] = useState('')
+  const [year, setYear] = useState('2025')
+  const [companies, setCompanies] = useState<Company[]>([])
+  const [dirError, setDirError] = useState<string | null>(null)
+  const [picked, setPicked] = useState<Company[]>([]) // directory picks, deduped by name
   const [file, setFile] = useState<File | null>(null)
   const [dragging, setDragging] = useState(false)
   const [progress, setProgress] = useState<string | null>(null) // non-null = busy
   const [error, setError] = useState<string | null>(null)
+  const [tried, setTried] = useState<Record<string, string[]>>({}) // label → URLs /fetch tried, for the all-failed block
+
+  // Debounced directory search; empty query = first 50. 404 = backend route not wired yet → muted one-liner.
+  useEffect(() => {
+    let stale = false
+    const t = setTimeout(() => {
+      getCompanies(query)
+        .then((list) => {
+          if (stale) return
+          setCompanies(list)
+          setDirError(null)
+        })
+        .catch((e: ApiError) => !stale && setDirError(e.status === 404 ? '' : e.message))
+    }, 250)
+    return () => {
+      stale = true
+      clearTimeout(t)
+    }
+  }, [query])
 
   useEffect(() => {
     getSchemas()
@@ -63,27 +87,37 @@ export function UploadView({ onDone }: Props) {
       return next
     })
 
+  const togglePick = (c: Company) =>
+    setPicked((prev) => (prev.some((p) => p.name === c.name) ? prev.filter((p) => p.name !== c.name) : [...prev, c]))
+
   const busy = progress !== null
-  const count = selected.size + (file ? 1 : 0)
+  const count = picked.length + selected.size + (file ? 1 : 0)
   const canExtract = count > 0 && !!section && !busy
 
   const run = async () => {
     if (!section) return
     setError(null)
+    setTried({})
     const sectionTitle = schemas.find((s) => s.name === section)?.title ?? section
-    // Queue = selected library entries (library order) + the uploaded file. Sequential on purpose: the local LLM
-    // is one GPU, parallel requests would only queue there and we'd lose the per-report progress line.
+    // Queue = directory picks (fetched on demand) + selected cached entries (library order) + the uploaded file.
+    // Sequential on purpose: the local LLM is one GPU, parallel requests would only queue there and we'd lose the
+    // per-report progress line.
     const queue = [
+      ...picked.map((c) => ({
+        label: c.name,
+        prep: `Fetching ${c.name} annual report ${year}…`,
+        getReport: () => fetchReport(c.name, Number(year)),
+      })),
       ...library
         .filter((e) => selected.has(e.file))
         .map((e) => ({ label: e.company, getReport: () => registerLibraryReport(e.file) })),
       ...(file ? [{ label: file.name, getReport: () => uploadReport(file) }] : []),
-    ] satisfies { label: string; getReport: () => Promise<Report> }[]
+    ] as { label: string; prep?: string; getReport: () => Promise<Report> }[]
     const results: Result[] = []
     for (const [i, item] of queue.entries()) {
-      const n = `(${i + 1}/${queue.length})`
+      const n = `(${i + 1}/${queue.length}${item.prep ? ', can take a minute' : ''})`
       try {
-        setProgress(`Preparing ${item.label} ${n}…`)
+        setProgress(`${item.prep ?? `Preparing ${item.label}`} ${n}`)
         const report = await item.getReport()
         setProgress(`Extracting ${item.label} ${n}… about a minute per report with a local model.`)
         const extraction = await extractSection(report.report_id, section)
@@ -92,6 +126,9 @@ export function UploadView({ onDone }: Props) {
         results.push({ label, sectionTitle, extraction })
       } catch (e) {
         results.push({ label: item.label, sectionTitle, error: (e as Error).message })
+        // ponytail: Result has no `tried` slot (types.ts is off-limits); kept here for the all-failed block only.
+        const t = (e as ApiError).tried
+        if (t?.length) setTried((prev) => ({ ...prev, [item.label]: t }))
       }
     }
     setProgress(null)
@@ -108,21 +145,100 @@ export function UploadView({ onDone }: Props) {
 
       <Card>
         <CardContent className="space-y-6">
-          {/* Library picker: chips = tag collections, grid = individual reports. */}
+          {/* Directory search (primary path): pick listed companies, /fetch pulls the PDF on demand. */}
           <div className="space-y-3">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <span className="text-sm font-medium">Companies</span>
-              {library.length > 0 && (
-                <span className="text-xs text-muted-foreground">
-                  {selected.size} of {library.length} selected
-                </span>
-              )}
+            <label htmlFor="company-q" className="text-sm font-medium">
+              Companies
+            </label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  id="company-q"
+                  type="search"
+                  value={query}
+                  disabled={busy}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search listed companies… e.g. Sandvik"
+                  className="h-8 w-full rounded-lg border bg-transparent pr-3 pl-8 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
+                />
+              </div>
+              <Select value={year} onValueChange={(v) => v && setYear(v)} items={{ 2025: '2025', 2024: '2024', 2023: '2023' }} disabled={busy}>
+                <SelectTrigger aria-label="Fiscal year" className="w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {['2025', '2024', '2023'].map((y) => (
+                    <SelectItem key={y} value={y}>
+                      {y}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+            {dirError !== null ? (
+              <p className="text-xs text-muted-foreground">Company directory unavailable{dirError && ` (${dirError})`}.</p>
+            ) : (
+              <ul className="max-h-56 divide-y overflow-y-auto rounded-lg border text-sm">
+                {companies.length === 0 && <li className="px-3 py-2 text-xs text-muted-foreground">No matches.</li>}
+                {companies.map((c) => {
+                  const on = picked.some((p) => p.name === c.name)
+                  return (
+                    <li key={c.name}>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        aria-pressed={on}
+                        onClick={() => togglePick(c)}
+                        className={`flex w-full flex-wrap items-center gap-1.5 px-3 py-1.5 text-left hover:bg-muted/50 disabled:opacity-60 ${
+                          on ? 'bg-primary/5' : ''
+                        }`}
+                      >
+                        <span className="font-medium">{c.name}</span>
+                        <span className="text-xs text-muted-foreground">{c.ticker}</span>
+                        {c.sector && <span className="text-xs text-muted-foreground">· {c.sector}</span>}
+                        {c.cached_years.includes(Number(year)) && (
+                          <Badge variant="secondary" className="ml-auto">
+                            cached
+                          </Badge>
+                        )}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+            {picked.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Selected:</span>
+                {picked.map((c) => (
+                  <Badge key={c.name} variant="secondary" className="gap-1 pr-1">
+                    {c.name}
+                    <button
+                      type="button"
+                      aria-label={`Remove ${c.name}`}
+                      disabled={busy}
+                      onClick={() => togglePick(c)}
+                      className="rounded-sm hover:bg-muted"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Cached reports (secondary): chips = tag collections, grid = individual reports. */}
+          <details className="space-y-3">
+            <summary className="cursor-pointer text-xs text-muted-foreground select-none">
+              Cached reports ({library.length}){selected.size > 0 && ` · ${selected.size} selected`}
+            </summary>
             {libraryError ? (
-              <p className="text-xs text-muted-foreground">Bundled library unavailable ({libraryError}).</p>
+              <p className="text-xs text-muted-foreground">Report cache unavailable ({libraryError}).</p>
             ) : library.length === 0 ? (
               <p className="text-xs text-muted-foreground">
-                No bundled reports on disk — run <code>python data/fetch.py</code>, or upload a PDF below.
+                Nothing cached yet — pick a company above to fetch its report, or upload a PDF below.
               </p>
             ) : (
               <>
@@ -184,7 +300,7 @@ export function UploadView({ onDone }: Props) {
                 </div>
               </>
             )}
-          </div>
+          </details>
 
           {/* Dropzone. The <label> makes the whole area click-to-open the hidden input. */}
           <label
@@ -265,12 +381,24 @@ export function UploadView({ onDone }: Props) {
           </div>
 
           {error && (
-            <p
+            <div
               role="alert"
               className="whitespace-pre-wrap rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
             >
               {error}
-            </p>
+              {Object.entries(tried).map(([label, urls]) => (
+                <details key={label} className="mt-1 text-xs">
+                  <summary className="cursor-pointer">
+                    {label}: tried {urls.length} URL{urls.length === 1 ? '' : 's'}
+                  </summary>
+                  <ul className="mt-1 list-inside list-disc break-all">
+                    {urls.map((u) => (
+                      <li key={u}>{u}</li>
+                    ))}
+                  </ul>
+                </details>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>

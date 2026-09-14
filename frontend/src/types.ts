@@ -8,6 +8,14 @@ export type Report = {
   fiscal_year?: number | null;
 };
 
+export type Company = {
+  name: string;             // as listed, e.g. "Sandvik AB"
+  ticker: string;           // "SAND"
+  sector: string | null;    // ICB sector text
+  isin: string | null;
+  cached_years: number[];   // years already present in the report cache, e.g. [2025]
+};
+
 export type LibraryEntry = {
   file: string;             // basename in data/reports/, e.g. "atlas_copco_2025.pdf"; key for from-library
   company: string;          // display name, curated in data/reports/index.json
@@ -17,6 +25,35 @@ export type LibraryEntry = {
   source_url: string | null;
   tags: string[];           // collections, e.g. ["wallenberg", "industrials"]; UI offers each tag as a one-click set
   note?: string | null;     // e.g. "image-only PDF, no text layer"
+};
+
+export type IndexStatus = { report_id: string; chunks: number; embed_model: string; cached: boolean };
+
+export type Citation = {
+  report_id: string;
+  company: string | null;
+  fiscal_year: number | null;
+  page: number;
+  quote: string;            // verbatim, verified against the page text like Field.source (unverified => dropped from citations, warning added)
+  score: number;            // retrieval similarity 0..1, for the UI only
+};
+
+export type Answer = {
+  question: string;
+  answer: string;           // markdown; cites as [Company p.N]
+  citations: Citation[];
+  warnings: string[];
+  model: string;
+};
+
+export type KbEntry = {
+  stem: string;             // data/kb/<stem>/, = report filename without .pdf
+  report_id: string | null; // set while the backend has it registered this run
+  company: string | null;
+  fiscal_year: number | null;
+  pages: number;
+  sections: string[];       // extractions present, e.g. ["income_statement"]
+  indexed: boolean;         // embeddings cached
 };
 
 export type Source = {
@@ -32,7 +69,8 @@ export type Field = {
   period: string | null;    // "2025", "2024", "2025-Q4"
   raw_label: string | null; // the label as printed in the report, e.g. "Intäkter"
   source: Source | null;
-  confidence: number;       // 0..1
+  confidence: number;       // 0..1, computed from evidence by the backend — see docs/CONFIDENCE.md. Never the model's opinion.
+  evidence: string[];       // satisfied evidence codes, e.g. ["quote_on_page","value_in_quote","arith_ok"]; 1.0 <=> all seven present
 };
 
 export type Check = {

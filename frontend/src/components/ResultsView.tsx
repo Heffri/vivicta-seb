@@ -1,13 +1,20 @@
 import { ArrowLeft, Check, Download, ExternalLink, ImageOff, TriangleAlert, X } from 'lucide-react'
 import { useState } from 'react'
 import { csvUrl, pageUrl, pdfUrl } from '@/api'
+import { AskPanel } from '@/components/AskPanel'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { Extraction, Field } from '@/types'
 
-type Props = { extraction: Extraction; sectionTitle: string; onReset: () => void; onBack?: () => void }
+type Props = {
+  extraction: Extraction
+  sectionTitle: string
+  onReset: () => void
+  onBack?: () => void
+  initialPage?: number | null // from a citation chip on the compare view
+}
 
 // 152340 → "152 340" (thin space U+2009), sign kept, decimals as-is, null → em dash.
 export const fmtValue = (v: Field['value']) =>
@@ -16,6 +23,14 @@ export const fmtValue = (v: Field['value']) =>
     : typeof v === 'number'
       ? v.toLocaleString('en-US', { maximumFractionDigits: 6 }).replaceAll(',', ' ')
       : v
+
+const EVIDENCE = ['quote_on_page', 'value_in_quote', 'arith_ok', 'label_known', 'period_ok', 'page_is_statement', 'unit_ok'] // docs/CONFIDENCE.md
+
+/** Tooltip for the confidence badge: which evidence the backend could not verify. */
+export const confidenceTitle = (f: { confidence: number; evidence?: string[] }) => {
+  const missing = EVIDENCE.filter((e) => !(f.evidence ?? []).includes(e))
+  return missing.length ? `missing: ${missing.join(', ')}` : 'all evidence verified'
+}
 
 export const confidenceClass = (c: number) =>
   c >= 0.9
@@ -37,10 +52,11 @@ const loadViewer = (): Viewer => {
   }
 }
 
-export function ResultsView({ extraction, sectionTitle, onReset, onBack }: Props) {
+export function ResultsView({ extraction, sectionTitle, onReset, onBack, initialPage }: Props) {
   const { report_id, company, fiscal_year, currency, section, fields, checks, warnings } = extraction
   const [selectedKey, setSelectedKey] = useState<string | null>(() => fields.find((f) => f.source)?.key ?? null)
   const [brokenPage, setBrokenPage] = useState<number | null>(null)
+  const [askPage, setAskPage] = useState<number | null>(initialPage ?? null) // citation chip override; a row click clears it
   const [viewer, setViewerState] = useState<Viewer>(loadViewer)
   const setViewer = (v: Viewer) => {
     setViewerState(v)
@@ -52,6 +68,11 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack }: Props
   }
 
   const selected = fields.find((f) => f.key === selectedKey) ?? null
+  const page = askPage ?? selected?.source?.page ?? null // what the provenance pane shows
+  const selectField = (key: string) => {
+    setSelectedKey(key)
+    setAskPage(null)
+  }
   const warningFor = (f: Field) => warnings.find((w) => w.startsWith(f.key + ':'))
   const failed = checks.filter((c) => !c.passed).length
 
@@ -113,8 +134,8 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack }: Props
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        {/* Left: fields + checks + warnings */}
-        <div className="space-y-6">
+        {/* Left: fields + checks + warnings. Spans both rows so the Ask panel lands right under Source. */}
+        <div className="space-y-6 lg:row-span-2">
           <Card className="py-0">
             <Table>
               <TableHeader>
@@ -137,11 +158,11 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack }: Props
                       tabIndex={0}
                       aria-selected={isSelected}
                       data-state={isSelected ? 'selected' : undefined}
-                      onClick={() => setSelectedKey(f.key)}
+                      onClick={() => selectField(f.key)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
                           e.preventDefault()
-                          setSelectedKey(f.key)
+                          selectField(f.key)
                         }
                       }}
                       className={`cursor-pointer outline-none focus-visible:bg-muted/50 ${
@@ -155,7 +176,7 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack }: Props
                       <TableCell className="text-muted-foreground">{f.unit ?? '—'}</TableCell>
                       <TableCell className="text-muted-foreground">{f.period ?? '—'}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={`tabular-nums ${confidenceClass(f.confidence)}`}>
+                        <Badge variant="outline" className={`tabular-nums ${confidenceClass(f.confidence)}`} title={confidenceTitle(f)}>
                           {Math.round(f.confidence * 100)}%
                         </Badge>
                       </TableCell>
@@ -218,14 +239,14 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack }: Props
           </div>
         </div>
 
-        {/* Right: provenance */}
-        <Card className="self-start lg:sticky lg:top-6">
+        {/* Right: provenance. ponytail: no longer sticky — it would slide over the Ask panel below it. */}
+        <Card className="self-start">
           <CardHeader>
             <CardTitle className="flex items-center justify-between gap-2">
               <span>Source</span>
-              {selected?.source && (
+              {page !== null && (
                 <span className="flex items-center gap-1.5 text-sm font-normal text-muted-foreground">
-                  <span className="mr-1">Page {selected.source.page}</span>
+                  <span className="mr-1">Page {page}</span>
                   {(['pdf', 'image'] as const).map((v) => (
                     <Button
                       key={v}
@@ -238,7 +259,7 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack }: Props
                     </Button>
                   ))}
                   <a
-                    href={pdfUrl(report_id, selected.source.page)}
+                    href={pdfUrl(report_id, page)}
                     target="_blank"
                     rel="noreferrer"
                     className={buttonVariants({ size: 'xs', variant: 'ghost' })}
@@ -250,10 +271,12 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack }: Props
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {!selected ? (
-              <p className="text-sm text-muted-foreground">Select a row to see where the value comes from.</p>
-            ) : !selected.source ? (
-              <p className="text-sm text-muted-foreground">No source — value not found.</p>
+            {page === null ? (
+              <p className="text-sm text-muted-foreground">
+                {selected && !selected.source
+                  ? 'No source — value not found.'
+                  : 'Select a row to see where the value comes from.'}
+              </p>
             ) : (
               <>
                 {viewer === 'pdf' ? (
@@ -261,39 +284,51 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack }: Props
                   // reliably navigate in Chromium. PDF is browser-cached after the first load; pdf.js is the upgrade if
                   // the remount flicker ever annoys.
                   <iframe
-                    key={selected.source.page}
-                    src={pdfUrl(report_id, selected.source.page)}
-                    title={`Page ${selected.source.page} of the report`}
+                    key={page}
+                    src={pdfUrl(report_id, page)}
+                    title={`Page ${page} of the report`}
                     className="h-[70vh] w-full rounded border bg-white"
                   />
-                ) : brokenPage === selected.source.page ? (
+                ) : brokenPage === page ? (
                   <div className="flex aspect-[1/1.3] flex-col items-center justify-center gap-2 rounded-md border bg-muted/40 text-sm text-muted-foreground">
                     <ImageOff className="size-5" />
                     Page preview unavailable
                   </div>
                 ) : (
                   <img
-                    src={pageUrl(report_id, selected.source.page)}
-                    alt={`Page ${selected.source.page} of the report`}
-                    onError={() => setBrokenPage(selected.source!.page)}
+                    src={pageUrl(report_id, page)}
+                    alt={`Page ${page} of the report`}
+                    onError={() => setBrokenPage(page)}
                     className="w-full rounded-md border bg-white"
                   />
                 )}
-                <div>
-                  <p className="mb-1 text-xs text-muted-foreground">
-                    {selected.label}
-                    {selected.raw_label && selected.raw_label !== selected.label && (
-                      <> · printed as “{selected.raw_label}”</>
-                    )}
+                {askPage !== null ? (
+                  <p className="text-xs text-muted-foreground">
+                    Page {askPage}, cited in an answer below. Click a row to go back to a field.
                   </p>
-                  <pre className="whitespace-pre-wrap break-words rounded-md border bg-muted/40 p-3 font-mono text-xs leading-relaxed">
-                    {selected.source.quote}
-                  </pre>
-                </div>
+                ) : (
+                  selected?.source && (
+                    <div>
+                      <p className="mb-1 text-xs text-muted-foreground">
+                        {selected.label}
+                        {selected.raw_label && selected.raw_label !== selected.label && (
+                          <> · printed as “{selected.raw_label}”</>
+                        )}
+                      </p>
+                      <pre className="whitespace-pre-wrap break-words rounded-md border bg-muted/40 p-3 font-mono text-xs leading-relaxed">
+                        {selected.source.quote}
+                      </pre>
+                    </div>
+                  )
+                )}
               </>
             )}
           </CardContent>
         </Card>
+
+        <div className="lg:col-start-2">
+          <AskPanel reports={[{ report_id, label: company ?? 'This report' }]} onCitation={(_id, p) => setAskPage(p)} />
+        </div>
       </div>
     </div>
   )

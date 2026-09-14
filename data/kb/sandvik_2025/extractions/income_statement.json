@@ -1,0 +1,216 @@
+{
+  "report_id": "lib-sandvik_2025",
+  "company": "Sandvik",
+  "fiscal_year": 2025,
+  "currency": "MSEK",
+  "section": "income_statement",
+  "fields": [
+    {
+      "key": "revenue",
+      "label": "Revenue",
+      "value": 120680,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Revenue G2, G3",
+      "source": {
+        "page": 115,
+        "quote": "Revenue G2, G3 122,878 120,680"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "cost_of_sales",
+      "label": "Cost of sales",
+      "value": -71678,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Cost of goods and services sold",
+      "source": {
+        "page": 115,
+        "quote": "Cost of goods and services sold -73,742 -71,678"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "gross_profit",
+      "label": "Gross profit",
+      "value": 49002,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Gross profit",
+      "source": {
+        "page": 115,
+        "quote": "Gross profit 49,136 49,002"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "operating_profit",
+      "label": "Operating profit",
+      "value": 20809,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Operating profit G2",
+      "source": {
+        "page": 115,
+        "quote": "Operating profit G2 18,420 20,809"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_before_tax",
+      "label": "Profit before tax",
+      "value": 19458,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Profit before tax",
+      "source": {
+        "page": 115,
+        "quote": "Profit before tax 16,461 19,458"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "income_tax",
+      "label": "Income tax",
+      "value": -4767,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Income tax",
+      "source": {
+        "page": 127,
+        "quote": "Income tax -4,767"
+      },
+      "confidence": 0.25,
+      "evidence": [
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_discontinued",
+      "label": "Profit from discontinued operations",
+      "value": null,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "net_profit",
+      "label": "Profit for the year",
+      "value": 14691,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Profit for the year",
+      "source": {
+        "page": 115,
+        "quote": "Profit for the year 12,245 14,691"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "eps_basic",
+      "label": "EPS, basic",
+      "value": 11.71,
+      "unit": "SEK",
+      "period": "2025",
+      "raw_label": "Basic earnings per share, SEK G11",
+      "source": {
+        "page": 115,
+        "quote": "Basic earnings per share, SEK G11 9.76 11.71"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "gross_profit_arith",
+      "passed": true,
+      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((120680 + -71678) - 49002) <= 2"
+    },
+    {
+      "name": "net_profit_arith",
+      "passed": true,
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((19458 + -4767 + 0) - 14691) <= 2"
+    },
+    {
+      "name": "margin_sanity",
+      "passed": true,
+      "detail": "operating margin between 0 and 60% | 0 < 20809 / 120680 < 0.6"
+    }
+  ],
+  "warnings": [
+    "revenue: quote replaced by the page row 'Revenue G2, G3 122,878 120,680'",
+    "operating_profit: quote replaced by the page row 'Operating profit G2 18,420 20,809'",
+    "income_tax: quote not found on page 127",
+    "eps_basic: quote replaced by the page row 'Basic earnings per share, SEK G11 9.76 11.71'"
+  ]
+}

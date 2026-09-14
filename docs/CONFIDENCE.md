@@ -9,18 +9,43 @@ From now on it is **computed by the backend from evidence the backend can verify
 
 | Code | Evidence | Weight | Checked how |
 |---|---|---|---|
-| `quote_on_page` | `source.quote` occurs verbatim (whitespace-normalised) in the text of `source.page` | 0.35 | `parse.normalize_ws`, already done |
+| `quote_on_page` | `source.quote` (or its longest suffix that still holds a label word and a number — the model likes to prepend the section header) occurs on `source.page`: verbatim (whitespace-normalised), or every token in order with only a note reference (`6, 7`) between label and number. The quote is replaced by the part that was verified. A bare number or a bare label never counts | 0.35 | `parse.quote_on_page` |
 | `value_in_quote` | the printed number is inside that verified quote (`168 343`, `168,343`, `168343`, `-7 246`, `(7 246)` all count) | 0.20 | regex over digit groups |
-| `arith_ok` | every schema check that references this key passed | 0.20 | `checks[]` |
+| `arith_ok` | no schema check that references this key failed; a check with a missing operand (`gross_profit` in a by-nature statement) is n/a, not a failure. Optional rows (`profit_discontinued`, schema `default: 0`) count as 0 | 0.20 | `checks[]` |
 | `label_known` | `raw_label` matches one of the field's `synonyms` (sv + en, case-insensitive, prefix match) | 0.10 | new `synonyms` list per schema field |
 | `period_ok` | `period` equals the report's fiscal year | 0.05 | `Report.fiscal_year` (curated for library reports) |
-| `page_is_statement` | `source.page` is among the locator's top 3 **and** a schema keyword is in that page's heading | 0.05 | `locate.candidate_pages` |
-| `unit_ok` | `unit` equals the section currency (or the field's `unit_hint`, e.g. SEK for EPS) | 0.05 | string compare |
+| `page_is_statement` | `source.page` is the locator's best page or the one after it (statements span two pages; the locator scores heading keywords, field-synonym coverage and digit density, and penalises multi-year / quarterly / parent-company headings) | 0.05 | `locate.candidate_pages` |
+| `unit_ok` | `unit` equals the section currency; for per-share fields the currency without scale must match (`SEK` vs `MSEK` / `SEKm` / `SEK million`) | 0.05 | string compare |
 
-Score = sum of weights of satisfied evidence. Two hard caps override the sum:
+Score = sum of weights of satisfied evidence. Hard caps override the sum:
 
 - `quote_on_page` missing → **cap 0.25** (the value has no verifiable provenance; the row is red)
+- `value_in_quote` missing although the quote was verified → **cap 0.50** (the row is on the page, this number is not in it — a computed or invented figure)
 - a check referencing the key **failed** → **cap 0.50** (the number contradicts its neighbours)
+- `period` is a year other than the report's fiscal year → **cap 0.50** (another year's figure)
+
+The verified quote is then widened to the **printed row** it belongs to (the page is split into rows: a line with a word
+starts one, the number and note lines after it belong to it), so `source.quote` shows every column, not the one number the
+model copied. Deterministic **repairs** run on that row before scoring, each leaving a warning:
+
+- a value that is not printed in its verified quote but whose /10, /100 or /1000 is (`1177` -> `11.77`, `5424600` -> `5424.6`,
+  `230` -> `23.0`) is replaced by the printed number;
+- a value that is another year's column of the row (the page's year header says `2024 2025` for Sandvik; Skanska's model quote
+  `Gross income 14,480` was the 2024 column of `Gross income 14,753 14,480`) is replaced by the fiscal-year column;
+- a row that the statement sums into a `Total <same label>` row with a known synonym label (`Sales 155 054` + `Sales, acquired
+  business` = `Total sales 155 113`, Securitas) is replaced by the total;
+- a quote whose label the model renamed (`Profit before tax 3,145` for the printed `Profit after financial items 3,145`, Getinge)
+  or whose page is a note rather than the statement (Sandvik cited the tax note for `Income tax -4,767`) is replaced by the row
+  on the cited page or the statement spread that holds the number under a known synonym label; `raw_label` and `page` follow;
+- a row that is the sum of the two rows above it, one of them in the field's `excludes` list (`Revenue 23,447` = `Net sales 20,427`
+  + `Other operating income 3,020`, SCA), is unwound to the addend with a known label;
+- a field the model left null although the statement page prints a row whose label *is* one of the field's synonyms
+  (`Income after financial items 7,300`, Telia) is filled from that row and then verified like any model answer;
+- a sub-row label under a known heading (`Basic earnings per share` / `Net income 2.59`, ABB) is reported as `heading: sub-row`
+  so `label_known` sees the printed context.
+
+Swedish space-grouped rows are split by the column count from the year header (`155 054 161 900` is two amounts; no regex can
+tell that from four small numbers), so the repairs only run on pages where that header was found.
 
 The response carries the evidence, not just the number:
 

@@ -14,7 +14,9 @@ Backend runs on `http://localhost:8000`, frontend dev server proxies `/api` to i
 | `GET`  | `/api/reports/{report_id}/pages/{n}.png` | – | PNG of page `n` (1-based), ~150 dpi. 404 if out of range |
 | `GET`  | `/api/reports/{report_id}/extraction.csv` | – | last extraction for this report as CSV (one row per field). 404 if none |
 | `GET`  | `/api/reports/{report_id}/pdf` | – | the PDF itself, `Content-Disposition: inline`, so `<iframe src=".../pdf#page=64">` opens the browser's own viewer on that page |
-| `GET`  | `/api/library` | – | `LibraryEntry[]` — bundled annual reports in `data/reports/` (only files present on disk) |
+| `GET`  | `/api/companies?q=<text>` | – | `Company[]` — the listed-company directory (`data/companies.json`, Nasdaq Stockholm), filtered by name/ticker substring; max 50. Empty `q` = first 50 |
+| `POST` | `/api/reports/fetch` | `{ "company": "<Company.name>", "year": 2025 }` | `Report` — finds the company's annual report for that year on the web, downloads it into the cache (`data/reports/`), registers it like an upload. 10–90 s. `404` with `{detail, tried: string[]}` when nothing usable was found. Cached = instant |
+| `GET`  | `/api/library` | – | `LibraryEntry[]` — the report **cache** in `data/reports/` (only files present on disk). Populated by `/fetch`; hand-curated entries also live in `index.json` |
 | `POST` | `/api/reports/{report_id}/index` | – | `IndexStatus` — chunk + embed the report into the knowledge base (idempotent, cached on disk). ~10–30 s per report locally |
 | `POST` | `/api/ask` | `{ "question": string, "report_ids": string[] }` | `Answer` — RAG over the selected reports (page texts + prior extractions). Indexes on demand if `/index` was not called |
 | `GET`  | `/api/kb` | – | `KbEntry[]` — what is in `data/kb/` (one per parsed report: pages indexed, sections extracted) |
@@ -31,6 +33,14 @@ type Report = {
   pages: number;
   company?: string | null;  // best-effort guess from first pages, may be null
   fiscal_year?: number | null;
+};
+
+type Company = {
+  name: string;             // as listed, e.g. "Sandvik AB"
+  ticker: string;           // "SAND"
+  sector: string | null;    // ICB sector text
+  isin: string | null;
+  cached_years: number[];   // years already present in the report cache, e.g. [2025]
 };
 
 type LibraryEntry = {
@@ -86,7 +96,8 @@ type Field = {
   period: string | null;    // "2025", "2024", "2025-Q4"
   raw_label: string | null; // the label as printed in the report, e.g. "Intäkter"
   source: Source | null;
-  confidence: number;       // 0..1
+  confidence: number;       // 0..1, computed from evidence by the backend — see docs/CONFIDENCE.md. Never the model's opinion.
+  evidence: string[];       // satisfied evidence codes, e.g. ["quote_on_page","value_in_quote","arith_ok"]; 1.0 <=> all seven present
 };
 
 type Check = {
@@ -107,9 +118,10 @@ type Extraction = {
 };
 ```
 
-Every non-null `value` **must** carry a `source`. Backend verifies `source.quote` occurs verbatim
-(whitespace-normalised) in the text of `source.page`; if not, it appends a warning and lowers
-`confidence`. This is the provenance + anti-hallucination story — do not drop it.
+Every non-null `value` **must** carry a `source`. Backend verifies `source.quote` occurs on `source.page`
+(whitespace-normalised; note references like `6, 7` may sit between label and number; a bare number is never
+accepted); if not, it appends a warning and caps `confidence` at 0.25. If the value is a ×10/×100/×1000 rescale
+of the figure printed in a verified quote, the value is repaired to what is printed and a warning says so; the same goes for a prior-year column, a `Total ...` row that sums the quoted one, and a label the model renamed (see `docs/CONFIDENCE.md`). `source.quote` is widened to the full printed row. This is the provenance + anti-hallucination story — do not drop it.
 
 Reference example: [`backend/fixtures/sample_extraction.json`](../backend/fixtures/sample_extraction.json)
 (fictional company, internally consistent numbers).
@@ -126,7 +138,8 @@ One file per report section. Adding a section = adding a file. The prompt is gen
   "keywords": ["income statement", "resultaträkning", ...],   // sv + en, used to locate pages
   "value_convention": "Numbers as printed; unit from table header; period as YYYY",
   "fields": [
-    { "key": "revenue", "label": "Revenue", "description": "...", "unit_hint": "currency_millions" }
+    { "key": "revenue", "label": "Revenue", "description": "...", "unit_hint": "currency_millions",
+      "synonyms": ["revenue", "revenues", "net sales", "intäkter", "nettoomsättning"] }   // for the label_known evidence
   ],
   "checks": [
     // expr is a Python expression over field keys (numbers). Missing key => check reported as failed with detail "missing: <key>".
@@ -142,11 +155,16 @@ One file per report section. Adding a section = adding a file. The prompt is gen
 Header: `report_id,company,fiscal_year,section,key,label,value,unit,period,raw_label,page,quote,confidence`
 One row per field. UTF-8, comma-separated, quotes escaped per RFC 4180.
 
-## Bundled report library — `data/reports/`
+## Company directory + on-demand report fetching
 
-PDFs are gitignored (large). `data/reports/index.json` is committed and lists them with `company`, `fiscal_year`,
-`language`, `source_url`, `tags`. `python data/fetch.py` downloads every entry that is missing. `GET /api/library`
-returns index entries whose file exists on disk, with `pages` filled in.
+Reports are **not** bundled. `data/companies.json` (committed, built by `python data/companies_build.py` from the
+Nasdaq Stockholm listed-companies list) is the directory the picker searches. Picking a company + year calls
+`POST /api/reports/fetch`, which runs `backend/pipeline/fetch.py`: search the web for that company's annual report
+for that year (press-release feeds first — MFN / Cision attachments — then a web search restricted to PDFs), download
+the first candidate that is a real PDF with a text layer and > 40 pages, save it as `data/reports/<slug>_<year>.pdf`
+and append a manifest entry to `data/reports/index.json` (`file, company, fiscal_year, language, source_url,
+tags: ["fetched"], fetched_at`). `data/reports/` is therefore a cache: gitignored PDFs, committed manifest.
+`GET /api/library` lists the cache; `python data/fetch.py` re-downloads manifest entries that are missing.
 
 ## Knowledge base — `data/kb/` (RAG + memory)
 

@@ -4,17 +4,17 @@ import io
 import json
 import os
 import re
-import uuid
+import time
 from pathlib import Path
 
 import pymupdf
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 
-from pipeline import extract as extract_mod, locate, parse
+from pipeline import extract as extract_mod, fetch, kb, locate, parse
 
 load_dotenv()
 HERE = Path(__file__).parent
@@ -23,6 +23,7 @@ UPLOADS.mkdir(exist_ok=True)
 SCHEMAS = HERE / "schemas"
 LIBRARY = HERE.parent / "data" / "reports"  # bundled reports; index.json is committed, PDFs via `python data/fetch.py`
 FIXTURE = HERE / "fixtures" / "sample_extraction.json"
+COMPANIES = json.loads((HERE.parent / "data" / "companies.json").read_text(encoding="utf-8"))  # Nasdaq Stockholm, data/companies_build.py
 CSV_HEADER = "report_id,company,fiscal_year,section,key,label,value,unit,period,raw_label,page,quote,confidence".split(",")
 
 app = FastAPI(title="vivicta backend")
@@ -41,6 +42,16 @@ class ExtractBody(BaseModel):
 
 class LibraryBody(BaseModel):
     file: str
+
+
+class AskBody(BaseModel):
+    question: str
+    report_ids: list[str]
+
+
+class FetchBody(BaseModel):
+    company: str
+    year: int
 
 
 def pdf_path(report_id: str) -> Path:
@@ -97,11 +108,19 @@ async def upload_report(file: UploadFile = File(...)):
             assert doc.is_pdf and doc.page_count > 0
     except Exception:
         raise HTTPException(400, "file is not a readable PDF")
-    report_id = uuid.uuid4().hex[:12]
+    sha = kb.sha256(data)
+    cached = next((e for e in library_index() if e.get("sha256") == sha or (LIBRARY / e["file"]).stat().st_size == len(data) and kb.sha256((LIBRARY / e["file"]).read_bytes()) == sha), None)
+    if cached:  # same bytes as a cached report: reuse its stem, so the KB gets no duplicate and few-shot excludes it correctly
+        return register_library(cached)
+    report_id = "up-" + sha[:12]  # deterministic: same upload twice = same report + same KB folder
+    if report_id in reports:
+        return reports[report_id]
     pdf_path(report_id).write_bytes(data)
     texts = report_texts(report_id)
     company, fiscal_year = guess_meta(texts)
-    reports[report_id] = {"report_id": report_id, "filename": file.filename or "upload.pdf", "pages": len(texts), "company": company, "fiscal_year": fiscal_year}
+    reports[report_id] = {"report_id": report_id, "filename": file.filename or "upload.pdf", "pages": len(texts), "company": company, "fiscal_year": fiscal_year, "stem": report_id}
+    kb.save_report(report_id, {"company": company, "fiscal_year": fiscal_year, "language": None, "source_url": None, "pages": len(texts),
+                               "sha256": sha, "filename": reports[report_id]["filename"]}, texts)  # ponytail: uploads land in data/kb/up-<sha>/ too; prune before committing if they are not public reports
     return reports[report_id]
 
 
@@ -116,17 +135,52 @@ def list_library():
     return out
 
 
+def register_library(entry: dict) -> dict:
+    """Register a cached PDF (curated or fetched) exactly like an upload; same file twice = same report_id."""
+    report_id = "lib-" + Path(entry["file"]).stem
+    if report_id not in reports:
+        library_paths[report_id] = LIBRARY / entry["file"]
+        texts = report_texts(report_id)
+        reports[report_id] = {"report_id": report_id, "filename": entry["file"], "pages": len(texts),
+                              "company": entry["company"], "fiscal_year": entry["fiscal_year"], "stem": Path(entry["file"]).stem}  # curated beats guess_meta
+        kb.save_report(Path(entry["file"]).stem, {k: entry.get(k) for k in ("company", "fiscal_year", "language", "source_url")}
+                       | {"pages": len(texts), "sha256": kb.sha256(library_paths[report_id].read_bytes()), "filename": entry["file"]}, texts)
+    return reports[report_id]
+
+
 @app.post("/api/reports/from-library")
 def report_from_library(body: LibraryBody):
     entry = next((e for e in library_index() if e["file"] == body.file), None)
     if not entry or "/" in body.file or "\\" in body.file:  # trust boundary: index basenames only, never a path
         raise HTTPException(404, f"not in library: {body.file!r}; see GET /api/library")
-    report_id = "lib-" + Path(body.file).stem  # deterministic: same file twice = same report
-    if report_id not in reports:
-        library_paths[report_id] = LIBRARY / body.file
-        reports[report_id] = {"report_id": report_id, "filename": body.file, "pages": len(report_texts(report_id)),
-                              "company": entry["company"], "fiscal_year": entry["fiscal_year"]}  # curated beats guess_meta
-    return reports[report_id]
+    return register_library(entry)
+
+
+@app.get("/api/companies")
+def list_companies(q: str = ""):
+    cached: dict[str, list[int]] = {}
+    for e in library_index():
+        cached.setdefault(fetch.slugify(e["company"]), []).append(e["fiscal_year"])
+    q = q.strip().lower()
+    hits = [c for c in COMPANIES if q in c["name"].lower() or q in c["ticker"].lower()]
+    hits.sort(key=lambda c: (not c["name"].lower().startswith(q), c["name"]))  # prefix matches first
+    return [c | {"cached_years": sorted(set(cached.get(fetch.slugify(c["name"]), [])))} for c in hits[:50]]
+
+
+@app.post("/api/reports/fetch")
+def fetch_report(body: FetchBody):
+    if not (1990 <= body.year <= 2100) or len(body.company) > 100:
+        raise HTTPException(400, "bad company/year")
+    slug = fetch.slugify(body.company)
+    entry = next((e for e in library_index() if e["fiscal_year"] == body.year and fetch.slugify(e["company"]) == slug), None)
+    if not entry:
+        t0 = time.time()
+        try:
+            entry = fetch.fetch_report(body.company, body.year, LIBRARY)  # 10-90 s: MFN -> DuckDuckGo, validates PDF + text layer
+        except LookupError as e:
+            return JSONResponse({"detail": f"no annual report found for {body.company} {body.year}", "tried": e.args[0]}, status_code=404)
+        print(f"[fetch] {body.company} {body.year} -> {entry['file']} from {entry['source_url']} in {time.time() - t0:.0f}s")
+    return register_library(entry)
 
 
 @app.get("/api/reports/{report_id}")
@@ -161,8 +215,41 @@ def run_extract(report_id: str, body: ExtractBody):
         pages = locate.candidate_pages(texts, schema)
         print(f"[extract] {report_id} {body.section}: candidate pages {pages}")
         result = extract_mod.extract(texts, pages, schema, report)
+        kb.save_extraction(report["stem"], body.section, result)  # fixture results never enter the KB
     extractions[report_id] = result
     return result
+
+
+@app.post("/api/reports/{report_id}/index")
+def index_report(report_id: str):
+    report = get_report(report_id)
+    if not os.getenv("LLM_BASE_URL"):
+        return {"report_id": report_id, "chunks": 0, "embed_model": "fixture", "cached": True}
+    return kb.index(report["stem"]) | {"report_id": report_id}
+
+
+@app.post("/api/ask")
+def ask(body: AskBody):
+    if not body.report_ids:
+        raise HTTPException(400, "report_ids is empty")
+    if len(body.question) > 2000:  # trust boundary: the question goes straight into the prompt
+        raise HTTPException(400, "question too long (max 2000 chars)")
+    ids = {get_report(r)["stem"]: r for r in body.report_ids}  # stem -> report_id; 404 on unknown ids
+    if not os.getenv("LLM_BASE_URL"):  # frontend dev mode: canned Answer, one citation
+        return {"question": body.question, "answer": "Fixture mode (LLM_BASE_URL unset). Revenue was 152 340 MSEK [Nordic Industrials p.64].",
+                "citations": [{"report_id": body.report_ids[0], "company": "Nordic Industrials AB (fictional fixture)", "fiscal_year": 2025,
+                               "page": 64, "quote": "Intäkter 152 340 141 902", "score": 0.91}],
+                "warnings": ["fixture answer: LLM_BASE_URL unset"], "model": "fixture"}
+    t0 = time.time()
+    answer = kb.ask(list(ids), body.question, ids=ids)  # indexes on demand
+    print(f"[ask] {body.report_ids}: {len(answer['citations'])} citations, {len(answer['warnings'])} warnings in {time.time() - t0:.1f}s")
+    return answer
+
+
+@app.get("/api/kb")
+def list_kb():
+    by_stem = {r["stem"]: rid for rid, r in reports.items()}
+    return [e | {"report_id": by_stem.get(e["stem"])} for e in kb.entries()]
 
 
 @app.get("/api/reports/{report_id}/extraction.csv")

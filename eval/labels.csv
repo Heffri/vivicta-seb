@@ -25,7 +25,7 @@ hexagon_2025.pdf,income_statement,operating_profit,924.4,177,"Operating earnings
 hexagon_2025.pdf,income_statement,profit_before_tax,793.5,177,Earnings before tax
 hexagon_2025.pdf,income_statement,income_tax,-166.7,177,Tax on earnings for the year
 hexagon_2025.pdf,income_statement,net_profit,626.8,177,Net earnings (total incl. NCI 9.4; attributable to parent 617.4)
-hexagon_2025.pdf,income_statement,eps_basic,0.23,177,"Earnings per share, Euro cent — printed 23.0 Euro cent, stored as 0.23 EUR per labelling instruction; extractor may return the printed 23.0"
+hexagon_2025.pdf,income_statement,eps_basic,23.0,177,"Earnings per share, Euro cent — as printed; the unit field carries Euro cent (0.23 EUR)"
 telia_2025.pdf,income_statement,revenue,80982,133,Revenue (continuing operations); SEK in millions
 telia_2025.pdf,income_statement,cost_of_sales,null,133,"not reported — by-nature P&L (Goods and services purchased -28,277 is not cost of sales)"
 telia_2025.pdf,income_statement,gross_profit,null,133,"not reported — by-nature P&L (EBITDA 27,740 is the only subtotal above operating income)"

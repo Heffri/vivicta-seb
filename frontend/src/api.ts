@@ -1,14 +1,16 @@
-import type { Extraction, LibraryEntry, Report, Schema } from './types'
+import type { Answer, Company, Extraction, IndexStatus, LibraryEntry, Report, Schema } from './types'
+
+export type ApiError = Error & { status: number; tried?: string[] }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init)
   if (!res.ok) {
-    // Errors are JSON { detail } per docs/API.md; fall back to status text for proxy/network errors.
-    const detail = await res
-      .json()
-      .then((b: { detail?: string }) => b.detail)
-      .catch(() => undefined)
-    throw new Error(detail ?? `${res.status} ${res.statusText}`)
+    // Errors are JSON { detail } per docs/API.md (fetch 404s add tried[]); fall back to status text for proxy/network errors.
+    const body: { detail?: string; tried?: string[] } = await res.json().catch(() => ({}))
+    throw Object.assign(new Error(body.detail ?? `${res.status} ${res.statusText}`), {
+      status: res.status,
+      tried: body.tried,
+    }) satisfies ApiError
   }
   return res.json() as Promise<T>
 }
@@ -30,11 +32,30 @@ export const registerLibraryReport = (file: string) =>
     body: JSON.stringify({ file }),
   })
 
+export const getCompanies = (q: string) => request<Company[]>(`/api/companies?q=${encodeURIComponent(q)}`)
+
+export const fetchReport = (company: string, year: number) =>
+  request<Report>('/api/reports/fetch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ company, year }),
+  })
+
 export const extractSection = (reportId: string, section: string) =>
   request<Extraction>(`/api/reports/${reportId}/extract`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ section }),
+  })
+
+export const indexReport = (reportId: string) =>
+  request<IndexStatus>(`/api/reports/${reportId}/index`, { method: 'POST' })
+
+export const ask = (question: string, reportIds: string[]) =>
+  request<Answer>('/api/ask', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question, report_ids: reportIds }),
   })
 
 export const pageUrl = (reportId: string, page: number) => `/api/reports/${reportId}/pages/${page}.png`

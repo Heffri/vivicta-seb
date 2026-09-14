@@ -1,0 +1,214 @@
+{
+  "report_id": "lib-husqvarna_2025",
+  "company": "Husqvarna Group",
+  "fiscal_year": 2025,
+  "currency": "SEKm",
+  "section": "income_statement",
+  "fields": [
+    {
+      "key": "revenue",
+      "label": "Revenue",
+      "value": 46613,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "Net sales",
+      "source": {
+        "page": 84,
+        "quote": "Net sales 3 46,613 48,352"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "cost_of_sales",
+      "label": "Cost of sales",
+      "value": -32514,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "Cost of goods sold",
+      "source": {
+        "page": 84,
+        "quote": "Cost of goods sold 5, 6 –32,514 –34,053"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "gross_profit",
+      "label": "Gross profit",
+      "value": 14099,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "Gross income",
+      "source": {
+        "page": 84,
+        "quote": "Gross income 14,099 14,299"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "operating_profit",
+      "label": "Operating profit",
+      "value": 2898,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "Operating income",
+      "source": {
+        "page": 84,
+        "quote": "Operating income 3, 4, 8 2,898 2,597"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_before_tax",
+      "label": "Profit before tax",
+      "value": 2149,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "Income after financial items",
+      "source": {
+        "page": 84,
+        "quote": "Income after financial items 2,149 1,733"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "income_tax",
+      "label": "Income tax",
+      "value": -380,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "Income tax",
+      "source": {
+        "page": 84,
+        "quote": "Income tax 10 –380 –408"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "profit_discontinued",
+      "label": "Profit from discontinued operations",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "net_profit",
+      "label": "Profit for the year",
+      "value": 1769,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "Net income for the period",
+      "source": {
+        "page": 84,
+        "quote": "Net income for the period 1,769 1,326"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "eps_basic",
+      "label": "EPS, basic",
+      "value": 3.09,
+      "unit": "SEK",
+      "period": "2025",
+      "raw_label": "Earnings per share: Before dilution, SEK",
+      "source": {
+        "page": 84,
+        "quote": "Before dilution, SEK 11 3.09 2.32"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "gross_profit_arith",
+      "passed": true,
+      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((46613 + -32514) - 14099) <= 2"
+    },
+    {
+      "name": "net_profit_arith",
+      "passed": true,
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((2149 + -380 + 0) - 1769) <= 2"
+    },
+    {
+      "name": "margin_sanity",
+      "passed": true,
+      "detail": "operating margin between 0 and 60% | 0 < 2898 / 46613 < 0.6"
+    }
+  ],
+  "warnings": []
+}
