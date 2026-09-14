@@ -207,19 +207,25 @@ def _row_amounts(quote: str, ncols: int | None = None) -> list:
     if re.search(r"\d\.\d{1,2}\b|\d,\d{3}\b", q):  # "." is the decimal here, so "6,12" is a note reference, not 6.12
         toks = [t for t in toks if not re.fullmatch(r"\d{1,2},\d{1,2}", t)]
     last_alpha = max((i for i, t in enumerate(toks) if re.search(r"[^\W\d_]", t)), default=-1)
-    out = []
+    out, noteish = [], []  # noteish: a bare one- or two-digit token; "6" / "12" is a note reference, "(19)" / "-19" (Arion) is an amount
     for t in toks[last_alpha + 1:]:
         t = t.rstrip(",;")
         if t == "-":  # Volvo "Income taxes 10 -11,669 -15,542 -1,016 -1,092 – – -12,685 -16,634": the eliminations columns are nil
             out.append(0)
+            noteish.append(False)
             continue
         m = _AMOUNT.fullmatch(t)
-        if not m or (len(re.sub(r"\D", "", t)) < 3 and not m.group(3) and t[0].isdigit()):  # "6" / "12" alone is a note reference; "(19)" / "-19" (Arion) is an amount
+        if not m:
             continue
         v = int(re.sub(r"\D", "", m.group(1))) + (float(f"0.{m.group(3)}") if m.group(3) else 0)  # ponytail: "1,234" is read as a thousand, not a Swedish decimal
         v = -v if t[0] in "-(" else v
         out.append(int(v) if float(v).is_integer() else round(v, 2))
-    return out
+        noteish.append(len(re.sub(r"\D", "", t)) < 3 and not m.group(3) and t[0].isdigit())
+    if ncols:  # note references sit between the label and the amounts; after an amount a small number is a column
+        while out and noteish[0]:  # Vitrolife "Net sales 4, 5 3,440 3,609 15 25": the parent company's 15 and 25 are amounts
+            out, noteish = out[1:], noteish[1:]
+        return out
+    return [v for v, n in zip(out, noteish) if not n]
 
 
 def _page_rows(text: str) -> list[str]:
@@ -520,6 +526,14 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                 if header and len(amounts) == ncols and field["value"] in amounts and amounts[header[0]] != field["value"]:
                     warnings.append(f"{sf['key']}: {field['value']} is not the {fiscal_year} column, {amounts[header[0]]} is")  # Sandvik prints 2024 first
                     field["value"], field["period"] = amounts[header[0]], str(fiscal_year)
+                if field["value"] in amounts and not _label_known(field.get("raw_label"), sf) and _label_known(_row_label(row), sf):
+                    warnings.append(f"{sf['key']}: labelled {field.get('raw_label')!r} by the model; the row is printed as {_row_label(row)!r}")  # Castellum: "Income" for "Rental and service income"
+                    field["raw_label"] = _row_label(row)
+                titled = set(re.findall(r"\b20\d\d\b", texts[page - 1][:200])) if not header and fiscal_year else set()
+                if len(titled) == 1 and str(fiscal_year) not in titled and str(field.get("period")) == str(fiscal_year):
+                    y = titled.pop()  # Pandox: "Not C1, forts. KONCERNEN 2024" — a segment note for the prior year, no year header, stamped 2025 by the model
+                    warnings.append(f"{sf['key']}: page {page} is headed {y}, not {fiscal_year}; period set to {y}")
+                    field["period"] = y
                 if header and _clean_label(field.get("raw_label")) != _clean_label(_row_label(row)) and _label_known(field.get("raw_label"), sf):
                     # Lundbergs: the model paired "Rörelseresultat 16 077" with the row below it; the row printed with that label is the quote,
                     # and its figure the value ("Nettoomsättning m m" prints 28 781, not the 30 615 subtotal on the next row)

@@ -35,6 +35,12 @@ def slugify(name):
     return re.sub(r"[^a-z0-9]+", "_", name).strip("_")
 
 
+def _toks(company):
+    """The name's identifying words, at most two: "Lundin Gold" is not Lundin Mining, "Volvo Car" is not Volvo."""
+    toks = [t for t in slugify(company).split("_") if len(t) >= 3 and t not in ("holding", "holdings", "corp", "corporation", "international", "aktiebolag", "aktiebolaget", "the", "and")]
+    return toks[:2] or [company.lower()]
+
+
 def _mfn(company, year):
     q = urllib.parse.quote
     try:
@@ -42,6 +48,7 @@ def _mfn(company, year):
     except Exception as e:
         print(f"mfn company search failed: {e}")
         return []
+    hits = [h for h in hits if all(t in h.get("name", "").lower() for t in _toks(company))]  # MFN's fuzzy search: "Lundin Gold" must not become Lundin Mining
     if not hits:
         return []
     slug = hits[0]["slug"]
@@ -69,7 +76,7 @@ def _mfn(company, year):
 def _nasdaq(company, year):
     """Nasdaq Nordic company news: every listed issuer's "Annual Financial Report" notice carries the PDF as an attachment
     (TRATON, Asker, Vitrolife ... also the ESEF zip, unused). MFN covers most Swedish issuers; this covers the rest."""
-    tok = next((t for t in slugify(company).split("_") if len(t) >= 3), company.lower())
+    toks = _toks(company)
     q = urllib.parse.urlencode({"type": "json", "showAttachments": "true", "showCnsSpecific": "true", "showCompany": "true", "countResults": "false",
                                 "freeText": company, "cnscategory": "Annual Financial Report", "globalGroup": "exchangeNotice",
                                 "globalName": "NordicMainMarkets", "displayLanguage": "en", "limit": 30, "start": 0, "dir": "DESC"})
@@ -81,7 +88,7 @@ def _nasdaq(company, year):
     scored = []
     for it in items:
         names = " ".join(a.get("fileName", "") for a in it.get("attachment", []))
-        if tok not in it.get("company", "").lower() or NOT_AR.search(it.get("headline", "")):
+        if not all(t in it.get("company", "").lower() for t in toks) or NOT_AR.search(it.get("headline", "")):
             continue
         if str(year) not in it.get("headline", "") + names and not it.get("published", "").startswith(str(year + 1)):
             continue  # the report for FY2025 is published in 2026
@@ -162,9 +169,10 @@ def _validate(data, company, year):
     text = "".join(doc[i].get_text() for i in range(min(20, doc.page_count)))
     if len(text) <= 5000:
         return None, "no text layer"
-    tok = next((t for t in slugify(company).split("_") if len(t) >= 3), company.lower())  # "nibe", "abb", "volvo"
-    if not re.search(rf"\b{re.escape(tok)}", unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()):
-        return None, f"issuer mismatch: {tok!r} not in first 20 pages"  # DDG happily returns some other company's report
+    plain = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
+    missing = [t for t in _toks(company) if not re.search(rf"\b{re.escape(t)}", plain)]  # "nibe", "abb", "lundin gold" (not Lundin Mining)
+    if missing:
+        return None, f"issuer mismatch: {missing[0]!r} not in first 20 pages"  # DDG happily returns some other company's report
     if str(year) not in text:
         return None, f"{year} not in first 20 pages"
     head = "".join(doc[i].get_text() for i in range(min(3, doc.page_count)))

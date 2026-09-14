@@ -22,6 +22,7 @@ YEARS = re.compile(r"\b20\d\d\b")
 DATE = re.compile(r"\d{1,2}[/.]\d{1,2}[/.]20\d\d|20\d\d-\d\d-\d\d")
 QUARTER = re.compile(r"\bq[1-4]\b|quarter|kvartal")
 GROUP = re.compile(r"\b(group|koncern|consolidated)")
+ENTITY = re.compile(r"moderbolag|parent")  # exclude_keywords naming the other entity, as opposed to a table type (segment, five-year)
 BOILERPLATE_SHARE = 0.10  # a line on >10% of pages is a running header/footer/nav, not content
 
 
@@ -59,7 +60,7 @@ def candidate_pages(texts: list[str], schema: dict, top_n: int = 8) -> list[int]
         years = YEARS.findall(DATE.sub("", head))  # AQ prints the income statement and comprehensive income side by side, each headed "01/01/2025 31/12/2025 ...": dates, not a multi-year table
         summary = len(set(years)) >= 3 or len(years) >= 5 or QUARTER.search(head)  # "2023 2022 2021" / "Oct-Dec 2025 Jul-Sep 2025 ...": multi-year or quarterly table
         group_at = (GROUP.search(head) or re.compile(r"$").search(head)).start()
-        parent = any(k in head and head.index(k) < group_at for k in excluded)  # Saab SV: parent-company statement outranked the group one;
+        parent = any(k in head and (head.index(k) < group_at or not ENTITY.search(k)) for k in excluded)  # Pandox: "KONCERNEN 2024 Rörelsesegment" is a segment note whatever precedes it. Saab SV: parent-company statement outranked the group one;
         penalty = 0.1 if summary or parent else 1  # Vitrolife prints "Group | Parent Company" columns on one page: group first, so not a parent page
         scored.append(((distinct + 5 * heading + fields) * (1 + 5 * density) * penalty, i + 1))
     scored.sort(key=lambda s: (-s[0], s[1]))
