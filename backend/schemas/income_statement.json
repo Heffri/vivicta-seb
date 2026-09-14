@@ -136,7 +136,8 @@
         "net operating surplus",
         "net operating income",
         "driftöverskott",
-        "driftnetto"
+        "driftnetto",
+        "operating surplus"
       ]
     },
     {
@@ -166,6 +167,7 @@
         "net operating income",
         "driftöverskott",
         "driftnetto",
+        "operating surplus",
         "före värdeförändring",
         "before (changes in )?(fair )?value",
         "förvaltningsresultat",
@@ -191,7 +193,10 @@
         "income from continuing operations before taxes",
         "resultat efter finansnetto",
         "profit after net financial items",
-        "earnings before income tax"
+        "earnings before income tax",
+        "pre-tax profit",
+        "profit after financial income and expense",
+        "result after financial income and expense"
       ],
       "fallback_synonyms": [
         "operating profit",

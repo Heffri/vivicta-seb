@@ -239,13 +239,18 @@ def _row_amounts(quote: str, ncols: int | None = None) -> list:
     return [v for v, n in zip(out, noteish) if not n]
 
 
+_NOTE_REFS = re.compile(r"(?:[A-Z]{1,3}\.?\d{1,2}(?:[-–]\d{1,2})?[,\s]*)+")  # "IE.3", "IE.4-7", "T.1–2", "A.1 IE.8", "B1, B2"
+
+
 def _page_rows(text: str) -> list[str]:
     """The page as table rows: a line with a word starts a row, the number/note lines after it belong to it
     (pymupdf prints "Gross income\\n14,753\\n14,480" as three lines). Lossy for column-major layouts."""
     rows: list[str] = []
     for line in text.splitlines():
-        wrapped = rows and not re.search(r"\d", rows[-1]) and re.match(r"\s*[a-zåäöé]", line)  # "...before items affecting" / "comparability (SEK)1 3 11.55"
-        if re.search(r"[^\W\d_]{2,}", line) and not wrapped:  # "G2, G3" is a note reference, not a label
+        bare = rows and not re.search(r"\d", rows[-1])  # the row so far is a label with no figures yet
+        wrapped = bare and re.match(r"\s*[a-zåäöé]", line)  # "...before items affecting" / "comparability (SEK)1 3 11.55"
+        noteref = bare and _NOTE_REFS.fullmatch(line.strip())  # Atrium Ljungberg: "Net sales" / "IE.3" / "3,446": the note sits on its own line between label and figures
+        if re.search(r"[^\W\d_]{2,}", line) and not wrapped and not noteref:  # "G2, G3" is a note reference, not a label
             rows.append(line.strip())
         elif rows and line.strip():
             rows[-1] += " " + line.strip()
@@ -256,6 +261,7 @@ def _clean_label(label) -> str:
     label = re.sub(r"(?i)\bresult\b", "profit", str(label or ""))  # SSAB / Elekta / Stora Enso: "Operating result", "Result before tax", "Result for the year"
     label = re.sub(r"\s*[/(]\s*\(?loss\)?|/förlust", "", normalize_ws(label), flags=re.I)  # "Profit/loss before tax", "Profit (loss)"; normalize_ws glues digits to the word before
     label = re.sub(r",?\s*\(?\b(?:SEK|EUR|USD|NOK|DKK|ISK|GBP|CHF|kr)\b\)?", "", label, flags=re.I)  # Castellum "Earnings, SEK per share before and after dilution"; "Resultat per aktie (SEK)"
+    label = re.sub(r"(?:\s+[A-Z]{1,3}\.?\d{1,2}(?:[-–]\d{1,2})?,?)+$", "", label)  # "Net sales IE.3", "Net sales B1, B2"
     return re.sub(r"[\s\d,.:;*)(]+$", "", label).lower()  # drop trailing note refs
 
 
@@ -349,14 +355,15 @@ def _column_values(field: dict, fields: list[dict], defaults: dict, texts: list[
     return cols
 
 
-def _derived_value(field: dict, texts: list[str], fiscal_year, check: dict | None = None, others: list[dict] | None = None):
+def _derived_value(field: dict, texts: list[str], fiscal_year, check: dict | None = None, others: list[dict] | None = None, taken: set | None = None):
     """(value, quote, label) when the field's figure is proven by the rows around its quote, column by column:
     (a) the quote is a total row whose fiscal-year figure is unreadable: the 2..6 rows above sum to the row in every other
         column (Röko's text layer prints "Profit before tax 1,01 923"; 1,051 + 49 - 90 = 1,010 while 969 + 66 - 112 = 923);
     (b) the value is printed nowhere: it is the sum of the 2..8 rows ending at the quote (Catena "Current tax -56" +
         "Deferred tax -367" = -423; IPC's four rows under the "Cost of sales" heading), and the check that ties the field
         to its neighbours holds with those sums in every column, not just the fiscal year's.
-    The quote becomes those rows; in (b) the label becomes the heading above them, or the rows' labels joined."""
+    The quote becomes those rows; in (b) the label becomes the heading above them, or the rows' labels joined. No addend may be
+    another field's row (`taken`): a sum over the identity's other operands restates the identity and proves nothing."""
     src = field.get("source") or {}
     text = texts[src["page"] - 1] if src.get("page") else ""
     header, rows = _year_column(text, fiscal_year), _page_rows(text)
@@ -377,7 +384,7 @@ def _derived_value(field: dict, texts: list[str], fiscal_year, check: dict | Non
     for k in range(2, 9):
         for start in range(max(i - k, 0), i + 1):  # the k rows ending at the quote (Catena), starting at it, or just above it (IPC: the model quoted the "Gross profit" subtotal for the four rows under "Cost of sales")
             parts = [_row_amounts(r, ncols) for r in rows[start:start + k]]
-            if len(parts) < k or any(len(a) != ncols for a in parts):
+            if len(parts) < k or any(len(a) != ncols for a in parts) or any(r in (taken or ()) for r in rows[start:start + k]):
                 continue
             sums = [round(sum(a[c] for a in parts), 2) for c in range(ncols)]
             if not all(_check(check, {**others[c], field["key"]: sums[c]})["passed"] for c in range(ncols)):
@@ -547,12 +554,30 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                 if header and len(amounts) == ncols and field["value"] in amounts and amounts[header[0]] != field["value"]:
                     warnings.append(f"{sf['key']}: {field['value']} is not the {fiscal_year} column, {amounts[header[0]]} is")  # Sandvik prints 2024 first
                     field["value"], field["period"] = amounts[header[0]], str(fiscal_year)
-                elif header and len(amounts) == ncols and abs(field["value"]) not in {abs(a) for a in amounts} and _label_known(_row_label(row), sf) \
+                elif header and len(amounts) == ncols and abs(field["value"]) not in {abs(a) for a in amounts} and _label_known(_row_label(row), sf)                         and not _value_in_quote(field["value"], row) \
                         and not any(abs(field["value"] * k - amounts[header[0]]) <= abs(amounts[header[0]]) * 1e-3 + 1 for k in (1e3, 1e6, 1e-3, 1e-6)):
                     # Pandox: "Bruttoresultat 4 222 3 855" returned as 3622. The row is the field's own (known label) and holds one figure per
-                    # year column, so the printed figure wins over the model's misreading; a value off by a factor of 1000 is a unit mix-up, left alone
-                    warnings.append(f"{sf['key']}: {field['value']} is not printed in {_row_label(row)!r}; the row's {fiscal_year} figure is {amounts[header[0]]}")
-                    field["value"], field["period"] = amounts[header[0]], str(fiscal_year)
+                    # year column, so the printed figure wins over the model's misreading; a value off by a factor of 1000 is a unit mix-up, left alone.
+                    # Not when the value is printed in the row (Beijer Alma "Rörelseresultat 9 952 1 091": note 9 and 952, which the column parser reads as 9952).
+                    # Atrium Ljungberg: 3446 quoted as "Net sales, project and construction work 488 528" is the next row, "Net sales IE.3 3,446 3,516",
+                    # whose label is exactly a synonym: that row is the quote
+                    syn = {x.lower() for x in sf.get("synonyms", [])}
+                    exact = next((r for r in rows if r != row and len(_row_amounts(r, ncols)) == ncols and _clean_label(_row_label(r)) in syn
+                                  and _row_amounts(r, ncols)[header[0]] == field["value"]), None)
+                    if exact:
+                        warnings.append(f"{sf['key']}: {field['value']} is not printed in {_row_label(row)!r}; it is the {fiscal_year} figure of {_row_label(exact)!r}")
+                        row = src["quote"] = exact
+                        amounts, field["raw_label"], field["period"] = _row_amounts(exact, ncols), _row_label(exact), str(fiscal_year)
+                    else:
+                        warnings.append(f"{sf['key']}: {field['value']} is not printed in {_row_label(row)!r}; the row's {fiscal_year} figure is {amounts[header[0]]}")
+                        field["value"], field["period"] = amounts[header[0]], str(fiscal_year)
+                if field["value"] == 0 and header and len(amounts) == ncols and 0 not in amounts:
+                    # Wihlborgs without chain-of-thought: 0 for operating_profit, quoting "Operating surplus 3,107 2,996". A real zero is
+                    # printed ("Other income 0 3"); an unprinted one is the model's stand-in for null (a known row took its figure above)
+                    warnings.append(f"{sf['key']}: 0 is not printed in {_row_label(row)!r}; dropped, a zero the model made up stands for null")
+                    field.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
+                    fields.append(field)
+                    continue
                 if field["value"] in amounts and not _label_known(field.get("raw_label"), sf) and _label_known(_row_label(row), sf):
                     warnings.append(f"{sf['key']}: labelled {field.get('raw_label')!r} by the model; the row is printed as {_row_label(row)!r}")  # Castellum: "Income" for "Rental and service income"
                     field["raw_label"] = _row_label(row)
@@ -561,10 +586,17 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                     y = titled.pop()  # Pandox: "Not C1, forts. KONCERNEN 2024" — a segment note for the prior year, no year header, stamped 2025 by the model
                     warnings.append(f"{sf['key']}: page {page} is headed {y}, not {fiscal_year}; period set to {y}")
                     field["period"] = y
-                if header and _clean_label(field.get("raw_label")) != _clean_label(_row_label(row)) and _label_known(field.get("raw_label"), sf):
+                if header and _clean_label(field.get("raw_label")) != _clean_label(_row_label(row)) and _label_known(field.get("raw_label"), sf) \
+                        and _clean_label(_row_label(row)) not in {x.lower() for x in sf.get("synonyms", [])}:  # Atrium: the quoted row *is* "Net sales"; the model's label named the sub-row above it
                     # Lundbergs: the model paired "Rörelseresultat 16 077" with the row below it; the row printed with that label is the quote,
                     # and its figure the value ("Nettoomsättning m m" prints 28 781, not the 30 615 subtotal on the next row)
                     own = next((r for r in rows if _clean_label(_row_label(r)) == _clean_label(field["raw_label"]) and len(_row_amounts(r, ncols)) == ncols), None)
+                    if not own and any(_clean_label(_row_label(row)) in {x.lower() for x in gs.get("synonyms", [])} for gs in schema["fields"] if gs["key"] != sf["key"]):
+                        # Nordea: "Operating profit: Net profit for the year" 4840, quoting the net profit row -- another field's own row; the row
+                        # printed with the label's known part, "Operating profit 6,316 6,548", is the bank's profit before tax
+                        rl = _clean_label(field["raw_label"])
+                        syn = max((x.lower() for x in sf.get("synonyms", []) if rl.startswith(x.lower())), key=len, default=None)
+                        own = next((r for r in rows if _clean_label(_row_label(r)) == syn and len(_row_amounts(r, ncols)) == ncols), None) if syn else None
                     if own and own != row:
                         am = _row_amounts(own, ncols)
                         warnings.append(f"{sf['key']}: quoted {_row_label(row)!r}; the {field['raw_label']!r} row prints {am[header[0]]}"
@@ -684,11 +716,12 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                 c.update(_check(sc, {**defaults, **values}))
         if c["detail"].startswith("missing:") or not sc.get("identity"):  # only an equality proves a sum of rows; margin_sanity would accept anything
             continue
-        for f in fields:  # an operand whose figure is proven by the rows around its quote: Röko "1,01", Catena's two tax rows
+        for f, sf in zip(fields, sfs):  # an operand whose figure is proven by the rows around its quote: Röko "1,01", Catena's two tax rows
             if f["value"] is None or not re.search(rf"\b{re.escape(f['key'])}\b", sc["expr"]) or "quote_on_page" not in f["evidence"] \
                     or "value_derived" in f["evidence"] or (c["passed"] and _value_in_quote(f["value"], f["source"]["quote"])):
                 continue
-            fix = _derived_value(f, texts, fiscal_year, sc, _column_values(f, fields, defaults, texts, fiscal_year))
+            taken = {g["source"]["quote"] for g in fields if g is not f and g["value"] is not None and g.get("source")}  # Nordea: tax row + net profit row offered as net profit
+            fix = _derived_value(f, texts, fiscal_year, sc, _column_values(f, fields, defaults, texts, fiscal_year), taken)
             if fix and _check(sc, {**defaults, **values, f["key"]: fix[0]})["passed"]:
                 if fix[0] != f["value"]:
                     warnings.append(f"{f['key']}: {f['value']} fails {c['name']}; {fix[1]!r} sums to {fix[0]} in every column, which passes")

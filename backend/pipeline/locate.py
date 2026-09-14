@@ -60,7 +60,7 @@ def candidate_pages(texts: list[str], schema: dict, top_n: int = 8) -> list[int]
         density = min(sum(c.isdigit() for c in text) / max(len(text), 1), 0.2)  # tables ~0.15-0.3, prose ~0.01; capped so summaries don't win on digits
         raw_head = " ".join(texts[i].lower().split())[:HEADING_CHARS]  # Medicover: the "5-year financial summary" title and its "2025" "2024" lines are on enough pages to be stripped as boilerplate
         years = [YEARS.findall(SPLIT_YEAR.sub(r"\1", DATE.sub("", h))) for h in (head, raw_head)]  # AQ prints the income statement and comprehensive income side by side, each headed "01/01/2025 31/12/2025 ...": dates, not a multi-year table
-        summary = any(len(set(y)) >= 3 or len(y) >= 5 for y in years) or QUARTER.search(head)  # "2023 2022 2021" / "Oct-Dec 2025 Jul-Sep 2025 ...": multi-year or quarterly table
+        summary = any(len(set(y)) >= 4 or len(y) >= 5 for y in years) or QUARTER.search(head)  # "2023 2022 2021" / "Oct-Dec 2025 Jul-Sep 2025 ...": multi-year or quarterly table
         group_at = (GROUP.search(head) or re.compile(r"$").search(head)).start()
         parent = any(k in head and (head.index(k) < group_at or not ENTITY.search(k)) for k in excluded)  # Pandox: "KONCERNEN 2024 Rörelsesegment" is a segment note whatever precedes it. Saab SV: parent-company statement outranked the group one;
         penalty = 0.1 if summary or parent else 1  # Vitrolife prints "Group | Parent Company" columns on one page: group first, so not a parent page
