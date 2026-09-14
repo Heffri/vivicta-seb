@@ -2,3 +2,11 @@ report_file,section,key,expected_value,expected_page,notes
 nordic_industrials_2025.pdf,income_statement,revenue,152340,64,example row — replace with real labels
 nordic_industrials_2025.pdf,income_statement,operating_profit,31890,64,example row — replace with real labels
 nordic_industrials_2025.pdf,income_statement,net_profit,23445,64,example row — replace with real labels
+atlas_copco_2025.pdf,income_statement,revenue,168343,106,verified against PDF text 2026-09-14
+atlas_copco_2025.pdf,income_statement,cost_of_sales,-96131,106,
+atlas_copco_2025.pdf,income_statement,gross_profit,72212,106,
+atlas_copco_2025.pdf,income_statement,operating_profit,34114,106,
+atlas_copco_2025.pdf,income_statement,profit_before_tax,33671,106,
+atlas_copco_2025.pdf,income_statement,income_tax,-7246,106,"printed as 'Income tax expense'"
+atlas_copco_2025.pdf,income_statement,net_profit,26425,106,
+atlas_copco_2025.pdf,income_statement,eps_basic,5.43,106,SEK per share
