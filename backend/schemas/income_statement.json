@@ -257,7 +257,9 @@
         "continuing operations",
         "kvarvarande verksamhet",
         "discontinued operations",
-        "avvecklad verksamhet"
+        "avvecklad verksamhet",
+        "fully diluted",
+        "\bdiluted\b"
       ],
       "label": "EPS, basic",
       "description": "Basic earnings per share (before dilution / före utspädning; never the diluted row) attributable to owners of the parent, total (including discontinued operations), as printed with its unit (SEK, USD, Euro cent ...).",

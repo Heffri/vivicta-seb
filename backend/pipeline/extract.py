@@ -95,7 +95,7 @@ def system_prompt(schema: dict, exclude_stem: str | None = None) -> str:
 
 def call_llm(system: str, user: str, schema: dict = RESPONSE_SCHEMA, name: str = "extraction") -> dict:
     client = OpenAI(base_url=os.environ["LLM_BASE_URL"], api_key=os.getenv("LLM_API_KEY") or "none",
-                    timeout=float(os.getenv("LLM_TIMEOUT", "300")), max_retries=0)  # a local 8b model that thinks for 5 min is stuck
+                    timeout=float(os.getenv("LLM_TIMEOUT", "180")), max_retries=0)  # a local 8b model that thinks for 3 min is stuck (a good answer takes 30-100 s)
     resp = client.chat.completions.create(
         model=os.environ["LLM_MODEL"],
         temperature=0,
@@ -237,7 +237,7 @@ def _ccy(unit) -> str:
     return c
 
 
-_UNIT = re.compile(r"\b(?:[MKT](?:SEK|EUR|USD|NOK|DKK|GBP)|[MT]kr|(?:SEK|EUR|USD|NOK|DKK|GBP|CHF)\s?(?:m|mn|M|million|millions|thousand|thousands|k|bn|billion))\b")
+_UNIT = re.compile(r"\b(?:[MKT](?:SEK|EUR|USD|NOK|DKK|GBP)|[MT]kr|(?:SEK|EUR|USD|NOK|DKK|GBP|CHF)\s?(?:m|mn|million|millions|thousand|thousands|k|bn|billion))\b", re.I)  # "SEK m", "USD Thousands"
 
 
 def _page_unit(text: str):
@@ -374,21 +374,22 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
     fiscal_year = report_meta.get("fiscal_year")
     system, warnings, raw = system_prompt(schema, report_meta.get("stem")), [], []
     nonnull = lambda fs: sum(isinstance(f, dict) and f.get("value") is not None for f in fs)
-    for attempt in dict.fromkeys((tuple(pages[:2]), tuple(pages[:4]))):
-        # the statement spread first: a quick call (four pages timed out on NOBA / Nordnet); more pages only if most fields came back empty
+    windows = [tuple(pages[:2])]  # the statement spread first: a quick call (four pages timed out on NOBA / Nordnet)
+    while windows:
+        attempt = windows.pop()
         user = (f"Fiscal year to extract: {fiscal_year}\n\n" if fiscal_year else "") + \
             "\n\n".join(f"=== PAGE {n} ===\n{texts[n - 1]}" for n in attempt)
         try:
             got = call_llm(system, user).get("fields", [])
         except Exception as e:  # ponytail: teammates feed the error back to the model
             warnings.append(f"llm: {type(e).__name__}: {e} (pages {list(attempt)})")
-            if "timeout" in type(e).__name__.lower():
-                break  # SEB: two pages timed out, four will too; the page rows below still fill the fields
+            if "timeout" in type(e).__name__.lower() and len(attempt) > 1 and pages:
+                windows = [tuple(pages[:1])]  # IPC: pages 10-11 never answer, page 10 alone does in a minute; a hung single page ends it
             continue
         if nonnull(got) > nonnull(raw):
             raw = got
-        if 2 * nonnull(raw) >= len(schema["fields"]):
-            break
+        if 2 * nonnull(raw) < len(schema["fields"]) and len(attempt) == 2 and len(pages) > 2:
+            windows = [tuple(pages[:4])]  # most fields came back empty: widen once
     by_key = {f.get("key"): f for f in raw if isinstance(f, dict)}
 
     fields, filled, sfs = [], set(), []
