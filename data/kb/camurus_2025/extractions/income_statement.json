@@ -1,24 +1,25 @@
 {
-  "report_id": "lib-sagax_2025",
-  "company": "Sagax",
+  "report_id": "lib-camurus_2025",
+  "company": "Camurus",
   "fiscal_year": 2025,
-  "currency": "SEK M",
+  "currency": "KSEK",
   "section": "income_statement",
   "fields": [
     {
       "key": "revenue",
       "label": "Revenue",
-      "value": 5378,
-      "unit": "SEK M",
+      "value": 2265378,
+      "unit": "KSEK",
       "period": "2025",
-      "raw_label": "Rental revenue",
+      "raw_label": "Totala intäkter",
       "source": {
-        "page": 74,
-        "quote": "Rental revenue 2, 3 5,378 4,994"
+        "page": 60,
+        "quote": "Totala intäkter 5 2 265 378 1 867 581"
       },
       "confidence": 1.0,
       "evidence": [
         "quote_on_page",
+        "identity_all_columns",
         "value_in_quote",
         "arith_ok",
         "label_known",
@@ -30,35 +31,13 @@
     {
       "key": "cost_of_sales",
       "label": "Cost of sales",
-      "value": -936,
-      "unit": "SEK M",
+      "value": -156136,
+      "unit": "KSEK",
       "period": "2025",
-      "raw_label": "Other revenue + Operating expenses + Maintenance costs + Property tax + Other property expenses",
+      "raw_label": "Kostnader för sålda varor",
       "source": {
-        "page": 74,
-        "quote": "Other revenue 3 24 69 Operating expenses 3, 4 –380 –357 Maintenance costs 3, 4 –141 –126 Property tax 3, 4 –311 –272 Other property expenses 3, 4 –128 –117"
-      },
-      "confidence": 1.0,
-      "evidence": [
-        "quote_on_page",
-        "value_derived",
-        "arith_ok",
-        "label_known",
-        "period_ok",
-        "page_is_statement",
-        "unit_ok"
-      ]
-    },
-    {
-      "key": "gross_profit",
-      "label": "Gross profit",
-      "value": 4442,
-      "unit": "SEK M",
-      "period": "2025",
-      "raw_label": "Net operating income",
-      "source": {
-        "page": 74,
-        "quote": "Net operating income 4,442 4,191"
+        "page": 60,
+        "quote": "Kostnader för sålda varor 6 -156 136 -129 507"
       },
       "confidence": 1.0,
       "evidence": [
@@ -72,26 +51,60 @@
       ]
     },
     {
+      "key": "gross_profit",
+      "label": "Gross profit",
+      "value": 2109242,
+      "unit": "KSEK",
+      "period": "2025",
+      "raw_label": "Bruttovinst",
+      "source": {
+        "page": 60,
+        "quote": "Bruttovinst 2 109 242 1 738 074"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "identity_all_columns",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
       "key": "operating_profit",
       "label": "Operating profit",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "value": 873928,
+      "unit": "KSEK",
+      "period": "2025",
+      "raw_label": "Rörelseresultat",
+      "source": {
+        "page": 60,
+        "quote": "Rörelseresultat 873 928 469 165"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "profit_before_tax",
       "label": "Profit before tax",
-      "value": 4485,
-      "unit": "SEK M",
+      "value": 933092,
+      "unit": "KSEK",
       "period": "2025",
-      "raw_label": "Profit before tax",
+      "raw_label": "Resultat före skatt",
       "source": {
-        "page": 74,
-        "quote": "Profit before tax 4,485 5,732"
+        "page": 60,
+        "quote": "Resultat före skatt 933 092 552 522"
       },
       "confidence": 1.0,
       "evidence": [
@@ -107,18 +120,18 @@
     {
       "key": "income_tax",
       "label": "Income tax",
-      "value": -405,
-      "unit": "SEK M",
+      "value": -197524,
+      "unit": "KSEK",
       "period": "2025",
-      "raw_label": "Deferred tax + Current tax",
+      "raw_label": "Inkomstskatt",
       "source": {
-        "page": 74,
-        "quote": "Deferred tax 12, 14 –98 –264 Current tax 12 –307 –194"
+        "page": 60,
+        "quote": "Inkomstskatt 12 -197 524 -124 128"
       },
       "confidence": 1.0,
       "evidence": [
         "quote_on_page",
-        "value_derived",
+        "value_in_quote",
         "arith_ok",
         "label_known",
         "period_ok",
@@ -140,13 +153,13 @@
     {
       "key": "net_profit",
       "label": "Profit for the year",
-      "value": 4081,
-      "unit": "SEK M",
+      "value": 735568,
+      "unit": "KSEK",
       "period": "2025",
-      "raw_label": "Profit for the year",
+      "raw_label": "Årets resultat1)",
       "source": {
-        "page": 74,
-        "quote": "Profit for the year 4,081 5,274"
+        "page": 60,
+        "quote": "Årets resultat1) 735 568 428 394"
       },
       "confidence": 1.0,
       "evidence": [
@@ -162,13 +175,13 @@
     {
       "key": "eps_basic",
       "label": "EPS, basic",
-      "value": 11.22,
-      "unit": "SEK",
+      "value": 12.42,
+      "unit": "kr",
       "period": "2025",
-      "raw_label": "Earnings per Class A and B share, SEK",
+      "raw_label": "Resultat per aktie före utspädning",
       "source": {
-        "page": 74,
-        "quote": "Earnings per Class A and B share, SEK 28 11.22 14.78"
+        "page": 60,
+        "quote": "Resultat per aktie före utspädning 13 12,42 7,39"
       },
       "confidence": 1.0,
       "evidence": [
@@ -186,23 +199,21 @@
     {
       "name": "gross_profit_arith",
       "passed": true,
-      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((5378 + -936) - 4442) <= 2"
+      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((2265378 + -156136) - 2109242) <= 2"
     },
     {
       "name": "net_profit_arith",
       "passed": true,
-      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((4485 + -405 + 0) - 4081) <= 2"
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((933092 + -197524 + 0) - 735568) <= 2"
     },
     {
       "name": "margin_sanity",
-      "passed": false,
-      "detail": "missing: operating_profit"
+      "passed": true,
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 873928 / 2265378 < 10"
     }
   ],
   "warnings": [
-    "gross_profit: model returned null, filled from page 74 row 'Net operating income 4,442 4,191'",
-    "operating_profit: 'Net operating income' 4442 dropped: an excluded label, and the statement has no operating profit row",
-    "cost_of_sales: model returned null; 'Other revenue 3 24 69 Operating expenses 3, 4 –380 –357 Maintenance costs 3, 4 –141 –126 Property tax 3, 4 –311 –272 Other property expenses 3, 4 –128 –117' sits between the other rows of gross_profit_arith and closes it in every column",
-    "income_tax: -307 fails net_profit_arith; 'Deferred tax 12, 14 –98 –264 Current tax 12 –307 –194' sums to -405 in every column, which passes"
+    "revenue: 'Totala intäkter' is not a known revenue label, but gross_profit_arith holds with that row in every column",
+    "gross_profit: 'Bruttovinst' is not a known gross profit label, but gross_profit_arith holds with that row in every column"
   ]
 }

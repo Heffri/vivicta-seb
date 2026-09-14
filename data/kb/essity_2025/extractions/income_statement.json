@@ -13,14 +13,13 @@
       "period": "2025",
       "raw_label": "Net sales",
       "source": {
-        "page": 37,
-        "quote": "Net sales decreased 4.8% compared with the corresponding SEKm 2025 2024 147,147 145,546 138,494 131,320 period a year ago and amounted to SEK 138,494m (145,546)."
+        "page": 112,
+        "quote": "Net sales B1, B2 138,494 145,546 147,147"
       },
-      "confidence": 1.0,
+      "confidence": 0.5,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
-        "arith_ok",
         "label_known",
         "period_ok",
         "page_is_statement",
@@ -30,29 +29,39 @@
     {
       "key": "cost_of_sales",
       "label": "Cost of sales",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
-    },
-    {
-      "key": "gross_profit",
-      "label": "Gross profit",
-      "value": 7174,
+      "value": -92351,
       "unit": "SEKm",
       "period": "2025",
-      "raw_label": "Gross margin",
+      "raw_label": "Cost of goods sold",
       "source": {
-        "page": 37,
-        "quote": "(32.4). The gross margin excl. IAC amounted to 33.3% (32.7). statements 12,047"
+        "page": 112,
+        "quote": "Cost of goods sold B3 –92,351 –97,929 –102,627"
       },
       "confidence": 0.5,
       "evidence": [
         "quote_on_page",
-        "arith_ok",
+        "value_in_quote",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "gross_profit",
+      "label": "Gross profit",
+      "value": 46122,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "Gross profit",
+      "source": {
+        "page": 112,
+        "quote": "Gross profit 46,122 47,134 43,171"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
         "label_known",
         "period_ok",
         "page_is_statement",
@@ -67,8 +76,8 @@
       "period": "2025",
       "raw_label": "Operating profit",
       "source": {
-        "page": 37,
-        "quote": "However, volumes were lower in Professional Hygiene, mainly Operating profit 18,531 18,295 5.8 Net sales, SEKm 0.2 0.9"
+        "page": 112,
+        "quote": "Operating profit 18,531 18,295 15,148"
       },
       "confidence": 1.0,
       "evidence": [
@@ -84,18 +93,19 @@
     {
       "key": "profit_before_tax",
       "label": "Profit before tax",
-      "value": 18600,
+      "value": 17161,
       "unit": "SEKm",
       "period": "2025",
-      "raw_label": "Operating profit excl. IAC",
+      "raw_label": "Profit before tax",
       "source": {
-        "page": 37,
-        "quote": "Operating profit excl. IAC 18,600 19,234"
+        "page": 112,
+        "quote": "Profit before tax 17,161 16,364 12,792"
       },
-      "confidence": 0.5,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
+        "arith_ok",
         "label_known",
         "period_ok",
         "page_is_statement",
@@ -110,12 +120,14 @@
       "period": "2025",
       "raw_label": "Income taxes",
       "source": {
-        "page": 37,
-        "quote": "SEK 4,454m (4,525), corresponding to a tax rate of 25.8% (26.2)."
+        "page": 112,
+        "quote": "Income taxes B5 –4,443 –4,331 –3,275"
       },
-      "confidence": 0.5,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
         "label_known",
         "period_ok",
         "page_is_statement",
@@ -139,15 +151,16 @@
       "value": 12718,
       "unit": "SEKm",
       "period": "2025",
-      "raw_label": "Profit for the period1)",
+      "raw_label": "Profit for the period, continuing operations",
       "source": {
-        "page": 37,
-        "quote": "Profit for the period1) 12,718 12,033 20,344 19,572"
+        "page": 112,
+        "quote": "Profit for the period, continuing operations 12,718 12,033 9,517"
       },
-      "confidence": 0.5,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
+        "arith_ok",
         "label_known",
         "period_ok",
         "page_is_statement",
@@ -160,10 +173,10 @@
       "value": 18.37,
       "unit": "SEK",
       "period": "2025",
-      "raw_label": "Earnings per share, SEK1)",
+      "raw_label": "Earnings per share before and after dilution effects, total operations, SEK",
       "source": {
-        "page": 37,
-        "quote": "Earnings per share, SEK1) 18.37 17.09"
+        "page": 112,
+        "quote": "Earnings per share before and after dilution effects, total operations, SEK 18.37 29.83 13.60"
       },
       "confidence": 1.0,
       "evidence": [
@@ -181,12 +194,12 @@
     {
       "name": "gross_profit_arith",
       "passed": false,
-      "detail": "missing: cost_of_sales"
+      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((138494 + -92351) - 46122) <= 2"
     },
     {
       "name": "net_profit_arith",
-      "passed": false,
-      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((18600 + -4443 + 0) - 12718) <= 2"
+      "passed": true,
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((17161 + -4443 + 0) - 12718) <= 2"
     },
     {
       "name": "margin_sanity",
@@ -195,9 +208,6 @@
     }
   ],
   "warnings": [
-    "profit_before_tax: quote not found on page 37",
-    "net_profit: quote replaced by page 37 row 'Profit for the period1) 12,718 12,033 20,344 19,572'",
-    "profit_before_tax: 17161 is not printed on the statement; filled from page 37 row 'Operating profit excl. IAC 18,600 19,234'",
-    "cost_of_sales: 'Net sales' -131320 dropped: the same row as revenue, and not a cost of sales label"
+    "eps_basic: 'Earnings per share before and after dilution effects, continuing operations, SEK' 18.37 is a variant row; 'Earnings per share before and after dilution effects, total operations, SEK' 18.37 is the statement row"
   ]
 }

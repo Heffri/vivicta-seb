@@ -273,6 +273,7 @@ def _clean_label(label) -> str:
     label = re.sub(r"\s*[/(]\s*\(?loss\)?|/förlust", "", normalize_ws(label), flags=re.I)  # "Profit/loss before tax", "Profit (loss)"; normalize_ws glues digits to the word before
     label = re.sub(r",?\s*\(?\b(?:SEK|EUR|USD|NOK|DKK|ISK|GBP|CHF|kr)\b\)?", "", label, flags=re.I)  # Castellum "Earnings, SEK per share before and after dilution"; "Resultat per aktie (SEK)"
     label = re.sub(r"(?:\s+[A-Z]{1,3}\.?\d{1,2}(?:[-–]\d{1,2})?,?)+$", "", label)  # "Net sales IE.3", "Net sales B1, B2"
+    label = re.sub(r"(?:\s*\[\d{1,2}\])+", "", label)  # TRATON "Income taxes [6]"
     return re.sub(r"[\s\d,.:;*)(]+$", "", label).lower()  # drop trailing note refs
 
 
@@ -374,7 +375,8 @@ def _column_values(field: dict, fields: list[dict], defaults: dict, texts: list[
     return cols
 
 
-def _derived_value(field: dict, texts: list[str], fiscal_year, check: dict | None = None, others: list[dict] | None = None, taken: set | None = None):
+def _derived_value(field: dict, texts: list[str], fiscal_year, check: dict | None = None, others: list[dict] | None = None, taken: set | None = None,
+                   own_syns: set | None = None):
     """(value, quote, label) when the field's figure is proven by the rows around its quote, column by column:
     (a) the quote is a total row whose fiscal-year figure is unreadable: the 2..6 rows above sum to the row in every other
         column (Röko's text layer prints "Profit before tax 1,01 923"; 1,051 + 49 - 90 = 1,010 while 969 + 66 - 112 = 923);
@@ -382,7 +384,9 @@ def _derived_value(field: dict, texts: list[str], fiscal_year, check: dict | Non
         "Deferred tax -367" = -423; IPC's four rows under the "Cost of sales" heading), and the check that ties the field
         to its neighbours holds with those sums in every column, not just the fiscal year's.
     The quote becomes those rows; in (b) the label becomes the heading above them, or the rows' labels joined. No addend may be
-    another field's row (`taken`): a sum over the identity's other operands restates the identity and proves nothing."""
+    another field's row (`taken`): a sum over the identity's other operands restates the identity and proves nothing. When the quote
+    is the field's own row (`own_syns`, its synonyms), (b) may only add rows named as part of it: Essity's "Cost of goods sold" +
+    "Items affecting comparability (IAC) – cost of goods sold" closes gross profit; Sagax's "Deferred tax" never joins "Profit before tax"."""
     src = field.get("source") or {}
     text = texts[src["page"] - 1] if src.get("page") else ""
     header, rows = _year_column(text, fiscal_year), _page_rows(text)
@@ -405,6 +409,8 @@ def _derived_value(field: dict, texts: list[str], fiscal_year, check: dict | Non
             parts = [_row_amounts(r, ncols) for r in rows[start:start + k]]
             if len(parts) < k or any(len(a) != ncols for a in parts) or any(r in (taken or ()) for r in rows[start:start + k]):
                 continue
+            if own_syns and any(r != src["quote"] and not any(x in _clean_label(_row_label(r)) for x in own_syns) for r in rows[start:start + k]):
+                continue
             sums = [round(sum(a[c] for a in parts), 2) for c in range(ncols)]
             if not all(_check(check, {**others[c], field["key"]: sums[c]})["passed"] for c in range(ncols)):
                 continue
@@ -418,8 +424,9 @@ def _derived_value(field: dict, texts: list[str], fiscal_year, check: dict | Non
 def _between_rows(sf: dict, fields: list[dict], sfs: list[dict], defaults: dict, texts: list[str], fiscal_year, check: dict, page: int):
     """A missing operand of an identity when the model answered nothing: the full rows printed strictly between the other
     operands' rows, when their sums close the identity in every column (Addnode: "Profit after financial items 514 536",
-    "Current tax -157 -154", "Deferred tax 27 20", "Profit for the year 384 402"; no total tax row exists). None of the rows may
-    carry another field's label. (value, quote, label, number of rows) or None."""
+    "Current tax -157 -154", "Deferred tax 27 20", "Profit for the year 384 402"; no total tax row exists), or the one row among them
+    printed with the field's label when it alone closes the identity (ABB's discontinued operations under the continuing-ops subtotal).
+    None of the rows may carry another field's label. (value, quote, label, number of rows) or None."""
     text = texts[page - 1]
     header, rows = _year_column(text, fiscal_year), _page_rows(text)
     if not header or header[1] < 2:
@@ -429,13 +436,20 @@ def _between_rows(sf: dict, fields: list[dict], sfs: list[dict], defaults: dict,
            and g["source"]["quote"] in rows and re.search(rf"\b{re.escape(g['key'])}\b", check["expr"])]
     if len(idx) < 2:
         return None
-    between = [r for r in rows[min(idx) + 1:max(idx)] if len(_row_amounts(r, ncols)) == ncols]
+    between = [r for i, r in enumerate(rows) if min(idx) < i < max(idx) and i not in idx and len(_row_amounts(r, ncols)) == ncols]  # ABB: the tax row sits between too
     if not between or any(_label_known(_row_label(r), gs) for r in between for gs in sfs if gs is not sf):
         return None
     parts = [_row_amounts(r, ncols) for r in between]
     sums = [round(sum(a[c] for a in parts), 2) for c in range(ncols)]
     others, quote = _column_values({"source": {"page": page}}, fields, defaults, texts, fiscal_year), " ".join(between)
-    if others and all(_check(check, {**others[c], sf["key"]: sums[c]})["passed"] for c in range(ncols)) and quote_on_page(quote, text):
+    if not others:
+        return None
+    known = [r for r in between if _label_known(_row_label(r), sf)]  # ABB: "Income from discontinued operations, net of tax 174 226" sits between the
+    if len(known) == 1 and quote_on_page(known[0], text):  # tax and net income rows under the "continuing operations, net of tax" subtotal; the one row with the field's label is it
+        am = _row_amounts(known[0], ncols)
+        if all(_check(check, {**others[c], sf["key"]: am[c]})["passed"] for c in range(ncols)):
+            return am[col], known[0], _row_label(known[0]), 1
+    if all(_check(check, {**others[c], sf["key"]: sums[c]})["passed"] for c in range(ncols)) and quote_on_page(quote, text):
         return sums[col], quote, " + ".join(_row_label(r) for r in between), len(between)
     return None
 
@@ -643,7 +657,13 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                 if not _label_known(field.get("raw_label"), sf) and i >= 0:
                     # ABB: "Basic earnings per share" is a heading, the figure sits on the sub-row "Net income 2.59 2.13"
                     heading = next((h for h in rows[max(i - 4, 0):i][::-1] if _label_known(_row_label(h), sf)), None)
-                    if heading:
+                    if heading and header and len(am := _row_amounts(heading, ncols)) == ncols:
+                        # SEB: "Operating profit 38,898" two rows above the quoted "NET PROFIT 31,063" is no heading but the bank's profit
+                        # before tax row itself; a row printed with the field's label and every column is the field, whatever sits under it
+                        warnings.append(f"{sf['key']}: quoted {label!r} {field['value']}; the {_row_label(heading)!r} row above it prints {am[header[0]]}")
+                        row = src["quote"] = heading
+                        amounts, field["value"], field["raw_label"], field["period"] = am, am[header[0]], _row_label(heading), str(fiscal_year)
+                    elif heading:
                         field["raw_label"] = f"{_row_label(heading)}: {label}"
                 # Securitas: "Sales 155 054" is summed with "Sales, acquired business" into "Total sales 155 113"
                 total = next((r for r in rows if re.match(rf"(?i)total\s+{re.escape(label)}\b", _row_label(r)) and _label_known(_row_label(r), sf)), None)
@@ -725,8 +745,10 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                 c.update(_check(sc, {**defaults, **values}))
                 break
     for c, sc in zip(checks, schema.get("checks", [])):
-        if sc.get("identity") and c["detail"].startswith("missing: ") and pages and fiscal_year:
-            key = c["detail"].split(": ", 1)[1]  # Addnode after two LLM timeouts: no tax answer, and the statement prints no total tax row
+        missing = c["detail"].split(": ", 1)[1] if c["detail"].startswith("missing: ") else next(  # ABB: discontinued operations answered null, defaulted
+            (k for k in defaults if not c["passed"] and values.get(k) is None and re.search(rf"\b{re.escape(k)}\b", sc["expr"])), None)  # to 0, and the identity fails by its row
+        if sc.get("identity") and missing and pages and fiscal_year:
+            key = missing  # Addnode after two LLM timeouts: no tax answer, and the statement prints no total tax row
             sf, f = next(((s, g) for s, g in zip(sfs, fields) if g["key"] == key), (None, None))
             fix = f and f["value"] is None and _between_rows(sf, fields, sfs, defaults, texts, fiscal_year, sc, pages[0])
             if fix:
@@ -743,10 +765,12 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                     or "value_derived" in f["evidence"] or (c["passed"] and _value_in_quote(f["value"], f["source"]["quote"])):
                 continue
             taken = {g["source"]["quote"] for g in fields if g is not f and g["value"] is not None and g.get("source")}  # Nordea: tax row + net profit row offered as net profit
-            own_row = _value_in_quote(f["value"], f["source"]["quote"]) and _clean_label(_row_label(f["source"]["quote"])) in {x.lower() for x in sf.get("synonyms", [])}                 and _clean_label(f.get("raw_label")) == _clean_label(_row_label(f["source"]["quote"]))  # IPC: "Cost of sales" heading over a "Production costs" row is not the row
-            # Sagax: "Profit before tax 4,485" is the row; it may be corrected by the rows above it summing differently (Röko), never extended
-            # by a neighbour ("Profit before tax + Deferred tax") -- the failing identity is the tax row's problem (current tax only)
-            fix = _derived_value(f, texts, fiscal_year, None if own_row else sc, _column_values(f, fields, defaults, texts, fiscal_year), taken)
+            own_row = _value_in_quote(f["value"], f["source"]["quote"]) and _clean_label(_row_label(f["source"]["quote"])) in {x.lower() for x in sf.get("synonyms", [])} \
+                    and _clean_label(f.get("raw_label")) == _clean_label(_row_label(f["source"]["quote"]))  # IPC: "Cost of sales" heading over a "Production costs" row is not the row
+            # Sagax: "Profit before tax 4,485" is the row; it may be corrected by the rows above it summing differently (Röko), or joined by a
+            # row named as part of it (Essity), never by any other neighbour ("Profit before tax + Deferred tax") -- the tax row's problem
+            fix = _derived_value(f, texts, fiscal_year, sc, _column_values(f, fields, defaults, texts, fiscal_year), taken,
+                                 {x.lower() for x in sf.get("synonyms", [])} if own_row else None)
             if fix and _check(sc, {**defaults, **values, f["key"]: fix[0]})["passed"]:
                 if fix[0] != f["value"]:
                     warnings.append(f"{f['key']}: {f['value']} fails {c['name']}; {fix[1]!r} sums to {fix[0]} in every column, which passes")

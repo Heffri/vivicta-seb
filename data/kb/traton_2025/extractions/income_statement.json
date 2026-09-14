@@ -124,12 +124,11 @@
       "raw_label": "Income taxes",
       "source": {
         "page": 139,
-        "quote": "Income taxes [6] –479 –766"
+        "quote": "deferred 249 212"
       },
-      "confidence": 1.0,
+      "confidence": 0.5,
       "evidence": [
         "quote_on_page",
-        "value_in_quote",
         "arith_ok",
         "label_known",
         "period_ok",
@@ -157,15 +156,12 @@
       "raw_label": "Earnings after tax",
       "source": {
         "page": 139,
-        "quote": "Earnings after tax 1,545 2,803"
+        "quote": "noncontrolling interests –2 –1"
       },
-      "confidence": 1.0,
+      "confidence": 0.5,
       "evidence": [
         "quote_on_page",
-        "identity_all_columns",
-        "value_in_quote",
         "arith_ok",
-        "label_known",
         "period_ok",
         "page_is_statement",
         "unit_ok"
@@ -201,7 +197,6 @@
     }
   ],
   "warnings": [
-    "eps_basic: 'Earnings per share in € (diluted/basic) [7]' 3.09 dropped: an excluded label, and the statement has no eps, basic row",
-    "net_profit: 'Earnings after tax' is not a known profit for the year label, but net_profit_arith holds with that row in every column"
+    "eps_basic: 'Earnings per share in € (diluted/basic) [7]' 3.09 dropped: an excluded label, and the statement has no eps, basic row"
   ]
 }

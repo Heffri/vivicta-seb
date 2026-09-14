@@ -932,5 +932,35 @@
     "tags": ["fetched"],
     "note": null,
     "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "hexpol_2025.pdf",
+    "company": "HEXPOL",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/26493502-9e8e-420e-b12c-ca90d09e08c7/hexpol-annual-report-2025-pdf.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "camurus_2025.pdf",
+    "company": "Camurus",
+    "fiscal_year": 2025,
+    "language": "sv",
+    "source_url": "https://mb.cision.com/Main/13456/4341347/4064787.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "sv_handelsbanken_2025.pdf",
+    "company": "Sv. Handelsbanken",
+    "fiscal_year": 2025,
+    "language": "sv",
+    "source_url": "https://attachment.news.eu.nasdaq.com/a812bbf08ac937becb9da59445ecbe693",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
   }
 ]

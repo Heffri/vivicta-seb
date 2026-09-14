@@ -263,6 +263,9 @@
         "loss from discontinued operations",
         "discontinued operations",
         "resultat från avvecklad verksamhet",
+        "årets resultat från avvecklad verksamhet",
+        "årets resultat hänförligt till avvecklad verksamhet",
+        "periodens resultat från avvecklad verksamhet",
         "avvecklad verksamhet",
         "net profit, discontinued operations",
         "profit, discontinued operations",
@@ -294,6 +297,7 @@
         "årets resultat",
         "periodens resultat",
         "net profit for the year",
+        "earnings after tax",
         "income for the period",
         "income for the year"
       ]
@@ -317,7 +321,7 @@
         "discontinued operations",
         "avvecklad verksamhet",
         "fully diluted",
-        "(?<!basic and )(?<!basic or )\\bdiluted\\b"
+        "(?<!basic and )(?<!basic or )\\bdiluted\\b(?!/basic)"
       ],
       "label": "EPS, basic",
       "description": "Basic earnings per share (before dilution / före utspädning; never the diluted row) attributable to owners of the parent, total (including discontinued operations), as printed with its unit (SEK, USD, Euro cent ...).",

@@ -5,5 +5,6 @@
   "source_url": "https://storage.mfn.se/f972ee6b-0a78-4b50-9a9c-e9c3490f0153/press-release-as-pdf.pdf",
   "pages": 204,
   "sha256": "04cb2a9ca6bea393a7c0039adcc8a03ac0f3793369bf429884617671a1d8b7cf",
-  "filename": "electrolux_professional_2025.pdf"
+  "filename": "electrolux_professional_2025.pdf",
+  "parser": 2
 }
