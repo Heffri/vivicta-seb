@@ -4,3 +4,4 @@ python-multipart
 pymupdf
 openai
 python-dotenv
+python-pptx

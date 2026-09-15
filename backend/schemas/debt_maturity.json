@@ -1,0 +1,83 @@
+{
+  "name": "debt_maturity",
+  "title": "Debt maturity structure",
+  "description": "Total interest-bearing debt and when it falls due, as printed in the borrowings note (often 'Note 20' but the number varies by issuer). Amounts only — no interest rates, no covenants.",
+  "keywords": [
+    "borrowings",
+    "loans and borrowings",
+    "interest-bearing liabilities",
+    "interest bearing liabilities",
+    "maturity structure",
+    "maturity analysis",
+    "maturity profile",
+    "maturity of borrowings",
+    "contractual maturity",
+    "upplåning",
+    "räntebärande skulder",
+    "förfallostruktur",
+    "återstående löptid",
+    "förfallotidpunkt",
+    "long-term borrowings",
+    "short-term borrowings",
+    "liquidity risk"
+  ],
+  "exclude_keywords": [
+    "five-year summary",
+    "femårsöversikt",
+    "moderbolaget",
+    "parent company",
+    "quarterly",
+    "kvartal"
+  ],
+  "value_convention": "Numbers exactly as printed in the maturity table. Unit = the unit stated in the table header (MSEK, SEK m, MEUR, USD m ...). Bucket boundaries follow the report's own columns; a report with finer splits (e.g. 1-2y, 2-5y) should have its 1-5y bucket taken as the sum of those columns.",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "description": "Total interest-bearing debt / borrowings, the row the maturity table sums to (or the note's own total if the maturity table has no total row).",
+      "unit_hint": "currency_millions",
+      "synonyms": [
+        "total borrowings", "total loans", "total interest-bearing liabilities", "total debt",
+        "räntebärande skulder totalt", "summa upplåning", "total upplåning", "summa räntebärande skulder"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "description": "Amount falling due within one year of the balance sheet date (current portion of borrowings).",
+      "unit_hint": "currency_millions",
+      "synonyms": [
+        "within 1 year", "less than 1 year", "0-1 year", "0-1 years", "within one year",
+        "inom 1 år", "förfaller inom 1 år", "< 1 år"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "description": "Amount falling due between one and five years from the balance sheet date. If the report splits this further (e.g. 1-2y, 2-5y), sum those columns.",
+      "unit_hint": "currency_millions",
+      "synonyms": [
+        "1-5 years", "1 to 5 years", "between 1 and 5 years", "1-2 years", "2-5 years",
+        "1-5 år", "1–5 år", "mellan 1 och 5 år"
+      ]
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "description": "Amount falling due more than five years from the balance sheet date.",
+      "unit_hint": "currency_millions",
+      "synonyms": [
+        "after 5 years", "more than 5 years", "later than 5 years", "over 5 years",
+        "senare än 5 år", "efter 5 år", "> 5 år"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "expr": "abs((due_within_1_year + due_1_to_5_years + due_after_5_years) - total_debt) <= 2",
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding)",
+      "identity": true
+    }
+  ]
+}

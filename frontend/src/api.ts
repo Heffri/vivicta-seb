@@ -60,6 +60,7 @@ export const ask = (question: string, reportIds: string[]) =>
 
 export const pageUrl = (reportId: string, page: number) => `/api/reports/${reportId}/pages/${page}.png`
 export const csvUrl = (reportId: string) => `/api/reports/${reportId}/extraction.csv`
+export const pptxUrl = (reportId: string) => `/api/reports/${reportId}/extraction.pptx`
 export const pdfUrl = (reportId: string, page?: number) =>
   `/api/reports/${reportId}/pdf${page ? `#page=${page}` : ''}`
 

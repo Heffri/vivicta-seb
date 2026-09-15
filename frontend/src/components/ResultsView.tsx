@@ -1,6 +1,6 @@
 import { ArrowLeft, Check, Download, ExternalLink, ImageOff, TriangleAlert, X } from 'lucide-react'
 import { useState } from 'react'
-import { csvUrl, pageUrl, pdfUrl } from '@/api'
+import { csvUrl, pageUrl, pdfUrl, pptxUrl } from '@/api'
 import { AskPanel } from '@/components/AskPanel'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -128,6 +128,9 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack, initial
           </Button>
           <a href={csvUrl(report_id)} download className={buttonVariants({ variant: 'outline' })}>
             <Download /> Export CSV
+          </a>
+          <a href={pptxUrl(report_id)} download className={buttonVariants({ variant: 'outline' })}>
+            <Download /> Export PPTX
           </a>
           <Button onClick={onReset}>New report</Button>
         </div>

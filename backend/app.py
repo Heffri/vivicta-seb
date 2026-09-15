@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 
-from pipeline import extract as extract_mod, fetch, kb, locate, parse
+from pipeline import extract as extract_mod, fetch, kb, locate, parse, ppt
 
 load_dotenv()
 HERE = Path(__file__).parent
@@ -287,3 +287,14 @@ def extraction_csv(report_id: str):
                     f["unit"], f["period"], f["raw_label"], src.get("page"), src.get("quote"), f["confidence"]])
     return Response(buf.getvalue(), media_type="text/csv; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="{report_id}_{x["section"]}.csv"'})
+
+
+@app.get("/api/reports/{report_id}/extraction.pptx")
+def extraction_pptx(report_id: str):
+    get_report(report_id)
+    x = extractions.get(report_id)
+    if not x:
+        raise HTTPException(404, "no extraction yet; POST /extract first")
+    data = ppt.build_pptx(x)
+    return Response(data, media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                    headers={"Content-Disposition": f'attachment; filename="{report_id}_{x["section"]}.pptx"'})
