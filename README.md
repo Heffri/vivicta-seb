@@ -12,7 +12,7 @@ That is what makes this a bank tool and not a chatbot. Don't drop it.
 ## Layout
 
 ```
-backend/    FastAPI + PyMuPDF + OpenAI-compatible LLM client (Ollama locally)   ← Sinji, Borg
+backend/    FastAPI + PyMuPDF + OpenAI-compatible LLM client (Ollama locally)   ← Chen, Boyu
 frontend/   Vite + React 19 + Tailwind 4 + shadcn/ui                            ← Sebastijan
 eval/       labels.csv + run.py → accuracy number                               ← Sara
 docs/       API contract, challenge notes, prep for SEB meetings
@@ -68,8 +68,10 @@ python scripts/random_check.py --n 10 --seed 1   # fetches 10 untuned Large Cap 
 ## How a section works
 
 One JSON file per report section in `backend/schemas/` — fields, sv+en locator keywords, arithmetic checks.
-The prompt is generated from it. **Adding a section = adding a file.** `income_statement.json` is a placeholder
-until the SEB end-user (Kristian, meeting Tue 15 Sept) tells us which note he actually needs.
+The prompt is generated from it. **Adding a section = adding a file.** `debt_maturity.json` is the scoped section
+(total interest-bearing debt + maturity buckets, decided with SEB's end-user Kristian on 15 Sept; output is a one-slide
+PPTX per company via `GET /api/reports/{id}/extraction.pptx`). `income_statement.json` was the placeholder we hardened
+the parser on. Current state and next steps for the backend team: [`docs/HANDOFF.md`](docs/HANDOFF.md).
 
 ## Pipeline (backend/pipeline)
 
