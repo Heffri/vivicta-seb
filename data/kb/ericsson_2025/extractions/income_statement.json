@@ -82,11 +82,12 @@
         "page": 33,
         "quote": "Earnings (loss) before financial items and income tax (EBIT) B1 38,634 4,313 –20,326"
       },
-      "confidence": 0.9,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
         "arith_ok",
+        "label_known",
         "period_ok",
         "page_is_statement",
         "unit_ok"
@@ -106,7 +107,6 @@
       "confidence": 1.0,
       "evidence": [
         "quote_on_page",
-        "identity_all_columns",
         "value_in_quote",
         "arith_ok",
         "label_known",
@@ -207,10 +207,8 @@
     {
       "name": "margin_sanity",
       "passed": true,
-      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 38634 / 236681 < 10"
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | 236681 == 0 or -10 < 38634 / 236681 < 10"
     }
   ],
-  "warnings": [
-    "profit_before_tax: 'Income (loss) after ﬁnancial items' is not a known profit before tax label, but net_profit_arith holds with that row in every column"
-  ]
+  "warnings": []
 }

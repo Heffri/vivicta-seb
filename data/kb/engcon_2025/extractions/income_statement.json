@@ -176,7 +176,7 @@
       "value": 1.44,
       "unit": "SEK",
       "period": "2025",
-      "raw_label": "Earnings per share (SEK) \nBasic",
+      "raw_label": "Earnings per share (SEK) Basic",
       "source": {
         "page": 66,
         "quote": "Basic 1.44 1.42"
@@ -207,7 +207,7 @@
     {
       "name": "margin_sanity",
       "passed": true,
-      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 321 / 1889 < 10"
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | 1889 == 0 or -10 < 321 / 1889 < 10"
     }
   ],
   "warnings": []

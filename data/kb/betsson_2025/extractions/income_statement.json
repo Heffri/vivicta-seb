@@ -1,20 +1,20 @@
 {
-  "report_id": "lib-mips_2025",
-  "company": "Mips",
+  "report_id": "lib-betsson_2025",
+  "company": "Betsson",
   "fiscal_year": 2025,
-  "currency": "SEKm",
+  "currency": "MEUR",
   "section": "income_statement",
   "fields": [
     {
       "key": "revenue",
       "label": "Revenue",
-      "value": 533,
-      "unit": "SEKm",
+      "value": 1197,
+      "unit": "MEUR",
       "period": "2025",
-      "raw_label": "Net sales",
+      "raw_label": "Revenue",
       "source": {
-        "page": 62,
-        "quote": "Net sales 2 533 483"
+        "page": 114,
+        "quote": "Revenue 3.4 1,197.0 1,106.6"
       },
       "confidence": 1.0,
       "evidence": [
@@ -30,35 +30,24 @@
     {
       "key": "cost_of_sales",
       "label": "Cost of sales",
-      "value": -142,
-      "unit": "SEKm",
-      "period": "2025",
-      "raw_label": "Cost of goods sold",
-      "source": {
-        "page": 62,
-        "quote": "Cost of goods sold –142 –133"
-      },
-      "confidence": 1.0,
-      "evidence": [
-        "quote_on_page",
-        "value_in_quote",
-        "arith_ok",
-        "label_known",
-        "period_ok",
-        "page_is_statement",
-        "unit_ok"
-      ]
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
     },
     {
       "key": "gross_profit",
       "label": "Gross profit",
-      "value": 391,
-      "unit": "SEKm",
+      "value": 755.5,
+      "unit": "MEUR",
       "period": "2025",
       "raw_label": "Gross profit",
       "source": {
-        "page": 62,
-        "quote": "Gross profit 391 350"
+        "page": 114,
+        "quote": "Gross profit 755.5 719.7"
       },
       "confidence": 1.0,
       "evidence": [
@@ -74,13 +63,13 @@
     {
       "key": "operating_profit",
       "label": "Operating profit",
-      "value": 156,
-      "unit": "SEKm",
+      "value": 253.1,
+      "unit": "MEUR",
       "period": "2025",
-      "raw_label": "Operating profit/loss",
+      "raw_label": "Operating income",
       "source": {
-        "page": 62,
-        "quote": "Operating profit/loss 4, 5, 6, 7, 25 156 174"
+        "page": 114,
+        "quote": "Operating income 253.1 256.7"
       },
       "confidence": 1.0,
       "evidence": [
@@ -96,13 +85,13 @@
     {
       "key": "profit_before_tax",
       "label": "Profit before tax",
-      "value": 158,
-      "unit": "SEKm",
+      "value": 235.5,
+      "unit": "MEUR",
       "period": "2025",
       "raw_label": "Profit/loss before tax",
       "source": {
-        "page": 62,
-        "quote": "Profit/loss before tax 158 183"
+        "page": 114,
+        "quote": "Profit/loss before tax 235.5 233.7"
       },
       "confidence": 1.0,
       "evidence": [
@@ -118,13 +107,13 @@
     {
       "key": "income_tax",
       "label": "Income tax",
-      "value": -38,
-      "unit": "SEKm",
+      "value": -53.1,
+      "unit": "MEUR",
       "period": "2025",
-      "raw_label": "Tax",
+      "raw_label": "Income tax",
       "source": {
-        "page": 62,
-        "quote": "Tax 9 –38 –42"
+        "page": 114,
+        "quote": "Income tax 13 −53.1 −50.0"
       },
       "confidence": 1.0,
       "evidence": [
@@ -151,13 +140,13 @@
     {
       "key": "net_profit",
       "label": "Profit for the year",
-      "value": 120,
-      "unit": "SEKm",
+      "value": 182.4,
+      "unit": "MEUR",
       "period": "2025",
-      "raw_label": "Profit for the year",
+      "raw_label": "Profit/loss for the year",
       "source": {
-        "page": 62,
-        "quote": "Profit for the year 120 141"
+        "page": 114,
+        "quote": "Profit/loss for the year 182.4 183.7"
       },
       "confidence": 1.0,
       "evidence": [
@@ -173,42 +162,37 @@
     {
       "key": "eps_basic",
       "label": "EPS, basic",
-      "value": 4.53,
-      "unit": "SEK",
-      "period": "2025",
-      "raw_label": "Earnings per share basic, SEK  ",
-      "source": {
-        "page": 62,
-        "quote": "Earnings per share basic, SEK 10 4.53 5.32"
-      },
-      "confidence": 1.0,
-      "evidence": [
-        "quote_on_page",
-        "value_in_quote",
-        "arith_ok",
-        "label_known",
-        "period_ok",
-        "page_is_statement",
-        "unit_ok"
-      ]
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
     }
   ],
   "checks": [
     {
       "name": "gross_profit_arith",
-      "passed": true,
-      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((533 + -142) - 391) <= 2"
+      "passed": false,
+      "detail": "missing: cost_of_sales"
     },
     {
       "name": "net_profit_arith",
       "passed": true,
-      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((158 + -38 + 0) - 120) <= 2"
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((235.5 + -53.1 + 0) - 182.4) <= 2"
     },
     {
       "name": "margin_sanity",
       "passed": true,
-      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | 533 == 0 or -10 < 156 / 533 < 10"
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | 1197 == 0 or -10 < 253.1 / 1197 < 10"
     }
   ],
-  "warnings": []
+  "warnings": [
+    "revenue: quoted 'Total'; the 'Revenue' row prints 1197",
+    "operating_profit: quoted 'Profit/loss before tax'; the 'Operating income' row prints 253.1",
+    "income_tax: quoted 'Profit/loss for the year'; the 'Income tax' row prints -53.1",
+    "eps_basic: '- after dilution (EUR)' 1.29 dropped: an excluded label, and the statement has no eps, basic row",
+    "cost_of_sales: 'Costs of services provided' -441.5 dropped: the same row as gross_profit, and not a cost of sales label"
+  ]
 }

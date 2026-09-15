@@ -1,20 +1,20 @@
 {
-  "report_id": "lib-mips_2025",
-  "company": "Mips",
+  "report_id": "lib-systemair_2025",
+  "company": "Systemair",
   "fiscal_year": 2025,
-  "currency": "SEKm",
+  "currency": "SEK m.",
   "section": "income_statement",
   "fields": [
     {
       "key": "revenue",
       "label": "Revenue",
-      "value": 533,
-      "unit": "SEKm",
+      "value": 12502.7,
+      "unit": "SEK m.",
       "period": "2025",
       "raw_label": "Net sales",
       "source": {
-        "page": 62,
-        "quote": "Net sales 2 533 483"
+        "page": 54,
+        "quote": "Net sales 4, 5 12,502.7 12,301.5"
       },
       "confidence": 1.0,
       "evidence": [
@@ -30,13 +30,13 @@
     {
       "key": "cost_of_sales",
       "label": "Cost of sales",
-      "value": -142,
-      "unit": "SEKm",
+      "value": -7913.8,
+      "unit": "SEK m.",
       "period": "2025",
       "raw_label": "Cost of goods sold",
       "source": {
-        "page": 62,
-        "quote": "Cost of goods sold –142 –133"
+        "page": 54,
+        "quote": "Cost of goods sold 6 -7,913.8 -7,837.6"
       },
       "confidence": 1.0,
       "evidence": [
@@ -52,13 +52,13 @@
     {
       "key": "gross_profit",
       "label": "Gross profit",
-      "value": 391,
-      "unit": "SEKm",
+      "value": 4588.9,
+      "unit": "SEK m.",
       "period": "2025",
       "raw_label": "Gross profit",
       "source": {
-        "page": 62,
-        "quote": "Gross profit 391 350"
+        "page": 54,
+        "quote": "Gross profit 4,588.9 4,463.9"
       },
       "confidence": 1.0,
       "evidence": [
@@ -74,13 +74,13 @@
     {
       "key": "operating_profit",
       "label": "Operating profit",
-      "value": 156,
-      "unit": "SEKm",
+      "value": 1133.8,
+      "unit": "SEK m.",
       "period": "2025",
       "raw_label": "Operating profit/loss",
       "source": {
-        "page": 62,
-        "quote": "Operating profit/loss 4, 5, 6, 7, 25 156 174"
+        "page": 54,
+        "quote": "Operating profit/loss 6, 8, 11 ,12 1,133.8 1,100.4"
       },
       "confidence": 1.0,
       "evidence": [
@@ -96,13 +96,13 @@
     {
       "key": "profit_before_tax",
       "label": "Profit before tax",
-      "value": 158,
-      "unit": "SEKm",
+      "value": 1055.4,
+      "unit": "SEK m.",
       "period": "2025",
-      "raw_label": "Profit/loss before tax",
+      "raw_label": "Profit after financial items",
       "source": {
-        "page": 62,
-        "quote": "Profit/loss before tax 158 183"
+        "page": 54,
+        "quote": "Profit after financial items 1,055.4 942.8"
       },
       "confidence": 1.0,
       "evidence": [
@@ -118,13 +118,13 @@
     {
       "key": "income_tax",
       "label": "Income tax",
-      "value": -38,
-      "unit": "SEKm",
+      "value": -291.9,
+      "unit": "SEK m.",
       "period": "2025",
       "raw_label": "Tax",
       "source": {
-        "page": 62,
-        "quote": "Tax 9 –38 –42"
+        "page": 54,
+        "quote": "Tax 15 -291.9 -256.6"
       },
       "confidence": 1.0,
       "evidence": [
@@ -151,13 +151,13 @@
     {
       "key": "net_profit",
       "label": "Profit for the year",
-      "value": 120,
-      "unit": "SEKm",
+      "value": 763.5,
+      "unit": "SEK m.",
       "period": "2025",
       "raw_label": "Profit for the year",
       "source": {
-        "page": 62,
-        "quote": "Profit for the year 120 141"
+        "page": 54,
+        "quote": "Profit for the year 763.5 686.2"
       },
       "confidence": 1.0,
       "evidence": [
@@ -173,13 +173,13 @@
     {
       "key": "eps_basic",
       "label": "EPS, basic",
-      "value": 4.53,
+      "value": 3.67,
       "unit": "SEK",
       "period": "2025",
-      "raw_label": "Earnings per share basic, SEK  ",
+      "raw_label": "Earnings per share, basic1",
       "source": {
-        "page": 62,
-        "quote": "Earnings per share basic, SEK 10 4.53 5.32"
+        "page": 54,
+        "quote": "Earnings per share, basic1 39 3.67 3.27"
       },
       "confidence": 1.0,
       "evidence": [
@@ -197,17 +197,17 @@
     {
       "name": "gross_profit_arith",
       "passed": true,
-      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((533 + -142) - 391) <= 2"
+      "detail": "revenue + cost_of_sales == gross_profit (±2 rounding) | abs((12502.7 + -7913.8) - 4588.9) <= 2"
     },
     {
       "name": "net_profit_arith",
       "passed": true,
-      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((158 + -38 + 0) - 120) <= 2"
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((1055.4 + -291.9 + 0) - 763.5) <= 2"
     },
     {
       "name": "margin_sanity",
       "passed": true,
-      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | 533 == 0 or -10 < 156 / 533 < 10"
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | 12502.7 == 0 or -10 < 1133.8 / 12502.7 < 10"
     }
   ],
   "warnings": []

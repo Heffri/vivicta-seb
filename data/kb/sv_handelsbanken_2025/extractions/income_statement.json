@@ -99,18 +99,19 @@
     {
       "key": "profit_before_tax",
       "label": "Profit before tax",
-      "value": 23995,
+      "value": 30750,
       "unit": "mkr",
       "period": "2025",
-      "raw_label": "Rörelseresultat: Årets resultat från kvarvarande verksamhet",
+      "raw_label": "Rörelseresultat",
       "source": {
         "page": 146,
-        "quote": "Årets resultat från kvarvarande verksamhet 23 995 27 221"
+        "quote": "Rörelseresultat 30 750 35 016"
       },
-      "confidence": 0.5,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
+        "arith_ok",
         "label_known",
         "period_ok",
         "page_is_statement",
@@ -128,10 +129,11 @@
         "page": 146,
         "quote": "Skatter K37 −6 755 −7 795"
       },
-      "confidence": 0.5,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
+        "arith_ok",
         "label_known",
         "period_ok",
         "page_is_statement",
@@ -149,10 +151,12 @@
         "page": 146,
         "quote": "Årets resultat hänförligt till avvecklad verksamhet, efter skatt K14 −266 234"
       },
-      "confidence": 0.5,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
+        "arith_ok",
+        "label_known",
         "period_ok",
         "page_is_statement",
         "unit_ok"
@@ -169,10 +173,11 @@
         "page": 146,
         "quote": "Årets resultat 23 729 27 456"
       },
-      "confidence": 0.5,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
+        "arith_ok",
         "label_known",
         "period_ok",
         "page_is_statement",
@@ -210,16 +215,17 @@
     },
     {
       "name": "net_profit_arith",
-      "passed": false,
-      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((23995 + -6755 + -266) - 23729) <= 2"
+      "passed": true,
+      "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (±2 rounding) | abs((30750 + -6755 + -266) - 23729) <= 2"
     },
     {
       "name": "margin_sanity",
       "passed": true,
-      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | -10 < 30750 / 56796 < 10"
+      "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | 56796 == 0 or -10 < 30750 / 56796 < 10"
     }
   ],
   "warnings": [
+    "profit_before_tax: quoted 'Årets resultat från kvarvarande verksamhet' 23995; the 'Rörelseresultat' row above it prints 30750",
     "revenue: 'Summa intäkter' is not a known revenue label, but gross_profit_arith holds with that row in every column",
     "cost_of_sales: 'Summa kostnader' is not a known cost of sales label, but gross_profit_arith holds with that row in every column",
     "gross_profit: 'Resultat före kreditförluster och statliga avgifter' is not a known gross profit label, but gross_profit_arith holds with that row in every column"
