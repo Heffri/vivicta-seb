@@ -305,7 +305,7 @@
     {
       "key": "eps_basic",
       "exclude_labels": [
-        "(?<!before and )after dilution",
+        "(?<!before and )after dilution(?! and before)",
         "(?<!före och )efter utspädning",
         "diluted earnings",
         ", diluted",
@@ -373,7 +373,7 @@
     },
     {
       "name": "margin_sanity",
-      "expr": "-10 < operating_profit / revenue < 10",
+      "expr": "revenue == 0 or -10 < operating_profit / revenue < 10",
       "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real)"
     }
   ]

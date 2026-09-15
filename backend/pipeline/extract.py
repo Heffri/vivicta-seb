@@ -236,7 +236,10 @@ def _row_amounts(quote: str, ncols: int | None = None) -> list:
         m = _AMOUNT.fullmatch(t)
         if not m:
             continue
-        v = int(re.sub(r"\D", "", m.group(1))) + (float(f"0.{m.group(3)}") if m.group(3) else 0)  # ponytail: "1,234" is read as a thousand, not a Swedish decimal
+        if re.fullmatch(r"0[.,]\d{3}", m.group(1)) and not m.group(3):
+            v = float("0." + m.group(1)[2:])  # Fenix Outdoor "0.039" / "0.693": a lone zero is never a thousands group
+        else:
+            v = int(re.sub(r"\D", "", m.group(1))) + (float(f"0.{m.group(3)}") if m.group(3) else 0)  # ponytail: "1,234" is read as a thousand, not a Swedish decimal
         v = -v if t[0] in "-(" else v
         out.append(int(v) if float(v).is_integer() else round(v, 4))
         noteish.append(len(re.sub(r"\D", "", t)) < 3 and not m.group(3) and t[0].isdigit())
