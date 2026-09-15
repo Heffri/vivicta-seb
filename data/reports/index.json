@@ -1032,5 +1032,95 @@
     "tags": ["fetched"],
     "note": null,
     "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "industrivarden_2025.pdf",
+    "company": "Industrivärden",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/a/industrivarden/e1ad4653-c9d1-49b4-8170-1097cd8cb564/ab-industrivarden-annual-report-2025.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "granges_2025.pdf",
+    "company": "Gränges",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/776af2a1-6db4-4cbd-ae22-99ceda29c7b9/granges-annual-and-sustainability-report-2025.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "fast_balder_2025.pdf",
+    "company": "Fast. Balder",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/528/4328545/4016953.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "ppi_public_property_invest_2025.pdf",
+    "company": "PPI Public Property Invest",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://storage.mfn.se/52f31bae-d526-4879-97c5-0d6fe7864312/ppi-annual-report-2025.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "lundin_gold_2025.pdf",
+    "company": "Lundin Gold",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://lundingold.com/site/assets/files/111721/lug_2025_annual_report_final_23apr.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "skistar_2025.pdf",
+    "company": "SkiStar",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://ml-eu.globenewswire.com/Resource/Download/61a0efcd-0aae-4718-bd47-5bc36f2d7248",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "astrazeneca_2025.pdf",
+    "company": "AstraZeneca",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://www.astrazeneca.com/content/dam/az/Investor_Relations/annual-report-2025/pdf/AstraZeneca_AR_2025.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "handelsbanken_2025.pdf",
+    "company": "Handelsbanken",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Main/3555/4313527/3954484.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
+  },
+  {
+    "file": "nordea_2025.pdf",
+    "company": "Nordea",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://mb.cision.com/Public/434/4311216/bb37d3b7a350cee1.pdf",
+    "tags": ["fetched"],
+    "note": null,
+    "fetched_at": "2026-09-15"
   }
 ]
