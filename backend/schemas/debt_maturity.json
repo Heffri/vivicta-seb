@@ -62,7 +62,7 @@
         "within 1 year", "less than 1 year", "0-1 year", "0-1 years", "within one year",
         "under 1 year", "under one year", "within 3 months", "3-12 months",
         "inom 1 år", "inom ett år", "förfaller inom 1 år", "< 1 år", "kortfristiga räntebärande skulder",
-        "borrowings, current"
+        "borrowings, current", "total borrowings in current liabilities"
       ]
     },
     {
