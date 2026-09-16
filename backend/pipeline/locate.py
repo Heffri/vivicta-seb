@@ -12,9 +12,15 @@ evidence, but heading + TOC together must still beat either alone. On Atlas Copc
 this puts the consolidated income statement (p.106) first; raw counting ranked it 13th
 behind the segment overview.
 
-Next for a teammate: (1) prefer pages whose neighbours also score (statements span 2 pages);
-(2) per-schema "title" keyword that must appear in the heading, for notes that share
-vocabulary with the primary statements.
+Next for a teammate: (1) prefer pages whose neighbours also score (statements span 2 pages,
+tried in v008b as a flat bonus -- net negative, see docs/acrylic/evidence/v008.md); (2) a
+schema-level "title_keywords" narrowing the heading bonus for debt_maturity's two-table
+problem (liquidity-risk note vs borrowings note) was tried in v017 -- also net negative
+(debt top-1 changed for 12/101 companies, 4 improved / 7 regressed / 1 neutral) and not kept:
+"liquidity risk" is the *correct* note title for several issuers (aq, seb, swedbank, sca,
+essity, arion) whose maturity table lives inside it, so no fixed word list separates them
+from the issuers (aak, alvotech, asmodee, volvo_car) where that same title names a page with
+no table at all. See docs/acrylic/evidence/v017.md before trying this again.
 """
 
 import re
