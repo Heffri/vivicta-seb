@@ -565,7 +565,9 @@ def demo():
     # (docs/acrylic/evidence/v041.md's own recorded outcome for MedCap). due_within_1_year's own bucket boundary
     # ("<1 år") is not on the carrying table but is on the contractual table two pages later (still a candidate
     # page, p.102/page 2 here) -- present, so the check now reads missing, not failed, and the two verified
-    # fields are no longer capped for a sibling bucket's gap.
+    # fields are no longer capped for a sibling bucket's gap. (v052 has since closed the gap itself: the same
+    # derivation that fills the model's fabricated-quote answer below now also fills this null one -- due_within_1_year
+    # comes back 102.3 and the check moves on to the one bucket the carrying table really does not print.)
     medcap101 = ("Förfallotidpunkt för upplåning Koncernen Moderbolaget\nMSEK 2025-12-31 2024-12-31 2025-12-31 2024-12-31\n"
                  "6 månader eller mindre 54,3 41,8 – –\n6 – 12 månader 48,0 19,0 – –\n1 – 5 år 616,5 316,7 – –\nTotalt 718,7 377,6 – –\n")
     medcap102 = ("Koncernen 2025-12-31\nMSEK <1 år 1 – 2 år 2 – 4 år 4 – 5 år >5år\nSkulder till kreditinstitut 59,3 97,5 59,1 – –\n"
@@ -577,7 +579,7 @@ def demo():
         {"key": "due_1_to_5_years", "value": 616.5, "unit": "MSEK", "period": "2025", "raw_label": "1 – 5 år", "source": {"page": 1, "quote": "1 – 5 år 616,5 316,7 – –"}},
         {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
     out = x.extract([medcap101, medcap102], [1, 2], dm, {"fiscal_year": 2025})
-    assert not out["checks"][0]["passed"] and out["checks"][0]["detail"] == "missing: due_within_1_year", out["checks"]  # was failed pre-v044
+    assert not out["checks"][0]["passed"] and out["checks"][0]["detail"] == "missing: due_after_5_years", out["checks"]  # was failed pre-v044, "missing: due_within_1_year" before v052 closed it
     total = next(f for f in out["fields"] if f["key"] == "total_debt")
     bucket15 = next(f for f in out["fields"] if f["key"] == "due_1_to_5_years")
     assert total["confidence"] == 0.9 and "arith_ok" in total["evidence"], total  # was capped at 0.5
@@ -721,6 +723,52 @@ def demo():
     assert qcalls == ["extraction"], qcalls
     w1y = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
     assert (w1y["value"], w1y["confidence"]) == (3538, 0.25) and not any(w.startswith("quote_retry:") for w in out["warnings"]), (w1y, out["warnings"])
+    # v052: a note page can stack a second table above the one the field's row sits in (MedCap p.101: a
+    # receivables-ageing table over the maturity table), and the maturity header itself repeats the year across
+    # Koncernen | Moderbolaget pairs. Row derivations now anchor the year header to the quoted row -- the nearest
+    # year run above it (_row_year_column) -- and, when the fiscal year appears twice in that run, take the Group
+    # side when Group is named before Parent on the run's row or the one above it, the last pair when reversed.
+    # The page-level _year_column default is untouched: still the page's first run, still None on repeats.
+    assert x._year_column(medcap101, 2025) is None  # the page-level default still declines a repeated year, as before
+    age101 = ("MSEK 2025-12-31 2024-12-31\nEj förfallet 241,6 180,5\nMindre än 3 månader 25,0 29,1\n"
+              "Äldre än 3 månader 1,8 1,8\nAvsättningar -1,1 -0,8\nTotalt 267,3 210,6\n")  # the receivables-ageing table printed above the maturity one on the real p.101
+    full101 = age101 + medcap101
+    assert x._year_column(full101, 2025) == (0, 2)  # unchanged page-level default: the page's FIRST header, the ageing table's
+    rows101 = x._page_rows(full101)
+    assert x._row_year_column(rows101, rows101.index("Totalt 718,7 377,6 – –"), 2025) == (0, 4)  # the maturity table's own header, Group side first
+    assert x._row_year_column(rows101, rows101.index("Totalt 267,3 210,6"), 2025) == (0, 2)  # the ageing row anchors to its own table
+    norows101 = x._page_rows(full101.replace(" Koncernen Moderbolaget", ""))
+    assert x._row_year_column(norows101, norows101.index("Totalt 718,7 377,6 – –"), 2025) is None  # repeated year, no Group/Parent words: unknowable, declines as before
+    catrows = x._page_rows(cat)
+    assert x._row_year_column(catrows, catrows.index("Profit before tax 2,067 1,344"), 2025) == (0, 2)  # single-table page: the anchored header is the page's
+    # ... end to end: the model computes due_within_1_year = 54,3 + 48,0 = 102,3 correctly but fabricates its quote,
+    # so the value is dropped as computed, not read -- yet both rows are printed, and with the maturity table's own
+    # 4-column header the rows printed directly above the "1 – 5 år" operand row close the identity in every column
+    # (102.3+616.5+0 vs 718.7, 60.8+316.7+0 vs 377.6, the Moderbolaget columns nil throughout)
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 718.7, "unit": "MSEK", "period": "2025", "raw_label": "Totalt", "source": {"page": 1, "quote": "Totalt 718,7 377,6 – –"}},
+        {"key": "due_1_to_5_years", "value": 616.5, "unit": "MSEK", "period": "2025", "raw_label": "1 – 5 år", "source": {"page": 1, "quote": "1 – 5 år 616,5 316,7 – –"}},
+        {"key": "due_within_1_year", "value": 102.3, "unit": "MSEK", "period": "2025", "raw_label": "6 månader eller mindre", "source": {"page": 1, "quote": "6 månader eller mindre 54,3 + 6 – 12 månader 48,0 = 102,3"}},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([full101, medcap102], [1, 2], dm, {"fiscal_year": 2025})
+    within = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
+    assert within["value"] == 102.3 and "value_derived" in within["evidence"] and within["source"]["quote"] \
+        == "6 månader eller mindre 54,3 41,8 – – 6 – 12 månader 48,0 19,0 – –", (within, out["warnings"])
+    assert within["confidence"] == 1.0 and within["raw_label"] == "6 månader eller mindre + 6 – 12 månader", within
+    # the identity itself closes in every column (54.3+48.0+616.5 = 718.8 vs 718.7, 41.8+19.0+316.7 = 377.5 vs 377.6,
+    # the Moderbolaget columns nil throughout) -- what keeps the reported check open is due_after_5_years: its ">5år"
+    # header sits on the contractual table one page over, so v044's present-label rule refuses the false 0, and the
+    # carrying table genuinely prints no >5y row. Passing would mean relaxing that rule, not this lane's territory.
+    assert not out["checks"][0]["passed"] and out["checks"][0]["detail"] == "missing: due_after_5_years", out["checks"]
+    total = next(f for f in out["fields"] if f["key"] == "total_debt")
+    bucket15 = next(f for f in out["fields"] if f["key"] == "due_1_to_5_years")
+    assert (total["value"], total["confidence"]) == (718.7, 0.9) and (bucket15["value"], bucket15["confidence"]) == (616.5, 1.0), (total, bucket15)
+    # ... and a repeated year with no Group/Parent named above the rows must not fire: Volvo-style segment
+    # repetition stays unknowable, the field stays null exactly as before the anchoring existed
+    out = x.extract([full101.replace(" Koncernen Moderbolaget", ""), medcap102], [1, 2], dm, {"fiscal_year": 2025})
+    within = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
+    assert within["value"] is None and within["confidence"] == 0.0 and not within["evidence"], (within, out["warnings"])
+    assert not out["checks"][0]["passed"], out["checks"]
     # v043: EXTRACT_TWO_PASS (default off) -- pass 1 is a small "which candidate page" question over a
     # head-of-page snippet of *every* candidate (not just the top-2 the single-pass window shows), pass 2
     # is the existing extraction prompt fed only the page(s) pass 1 picks. Candidate 3 (never reached by
