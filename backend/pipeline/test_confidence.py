@@ -340,6 +340,27 @@ def demo():
     # ... so the Ericsson fixture's buckets read perfectly at full confidence too
     out = x.extract([ericsson], [1], dm, {"fiscal_year": 2025})
     assert [(f["value"], f["confidence"]) for f in out["fields"]] == [(32703, 1.0), (3538, 1.0), (29165, 1.0), (None, 0.0)], (out["fields"], out["warnings"])
+    # v012: _statement_row finds the printed bucket rows. Two defects, both in its direct helpers: the exact-match set
+    # held the synonyms verbatim (v011b fixed the prefix match only), and _row_label cut the label at the first
+    # space-digit, so "Within 1 year 3 538 4 100" matched as "Within" and "Inom 1 år …" as "Inom".
+    assert x._row_label("Within 1 year 3 538 4 100") == "Within 1 year" and x._row_label("Inom 1 år 3 538 4 100") == "Inom 1 år" \
+        and x._row_label("< 1 år 3 538 4 100") == "< 1 år"  # a number with label words after it is part of the label
+    assert x._row_label("1–5 years 29 165 30 000") == "1–5 years" and x._row_label("Total sales 6, 10 155 113 161 921") == "Total sales"  # amounts still start where the label ends
+    amb = ["Total borrowings 32 703 34 500", "Within 1 year 3 538 4 100", "1-5 years 29 165 30 000", "1-5 years, of which fixed rate 10 000 9 000"]
+    assert x._statement_row(amb, dmf["due_1_to_5_years"], 2) == "1-5 years 29 165 30 000", amb  # the exact row, not the sub-row under it
+    assert x._statement_row(amb, dmf["due_within_1_year"], 2) == "Within 1 year 3 538 4 100"
+    assert x._statement_row(["Summa räntebärande skulder 32 703 34 500", "Inom 1 år 3 538 4 100", "Inom 1 år, varav konvertibler 500 400"],
+                            dmf["due_within_1_year"], 2) == "Inom 1 år 3 538 4 100"
+    row = x._statement_row(["Total borrowings 32 703 34 500", "1–5 years 29 165 30 000"], dmf["due_1_to_5_years"], 2)  # en dash
+    assert x._row_amounts(row, 2) == [29165, 30000], row  # the "1" and "5" are the label's, not amounts
+    # ... end to end: the model answers nothing, the note's own printed rows fill every bucket it prints, and the identity closes
+    x.call_llm = lambda *a, **k: {"fields": []}
+    out = x.extract(["Note 20 Borrowings\nMSEK\n2025 2024\nTotal borrowings 32 703 34 500\nWithin 1 year 3 538 4 100\n"
+                     "1-5 years 29 165 30 000\n1-5 years, of which fixed rate 10 000 9 000\n"], [1], dm, {"fiscal_year": 2025})
+    assert [(f["key"], f["value"], f["confidence"]) for f in out["fields"]] == [
+        ("total_debt", 32703, 1.0), ("due_within_1_year", 3538, 1.0), ("due_1_to_5_years", 29165, 1.0),
+        ("due_after_5_years", None, 0.0)], (out["fields"], out["warnings"])
+    assert out["checks"][0]["passed"] and "due_after_5_years null" in out["checks"][0]["detail"], out["checks"]
     print("confidence self-check ok")
 
 
