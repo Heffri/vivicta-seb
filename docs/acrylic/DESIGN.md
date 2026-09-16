@@ -19,10 +19,10 @@ tables and badges never do — they just get the highlight (`--glass-hi`) and a 
 
 | Token | shadcn variable | Dark | Light | Use |
 |---|---|---|---|---|
-| `--bg-0` | shell fill only | `rgb(11 11 14/88%)` | `rgb(252 252 254/90%)` | the one blurred ground |
+| `--bg-0` | shell fill only | `rgb(11 11 14/66%)` | `rgb(252 252 254/76%)` | the one blurred ground. v006b: 88/90% → 66/76% — at 88/90% only ~10% of the wallpaper showed and the window read flat. Contrast re-verified on the composited ground (worst = under the brightest glow), `evidence/v006.md` §v006b |
 | `--bg-1` | `--background` | `rgb(22 22 27/58%)` | `rgb(0 0 0/2.5%)` | subtlest raised step (outline button fill) |
 | `--bg-2` | `--muted`, `--secondary` | `rgb(32 32 39/62%)` | `rgb(0 0 0/4%)` | hover feedback, quiet fill, selected table row |
-| `--bg-3` | `--card`, `--accent` | `rgb(48 48 57/58%)` | `rgb(0 0 0/6%)` | card surface, hover/selected row, active button step |
+| `--bg-3` | `--card`, `--accent` | `rgb(48 48 57/64%)` | `rgb(0 0 0/6%)` | card surface, hover/selected row, active button step. Dark rose 58% → 64% in v006b so cards stay solid over the more transparent glass (light keeps 6% — raising it darkens the card and kills the badge-text gate) |
 | `--bg-4` | `--popover` | `rgb(62 62 73/62%)` | `rgb(0 0 0/10%)` | floating popover fill (kept for v002+; nothing renders it yet, `SelectContent` uses `--bg-0` — see above) |
 | `--wallpaper` | `body` background | deep blue → indigo → near black + blue/violet glows | cream → pale blue-violet + blue/lavender glows | what the glass sits on; browsers have no OS material, so the wallpaper carries the colour. v006: UAW's flat fallback replaced by a two-glow composition (blue top-left, violet/lavender bottom-right over a `168deg` deep gradient) — glows capped at luminances that keep the resolved glass ground on v001's contrast ladder (see `evidence/v006.md` for the numbers) |
 | `--line-0/1/2` | middle step → `--border`, `--input` | alpha-white 6/11/19% | alpha-black 7/12/20% | hairlines; shadcn only needs one, uses `--line-1` |
@@ -33,9 +33,9 @@ tables and badges never do — they just get the highlight (`--glass-hi`) and a 
 | `--radius` | `--radius` | `0.875rem` | same, tone-independent | shadcn's sm/md/lg/xl ladder now lands near UAW's 7/10/14px |
 | accent (raw hue) | feeds `--primary`, `--primary-hover`, `--ring` | `#7aa2f7` (UAW default scheme) | `#2b5cb4` (UAW light-acrylic accent) | focus rings, links, primary button tint |
 | `--destructive` | `--destructive` | `#e0897f` | `#a23a32` | UAW's `--err` |
-| `--success`/`-foreground`/`-muted` | `--success`, `--success-foreground`, `--success-muted` | `#7bc99a` / `#0f2a1c` / 12%-tint | `#276f47` / `#eafff2` / 8%-tint | UAW's `--ok`; status badges. Light tint is 8%, not UAW's own 10–12%: at 12% success text on the light card ground measured 4.31:1, below the 4.5 gate — 8% clears it (4.55:1). Dark keeps 12% (worst case 4.95:1). Numbers in `evidence/v006.md` |
-| `--warning`/`-foreground`/`-muted` | `--warning`, `--warning-foreground`, `--warning-muted` | `#d9b06a` / `#2b1c05` / 12%-tint | `#805208` / `#fff6e6` / 8%-tint | UAW's `--warn`; same treatment as success |
-| `--danger`/`-foreground`/`-muted` | `--danger`, `--danger-foreground`, `--danger-muted` | `#e0897f` / `#2a0d09` / 12%-tint | `#a23a32` / `#fff1ee` / 8%-tint | UAW's `--err` again — same hue as `--destructive`, kept as a separate token because it names a data *status* (a failed check), not a destructive *action*; `Badge` gets matching `success`/`warning`/`danger` variants (additive, existing variants untouched) |
+| `--success`/`-foreground`/`-muted` | `--success`, `--success-foreground`, `--success-muted` | `#7bc99a` / `#0f2a1c` / 12%-tint | `#276f47` / `#eafff2` / 5%-tint | UAW's `--ok`; status badges. Light tint is 5% (v001 12% → v006 8% → v006b 5%, chasing the light card ground as the glass cleared): success text on that ground is the binding constraint — 12% measured 4.31:1, 8% 4.32–4.40 across the v006b glass band, 5% clears 4.5 wherever the gate holds. Dark keeps 12% (worst 4.63:1 at the v006b glass). Numbers in `evidence/v006.md` |
+| `--warning`/`-foreground`/`-muted` | `--warning`, `--warning-foreground`, `--warning-muted` | `#d9b06a` / `#2b1c05` / 12%-tint | `#805208` / `#fff6e6` / 5%-tint | UAW's `--warn`; same treatment as success |
+| `--danger`/`-foreground`/`-muted` | `--danger`, `--danger-foreground`, `--danger-muted` | `#e0897f` / `#2a0d09` / 12%-tint | `#a23a32` / `#fff1ee` / 5%-tint | UAW's `--err` again — same hue as `--destructive`, kept as a separate token because it names a data *status* (a failed check), not a destructive *action*; `Badge` gets matching `success`/`warning`/`danger` variants (additive, existing variants untouched) |
 
 `--primary` is never a flat accent fill — it reads as a sticker glued onto glass. UAW's `.btn.primary`/`.send`
 always tint the ground instead: dark = `color-mix(in srgb, #7aa2f7 22%, var(--bg-0))`,
