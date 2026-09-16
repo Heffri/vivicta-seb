@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { type Config, getConfig } from './api'
-import { AskPanel } from './components/AskPanel'
+import { AskView } from './components/AskView'
 import { CompareView } from './components/CompareView'
 import { KbView } from './components/KbView'
 import { Rail } from './components/shell/Rail'
@@ -75,18 +75,7 @@ export default function App() {
                 onReset={reset}
               />
             )}
-            {tab === 'ask' && (
-              <div className="mx-auto max-w-3xl space-y-5">
-                <header className="border-b pb-5">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Ask</p>
-                  <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-                    {reports.length === 1 ? reports[0].label : `${reports.length} reports`}
-                  </h1>
-                  <p className="mt-1 text-sm text-muted-foreground">Answers cite pages of the loaded reports; citations open the PDF.</p>
-                </header>
-                <AskPanel reports={reports} />
-              </div>
-            )}
+            {tab === 'ask' && <AskView reports={reports} />}
             {tab === 'kb' && <KbView onOpen={done} />}
           </div>
         </main>
