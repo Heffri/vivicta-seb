@@ -456,7 +456,15 @@ def demo():
         {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
     out = x.extract([xano], [1], dm, {"fiscal_year": 2025})
     got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
-    assert got == {"total_debt": (904522, 0.5), "due_within_1_year": (51075, 0.5), "due_1_to_5_years": (None, 0.0), "due_after_5_years": (None, 0.0)} and not out["warnings"], (got, out["warnings"])
+    # v044: "Efter 5 år" is printed whole on the header line (only "Summa"/"Mellan 1"/"Mellan 3" wrap away), so
+    # due_after_5_years is a bucket the table demonstrably has, just one the safety valve correctly declined to
+    # read a number for -- the check reads missing: due_after_5_years, not a false failure against a fabricated
+    # due_after_5_years=0, and total_debt/due_within_1_year (independently quote- and label-verified) are no
+    # longer capped for a sibling bucket's gap. due_1_to_5_years has no matching synonym anywhere on the page
+    # (its own header words wrapped into "inom 1 år och 3 år och 5 år", which reads as digit-glued "1"/"3"/"5"
+    # tokens, none of which forms "mellan...och..." or a "1-5"/"1-2"/"2-5" run) and stays a confirmed 0.
+    assert got == {"total_debt": (904522, 1.0), "due_within_1_year": (51075, 1.0), "due_1_to_5_years": (None, 0.0), "due_after_5_years": (None, 0.0)} \
+        and out["checks"][0]["detail"] == "missing: due_after_5_years" and not out["warnings"], (got, out["checks"], out["warnings"])
     # Ework: the table's own finer split (<1 month / 1-3 / 3-12 months) never says "year", and an unexplained
     # 6th numeric column means the header's bucket-key hits never reach the row's own column count (8) either
     ework = ("kSEK Due < 1 month 1-3 months 3-12 months 1-5 years > 5 years Total undis- Carrying\ncounted value amount\n2025\n"
@@ -532,6 +540,66 @@ def demo():
     got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
     assert got == {"total_debt": (1583, 0.9), "due_within_1_year": (197, 0.9), "due_1_to_5_years": (1377, 0.9), "due_after_5_years": (9, 0.9)}, (got, out["warnings"])
     assert out["checks"][0]["passed"], out["checks"]
+    # v044: null_as_zero, refined -- v041 finding 3 (MedCap, Ependion, same seed): a bucket the model failed to
+    # extract reads identically to a bucket the report never prints -- both are null -- but only the second one
+    # is really a 0. Before defaulting a null bucket to 0, _check now looks for its own synonym label (the same
+    # normalize_ws digit-gluing v012/v014 already use for row labels) on the pages the check's other, real
+    # operands were sourced from, or the candidate pages; found -> leave it out of the substitution, so the check
+    # reads "missing: <field>" instead of a false failure; not found -> 0, exactly as before. texts/pages/fields/
+    # schema are new, optional _check args: every call above this one omits them, so the pre-v044 unconditional
+    # zero-fill is unchanged for all of them (the full suite above this block is unmodified except the one XANO
+    # case, which hits this exact mechanism too -- see its own updated comment).
+    c = x._check(dmc, {"total_debt": 718.7, "due_1_to_5_years": 616.5}, texts=["Totalt 718,7\n1 – 5 år 616,5\n",
+                 "MSEK <1 år 1 – 2 år 2 – 4 år 4 – 5 år >5år\n"], pages=[1, 2],
+                 fields=[{"key": "total_debt", "source": {"page": 1}}, {"key": "due_1_to_5_years", "source": {"page": 1}}], schema=dm)
+    assert not c["passed"] and c["detail"] == "missing: due_within_1_year", c  # "<1 år" sits on the candidate page: not a confirmed 0
+    c = x._check(dmc, {"due_within_1_year": 3538, "due_1_to_5_years": 29165, "total_debt": 32703},
+                 texts=["Total borrowings 32,703\nWithin 1 year 3,538\n1-5 years 29,165\n"], pages=[1],
+                 fields=[{"key": "due_within_1_year", "source": {"page": 1}}, {"key": "due_1_to_5_years", "source": {"page": 1}}], schema=dm)
+    assert c["passed"] and "due_after_5_years null" in c["detail"], c  # no "after 5 years"/"efter 5 år" anywhere: still a real 0
+    # end to end, MedCap's own page text (seed3-kb, pp.101-102, relabelled 1-2 here): the model reads total_debt
+    # and due_1_to_5_years verbatim off the carrying-amount table (p.101); due_within_1_year is null (its true
+    # value is the unprinted sum 54.3+48.0=102.3, correctly dropped elsewhere as computed-not-quoted -- not this
+    # lane's territory) and due_after_5_years is null too (this table really has no >5y row). Before this lane:
+    # due_within_1_year zero-filled, 0+616.5 != 718.7, check FAILED, total_debt/due_1_to_5_years capped at 0.5
+    # (docs/acrylic/evidence/v041.md's own recorded outcome for MedCap). due_within_1_year's own bucket boundary
+    # ("<1 år") is not on the carrying table but is on the contractual table two pages later (still a candidate
+    # page, p.102/page 2 here) -- present, so the check now reads missing, not failed, and the two verified
+    # fields are no longer capped for a sibling bucket's gap.
+    medcap101 = ("Förfallotidpunkt för upplåning Koncernen Moderbolaget\nMSEK 2025-12-31 2024-12-31 2025-12-31 2024-12-31\n"
+                 "6 månader eller mindre 54,3 41,8 – –\n6 – 12 månader 48,0 19,0 – –\n1 – 5 år 616,5 316,7 – –\nTotalt 718,7 377,6 – –\n")
+    medcap102 = ("Koncernen 2025-12-31\nMSEK <1 år 1 – 2 år 2 – 4 år 4 – 5 år >5år\nSkulder till kreditinstitut 59,3 97,5 59,1 – –\n"
+                 "Leasingskulder 50,6 100,8 66,4 30,6 142,9\nÖvriga långfristiga skulder 80,9 187,1 – – –\n"
+                 "Leverantörs- och övriga skulder 241,0 – – – –\nTotalt 431,8 385,4 125,5 30,6 142,9\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 718.7, "unit": "MSEK", "period": "2025", "raw_label": "Totalt", "source": {"page": 1, "quote": "Totalt 718,7 377,6 – –"}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": 616.5, "unit": "MSEK", "period": "2025", "raw_label": "1 – 5 år", "source": {"page": 1, "quote": "1 – 5 år 616,5 316,7 – –"}},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([medcap101, medcap102], [1, 2], dm, {"fiscal_year": 2025})
+    assert not out["checks"][0]["passed"] and out["checks"][0]["detail"] == "missing: due_within_1_year", out["checks"]  # was failed pre-v044
+    total = next(f for f in out["fields"] if f["key"] == "total_debt")
+    bucket15 = next(f for f in out["fields"] if f["key"] == "due_1_to_5_years")
+    assert total["confidence"] == 0.9 and "arith_ok" in total["evidence"], total  # was capped at 0.5
+    assert bucket15["confidence"] == 1.0 and "arith_ok" in bucket15["evidence"], bucket15  # was capped at 0.5
+    # Ependion (same seed, v041 finding 3's other example): stays failed, correctly -- its bucket table (p.155)
+    # never prints a digit-form boundary at all ("Between 1 and 2 years" / "Between 2 and 3 years", spelled out,
+    # scrambled by a sidebar TOC column glued onto the same lines by parse.py), and the schema has no spelled-out
+    # synonym for either bucket (docs/acrylic/evidence/v041.md's own finding: "the spelled-out ... wording
+    # doesn't exist in the schema at all yet regardless"). A schema-vocabulary gap, out of this lane's territory
+    # (schema untouched) -- not the null-vs-missing conflation this lane fixes. Recorded so a future schema
+    # change adding that wording is the one that should flip this case, not a regression in this mechanism.
+    ependion155 = ("Contracted terms\nSEK 000 31 Dec. 2025 31 Dec. 2024\nBetween Between\nWithin 12 1 and 2 and\n"
+                   "months 2 years 3 years Total\nBorrowing 167,546 35,636 380,348 583,531\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 583531, "unit": "SEK 000", "period": "2025", "raw_label": "Borrowing", "source": {"page": 1, "quote": "Borrowing 167,546 35,636 380,348 583,531"}},
+        {"key": "due_within_1_year", "value": 167546, "unit": "SEK 000", "period": "2025", "raw_label": "Borrowing", "source": {"page": 1, "quote": "Borrowing 167,546 35,636 380,348 583,531"}},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([ependion155], [1], dm, {"fiscal_year": 2025})
+    assert not out["checks"][0]["passed"] and not out["checks"][0]["detail"].startswith("missing:"), out["checks"]
+    within = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
+    assert within["confidence"] == 0.5, within  # still capped: neither sibling bucket's label is anywhere on the page
     print("confidence self-check ok")
 
 
