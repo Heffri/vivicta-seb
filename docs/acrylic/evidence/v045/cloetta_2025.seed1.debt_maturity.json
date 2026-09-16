@@ -1,0 +1,206 @@
+{
+  "seed": 1,
+  "stem": "cloetta_2025",
+  "candidate_pages": [
+    169,
+    170,
+    179,
+    39
+  ],
+  "before": {
+    "report_id": "lib-cloetta_2025",
+    "company": "Cloetta",
+    "fiscal_year": 2025,
+    "currency": "SEKm",
+    "section": "debt_maturity",
+    "fields": [
+      {
+        "key": "total_debt",
+        "label": "Total borrowings",
+        "value": 1605,
+        "unit": "SEKm",
+        "period": "2025",
+        "raw_label": "Total",
+        "source": {
+          "page": 169,
+          "quote": "Total 197 22 1,377 9 1,605"
+        },
+        "confidence": 0.5,
+        "evidence": [
+          "quote_on_page",
+          "value_in_quote",
+          "period_ok",
+          "page_is_statement",
+          "unit_ok"
+        ]
+      },
+      {
+        "key": "due_within_1_year",
+        "label": "Due within 1 year",
+        "value": 197,
+        "unit": "SEKm",
+        "period": "2025",
+        "raw_label": "Total",
+        "source": {
+          "page": 169,
+          "quote": "Total 197 22 1,377 9 1,605"
+        },
+        "confidence": 0.5,
+        "evidence": [
+          "quote_on_page",
+          "value_in_quote",
+          "period_ok",
+          "page_is_statement",
+          "unit_ok"
+        ]
+      },
+      {
+        "key": "due_1_to_5_years",
+        "label": "Due 1–5 years",
+        "value": null,
+        "unit": null,
+        "period": null,
+        "raw_label": null,
+        "source": null,
+        "confidence": 0.0,
+        "evidence": []
+      },
+      {
+        "key": "due_after_5_years",
+        "label": "Due after 5 years",
+        "value": 9,
+        "unit": "SEKm",
+        "period": "2025",
+        "raw_label": "Total",
+        "source": {
+          "page": 169,
+          "quote": "Total 197 22 1,377 9 1,605"
+        },
+        "confidence": 0.5,
+        "evidence": [
+          "quote_on_page",
+          "value_in_quote",
+          "period_ok",
+          "page_is_statement",
+          "unit_ok"
+        ]
+      }
+    ],
+    "checks": [
+      {
+        "name": "maturity_sums_to_total",
+        "passed": false,
+        "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((197 + 0 (due_1_to_5_years null) + 9) - 1605) <= 2"
+      }
+    ],
+    "warnings": [
+      "due_1_to_5_years: 1399 is printed on none of pages [169, 170]; dropped as computed, not read"
+    ]
+  },
+  "after": {
+    "report_id": "lib-cloetta_2025",
+    "company": "Cloetta",
+    "fiscal_year": 2025,
+    "currency": "SEKm",
+    "section": "debt_maturity",
+    "fields": [
+      {
+        "key": "total_debt",
+        "label": "Total borrowings",
+        "value": 1605,
+        "unit": "SEKm",
+        "period": "2025",
+        "raw_label": "Total",
+        "source": {
+          "page": 169,
+          "quote": "Total 197 22 1,377 9 1,605"
+        },
+        "confidence": 0.9,
+        "evidence": [
+          "quote_on_page",
+          "value_in_quote",
+          "arith_ok",
+          "period_ok",
+          "page_is_statement",
+          "unit_ok"
+        ]
+      },
+      {
+        "key": "due_within_1_year",
+        "label": "Due within 1 year",
+        "value": 197,
+        "unit": "SEKm",
+        "period": "2025",
+        "raw_label": "Total",
+        "source": {
+          "page": 169,
+          "quote": "Total 197 22 1,377 9 1,605"
+        },
+        "confidence": 0.9,
+        "evidence": [
+          "quote_on_page",
+          "value_in_quote",
+          "arith_ok",
+          "period_ok",
+          "page_is_statement",
+          "unit_ok"
+        ]
+      },
+      {
+        "key": "due_1_to_5_years",
+        "label": "Due 1–5 years",
+        "value": 1399,
+        "unit": "SEKm",
+        "period": "2025",
+        "raw_label": "Total",
+        "source": {
+          "page": 169,
+          "quote": "Total 197 22 1,377 9 1,605"
+        },
+        "confidence": 1.0,
+        "evidence": [
+          "quote_on_page",
+          "value_derived",
+          "arith_ok",
+          "label_known",
+          "period_ok",
+          "page_is_statement",
+          "unit_ok"
+        ]
+      },
+      {
+        "key": "due_after_5_years",
+        "label": "Due after 5 years",
+        "value": 9,
+        "unit": "SEKm",
+        "period": "2025",
+        "raw_label": "Total",
+        "source": {
+          "page": 169,
+          "quote": "Total 197 22 1,377 9 1,605"
+        },
+        "confidence": 0.9,
+        "evidence": [
+          "quote_on_page",
+          "value_in_quote",
+          "arith_ok",
+          "period_ok",
+          "page_is_statement",
+          "unit_ok"
+        ]
+      }
+    ],
+    "checks": [
+      {
+        "name": "maturity_sums_to_total",
+        "passed": true,
+        "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((197 + 1399 + 9) - 1605) <= 2"
+      }
+    ],
+    "warnings": [
+      "two_pass: page [169, 170] selected from candidates [169, 170, 179, 39]",
+      "due_1_to_5_years: 1399 is printed on none of pages [169, 170]; dropped as computed, not read",
+      "due_1_to_5_years: model returned null; 1399 read from 'Total 197 22 1,377 9 1,605' by its column order"
+    ]
+  }
+}

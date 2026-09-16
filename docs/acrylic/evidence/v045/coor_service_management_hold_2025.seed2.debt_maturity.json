@@ -1,0 +1,143 @@
+{
+  "seed": 2,
+  "stem": "coor_service_management_hold_2025",
+  "candidate_pages": [
+    159,
+    160,
+    157
+  ],
+  "before": {
+    "report_id": "lib-coor_service_management_hold_2025",
+    "company": "Coor Service Management Hold.",
+    "fiscal_year": 2025,
+    "currency": "SEK million",
+    "section": "debt_maturity",
+    "fields": [
+      {
+        "key": "total_debt",
+        "label": "Total borrowings",
+        "value": 2727,
+        "unit": "SEK million",
+        "period": "2025",
+        "raw_label": "Total",
+        "source": {
+          "page": 157,
+          "quote": "Total 2,727 2,677 2,727 2,677 Loans and receivables 2025 2024"
+        },
+        "confidence": 0.85,
+        "evidence": [
+          "quote_on_page",
+          "value_in_quote",
+          "arith_ok",
+          "period_ok",
+          "unit_ok"
+        ]
+      },
+      {
+        "key": "due_within_1_year",
+        "label": "Due within 1 year",
+        "value": null,
+        "unit": "SEK million",
+        "period": "2025",
+        "raw_label": "",
+        "source": null,
+        "confidence": 0.0,
+        "evidence": []
+      },
+      {
+        "key": "due_1_to_5_years",
+        "label": "Due 1–5 years",
+        "value": null,
+        "unit": "SEK million",
+        "period": "2025",
+        "raw_label": "",
+        "source": null,
+        "confidence": 0.0,
+        "evidence": []
+      },
+      {
+        "key": "due_after_5_years",
+        "label": "Due after 5 years",
+        "value": null,
+        "unit": "SEK million",
+        "period": "2025",
+        "raw_label": "",
+        "source": null,
+        "confidence": 0.0,
+        "evidence": []
+      }
+    ],
+    "checks": [
+      {
+        "name": "maturity_sums_to_total",
+        "passed": false,
+        "detail": "missing: due_within_1_year"
+      }
+    ],
+    "warnings": []
+  },
+  "after": {
+    "report_id": "lib-coor_service_management_hold_2025",
+    "company": "Coor Service Management Hold.",
+    "fiscal_year": 2025,
+    "currency": null,
+    "section": "debt_maturity",
+    "fields": [
+      {
+        "key": "total_debt",
+        "label": "Total borrowings",
+        "value": null,
+        "unit": null,
+        "period": null,
+        "raw_label": null,
+        "source": null,
+        "confidence": 0.0,
+        "evidence": []
+      },
+      {
+        "key": "due_within_1_year",
+        "label": "Due within 1 year",
+        "value": null,
+        "unit": null,
+        "period": null,
+        "raw_label": null,
+        "source": null,
+        "confidence": 0.0,
+        "evidence": []
+      },
+      {
+        "key": "due_1_to_5_years",
+        "label": "Due 1–5 years",
+        "value": null,
+        "unit": null,
+        "period": null,
+        "raw_label": null,
+        "source": null,
+        "confidence": 0.0,
+        "evidence": []
+      },
+      {
+        "key": "due_after_5_years",
+        "label": "Due after 5 years",
+        "value": null,
+        "unit": null,
+        "period": null,
+        "raw_label": null,
+        "source": null,
+        "confidence": 0.0,
+        "evidence": []
+      }
+    ],
+    "checks": [
+      {
+        "name": "maturity_sums_to_total",
+        "passed": false,
+        "detail": "missing: due_within_1_year"
+      }
+    ],
+    "warnings": [
+      "two_pass: page [160, 161] selected from candidates [159, 160, 157]",
+      "llm: TimeoutExpired: Command '['C:\\\\Users\\\\xingyi chen\\\\AppData\\\\Local\\\\Programs\\\\OpenAI\\\\Codex\\\\bin\\\\codex.EXE', 'exec', '-m', 'gpt-5.6-terra', '-s', 'read-only', '-C', 'C:\\\\Users\\\\XINGYI~1\\\\AppData\\\\Local\\\\Temp\\\\vivicta-codex-nahmgnrm', '--skip-git-repo-check', '--json', '-o', 'C:\\\\Users\\\\XINGYI~1\\\\AppData\\\\Local\\\\Temp\\\\vivicta-codex-nahmgnrm\\\\last-message.txt', '-']' timed out after 120.0 seconds (pages [160, 161])"
+    ]
+  }
+}
