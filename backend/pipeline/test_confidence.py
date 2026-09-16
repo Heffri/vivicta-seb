@@ -305,6 +305,31 @@ def demo():
         {"key": "net_profit", "value": 142, "unit": "SEK M", "period": "2025", "raw_label": "Net profit for the year", "source": {"page": 1, "quote": "Net profit for the year 142 1,571"}}]}
     out = x.extract([ncc2], [1], sch, {"fiscal_year": 2025})
     assert out["fields"][2]["value"] is None and out["checks"][0]["passed"] and all(f["confidence"] == 1.0 for f in out["fields"] if f["value"] is not None), (out["fields"], out["warnings"])
+    # Ericsson (debt maturity): the note has no >5y row, so due_after_5_years is null — a correct extraction, not a failure.
+    # A check's null_as_zero lists the operands that count as 0 while they are null, as long as at least one of them is real;
+    # when every listed operand is null the sum proves nothing and the check stays missing (never 0 == total).
+    dmc = {"name": "maturity_sums_to_total", "expr": "abs((due_within_1_year + due_1_to_5_years + due_after_5_years) - total_debt) <= 2",
+           "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding)", "identity": True,
+           "null_as_zero": ["due_within_1_year", "due_1_to_5_years", "due_after_5_years"]}
+    c = x._check(dmc, {"due_within_1_year": 3538, "due_1_to_5_years": 29165, "total_debt": 32703})
+    assert c["passed"] and "due_after_5_years null" in c["detail"], c  # the detail names the bucket counted as 0
+    c = x._check(dmc, {"total_debt": 32703})  # no bucket printed at all
+    assert not c["passed"] and c["detail"].startswith("missing:"), c
+    c = x._check({k: v for k, v in dmc.items() if k != "null_as_zero"}, {"due_within_1_year": 3538, "due_1_to_5_years": 29165, "total_debt": 32703})
+    assert not c["passed"] and c["detail"] == "missing: due_after_5_years", c  # without the flag: the old behaviour
+    # ... end to end: the identity passes with the null bucket as 0, and total_debt keeps arith_ok at full confidence
+    dm = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
+    ericsson = "Note 20 Borrowings\nMSEK\n2025\nTotal borrowings 32,703\nWithin 1 year 3,538\n1-5 years 29,165\n"
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 32703, "unit": "MSEK", "period": "2025", "raw_label": "Total borrowings", "source": {"page": 1, "quote": "Total borrowings 32,703"}},
+        {"key": "due_within_1_year", "value": 3538, "unit": "MSEK", "period": "2025", "raw_label": "Within 1 year", "source": {"page": 1, "quote": "Within 1 year 3,538"}},
+        {"key": "due_1_to_5_years", "value": 29165, "unit": "MSEK", "period": "2025", "raw_label": "1-5 years", "source": {"page": 1, "quote": "1-5 years 29,165"}},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([ericsson], [1], dm, {"fiscal_year": 2025})
+    c = out["checks"][0]
+    assert c["passed"] and "due_after_5_years null" in c["detail"], (c, out["warnings"])
+    total = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert total["confidence"] == 1.0 and "arith_ok" in total["evidence"], total
     print("confidence self-check ok")
 
 

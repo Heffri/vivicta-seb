@@ -131,15 +131,20 @@ def _num(v):
 
 def _check(check: dict, values: dict) -> dict:
     out = {"name": check["name"], "passed": False, "detail": ""}
+    # "null_as_zero" operands (schema: Ericsson's note prints no >5y bucket — null there is a real 0, not an unanswered
+    # field) count as 0 while null, but only while at least one of them is real: all buckets null would sum to 0 == total
+    # and the check would pass on nothing.
+    naz = [k for k in check.get("null_as_zero", []) if values.get(k) is None]
+    ns = {**values, **{k: 0 for k in naz}} if naz and len(naz) < len(check["null_as_zero"]) else values
     try:
-        result = eval(check["expr"], {"__builtins__": {}, **_SAFE_BUILTINS}, values)  # ponytail: our own schema files, not user input
+        result = eval(check["expr"], {"__builtins__": {}, **_SAFE_BUILTINS}, ns)  # ponytail: our own schema files, not user input
     except NameError as e:
         out["detail"] = f"missing: {e.name}"
         return out
     except Exception as e:
         out["detail"] = f"{type(e).__name__}: {e}"
         return out
-    substituted = re.sub(r"\b[A-Za-z_]\w*\b", lambda m: str(values.get(m.group(), m.group())), check["expr"])
+    substituted = re.sub(r"\b[A-Za-z_]\w*\b", lambda m: f"0 ({m.group()} null)" if m.group() in naz else str(ns.get(m.group(), m.group())), check["expr"])
     out.update(passed=bool(result), detail=f"{check.get('detail', '')} | {substituted}".strip(" |"))
     return out
 
