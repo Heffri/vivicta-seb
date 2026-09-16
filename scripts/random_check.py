@@ -37,6 +37,7 @@ def main():
     ap.add_argument("--exclude-sector", action="append", default=[],
                     help="drop companies whose sector contains this substring, e.g. 'Real Estate'; repeatable")
     ap.add_argument("--only", nargs="*", default=[], help="re-check only companies whose name contains one of these")
+    ap.add_argument("--api", default="http://localhost:8000", help="backend base URL")
     a = ap.parse_args()
 
     companies = json.loads((ROOT / "data" / "companies.json").read_text("utf-8"))
@@ -54,11 +55,11 @@ def main():
             break
         tried += 1
         t0 = time.time()
-        st, r = call("POST", "/api/reports/fetch", {"company": c["name"], "year": a.year})
+        st, r = call("POST", "/api/reports/fetch", {"company": c["name"], "year": a.year}, api=a.api)
         if st != 200:
             print(f"skip  {c['name']:<28} fetch {st}: {str(r)[:90]}", flush=True)
             continue
-        st, x = call("POST", f"/api/reports/{r['report_id']}/extract", {"section": a.section})
+        st, x = call("POST", f"/api/reports/{r['report_id']}/extract", {"section": a.section}, api=a.api)
         if st != 200:
             print(f"fail  {c['name']:<28} extract {st}: {str(x)[:90]}", flush=True)
             results.append((c["name"], 0, 0, False))
