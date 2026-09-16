@@ -4,9 +4,11 @@ import { AskView } from './components/AskView'
 import { CompareView } from './components/CompareView'
 import { KbView } from './components/KbView'
 import { Rail } from './components/shell/Rail'
+import { SkipLink } from './components/shell/SkipLink'
 import { StatusBar } from './components/shell/StatusBar'
 import type { Tab } from './components/shell/tabs'
 import { Titlebar } from './components/shell/Titlebar'
+import { useHeadingFocus } from './components/shell/useHeadingFocus'
 import { useTone } from './components/shell/useTone'
 import { ResultsView } from './components/ResultsView'
 import { UploadView } from './components/UploadView'
@@ -23,6 +25,8 @@ export default function App() {
   useEffect(() => {
     getConfig().then(setConfig).catch(() => {})
   }, [])
+
+  useHeadingFocus(tab)
 
   const done = (rs: Result[]) => {
     setResults(rs)
@@ -48,10 +52,11 @@ export default function App() {
 
   return (
     <div className="glass flex h-screen flex-col overflow-hidden text-foreground">
+      <SkipLink />
       <Titlebar subtitle="PDF annual report in → structured, source-linked data out → JSON/CSV for downstream banking systems." />
       <div className="flex min-h-0 flex-1">
         <Rail active={tab} enabled={enabled} compareCount={results.length} onSelect={setTab} tone={tone} onToneChange={setTone} />
-        <main className="min-w-0 flex-1 overflow-y-auto">
+        <main id="content" tabIndex={-1} className="min-w-0 flex-1 overflow-y-auto">
           <div className="mx-auto max-w-6xl px-6 py-10">
             {tab === 'extract' && <UploadView onDone={done} />}
             {tab === 'results' && shown?.extraction && (
