@@ -60,7 +60,8 @@
       "unit_hint": "currency_millions",
       "synonyms": [
         "within 1 year", "less than 1 year", "0-1 year", "0-1 years", "within one year",
-        "inom 1 år", "förfaller inom 1 år", "< 1 år", "kortfristiga räntebärande skulder"
+        "inom 1 år", "förfaller inom 1 år", "< 1 år", "kortfristiga räntebärande skulder",
+        "borrowings, current"
       ]
     },
     {
