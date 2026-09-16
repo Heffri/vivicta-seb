@@ -2,6 +2,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ErrorBlock } from '@/components/ui/state'
 import type { LibraryEntry } from '@/types'
 import { Face } from './Face'
 
@@ -53,7 +54,7 @@ export function CachedReports({
     >
       {open &&
         (libraryError ? (
-          <p className="text-xs text-muted-foreground">Report cache unavailable ({libraryError}).</p>
+          <ErrorBlock className="px-3 py-2 text-xs">Report cache unavailable ({libraryError}).</ErrorBlock>
         ) : library.length === 0 ? (
           <p className="text-xs text-muted-foreground">
             Nothing cached yet — pick a company in Directory search, or drop a PDF.
@@ -82,7 +83,9 @@ export function CachedReports({
                 )
               })}
             </div>
-            <div className="grid max-h-72 gap-2 overflow-y-auto pr-0.5 sm:grid-cols-2 min-[1280px]:grid-cols-1">
+            {/* Fills its face at ≥1280 (like the dropzone already does) up to the same max-h-72
+                cap that bounds the stacked layout; cards stay top-aligned either way. */}
+            <div className="grid max-h-72 gap-2 overflow-y-auto pr-0.5 sm:grid-cols-2 min-[1280px]:grid-cols-1 min-[1280px]:flex-1 min-[1280px]:min-h-0">
               {library.map((e) => (
                 <label
                   key={e.file}

@@ -1,9 +1,10 @@
 import { Check, Search, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { ErrorBlock } from '@/components/ui/state'
+import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { Company } from '@/types'
 import { Face } from './Face'
-import { Input } from './Input'
 
 type CompanySearchProps = {
   query: string
@@ -62,9 +63,9 @@ export function CompanySearch({
       </div>
 
       {dirError !== null ? (
-        <p className="text-xs text-muted-foreground">Company directory unavailable{dirError && ` (${dirError})`}.</p>
+        <ErrorBlock className="px-3 py-2 text-xs">Company directory unavailable{dirError && ` (${dirError})`}.</ErrorBlock>
       ) : (
-        <ul className="max-h-64 divide-y divide-border overflow-y-auto rounded-lg border border-border bg-background/50 text-sm">
+        <ul className="max-h-64 min-[1280px]:max-h-80 divide-y divide-border overflow-y-auto rounded-lg border border-border bg-background/50 text-sm">
           {companies.length === 0 && <li className="px-3 py-2 text-xs text-muted-foreground">No matches.</li>}
           {companies.map((c) => {
             const on = picked.some((p) => p.name === c.name)

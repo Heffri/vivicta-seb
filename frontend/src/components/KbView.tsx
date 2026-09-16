@@ -1,9 +1,10 @@
 import { Database, Loader2, Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { getKb, getSchemas, openKbExtraction } from '@/api'
+import { type ApiError, getKb, getSchemas, openKbExtraction } from '@/api'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { ErrorBlock, LoadingLine } from '@/components/ui/state'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { KbEntry, Result, Schema } from '@/types'
 
@@ -16,6 +17,7 @@ export function KbView({ onOpen }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set()) // stems
   const [busy, setBusy] = useState<string | null>(null)
+  const [notCached, setNotCached] = useState(false) // last error was the 409 "PDF no longer cached"
   const [query, setQuery] = useState('')
 
   useEffect(() => {
@@ -29,15 +31,18 @@ export function KbView({ onOpen }: Props) {
     setBusy(stems.join())
     setError(null)
     const results: Result[] = []
+    let missingPdf = false
     for (const stem of stems) {
       const label = entries?.find((e) => e.stem === stem)?.company ?? stem
       try {
         results.push({ label, sectionTitle: title(section), extraction: await openKbExtraction(stem, section) })
       } catch (e) {
         results.push({ label, sectionTitle: title(section), error: (e as Error).message })
+        if ((e as ApiError).status === 409) missingPdf = true // backend re-registration needs the PDF in data/reports
       }
     }
     setBusy(null)
+    setNotCached(missingPdf)
     if (results.every((r) => r.error)) setError(results.map((r) => `${r.label}: ${r.error}`).join('\n'))
     else onOpen(results)
   }
@@ -81,16 +86,20 @@ export function KbView({ onOpen }: Props) {
       </header>
 
       {error && (
-        <div className="whitespace-pre-line rounded-lg border border-danger/30 bg-danger-muted px-4 py-3 text-sm text-danger">
+        <ErrorBlock
+          details={
+            notCached ? (
+              <p className="mt-2 text-xs">
+                Next step: fetch the PDF from the Extract tab’s Directory search, then open it here again.
+              </p>
+            ) : undefined
+          }
+        >
           {error}
-        </div>
+        </ErrorBlock>
       )}
 
-      {!entries && !error && (
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" /> Loading…
-        </p>
-      )}
+      {!entries && !error && <LoadingLine>Loading…</LoadingLine>}
 
       {entries && entries.length === 0 && <p className="text-sm text-muted-foreground">Empty — extract a report first.</p>}
 

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { type ApiError, extractSection, fetchReport, getCompanies, getLibrary, getSchemas, registerLibraryReport, uploadReport } from '@/api'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ErrorBlock, LoadingLine } from '@/components/ui/state'
 import { CachedReports } from '@/components/upload/CachedReports'
 import { CompanySearch } from '@/components/upload/CompanySearch'
 import { Dropzone } from '@/components/upload/Dropzone'
@@ -204,33 +205,39 @@ export function UploadView({ onDone }: Props) {
               </SelectContent>
             </Select>
             {schemasError && (
-              <p className="text-xs text-danger">Could not load sections ({schemasError}). Is the backend running?</p>
+              <ErrorBlock className="px-3 py-2 text-xs">
+                Could not load sections ({schemasError}). Is the backend running?
+              </ErrorBlock>
             )}
           </div>
           <Button onClick={run} disabled={!canExtract}>
             {busy && <Loader2 className="animate-spin" />}
             {count > 1 ? `Extract ${count} reports` : 'Extract'}
           </Button>
-          {progress && <p className="w-full text-xs text-muted-foreground">{progress}</p>}
+          {progress && <LoadingLine className="w-full">{progress}</LoadingLine>}
         </div>
 
-        {/* All-failed block. --danger names the data status (a failed run); the tried URL list
-            stays for the /fetch 404 case, where the backend reports what it attempted. */}
+        {/* All-failed block. The shared danger block (v010); the tried URL list stays inside
+            it as collapsible details for the /fetch 404 case, where the backend reports
+            what it attempted. */}
         {error && (
-          <div role="alert" className="border-t border-danger/30 bg-danger-muted px-5 py-4">
-            <p className="whitespace-pre-wrap text-sm text-danger">{error}</p>
-            {Object.entries(tried).map(([label, urls]) => (
-              <details key={label} className="mt-1 text-xs">
-                <summary className="cursor-pointer">
-                  {label}: tried {urls.length} URL{urls.length === 1 ? '' : 's'}
-                </summary>
-                <ul className="mt-1 list-inside list-disc break-all">
-                  {urls.map((u) => (
-                    <li key={u}>{u}</li>
-                  ))}
-                </ul>
-              </details>
-            ))}
+          <div className="border-t border-border px-5 py-4">
+            <ErrorBlock
+              details={Object.entries(tried).map(([label, urls]) => (
+                <details key={label} className="mt-1 text-xs">
+                  <summary className="cursor-pointer">
+                    {label}: tried {urls.length} URL{urls.length === 1 ? '' : 's'}
+                  </summary>
+                  <ul className="mt-1 list-inside list-disc break-all">
+                    {urls.map((u) => (
+                      <li key={u}>{u}</li>
+                    ))}
+                  </ul>
+                </details>
+              ))}
+            >
+              {error}
+            </ErrorBlock>
           </div>
         )}
       </section>

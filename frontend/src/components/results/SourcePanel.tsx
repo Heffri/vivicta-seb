@@ -1,9 +1,9 @@
 import { ExternalLink, ImageOff } from 'lucide-react'
 import { pageUrl, pdfUrl } from '@/api'
 import { highlightQuote } from '@/components/results/highlight'
-import { Segmented } from '@/components/results/Segmented'
 import { buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Segmented } from '@/components/ui/segmented'
 import type { Field } from '@/types'
 
 // Provenance viewer: browser PDF viewer (scroll/zoom/search/select for free) or the rendered PNG as fallback.

@@ -1,9 +1,10 @@
-import { Loader2, TriangleAlert } from 'lucide-react'
+import { TriangleAlert } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { ask, indexReport, pdfUrl } from '@/api'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ErrorBlock, LoadingLine } from '@/components/ui/state'
 import type { Answer } from '@/types'
 
 type Props = {
@@ -73,9 +74,7 @@ export function AskPanel({ reports, onCitation }: Props) {
               <li key={i} className="space-y-2 border-b pb-4 text-sm last:border-b-0">
                 <p className="font-medium">{t.question}</p>
                 {t.error ? (
-                  <p role="alert" className="text-danger">
-                    {t.error}
-                  </p>
+                  <ErrorBlock>{t.error}</ErrorBlock>
                 ) : (
                   t.answer && (
                     <>
@@ -115,11 +114,7 @@ export function AskPanel({ reports, onCitation }: Props) {
           </ol>
         )}
 
-        {busy && (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" /> Thinking… local model, 10–40 s
-          </p>
-        )}
+        {busy && <LoadingLine>Thinking… local model, 10–40 s</LoadingLine>}
 
         <div className="space-y-2">
           <div className="flex flex-wrap gap-1.5">
