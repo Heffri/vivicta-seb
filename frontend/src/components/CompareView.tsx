@@ -1,7 +1,9 @@
 import { Download } from 'lucide-react'
 import { csvUrl } from '@/api'
 import { AskPanel } from '@/components/AskPanel'
+import { MaturityBar } from '@/components/compare/MaturityBar'
 import { confidenceClass, confidenceTitle, fmtValue } from '@/components/ResultsView'
+import { isMaturitySection } from '@/components/results/MaturityChart'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -16,6 +18,17 @@ export function CompareView({ results, onSelect, onReset }: Props) {
   const rows = first?.fields ?? []
   const ok = results.filter((r) => r.extraction).length
   const reports = results.flatMap((r) => (r.extraction ? [{ report_id: r.extraction.report_id, label: r.label }] : []))
+  // Same judgment as MaturityChart, per successful column — one non-bucket column and the
+  // matrix stays exactly as it was (no row, nothing else changes).
+  const showMaturityRow = ok > 0 && results.every((r) => !r.extraction || isMaturitySection(r.extraction.fields))
+  const errorCell = (r: Result, i: number, span: number) => (
+    <TableCell key={i} rowSpan={span} className="max-w-60 whitespace-normal align-top text-xs text-danger">
+      {r.error}
+      <p className="mt-2 text-danger/80">
+        Next step: fetch the PDF from the Extract tab’s Directory search, then open it here again.
+      </p>
+    </TableCell>
+  )
 
   return (
     <div className="space-y-6">
@@ -64,20 +77,27 @@ export function CompareView({ results, onSelect, onReset }: Props) {
             </TableRow>
           </TableHeader>
           <TableBody>
+            {showMaturityRow && (
+              <TableRow>
+                <TableCell className="sticky left-0 z-10 bg-muted/50 font-medium">Maturity profile</TableCell>
+                {results.map((r, i) =>
+                  r.extraction ? (
+                    <TableCell key={i} className="bg-muted/50">
+                      <MaturityBar extraction={r.extraction} />
+                    </TableCell>
+                  ) : (
+                    errorCell(r, i, rows.length + 1)
+                  ),
+                )}
+              </TableRow>
+            )}
             {rows.map((row, ri) => (
               <TableRow key={row.key}>
                 <TableCell className="sticky left-0 z-10 bg-card font-medium">{row.label}</TableCell>
                 {results.map((r, i) => {
                   if (!r.extraction) {
                     // One tall cell with the error instead of N empty ones.
-                    return ri === 0 ? (
-                      <TableCell key={i} rowSpan={rows.length} className="max-w-60 whitespace-normal align-top text-xs text-danger">
-                        {r.error}
-                        <p className="mt-2 text-danger/80">
-                          Next step: fetch the PDF from the Extract tab’s Directory search, then open it here again.
-                        </p>
-                      </TableCell>
-                    ) : null
+                    return ri === 0 && !showMaturityRow ? errorCell(r, i, rows.length) : null
                   }
                   const f = r.extraction.fields.find((x) => x.key === row.key)
                   return (

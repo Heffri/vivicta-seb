@@ -6,15 +6,18 @@ import type { Extraction, Field } from '@/types'
 
 // Copied verbatim from backend/pipeline/ppt.py — change it there first, then here.
 // HANDOFF.md: "update BUCKET_ORDER / BUCKET_LABELS in ppt.py — that is the only coupling."
-const BUCKET_ORDER = ['due_within_1_year', 'due_1_to_5_years', 'due_after_5_years'] as const
-const BUCKET_LABELS: Record<(typeof BUCKET_ORDER)[number], string> = {
+// Exported for reuse by components/compare/MaturityBar.tsx (v020) — same bucket judgment,
+// not re-derived — per the "only coupling" note above, this file stays the one place a
+// bucket-key change must land.
+export const BUCKET_ORDER = ['due_within_1_year', 'due_1_to_5_years', 'due_after_5_years'] as const
+export const BUCKET_LABELS: Record<(typeof BUCKET_ORDER)[number], string> = {
   due_within_1_year: '< 1 year',
   due_1_to_5_years: '1–5 years',
   due_after_5_years: '> 5 years',
 }
 // The schema's one identity check (backend/schemas/debt_maturity.json). checks carry no
 // identity flag over the API (docs/API.md), so the result is looked up by name — never recomputed here.
-const IDENTITY_CHECK = 'maturity_sums_to_total'
+export const IDENTITY_CHECK = 'maturity_sums_to_total'
 
 type Props = {
   extraction: Extraction
@@ -25,11 +28,15 @@ type Props = {
 // Same rule as ppt.py build_pptx, translated verbatim: draw a bar chart iff any bucket
 // key is present with a non-null value — decided on field keys, never the section name.
 // Every bucket gets a slot even when null (a missing bucket is the normal case, HANDOFF.md).
-const bucketSlots = (fields: Field[]) => {
+export const bucketSlots = (fields: Field[]) => {
   const byKey = new Map(fields.map((f) => [f.key, f]))
   return BUCKET_ORDER.map((key) => byKey.get(key) ?? null)
 }
-const numeric = (f: Field | null) => (f && typeof f.value === 'number' ? f.value : null)
+export const numeric = (f: Field | null) => (f && typeof f.value === 'number' ? f.value : null)
+
+// The chart-vs-nothing judgment, exported so CompareView can decide the same way per
+// column before it draws anything (v020) — never a second, independently-maintained rule.
+export const isMaturitySection = (fields: Field[]) => bucketSlots(fields).some((f) => f && f.value !== null)
 
 // Round the axis top up to a clean step so ticks land on printed numbers: 29 165 → step
 // 10 000, top 40 000, ticks 0/10 000/20 000/30 000/40 000.
