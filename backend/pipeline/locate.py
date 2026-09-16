@@ -43,10 +43,12 @@ TOC_LINE = re.compile(r"(?:[_.]\s*){3,}\d{1,3}\s*$")  # AAK's nav bar "Financial
 
 PROMPT_BUDGET = 14000  # chars of page text per LLM call; qwen3:8b runs with a 16k context and thinks out loud before the JSON
 
-TOC_PAGES = 8  # contents live in the front matter (AAK's is pdf p.6)
+TOC_PAGES = 8  # front-matter contents (AAK's is pdf p.6); note-level indexes live deeper in the report
 TOC_MARK = re.compile(r"\bcontents\b|innehåll", re.I)  # the word on a contents page, not the entries
 TOC_ENTRY = re.compile(r"^(.+?\S)\s*(?:[_.]\s*){2,}(\d{1,3})\s*$")  # AAK "AAK in brief________________7"
 TOC_ENTRY_PLAIN = re.compile(r"^(.+?\S)\s{2,}(\d{1,3})\s*$")  # Atlas Copco "Business area: Vacuum Technique  25"
+NOTE_INDEX = re.compile(r"contents of (the )?notes|notes? contents|contents[^\w\s]+notes|note index|notförteckning|innehåll[^\w\s]+noter", re.I)  # axfood "Notes Contents note 1 accounting policies 128"
+NOTE_ENTRY = re.compile(r"^(?:note|not)\.?\s+\d{1,2}[.:)]?\s+(.+?\S)\s+(\d{1,3})\s*$")  # a notes index row, "Note 15 Borrowings 170"
 FOLIO = re.compile(r"^\s*(\d{1,3})\s*$")  # a line that is only the printed page number (AAK "145")
 FOLIO_TAIL = re.compile(r"\s(\d{1,3})\s*$")  # a footer ending in it, "Atlas Copco Group 2025   2"
 
@@ -77,41 +79,69 @@ def _folio_offset(texts: list[str]) -> int | None:
 
 
 def toc_targets(texts: list[str], schema: dict) -> dict[int, str]:
-    """pdf page -> the contents-line title naming it, for section pages the report's own TOC points at.
-    Parsed from the raw front-matter text (strip_boilerplate drops TOC_LINE lines as scoring noise --
-    this reads the same lines as signal first). Empty when there is no contents page, the title matches
-    nothing, or printed pages can't be aligned to pdf pages: a wrong guess would boost a random page,
-    so none is made."""
+    """pdf page -> the contents-line title naming it, for section pages the report's own contents point at.
+    Contents-style pages are scanned document-wide: front matter with a contents word, pages with >= 8
+    leader-line rows (Nolato's note index "Note 15 Borrowings.......170"), and pages headed as a notes
+    index (axfood "Notes Contents ... Note 1 Accounting policies 128"). Lines that repeat across pages
+    are the running nav (AAK's sidebar rows are leader-form too), not an index row. Parsed from the raw
+    text before strip_boilerplate drops TOC_LINE lines as scoring noise -- the same lines read as signal
+    first. Empty when no page qualifies, the title matches nothing, or printed pages can't be aligned to
+    pdf pages: a wrong guess would boost a random page, so none is made."""
     hits: dict[int, str] = {}
-    toc_page = next((t for t in texts[:TOC_PAGES] if TOC_MARK.search(" ".join(t.lower().split()))), None)
     offset = _folio_offset(texts)
-    if toc_page is None or offset is None:
+    if offset is None:
         return hits
-    entries, prev = [], None  # Atlas Copco puts the number alone on the line after the title
-    for line in toc_page.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        m = FOLIO.match(line)
-        if m and prev and not prev[-1].isdigit():  # pairs only right after a title-looking line
-            entries.append((prev, int(m.group(1))))
-            prev = None
-            continue
-        m = TOC_ENTRY.match(line) or TOC_ENTRY_PLAIN.match(line)
-        if m:
-            entries.append((m.group(1), int(m.group(2))))
-            prev = None
-        else:
-            prev = line
+    from collections import Counter
+    freq = Counter(line for t in texts for line in set(t.splitlines()))
+    limit = max(3, BOILERPLATE_SHARE * len(texts))
+    fresh = lambda l: freq[l] <= limit  # nav sidebars repeat; index rows are printed once
+
+    def rows(page_text: str) -> tuple[list[tuple[str, int]], int]:
+        """(entries from non-repeating lines, count of non-repeating leader-form rows)."""
+        entries, leaders, prev = [], 0, None  # Atlas Copco puts the number alone on the line after the title
+        for line in page_text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            m = FOLIO.match(line)
+            if m and prev and not prev[-1].isdigit():  # pairs only right after a title-looking line
+                if fresh(prev):
+                    entries.append((prev, int(m.group(1))))
+                prev = None
+                continue
+            m = TOC_ENTRY.match(line) or TOC_ENTRY_PLAIN.match(line) or NOTE_ENTRY.match(line)
+            if m:
+                groups = m.groups()
+                if fresh(line):
+                    entries.append((groups[-2], int(groups[-1])))
+                    if m.re is TOC_ENTRY:
+                        leaders += 1
+                prev = None
+            else:
+                prev = line
+        return entries, leaders
+
     words = [k.lower() for k in schema.get("keywords", []) + schema.get("toc_keywords", [])]
+    note_words = [k.lower() for k in schema.get("toc_keywords", [])]
     excluded = [k.lower() for k in schema.get("exclude_keywords", [])]
-    for title, printed in entries:
-        page = printed + offset
-        if not (1 <= page <= len(texts)) or printed not in _folios(texts[page - 1]):
-            continue  # the target page doesn't carry that printed number: numbering drifts, no boost
-        low = " ".join(title.lower().split())
-        if any(k in low for k in words) and not any(k in low for k in excluded):
-            hits.setdefault(page, low)
+    for i, text in enumerate(texts, 1):
+        entries, leaders = rows(text)
+        low_page = " ".join(text.lower().split())
+        if not (leaders >= 8 or NOTE_INDEX.search(low_page[:300]) and len(entries) >= 2
+                or i <= TOC_PAGES and TOC_MARK.search(low_page)):
+            continue
+        # front-matter contents list section titles (generic keywords calibrated on those); pages deeper
+        # in the report are note-level indexes, whose rows ("Tax on net profit for the year 133") also
+        # match row-level keywords -- only toc_keywords are precise enough there, and a schema without
+        # them simply doesn't take boosts from note indexes.
+        keys = words if i <= TOC_PAGES else note_words
+        for title, printed in entries:
+            page = printed + offset
+            if not (1 <= page <= len(texts)) or printed not in _folios(texts[page - 1]):
+                continue  # the target page doesn't carry that printed number: numbering drifts, no boost
+            low = " ".join(title.lower().split())
+            if any(k in low for k in keys) and not any(k in low for k in excluded):
+                hits.setdefault(page, low)
     return hits
 
 
