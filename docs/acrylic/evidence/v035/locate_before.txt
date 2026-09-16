@@ -1,0 +1,470 @@
+4c_2025  (77p)
+  1. p.42   [ ] 'liquidity risk and refinancing risk liquidity risk is the risk that the group ma'
+  2. p.43   [ ] 'capital management capital is defined as total equity. the group’s objectives wi'
+  3. p.12   [ ] 'interest bearing liabilities of sek 93,250 thousand (46,482) consists of a bank '
+  4. p.36   [ ] 'note g12 leases the group’s material leases, for which the group is the lessee, '
+aak_2025  (190p)
+  1. p.145  [x] '145 note 3 financial risk management liquidity risk liquidity risk concerns the '
+  2. p.146  [ ] '146 note 3 financial risk management credit risk the company is exposed to credi'
+  3. p.169  [x] '169 note 20 borrowings group parent non-current 2025 2024 liabilities to banks a'
+  4. p.147  [ ] '147 note 3 financial risk management accounting classification of financial inst'
+  5. p.127  [ ] '127 consolidated balance sheet sek million note dec 31, 2025 dec 31, 2024 equity'
+abb_2025  (142p)
+  1. p.90   [ ] '88 details of significant long-term borrowings were as follows: december 31, (in'
+  2. p.91   [ ] '89 the 3.8% usd notes, due 2028, were issued in april 2018 and pay interest semi'
+  3. p.128  [ ] '126 balance sheet december 31 (chf in thousands) note cash 188 302 cash deposit '
+  4. p.50   [ ] '48 financing activities net changes in debt with original maturities of 90 days '
+acroud_2025  (79p)
+  1. p.61   [ ] 'note 24 • loans and borrowings the carrying amount of borrowings is as follows: '
+  2. p.62   [ ] 'to provide collateral for borrowings related to the acquisition of the subsidiar'
+  3. p.30   [ ] '31/12/2025 31/12/2024 assets non-current assets goodwill 17 11 564 11 614 other '
+  4. p.66   [ ] 'note 29 • financial instruments (continued) group 31/12/2024 amounts in eur thou'
+  5. p.32   [ ] 'consolidated cash flow statement amounts in eur thousands operating activities p'
+addnode_2025  (153p)
+  1. p.131  [x] 'note 36 financial risks and risk management, cont. dec 31, 2025 dec 31, 2024 int'
+  2. p.132  [ ] 'note 36 financial risks and risk management, cont. currency risk currency risk m'
+addtech_2025  (166p)
+  1. p.143  [ ] 'note 24 non-current interest-bearing liabilities non-current liabilities to cred'
+  2. p.144  [ ] 'note 27 pledged assets and contingent liabilities pledged assets for liabilities'
+  3. p.106  [x] 'credit facilities, sek million overdraft facilities 1,909 1,300 1,900 1,300 othe'
+  4. p.104  [ ] 'note 3 financial risks and risk management risk management policy and goals addt'
+afry_2025  (177p)
+  1. p.173  [ ] 'net debt excluding ifrs 16, net debt/ebitda excluding ifrs 16 and net debt/equit'
+  2. p.174  [ ] 'the afry share the group in brief the afry share largest shareholders as of dec '
+alfa_laval_2025  (156p)
+  1. p.132  [x] 'note 30. borrowings and net debt net debt credit institutions 38 115 swedish exp'
+  2. p.133  [ ] 'note 31. capital management alfa laval defines capital under management as the s'
+alvotech_2025  (84p)
+  1. p.75   [x] 'liquidity risk liquidity risk is the risk that the group will encounter difficul'
+  2. p.76   [ ] '28. supplemental cash flow information supplement cash flow information as of 31'
+  3. p.66   [ ] 'related party transactions as of 31 december 2025 are as follows: purchases / in'
+  4. p.67   [ ] 'related party transactions as of 31 december 2024 are as follows: purchased serv'
+  5. p.63   [x] 'cash flows will be, classified in the group’s consolidated cash flow statement a'
+apotea_2025  (136p)
+  1. p.113  [ ] '27. cash and cash equivalents 29. borrowings 30. deferred tax amounts in sek mil'
+  2. p.114  [ ] '30. deferred tax, cont. 31. other current liabilities 34. commitments amounts in'
+  3. p.104  [ ] '4.1 financial risk factors, cont. interest-bearing liabilities the carrying amou'
+  4. p.133  [ ] 'operating profit (ebit) excluding items return on capital employed (%) net debt '
+aq_2025  (112p)
+  1. p.73   [x] 'terms and maturity group 2025 2024 3.6 liquidity risks cur\xad nom. interest nom. b'
+  2. p.74   [ ] '3.7 market risks the raw material part (lme guided part) of semi-finished goods '
+  3. p.66   [ ] '66 note 31/12/2025 31/12/2024 note 31/12/2025 31/12/2024 assets equity and liabi'
+  4. p.62   [ ] '62 note 31/12/2025 31/12/2024 note 31/12/2025 31/12/2024 assets equity and liabi'
+  5. p.71   [ ] '71 2.9 changed layout in balance sheet the items ”other receivables” and ”prepai'
+arion_banki_2025  (137p)
+  1. p.75   [ ] '46. liquidity and funding risk maturity analysis of assets and liabilities contr'
+  2. p.76   [ ] '46. liquidity and funding risk, continued on up to 3 3-12 1-5 over 5 with no boo'
+asker_healthcare_2025  (136p)
+  1. p.113  [x] '111 note 25 \x07interest-bearing liabilities 31 dec 2025 31 dec 2024 non-current in'
+  2. p.114  [ ] '112 note 28 \x07leases the amounts attributable to lease operations recognised in p'
+asmodee_2025  (192p)
+  1. p.163  [ ] 'note 28.3 liquidity risk and refinancing risk liquidity risk is the risk that an'
+  2. p.164  [ ] 'note 29 related party transactions note 29.1 transactions with shareholders impa'
+  3. p.117  [ ] 'consolidated cash flow statement operating activities operating profit/loss (ebi'
+  4. p.178  [ ] 'note p12 financial liabilities financial liabilities are recognized at amortized'
+  5. p.105  [ ] "board of directors' report 106 consolidated financial statements 111 notes to th"
+atlas_copco_2025  (174p)
+  1. p.135  [ ] 'atlas copco group 2025 133 21. borrowings and trade payables maturity repurchase'
+  2. p.136  [ ] 'atlas copco group 2025 134 21. borrowings and trade payables, continued cash cha'
+  3. p.146  [x] 'atlas copco group 2025 144 financial solutions financial risk management committ'
+atrium_ljungberg_2025  (145p)
+  1. p.69   [x] '69. capital structure, sek m1) carrying amount fair value carrying amount fair v'
+  2. p.70   [ ] '70. f.2 financial instruments and risk management accounting policies a financia'
+  3. p.73   [ ] '73. f.4 cash flow from financial liabilities cash flow from financial liabilitie'
+  4. p.14   [ ] 'financing structure the company strives to maintain a well-diversified interest-'
+avanza_bank_holding_2025  (192p)
+  1. p.170  [ ] 'additional information on liquidity pursuant to fffs 2010:7, avanza reports its '
+  2. p.171  [ ] 'note 34 financial risks the group’s exposure to financial risks avanza is mainly'
+axfood_2025  (166p)
+  1. p.146  [ ] '22. \x07financial risk management framework for financial risk management axfood is'
+  2. p.147  [ ] 'note 22, cont. currency risk transaction exposure in foreign currency arises in '
+beijer_alma_2025  (100p)
+  1. p.86   [ ] 'kreditrisk med kreditrisker avses att bolagen inte får betalt för sina fordringa'
+  2. p.87   [ ] 'finansiella instrument per kategori i koncernen redovisningsprinciperna för fina'
+  3. p.89   [ ] 'not 34 rörelseförvärv uudenmaan painehuolto oy (”uph”) den 5 mars 2025 förvärvad'
+beijer_ref_2025  (148p)
+  1. p.107  [ ] 'note 3 financial risk management net debt is defined as interest-bearing liabili'
+  2. p.108  [ ] 'note 4 important assessments and assumptions for financial reporting purposes ma'
+bergman_beving_2025  (140p)
+  1. p.119  [x] 'the group has net exposures in several foreign currencies. if the prices of the '
+  2. p.120  [x] 'parent company 31 mar 2026 matures maturity structure carrying amount future pay'
+  3. p.123  [x] 'note 23: leases the group recognises owned assets as tangible non-current assets'
+betsson_2025  (154p)
+  1. p.145  [ ] 'note 31. financial risks the group’s financial activities are conducted accordin'
+  2. p.146  [ ] 'annex 1 definitions of alternative key performance indicators this annual report'
+better_collective_2025  (202p)
+  1. p.129  [ ] 'consolidated statement of cash flow note teur 2025 2024 note teur 2025 2024 prof'
+  2. p.130  [ ] 'cashflow statement – specifications note teur 2025 2024 note teur 2025 2024 acqu'
+  3. p.171  [ ] 'statement of cash flows parent note teur 2025 2024 note teur 2025 2024 profit be'
+  4. p.181  [ ] '15. issued capital and reserves 18. leas es teur buildings total reference is ma'
+  5. p.183  [ ] '19. financial risk management objectives and policies (cont inued ) expected cre'
+bilia_2025  (179p)
+  1. p.147  [x] 'subsidiaries all companies within bilia have their sales limited to their home m'
+  2. p.148  [ ] 'credit risk financial activities financial risk management involves exposure to '
+  3. p.118  [ ] 'msek note 31/12/2025 31/12/2024 assets 7, 26, 28 non-current assets intangible a'
+  4. p.153  [ ] 'msek note 31/12/2025 31/12/2024 assets 18, 21 non-current assets intangible asse'
+billerud_2025  (212p)
+  1. p.173  [ ] 'at year end. as of 31 december 2025, the market value of billerud’s outstanding '
+  2. p.174  [ ] 'of approximately sek 60 million (58), given the current fixed interest term as o'
+bioarctic_2025  (187p)
+  1. p.105  [ ] 'bioarctic annual and sustainability report 2025 105 note 17 overview of financia'
+  2. p.106  [ ] 'bioarctic annual and sustainability report 2025 106 note 18 other current receiv'
+  3. p.89   [ ] 'bioarctic annual and sustainability report 2025 89 note 3 financial risk managem'
+boliden_2025  (196p)
+  1. p.162  [x] 'p. 160 annual and sustainability report 2025 note 29 financial liabilities and m'
+  2. p.163  [ ] 'p. 161 annual and sustainability report 2025 note 31 pledged assets and continge'
+  3. p.129  [ ] 'consolidated balance sheet sek m note 31.12.2025 31.12.2024 assets non-current a'
+bonesupport_holding_2025  (68p)
+  1. p.48   [x] "48 note 26, cont'd leasing note 27 pledged securities and contingent liabilities"
+  2. p.49   [ ] '49 note 29 events after the closing day nothing to report. note 30 proposal for '
+  3. p.33   [ ] '33 the group’s maximum exposure to credit risk is assessed by carrying amounts o'
+bravida_holding_2025  (171p)
+  1. p.144  [x] 'not 21 räntebärande skulder koncernen moderbolaget långfristiga skulder lån kred'
+  2. p.145  [ ] 'not 21. räntebärande skulder, forts. kreditfaciliteter/limiter koncernen moderbo'
+  3. p.149  [ ] 'not 25 finansiella risker och finanspolicys finansiella risker och finanspolicys'
+bufab_2025  (167p)
+  1. p.143  [ ] 'note 36 changes to borrowings net debt net debt is an expression of how large th'
+  2. p.144  [ ] 'note 37 hedge of net assets in foreign currency the group hedges portions of its'
+  3. p.125  [ ] 'satisfy requirements. total borrowing in foreign currencies defined as hedging i'
+  4. p.116  [ ] 'sek million note 31 dec 2025 31 dec 2024 assets non-current assets intangible as'
+bure_equity_2025  (100p)
+  1. p.76   [ ] 'fair value hierarchy 31 december 31 december 2024 level 1 level 2 level 3 level '
+  2. p.77   [ ] 'note 15 – financial instruments cont. valuation of unlisted assets as at 31 dece'
+  3. p.67   [ ] 'statements of financial position note 31 dec 2025 31 dec 2024 non-current assets'
+  4. p.69   [ ] 'note group parent company full year full year full year 2025 full year 2024 oper'
+  5. p.64   [ ] 'statements of financial position note 31 dec 2025 31 dec 2024 non-current assets'
+camurus_2025  (164p)
+  1. p.70   [ ] 'som underlag för avsättning av sociala avgifter görs kontinuerligt en omvärderin'
+  2. p.71   [ ] '2.18 kassaflödesanalys kassaflödesanalysen upprättas enligt indirekt metod. denn'
+castellum_2025  (169p)
+  1. p.16   [ ] 'directors’ report the covenants in credit agreements stipulate pri- in the norwe'
+  2. p.17   [ ] 'financial facilities frame/facility type utilised, 31 december mtns 25,000 13,86'
+  3. p.125  [ ] 'note 3 cont. note 4 costs contract value, proportion of number of contract lease'
+catella_2025  (151p)
+  1. p.107  [ ] 'note 3 financial risk management liquidity risk needed to divest part or all of '
+  2. p.108  [ ] 'the group’s borrowing and financing are managed market risk make a profit on inv'
+  3. p.99   [ ] 'catell a annual report 2025 p.99 consolidated statement of financial position 20'
+catena_2025  (156p)
+  1. p.114  [ ] 'catena in brief interest rate maturity structure currency risk net gain/loss ceo'
+  2. p.115  [ ] '115 note 21. classification of financial instruments measurement categories fina'
+  3. p.119  [x] '119 note 27. alternative performance measures reference formula reference 31 dec'
+clas_ohlson_2025  (148p)
+  1. p.140  [ ] 'nettoskuld exkl ifrs 16 2025/26 2024/25 räntebärande skulder exkl leasingskulder'
+  2. p.141  [ ] 'sysselsatt kapital 2025/26 2024/25 totala tillgångar 7 887,3 6 488,9 långfristig'
+  3. p.139  [ ] 'ebitda 2025/26 2024/25 rörelseresultat 1 527,1 1 171,2 avskrivningar och nedskri'
+  4. p.124  [ ] 'beviljade kreditramar koncernen 2025/26 2024/25 checkräkningskrediter 600,0 600,'
+cloetta_2025  (208p)
+  1. p.169  [x] 'note 21 borrowings see note 1 (xiii) for accounting policies. 31 dec 2025 sekm r'
+  2. p.170  [ ] 'long-term short-term sekm borrowings borrowings total balance at 1 january 2024 '
+  3. p.179  [x] 'liquidity risk cash flow forecasting is performed in the operating entities of t'
+  4. p.147  [ ] 'consolidated balance sheet sekm note 31 dec 2025 31 dec 2024 assets non-current '
+corem_property_2025  (154p)
+  1. p.93   [ ] 'not 21, forts. not 22 övriga kortfristiga skulder förfallostrukturen för låneavt'
+  2. p.94   [x] '94 not 24 nyttjanderättstillgångar/leasingskulder nyttjanderättstillgångar tomtr'
+dometic_2025  (189p)
+  1. p.173  [ ] 'note 25 (cont.) group changes arising from cashflow non-cash changes on january '
+  2. p.174  [ ] 'note 25 (cont.) parent company changes arising from cashflow non-cash changes on'
+  3. p.146  [ ] 'note 3 (cont.) the following table shows the carrying amount of the group’s deri'
+  4. p.133  [ ] 'consolidated balance sheet sek m note december 31, 2025 december 31, 2024 assets'
+  5. p.135  [ ] 'consolidated statement of cash flow sek m note cash flow from operating activiti'
+electrolux_professional_2025  (204p)
+  1. p.175  [ ] 'p. 173 note 18 financial instruments, cont. maturity profile of financial liabil'
+  2. p.176  [ ] 'p. 174 note 18 financial instruments, cont. net gain/loss, fair value, and carry'
+  3. p.172  [x] 'p. 170 note 18 financial instruments, cont. liquid funds liquid funds consist of'
+  4. p.145  [ ] 'p. 143 financial information financial and sustainability consolidated balance s'
+elekta_2025  (138p)
+  1. p.95   [ ] '\xadprevious experi\xadence. no single customer accounts for 10 percent or more of ele'
+  2. p.96   [ ] 'note 3 financial instruments accounting policies a financial asset or a financia'
+engcon_2025  (132p)
+  1. p.89   [x] '89 note 28. borrowing the company meets all covenants that the financiers have p'
+  2. p.90   [ ] '90 as shown in the consolidated cash flow can be reconciled with the items in th'
+  3. p.92   [ ] '92 interest-rate risk and other price risks), credit risk and liquidity risk. th'
+ericsson_2025  (236p)
+  1. p.65   [x] 'f4 interest-bearing liabilities as of december 31, 2025, the company’s outstandi'
+  2. p.66   [ ] 'section g – employee related g1 post-employment benefits ericsson sponsors a num'
+essity_2025  (192p)
+  1. p.156  [ ] 'e5. liquidity risk the table below shows the group’s liquidity risk regarding fi'
+  2. p.157  [ ] 'e6. derivatives and hedge accounting, cont. derivatives with hedge accounting th'
+evolution_2025  (137p)
+  1. p.116  [x] '116 maturity structure lease liabilities 31 december 2025 31 december 2024 withi'
+  2. p.117  [ ] '117 note 20. accrued expenses and prepaid income group parent company 31 decembe'
+  3. p.119  [x] '119 note 22. financial risk management the group’s activities expose it to a var'
+ework_2025  (84p)
+  1. p.70   [x] 'note 21 financial risks and finance policies contd. the company’s financial liab'
+  2. p.71   [ ] 'note 21 financial risks and finance policies cont. financial assets and liabilit'
+  3. p.66   [x] 'annual and sustainability report 2025 • 66 right-of-use assets ksek premises veh'
+  4. p.49   [ ] 'annual and sustainability report 2025 • 49 ksek note december 31, december 31, 2'
+  5. p.51   [ ] 'annual and sustainability report 2025 • 51 ksek note 2025 2024 operating activit'
+fenix_outdoor_international_2025  (64p)
+  1. p.41   [ ] 'annual report 2025 fenix outdoor international ag 41 note 20 interest-bearing li'
+  2. p.42   [x] '42 annual report 2025 fenix outdoor international ag note 27 financial instrumen'
+flat_capital_2025  (42p)
+  1. p.18   [ ] '18 results operating profit amounted to -2,284,729 ksek (103,395). profit for th'
+  2. p.19   [ ] "flat capital ab (publ) 556941-0110 19 do not change the company's character as a"
+getinge_2025  (216p)
+  1. p.160  [ ] 'note 13 accounts receivable cont. maturity analysis of provision for doubtful re'
+  2. p.161  [ ] 'note 14 contract assets and liabilities accounting policies contract assets a co'
+  3. p.190  [ ] 'note 9 interest-bearing liabilities interest-bearing long-term liabilities, sek '
+  4. p.166  [ ] 'financing and liquidity risk financing and liquidity risk refers to the risk tha'
+hacksaw_2025  (81p)
+  1. p.55   [ ] '55 lease-related amounts recognised in the consolidated income statement during '
+  2. p.56   [ ] '56 investments recognised in accordance with the equity method cannot have a neg'
+  3. p.60   [ ] '60 expected credit losses, simplified approach receivables consist mainly of tra'
+  4. p.58   [ ] '58 classification and measurement of financial liabilities financial liabilities'
+hexagon_2025  (244p)
+  1. p.206  [ ] 'group’s capital structure 2025-12-31 2024-12-31 interest bearing liabilities and'
+  2. p.207  [ ] 'derivatives are initially measured at fair value on the day of entering the cont'
+hexpol_2025  (71p)
+  1. p.58   [ ] '114 115 note 16 pension provisions note 17 other provisions utilized unutilized '
+  2. p.59   [ ] '116 117 note 21 financial instruments and risk management financial instruments '
+hms_networks_2025  (184p)
+  1. p.171  [x] '4 note 29 non-interest-bearing liabilities cont. note 31 provisions 5 6 2025 202'
+  2. p.172  [ ] 'note 32 business combinations note 33 interest in associates on december 8, 2021'
+  3. p.170  [x] 'note 28 interest-bearing liabilities (490) excluding the opportunity for expansi'
+holmen_2025  (140p)
+  1. p.64   [ ] 'income statement, sekm note net sales 2 19 945 20 393 other operating income 1 1'
+  2. p.65   [ ] 'balance sheet at 31 december, sekm note non-current assets intangible assets 8 8'
+  3. p.63   [ ] 'koncernen financial statements holmen annual report 2025 63 cash flow statement,'
+  4. p.85   [ ] 'note 14. financial instruments non-current financial receivables consist of inte'
+hufvudstaden_2025  (58p)
+  1. p.35   [x] 'financial statements / financial notes financial statements / financial notes no'
+  2. p.36   [ ] 'note 29 shares in group companies accounting policies the parent company’s share'
+husqvarna_2025  (134p)
+  1. p.99   [x] 'note 20 financial risk management and financial instruments financial risk manag'
+  2. p.100  [ ] 'note 20 – financial risk management and financial instruments, cont. market prog'
+international_petroleum_corp_2025  (86p)
+  1. p.32   [ ] '32 the net (debt)/cash reconciliation can be summarized as follows: cash and cas'
+  2. p.33   [ ] '33 19. provisions asset retirement obligation farm-in obligation pension obligat'
+  3. p.37   [ ] '37 based on this hierarchy, financial instruments measured at fair value can be '
+  4. p.13   [ ] '13 consolidated statement of cash flow note cash flow from operating activities '
+  5. p.34   [ ] '34 20. pension liability the group operates a pension plan for employees in swit'
+investor_2025  (196p)
+  1. p.158  [x] 'note 27: interest-bearing liabilities interest-bearing liabilities long-term int'
+  2. p.159  [ ] 'note 28: provisions for pensions and similar obligations assumptions assumptions'
+knowit_2025  (171p)
+  1. p.152  [x] 'vi är knowit + not 21 : finansiella skulder 2025 i korthet + koncernen räntesats'
+  2. p.153  [ ] 'k n o w i t a b å r s r e d ov i s n i n g 2 0 2 5 1 5 3 not 22 : övriga skulder'
+  3. p.135  [ ] 'k n o w i t a b å r s r e d ov i s n i n g 2 0 2 5 1 3 5 not 2 : fortsättning li'
+lagercrantz_2025  (126p)
+  1. p.77   [x] 'change in contingent considerations including call options (category 3) note 31 '
+  2. p.78   [ ] 'note 34 cash flow reconciliation of liabilities arising from financing activitie'
+  3. p.69   [x] 'note 8 other operating income 31 mar 2026 31 mar 2025 not 1 2025/26 2024/25 the '
+  4. p.52   [ ] 'consolidated statement of cash flows amounts in msek note 2024/25 operating acti'
+lifco_2025  (159p)
+  1. p.111  [x] '111 förfallostruktur avseende finansiella skulder mindre än 1 år > 1 år < 2 år >'
+  2. p.112  [ ] '112 not 21 finansiell riskhantering finansiella mål avseende kapitalstruktur kon'
+  3. p.128  [x] '128 not 48 upplåning långfristiga räntebärande skulder skulder till kreditinstit'
+lindab_international_2025  (212p)
+  1. p.84   [ ] 'note 03 financial risks financial risks comprise financing risk, liquidity risk,'
+  2. p.85   [ ] 'currency currency risk is the risk of negative effects on the consolidated state'
+  3. p.74   [ ] 'sek m note dec 31, dec 31, assets non-current assets intangible assets goodwill '
+loomis_2025  (176p)
+  1. p.154  [x] 'the following tables show undiscounted cash flows recognized as financial liabil'
+  2. p.155  [x] 'fair value estimations fair value measurement of financial instruments is perfor'
+lundbergforetagen_2025  (128p)
+  1. p.107  [ ] 'koncernen – noter not 35 – forts. kreditrisk förfallostruktur avseende odiskonte'
+  2. p.108  [ ] 'koncernen – noter 108 not 36 – händelser efter balansdagen inga händelser av väs'
+lundin_mining_corporation_2025  (252p)
+  1. p.251  [ ] '(b) liquidity risk the company has in place a planning and forecasting process t'
+  2. p.252  [ ] '(e) interest rate risk the company’s exposure to interest rate risk arises from '
+  3. p.227  [ ] 'b) the company has a revolving credit facility of $1,750.0 million, maturing in '
+  4. p.250  [ ] '29. related party transactions a) key management personnel - the company has ide'
+medicover_2025  (196p)
+  1. p.170  [x] 'liquidity and refinancing risk liquidity risk is the risk that the group cannot '
+  2. p.171  [ ] 'foreign currency risk the group operates across several countries and undertakes'
+  3. p.164  [x] 'medicover the group’s credit facilities and utilisation were as follows: the net'
+  4. p.163  [x] '23. non-controlling interests non-controlling interests amounted to €12.1m (€24.'
+mips_2025  (144p)
+  1. p.85   [ ] '85 note 25 leases the group is a lessee of office premises and car leases in swe'
+  2. p.86   [ ] '86 note 29 business acquisitions on 18 december, all shares in koroyd sarl and s'
+  3. p.82   [ ] '82 note 23 financial risks and risk management through its operations, the group'
+mycronic_2025  (154p)
+  1. p.140  [ ] '140 note 36–37 note 36 reconciliation alternative performance \xadmeasures the euro'
+  2. p.141  [ ] '141 statement of assurance statement of assurance the board of directors and the'
+  3. p.104  [ ] '104 group • statements of financial position comments on financial position asse'
+  4. p.149  [ ] '149 financial definitions sustainability definitions ten-year overview sharehold'
+  5. p.103  [ ] '103 group • statements of financial position statements of financial position se'
+ncab_2025  (127p)
+  1. p.116  [ ] 'annual and sustainability report 2025 annual and sustainability report 2025 116 '
+  2. p.117  [ ] 'annual and sustainability report 2025 annual and sustainability report 2025 117 '
+  3. p.101  [x] 'note 26, cont. costs for long-term incentive plan 31 dec 2025 31 dec 2024 overdr'
+ncc_2025  (166p)
+  1. p.140  [ ] 'about ncc report of the board of directors financial statements other ncc 2025 1'
+  2. p.141  [ ] 'about ncc report of the board of directors financial statements other ncc 2025 1'
+new_wave_2025  (170p)
+  1. p.132  [ ] 'nwg // financial information // the group translation exposure the group account'
+  2. p.133  [ ] 'credit risks credit risk is defined as the group’s exposure to losses in the eve'
+  3. p.136  [ ] 'note 20 - net assets in foreign currencies note 21 - pledged assets and continge'
+  4. p.123  [ ] 'right-of-use assets buildings and land equipment, tools and installations accumu'
+noba_bank_2025  (295p)
+  1. p.222  [x] '222 note 21 derivatives — group maturity profile and average price of hedging in'
+  2. p.223  [ ] '223 note 22 intangible assets — group acquired internally customer developed goo'
+  3. p.189  [x] '189 not 4 financial risk management – group maturities of financial assets and l'
+  4. p.188  [ ] '188 not 4 financial risk management — group in addition to holdings in wholly-ow'
+  5. p.272  [x] '272 note pc19 hedge accounting — parent company maturity profile and average pri'
+nolato_2025  (183p)
+  1. p.149  [ ] '149 interest-bearing liabilities at year-end, the group’s interest-bearing liabi'
+  2. p.150  [ ] '150 the amounts recognized in the income statement during the year for pension s'
+nordea_bank_abp_2025  (378p)
+  1. p.274  [ ] '273 g10.3 maturity analysis accounting policies the table “expected maturity” pr'
+  2. p.275  [ ] 'g10.3 maturity analysis, cont. contractual undiscounted cash flows 31 dec 2025 3'
+  3. p.349  [x] '348 p9.2 \x07additional disclosures on the cash flow statement, cont. cash flows fr'
+nordnet_2025  (233p)
+  1. p.21   [ ] "board of directors' report financial position maturity structure by securities c"
+  2. p.22   [ ] "board of directors' report nordnet has a strong and stable capital structure. eq"
+  3. p.161  [ ] 'breakdown of the loan portfolio margin lending, ltv range <=20% >20% >40% >60% >'
+oem_international_2025  (136p)
+  1. p.108  [ ] 'page 108 reconciliation tables alternative performance measures cont. net debt/e'
+  2. p.109  [ ] 'parent company income statement sek million note operating income net sales 115.'
+  3. p.98   [ ] '19 other non-current liabilities group other non-current, non-interest-bearing l'
+  4. p.100  [ ] '22 financial risks and risk management cont. contingent considerations 2025 2024'
+  5. p.99   [ ] '22 financial risks and risk management the most significant financial risks for '
+pandox_2025  (205p)
+  1. p.183  [x] 'innehåll str ategi och värdesk apande verksamheten marknad och trender fastighet'
+  2. p.184  [ ] 'g3 finansiella tillgångar och skulder, kategoriindelning, verkligt värde och kvi'
+paradox_interactive_2025  (75p)
+  1. p.66   [ ] '66 lease agreements that are not recognised as a liability the group has chosen '
+  2. p.67   [ ] '67 note 30. cash and cash equivalents cash and cash equivalents in the cash flow'
+peab_2025  (228p)
+  1. p.192  [ ] 'note 33 financial risks and finance policy accounting principles hedge accountin'
+  2. p.193  [ ] 'peab has a lending program for commercial papers since 2004. under the program p'
+roko_2025  (104p)
+  1. p.77   [x] 'annual report 2025 | röko | 77 note 25 borrowings non-current interest-bearing l'
+  2. p.78   [x] '78 | röko | annual report 2025 reconciliation of net debt, msek cash and cash eq'
+  3. p.56   [ ] '56 | röko | annual report 2025 2.7.5 hedge of net investment in foreign currency'
+saab_2025  (231p)
+saab_2025_sv  (231p)
+  1. p.194  [x] '194 s a a b å r s r e d o v i s n i n g 2 0 2 5 not 29. räntebärande skulder, ob'
+  2. p.195  [ ] '195 s a a b å r s r e d o v i s n i n g 2 0 2 5 not 30. ersättningar efter avslu'
+  3. p.212  [ ] '212 s a a b å r s r e d o v i s n i n g 2 0 2 5 avstämning av skulder vars kassa'
+sagax_2025  (180p)
+  1. p.101  [ ] 'note 18 financial instruments, cont’d. 2 future liquidity flows for interest-bea'
+  2. p.102  [ ] '2 note 19 other non-current liabilities note 21 tangible fixed assets group grou'
+  3. p.114  [ ] '2 note 30 pledged assets and contingent liabilities group parent company 4 pledg'
+  4. p.40   [ ] 'interest-bearing liabilities interest-bearing liabilities primarily comprised li'
+  5. p.39   [ ] 'funding equity amounted to sek 42,792 m at year end 2025. the debt ratio amounte'
+sandvik_2025  (180p)
+  1. p.143  [ ] 'sandvik has chosen not to hedge future profits in foreign subsidiaries. the seco'
+  2. p.144  [ ] 'at year-end, standard & poor’s, the international credit rating agency, had assi'
+  3. p.145  [x] '1) \x07excludes assets held for sales. 2) \x07comprises parts of the group’s other rec'
+sca_2025  (230p)
+  1. p.201  [x] 'e5 liquidity risk the table below shows the group’s liquidity risk regarding fin'
+  2. p.202  [ ] 'outstanding derivatives with hedge accounting1) assets liability net tax hedge r'
+  3. p.216  [x] 'pc11 financial instruments § accounting principles the accounting principles for'
+scandic_hotels_2025  (162p)
+  1. p.138  [x] 'note 20b, cont. maturity analysis of lease liabilities according to ifrs 16 grou'
+  2. p.139  [ ] 'note 21, cont. sensitivity analysis in actuarial assumptions change increase, % '
+seb_2025  (350p)
+  1. p.276  [ ] 'note g37e continued liquidity risk balance sheet (contractual maturity dates) pa'
+  2. p.277  [ ] 'note g37e continued liquidity risk balance sheet (contractual maturity dates) pa'
+  3. p.278  [ ] 'note g37e continued liquidity risk balance sheet (contractual maturity dates) pa'
+  4. p.275  [ ] 'note g37e continued liquidity risk contractual maturities the tables below displ'
+  5. p.324  [ ] 'note p36 continued risk disclosures balance sheet (contractual maturity dates), '
+sectra_2025  (160p)
+  1. p.145  [ ] '145 note 31 risks, risk management and sensitivity analysis, cont. carried out i'
+  2. p.146  [ ] '146 note 35 financial definitions and alternative performance measures the group'
+securitas_2025  (179p)
+  1. p.125  [ ] 'the following tables summarize the group’s liquidity risk at end of 2025 and 202'
+  2. p.126  [ ] 'the contract portfolio sales are also diversified in several ways, of which the '
+skanska_2025  (226p)
+  1. p.143  [x] 'note 5, cont. risk in other financial operating receivables including shares oth'
+  2. p.144  [x] 'note 5, cont. dec 31, 2025 maturity maturity period carrying amount future payme'
+  3. p.124  [ ] 'consolidated cash flow statement sek m operating activities operating income 6,5'
+skf_2025  (163p)
+  1. p.133  [ ] '26 financial risk management, cont. as of the balance sheet date, given the prev'
+  2. p.134  [ ] '26 financial risk management, cont. derivatives the table below shows the fair v'
+ssab_2025  (189p)
+  1. p.154  [ ] 'd.3 net debt/cash, cont non-current interest-bearing liabilities capital market '
+  2. p.155  [ ] 'd.3 net debt/cash, cont change in liabilities from financial activities interest'
+  3. p.176  [ ] '14. liabilities non-current liabilities to subsidiaries derivative liabilities 2'
+  4. p.153  [ ] 'd.3 net debt/cash net debt/(cash) assets in net debt/cash cash and cash equivale'
+  5. p.142  [x] "corporate governance report remuneration report board of directors' report susta"
+stora_enso_2025  (225p)
+  1. p.177  [x] 'interest-bearing liabilities bond loans 2,530 3,454 loans from credit institutio'
+  2. p.178  [ ] 'bond loans issue/ maturity dates description of bond interest rate % currency of'
+  3. p.174  [ ] 'capital structure as at 31 december interest-bearing liabilities1 4,473 5,779 in'
+storskogen_2025  (152p)
+  1. p.127  [ ] 'note 26 financial risks and risk management, cont. maturity analysis maturity he'
+  2. p.128  [ ] 'note 26 financial risks and risk management, cont. capital management according '
+sv_handelsbanken_2025  (352p)
+  1. p.244  [ ] 'k32 in- och upplåning från \xadallmänheten hushåll 511 167 488 269 företag 562 484 '
+  2. p.245  [ ] 'k34 emitterade värdepapper redovisat värde nominellt belopp redovisat värde nomi'
+  3. p.315  [ ] 'm30 in- och upplåning från allmänheten hushåll 452 162 424 978 företag 420 773 4'
+  4. p.66   [ ] 'inlåning från kunder via transaktions- och spar\xad konton, vilka över tid står för'
+  5. p.236  [ ] 'kassaflödessäkring ränterisk i ut- och upplåning till rörlig ränta syftet med de'
+sweco_2025  (188p)
+  1. p.164  [x] '26 current and non-current interest-bearing liabilities group parent company non'
+  2. p.165  [ ] '27 provisions for pensions defined benefit pension plans sweden the group’s reti'
+swedbank_2025  (340p)
+  1. p.290  [ ] '288 2.2 liquidity risk in the summary of maturities, undiscounted contractual ca'
+  2. p.291  [ ] '289 2.2.2 interest-bearing securities debt securities in issue turnover during t'
+  3. p.307  [ ] '305 p33 deposits and borrowings from the public 1/1/2024 swedish public 870 907 '
+  4. p.257  [x] 'value creation business areas financial analysis corporate governance report sus'
+systemair_2025  (154p)
+  1. p.79   [ ] '79 note 22 (cont.) maturity structure maturity structure for future agreed inter'
+  2. p.80   [ ] '80 note 22 (cont.) assets measured at \xadamortised cost measured at fair value via'
+  3. p.69   [x] '69 note 8 (cont.) group contractual future lease fees, maturing leases within a '
+tele2_2025  (178p)
+  1. p.136  [x] 'as of 31 december 2025, the notional amount of outstanding interest rate derivat'
+  2. p.137  [ ] 'basis or under recurring arrangements when commercially advantageous. the group '
+  3. p.148  [x] 'note 24: financial liabilities liabilities to financial institutions and similar'
+telia_2025  (272p)
+  1. p.179  [x] 'borrowings and net debt dec 31, 2025 dec 31, 2024 maturity coupon nominal amount'
+  2. p.180  [ ] 'normally, borrowings by telia company denomi\xad nated in foreign currencies are sw'
+  3. p.178  [ ] 'c21. non-current and current borrowings borrowings non-current and current borro'
+  4. p.200  [ ] 'interest rate risk management the interest-bearing borrowings and financial inve'
+  5. p.196  [ ] 'liquidity risk management liquidity risk is the risk that telia company will enc'
+thule_2025  (188p)
+  1. p.174  [ ] '/notes 22–25/ 174 the contract, while in other contracts the group must actively'
+  2. p.175  [ ] '/note 26/ 175 note 26 cash flow statement group parent company interest paid net'
+  3. p.159  [ ] '159 /note 4/ transaction exposure the largest exposure comes from the group’s sa'
+traton_2025  (433p)
+  1. p.213  [ ] '213 the maturity profile of payments attributable to the defined benefit obligat'
+  2. p.214  [ ] '214 plan assets are invested in the following asset classes: 12/31/2025 12/31/20'
+  3. p.217  [ ] '217 the suppler finance arrangements do not result in any material liquidity ris'
+  4. p.184  [x] '184 right-of-use assets from leases reported in property, plant, and equipment c'
+  5. p.201  [ ] '201 traton group 2025 annual report to our combined consolidated responsibility '
+trelleborg_2025  (170p)
+  1. p.142  [x] 'the table below shows the currency distribution, average interest rates and fixe'
+  2. p.143  [ ] 'change in liabilities from financing activities, group non-cash changes cash cha'
+  3. p.139  [ ] 'non-interest-bearing liabilities accounting policies accounts payable are initia'
+  4. p.46   [ ] 'liquidity risks commercial failures product liability risks geo political risk i'
+truecaller_2025  (127p)
+  1. p.107  [ ] '107 note 13 leases truecaller’s significant leases refer to leases of rental pre'
+  2. p.108  [ ] '108 note 15 financial instruments, continued measurement of financial assets and'
+  3. p.113  [ ] '113 note 21 financial risks, continued reconciliation of the hedging reserve and'
+verisure_2025  (276p)
+  1. p.133  [ ] 'refer to note 11 leases for more information regarding leasing. borrowings, curr'
+  2. p.134  [ ] 'non-cash changes 2024 carrying amount 1 january cash flows change in adjustment '
+  3. p.130  [ ] 'payments for fixed-debt payments. excluding derivatives, approximately 45% of th'
+  4. p.129  [ ] 'liquidity report the below liquidity report consists of undiscounted future cash'
+  5. p.95   [ ] 'consolidated statement of financial position as at 31 december note equity and l'
+vitec_software_2025  (194p)
+  1. p.162  [ ] '162 note 17 cash flow change in liabilities for financing activities non-current'
+  2. p.163  [ ] '163 accounting policies the acquisition of a subsidiary is viewed as a transacti'
+  3. p.179  [x] '179 note 8 financial risks and capital risk management investments in subsidiari'
+vitrolife_2025  (214p)
+  1. p.163  [ ] 'financial policy the vitrolife group is exposed to a number of financial risks i'
+  2. p.164  [ ] 'which inflows exceed outflows. a change in the sek exchange rate against these c'
+  3. p.187  [ ] 'accounting policies the calculation of earnings per share is based on consolidat'
+volvo_2025  (232p)
+  1. p.129  [ ] '29:2 changes in loans cash flows non-cash items dec 31, new borrowings repayment'
+  2. p.130  [ ] '30 financial instruments financial assets and liabilities are recognized on the '
+  3. p.82   [ ] 'liquidity risks liquidity risk is defined as the risk that the volvo group would'
+volvo_car_2025  (227p)
+  1. p.102  [ ] 'liquidity risk management volvo car group financial policy framework liquidity r'
+  2. p.103  [ ] 'investments in interest-bearing securities are measured at fair value through th'
+wihlborgs_fastigheter_2025  (176p)
+  1. p.101  [ ] 'notes most of the interest-bearing liabilities, amounting to sek 33,250 million '
+  2. p.102  [ ] '102 notes future liquidity flows attributable to credits are described below. th'
+xano_industri_2025  (164p)
+  1. p.84   [x] 'finansiella skulder förfallotid per 2025-12-31 –30 dgr 31–90 dgr 91–360 dgr summ'
+  2. p.85   [ ] 'not 20 likvida medel säkringsreserv 2025 2024 likvida medel består av kassa och '
+  3. p.87   [ ] 'not 29 leverantörsskulder och andra skulder 2025 2024 nyttjanderättstillgångar l'
+yubico_2025  (95p)
+  1. p.84   [x] 'note 17 financial risks, financial policy, and financial instruments, cont. liqu'
+  2. p.85   [ ] 'note 17 financial risks, financial policy, and financial instruments, cont. cred'
+  3. p.66   [ ] 'consolidated cash flow statement sekm note operating activities 19 profit/loss b'
+  4. p.82   [ ] 'note 15 \x07prepaid expenses and accrued income prepaid rents 2.6 1.9 2.2 1.7 prepa'
+
+112 companies, section debt_maturity: 40/112 top-1 and 73/560 shown pages look like a debt-maturity note (heuristic flag, not a score; debt-shaped words, so not meaningful for other sections)

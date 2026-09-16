@@ -17,8 +17,6 @@
     "förfallostruktur",
     "återstående löptid",
     "förfallotidpunkt",
-    "long-term borrowings",
-    "short-term borrowings",
     "liquidity risk"
   ],
   "exclude_keywords": [
@@ -51,6 +49,7 @@
       "unit_hint": "currency_millions",
       "synonyms": [
         "total borrowings", "total loans", "total interest-bearing liabilities", "total debt",
+        "total secured borrowings",
         "räntebärande skulder totalt", "summa upplåning", "total upplåning", "summa räntebärande skulder"
       ]
     },

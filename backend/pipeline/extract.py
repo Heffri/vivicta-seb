@@ -217,6 +217,7 @@ def _row_amounts(quote: str, ncols: int | None = None) -> list:
         if t == "-":  # Volvo "Income taxes 10 -11,669 -15,542 -1,016 -1,092 – – -12,685 -16,634": the eliminations columns are nil
             out.append(0)
             noteish.append(False)
+            small.append(False)  # Cloetta "Accrued interest 0 - - - 0": a run of nil dashes must not desync small from out/noteish, or small[0] below runs off the end
             continue
         m = _AMOUNT.fullmatch(t)
         if not m:
