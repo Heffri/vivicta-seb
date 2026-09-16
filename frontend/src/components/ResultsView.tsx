@@ -130,8 +130,15 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack, initial
       </header>
 
       {/* Two columns from 1280px (fields + verification left, provenance + Ask right);
-          below that one column, Source directly under the table. */}
+          below that one column, Source directly under the table. The maturity chart
+          (v009) leads the grid full-width so it clears the fold on a 900px screen —
+          v010 moved it up from between Source and Checks per v009's suggestion; income
+          sections never render it, so their v003 layout is untouched. */}
       <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        {/* Maturity buckets — nothing renders unless the fields look like maturity
+            buckets, the same rule ppt.py uses to pick chart over table. */}
+        <MaturityChart extraction={extraction} selectedKey={selectedKey} onSelect={selectField} />
+
         <FieldsTable fields={fields} warnings={warnings} selectedKey={selectedKey} onSelect={selectField} />
 
         {/* ponytail: no longer sticky — it would slide over the Ask panel below it. */}
@@ -145,10 +152,6 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack, initial
           brokenPage={brokenPage}
           onBrokenPage={setBrokenPage}
         />
-
-        {/* Maturity buckets (v009) — nothing renders unless the fields look like
-            maturity buckets, the same rule ppt.py uses to pick chart over table. */}
-        <MaturityChart extraction={extraction} selectedKey={selectedKey} onSelect={selectField} />
 
         <StatusCards checks={checks} warnings={warnings} />
 
