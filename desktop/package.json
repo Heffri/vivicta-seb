@@ -1,7 +1,7 @@
 {
   "name": "annual-report-parser-desktop",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Electron desktop shell for the Annual Report Parser — real Windows acrylic material, launches the backend, loads the frontend.",
   "main": "main.js",
   "scripts": {
