@@ -1,0 +1,132 @@
+{
+  "seed": 3,
+  "stem": "vef_2025",
+  "candidate_pages": [
+    20,
+    21
+  ],
+  "before": {
+    "report_id": "lib-vef_2025",
+    "company": "VEF",
+    "fiscal_year": 2025,
+    "currency": null,
+    "section": "debt_maturity",
+    "fields": [
+      {
+        "key": "total_debt",
+        "label": "Total borrowings",
+        "value": null,
+        "unit": null,
+        "period": null,
+        "raw_label": null,
+        "source": null,
+        "confidence": 0.0,
+        "evidence": []
+      },
+      {
+        "key": "due_within_1_year",
+        "label": "Due within 1 year",
+        "value": null,
+        "unit": null,
+        "period": null,
+        "raw_label": null,
+        "source": null,
+        "confidence": 0.0,
+        "evidence": []
+      },
+      {
+        "key": "due_1_to_5_years",
+        "label": "Due 1–5 years",
+        "value": null,
+        "unit": null,
+        "period": null,
+        "raw_label": null,
+        "source": null,
+        "confidence": 0.0,
+        "evidence": []
+      },
+      {
+        "key": "due_after_5_years",
+        "label": "Due after 5 years",
+        "value": null,
+        "unit": null,
+        "period": null,
+        "raw_label": null,
+        "source": null,
+        "confidence": 0.0,
+        "evidence": []
+      }
+    ],
+    "checks": [
+      {
+        "name": "maturity_sums_to_total",
+        "passed": false,
+        "detail": "missing: due_within_1_year"
+      }
+    ],
+    "warnings": []
+  },
+  "after": {
+    "report_id": "lib-vef_2025",
+    "company": "VEF",
+    "fiscal_year": 2025,
+    "currency": null,
+    "section": "debt_maturity",
+    "fields": [
+      {
+        "key": "total_debt",
+        "label": "Total borrowings",
+        "value": null,
+        "unit": null,
+        "period": null,
+        "raw_label": null,
+        "source": null,
+        "confidence": 0.0,
+        "evidence": []
+      },
+      {
+        "key": "due_within_1_year",
+        "label": "Due within 1 year",
+        "value": null,
+        "unit": null,
+        "period": null,
+        "raw_label": null,
+        "source": null,
+        "confidence": 0.0,
+        "evidence": []
+      },
+      {
+        "key": "due_1_to_5_years",
+        "label": "Due 1–5 years",
+        "value": null,
+        "unit": null,
+        "period": null,
+        "raw_label": null,
+        "source": null,
+        "confidence": 0.0,
+        "evidence": []
+      },
+      {
+        "key": "due_after_5_years",
+        "label": "Due after 5 years",
+        "value": null,
+        "unit": null,
+        "period": null,
+        "raw_label": null,
+        "source": null,
+        "confidence": 0.0,
+        "evidence": []
+      }
+    ],
+    "checks": [
+      {
+        "name": "maturity_sums_to_total",
+        "passed": false,
+        "detail": "missing: due_within_1_year"
+      }
+    ],
+    "warnings": [
+      "two_pass: page [21] selected from candidates [20, 21]"
+    ]
+  }
+}
