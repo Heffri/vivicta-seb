@@ -1,0 +1,452 @@
+----- PAGE 156 -----
+p. 156 Coor – Annual
+and Sustainability Report 2025
+01. Welcome to Coor
+02. Global trends, market and
+customers
+03. Strategy, targets and
+responsibilities
+04. Directors’ Report
+05. Financial statements and notes
+Consolidated financial statements
+Consolidated financial notes
+Parent company financial statements
+Parent company financial notes
+Declaration of the Board of Directors
+Auditor’s Report
+06. Other
+Financial statements and notes
+Consolidated financial notes
+Prepaid expenses and
+accrued income 2025 2024
+Accrued income, subscriptions 61 67
+Accrued income, projects 126 182
+Prepaid expenses 141 154
+BS Total 328 404
+Note 14. Prepaid expenses and accrued
+income
+Note 15. Share capital and data per share Note 16. Borrowing and financial risk management
+ACCOUNTING PRINCIPLES
+The Group classifies its financial instruments as either finan-
+cial assets and liabilities at amortised cost or financial assets
+and liabilities at fair value through other comprehensive
+income.
+Financial liabilities are recognised in the balance sheet on
+the settlement date. Liabilities are initially stated at fair value,
+net of transaction costs, and subsequently at amortised
+cost using the effective interest method. Costs incurred in
+connection with the raising of new loans are capitalised as
+borrowing costs and allocated over the term of the loan.
+For note disclosures on borrowing, account is taken of mar-
+ket interest rates in calculating the fair value.
+Under its Treasury Policy, the Group is permitted to enter
+into interest rate swaps to hedge a portion of its vari-
+able-rate borrowings. The effectiveness of a hedge is
+assessed at the inception of the hedge. Interest rate swaps
+must have the same critical terms as the hedged item. Criti-
+cal terms may refer to the reference rate, interest rate fixing
+dates, payment dates and nominal amount.
+CRITICAL ASSUMPTIONS
+As part of its current financing solution, Coor has con-
+cluded agreements which are subject to certain covenants.
+If Coor were to breach any of these covenants, this could
+lead to increased costs as well as a risk that the current
+financing agreement would be terminated. At 31 December
+2025, Coor was complying with all covenants.
+BORROWINGS
+Borrowings 2025 2024
+Long-term borrowings
+Liabilities to credit institutions 1,050 1,050
+Bonds 1,250 1,250
+Capitalised borrowing costs -6 -11
+Other non-current liabilities – 0
+BS Total long-term borrowings 2,294 2,289
+Short-term borrowings
+Bonds – –
+BS Total short-term borrowings – –
+Total borrowings 2,294 2,289
+At 31 December 2025, the Group only had liabilities to
+credit institutions and outstanding bonds denominated in
+SEK.
+The financing agreement consists of a SEK 1,250 million
+revolving credit facility, of which SEK 550 million had been
+drawn at 31 December 2025, and a SEK 500 million senior
+loan. The senior loan and revolving credit facility both have
+a variable interest rate defined as STIBOR plus +2.4 per cent
+in the interest rate tier at 31 December 2025.
+In 2024, the company issued new bonds totalling SEK 1,250
+million with maturities of three to five years. The interest
+rate on the bonds is STIBOR plus a margin of 1.9–2.2 per
+cent.
+The company’s share capital at 31 December 2025 com-
+prised 95,812,022 (95,812,022) ordinary shares. The quo-
+tient value of the shares at 31 December 2025 was SEK 4.0
+(4.0) per share. All shares registered at the closing date were
+fully paid up. The share capital at 31 December 2025 was
+SEK 383,248,088 (383,248,088).
+Data per share 2025 2024
+Share price at end of period 49.2 34.3
+Number of shares
+at end of period 95,812,022 95,812,022
+Number of treasury shares -885,273 -941,856
+Number of outstanding
+shares at end of year 94,926,749 94,870,166
+Number of ordinary shares
+(weighted average) 94,907,061 95,104,517
+Dividend per share, SEK 1)
+Ordinary dividend, SEK 1.50 1.00
+Extraordinary dividend, SEK 1.00 0.50
+Total 2.50 1.50
+Earnings per share, undiluted
+and diluted, SEK 2) 2.30 1.33
+Equity per share, SEK 14.61 15.03
+1) For 2025, the figure refers to the proposed dividend, which is sub-
+ject to adoption at the AGM on 24 April 2026.
+2) There was no dilutive effect in 2024 or 2025. For the purposes of
+calculating diluted earnings per share, outstanding share rights have
+not been included, as they were not dilutive during the financial
+year. The share rights are subject to performance conditions that
+have not yet been satisfied and may result in dilution of earnings per
+share in future periods.
+
+----- PAGE 157 -----
+Financial statements and notes p. 157 Coor – Annual
+Consolidated financial notes and Sustainability Report 2025
+Note 16, cont.
+01. Welcome to Coor
+The fair values of the Group’s borrowings at the balance sheet date were as follows: FINANCIAL ASSETS AND LIABILITIES
+BY CATEGORY 02. Global trends, market and
+Carrying amount Fair value
+The following tables show financial assets and liabilities at customers
+Carrying amounts and fair values of borrowings 2025 2024 2025 2024 The existing credit margin in the Group’s financing agree-
+amortised cost.
+Bank loans (including capitalised borrowing costs) 1,044 1,039 1,044 1,039 ments is considered to be consistent with market terms,
+and the carrying amount therefore approximates fair value. 03. Strategy, targets and
+Bonds 1,250 1,250 1,250 1,250 The Group holds interest rate swaps measured at fair value
+The Group is of the opinion that the liabilities have been through other comprehensive income. The interest rate responsibilities
+Lease liabilities 433 388 433 388 measured in accordance with Level 2 of the fair value hier-
+swaps had a value of SEK 4 (9) million at 31 December 2025.
+Other interest-bearing liabilities – 0 – 0 archy, which means that the measurement is based on
+observable market inputs. The Group has not provided any 04. Directors’ Report
+Total 2,727 2,677 2,727 2,677 Loans and receivables 2025 2024
+collateral to credit institutions for the issued loans.
+Finance lease receivables 1 2 05. Financial statements and notes
+BS Accounts receivable 1,431 1,571 Consolidated financial statements
+Reconciliation of net debt
+BS Cash and cash equivalents 385 212 Consolidated financial notes
+Liabilities to
+Cash and cash credit Net Total 1,817 1,785 Parent company financial statements
+2025 equivalents Lease liabilities institutions Bonds pensions Other Total Parent company financial notes
+Opening balance, 1 January 2025 212 -388 -1,039 -1,250 -4 11 -2,458 Financial liabilities at amortised cost 2025 2024 Declaration of the Board of Directors
+Dividend -142 – – – – – -142 Bank loans including capitalised Auditor’s Report
+borrowing costs 1,044 1,039
+Other cash flow 387 197 – – – – 585
+Bonds 1,250 1,250
+Foreign exchange differences -72 7 – – – – -65 06. Other
+Lease liabilities 433 388
+Other non-cash changes – -250 -5 – – -3 -258
+Other interest-bearing liabilities 0 0
+Closing balance, 31 December 2025 385 -433 -1,044 -1,250 -4 7 -2,339
+BS Accounts payable 901 1,128
+Liabilities to Total 3,628 3,805
+Cash and cash credit Net
+2024 equivalents Lease liabilities institutions Bonds pensions Other Total
+FINANCIAL RISK MANAGEMENT
+Opening balance, 1 January 2024 534 -371 -1,321 -1,000 -6 15 -2,149
+The management of the financial risks to which the Group
+Repayment of borrowings -1,280 – 280 1,000 – – 0 is exposed is based on the Group’s Treasury Policy. The
+New bonds 1,250 – – -1,250 – – 0 Treasury Policy focuses on the unpredictability of financial
+markets and is designed to minimise potential adverse
+Dividend -285 – – – – – -285
+effects on the Group’s financial results.
+Other cash flow -32 191 – – – -1 158
+Foreign exchange differences 25 -3 – – 0 22 The Group is exposed to a number of financial risks, which
+Other non-cash changes – -204 2 – -1 -203 are described in the following section.
+Closing balance, 31 December 2024 212 -388 -1,039 -1,250 -6 13 -2,458
+
+----- PAGE 158 -----
+p. 158 Coor – Annual
+and Sustainability Report 2025
+01. Welcome to Coor
+02. Global trends, market and
+customers
+03. Strategy, targets and
+responsibilities
+04. Directors’ Report
+05. Financial statements and notes
+Consolidated financial statements
+Consolidated financial notes
+Parent company financial statements
+Parent company financial notes
+Declaration of the Board of Directors
+Auditor’s Report
+06. Other
+Financial statements and notes
+Consolidated financial notes
+Risk Policy / Measure
+CURRENCY RISK
+Transaction exposure
+Transaction risk is the risk that Coor is exposed to when
+making purchases and sales in currencies other than the
+company’s functional currency and when paying interest
+on and converting loans in currencies other than the com-
+pany’s functional currency.
+As the Group’s subsidiaries conduct their business almost exclusively in local currency, the
+transaction risk in the commercial flow is low. Both revenue and expenses are in the local
+currency of each country.
+The Group only has borrowings in SEK, and Coor is therefore not affected by changes in
+exchange rates in connection with interest payments and the revaluation of borrowings.
+Translation exposure
+Translation risk is the risk that Coor is exposed to on
+translation of its foreign subsidiaries’ income statements
+and balance sheets to Swedish kronor.
+In 2025, operations with a different functional currency than Swedish kronor accounted for
+36 (43) per cent of operating profit (EBITA). NOK 15 (19) per cent, EUR 4 (5) per cent and DKK
+17 (19) per cent.
+The translation difference in equity for the year was SEK -117 (24) million.
+In 2025, a change in the Swedish krona of 10 per cent against the currencies listed below
+would have had the following impact on consolidated profit after tax and equity:
+Translation exposure Profit after tax ± 2025 Equity ± 2025
+DKK 7 26
+EUR 3 4
+NOK 8 64
+Total 17 95
+INTEREST RATE RISK
+Interest rate risk is the risk that changes in market interest
+rates will have a negative impact on net profit, cash flow or
+the fair values of financial assets and liabilities.
+For variable-rate assets and liabilities, a change in market
+interest rates would have a direct impact on net profit and
+cash flow.
+For fixed-rate assets and liabilities, the impact is on
+fair value.
+The Group’s debt creates an exposure to interest rate risk, as the Group borrows at variable
+rates plus a margin. To hedge the interest rate risk related to the Group’s SEK 750 million
+five-year bonds, the Group has chosen to enter into an interest rate swap which effectively
+matches the critical terms of the bonds. The critical terms were matched throughout the
+year and no ineffectiveness therefore arose. For the interest rate risk arising from the
+Group’s SEK 500 million three-year bonds and from the revolving credit facility and senior
+loan, the Group has chosen not to enter into any interest rate swaps.
+At 31 December 2025, SEK 550 (550) million of the revolving credit facility and SEK 500
+(500) million of the senior loan had been drawn and SEK 1,250 (1,250) million of the bonds
+were outstanding.
+The Group analyses its exposure to interest rate risk by simulating the impact on earnings
+and cash flow from a specified change in interest rates. Based on the loan liabilities and
+fixed-rate terms applying at year-end, a change of 1 percentage point in the market interest
+rate would have an impact of SEK ±9 million on the Group’s annual interest expense.
+Note 16, cont.
+
+----- PAGE 159 -----
+Financial statements and notes p. 159 Coor – Annual
+Consolidated financial notes and Sustainability Report 2025
+Note 16, cont.
+01. Welcome to Coor
+Risk Policy / Measure 02. Global trends, market and
+CREDIT RISK customers
+Credit risk is the risk that a counterparty to a transaction will Credit risk is the risk that a counterparty to a transaction will be unable to fulfil its contrac- net sales. Historically, the Group has had a low level of bad debts relative to sales. The maxi-
+be unable to fulfil its contractual financial obligations and tual financial obligations and that this will have a negative impact on the Group’s financial mum credit exposure in accounts receivable at 31 December 2025 was SEK 1,436 (1,575)
+that this will have a negative impact on the Group’s financial position and results. The Group’s credit risk refers mainly to receivables from customers, million. The concentration of credit risk based on the situation at 31 December 2025 is 03. Strategy, targets and
+position and results. The Group’s credit risk refers mainly to which consist partly of accounts receivable and partly of contract revenue that has been shown below. The indicated figures are based on the amount of the Group’s exposure to
+responsibilities
+receivables from customers, which consist partly of earned but not yet invoiced. each customer at the balance sheet date.
+accounts receivable and partly of contract revenue that has In 2025, the Group’s ten largest customers accounted for 39 (39) per cent of consolidated
+been earned but not yet invoiced. 04. Directors’ Report
+2025 2024
+Share of total Percentage of Share of total Percentage of
+Concentration of credit risk accounts receivable portfolio accounts receivable portfolio 05. Financial statements and notes
+Exposure <SEK 15 million 946 66% 898 57%
+Consolidated financial statements
+Exposure SEK 15–50 million 314 22% 408 26%
+Consolidated financial notes
+Exposure >SEK 50 million 176 12% 269 17%
+Total 1,436 100% 1,575 100% Parent company financial statements
+Parent company financial notes
+Provisions for doubtful debts at 31 December 2025 receivable. At 31 December 2025, the Group had accrued the work has been performed and partly of accrued reve-
+amounted to SEK 5 (4) million, representing 0.4 (0.3) per but not yet invoiced revenue of SEK 187 (250) million. This nue from ongoing projects. The Group performs aging Declaration of the Board of Directors
+cent of total accounts receivable. For further information revenue consists partly of revenue from subscription con- analyses of all accrued income on an ongoing basis to mini- Auditor’s Report
+on provisions for doubtful debts, see Note 13 Accounts tracts under which invoices are issued in the month after mise the risk in recognised but not yet invoiced revenue.
+06. Other
+LIQUIDITY RISK
+Liquidity risk is the risk that the Group will find it difficult to To ensure adequate short-term liquidity, management analyses the Group’s liquidity Longer-term, the Group ensures that adequate liquidity is maintained by forecasting
+meet its financial obligations due to the unavailability of liq- requirements by continuously monitoring the liquidity reserve (undrawn revolving credit future cash flows and monitoring these forecasts on an ongoing basis. The Group’s liquidity
+uid assets. facility, and cash and bank deposits). Liquidity forecasts are prepared on an ongoing basis to requirement is met through existing credit facilities.
+ensure that the Group has sufficient cash assets to meet its operational requirements. The table below shows a breakdown of the Group’s financial liabilities by time to contrac-
+tual maturity at the balance sheet date. The indicated amounts are the undiscounted cash
+flows.
+2025 – Maturity analysis Within 1 year Between 1–2 years Between 2–3 years Between 3–4 years Between 4–5 years More than 5 years
+Accounts payable 901 – – – – –
+Lease liabilities 179 120 83 42 22 13
+Revolving credit facility – – 550 – – –
+Senior loan – – 500 – – –
+Bonds – 500 – 750 – –
+Interest, borrowings 93 74 27 4 – –
+Total 1,174 694 1,161 796 22 13
+2024 – Maturity analysis Within 1 year Between 1–2 years Between 2–3 years Between 3–4 years Between 4–5 years More than 5 years
+Accounts payable 1,128 – – – – –
+Lease liabilities 166 116 68 37 11 4
+Revolving credit facility – – – 550 – –
+Senior loan – – – 500 – –
+Bonds – – 500 – 750 –
+Interest, borrowings 108 108 85 27 4 –
+Total 1,402 223 654 1,113 766 4
+
+----- PAGE 160 -----
+p. 160 Coor – Annual
+and Sustainability Report 2025
+01. Welcome to Coor
+02. Global trends, market and
+customers
+03. Strategy, targets and
+responsibilities
+04. Directors’ Report
+05. Financial statements and notes
+Consolidated financial statements
+Consolidated financial notes
+Parent company financial statements
+Parent company financial notes
+Declaration of the Board of Directors
+Auditor’s Report
+06. Other
+Financial statements and notes
+Consolidated financial notes
+Risk Policy / Measure
+REFINANCING RISK
+Refinancing risk is the risk that financial expenses will be
+higher and/or that refinancing opportunities will be more
+limited or non-existent when the Group’s liabilities fall due
+and need to be refinanced.
+To reduce the financing risk, the Group strives to use diversified funding sources by main-
+taining commercial relations with at least two financial operators as well as through financ-
+ing via the capital market.
+In December 2022, Coor entered into a sustainability-linked financing agreement with
+four different financial institutions: DNB, SEB, Swedish Export Credit Corporation (SEK) and
+Danske Bank. The agreement has a total credit limit of SEK 1,750 million and consists of a
+SEK 1,250 million revolving credit facility and SEK 500 million senior loan. The interest rate
+on the senior loan and the revolving credit facility is a variable interest rate defined as
+3-month STIBOR with a tiered margin based on the company’s level of debt. In 2025, the
+margin was 2.4 per cent. The facility under the current financing agreement had an initial
+maturity of January 2026 and included two one-year extension options which Coor has
+exercised, thereby extending the loans until January 2028.
+The revolving credit facility and senior loan are subject to normal restrictions and financial
+covenants. The key ratios reported to the banks under the covenants for the financing
+agreement are leverage (the ratio of net interest-bearing debt to adjusted EBITDA) and
+interest coverage ratio (the ratio of adjusted EBITDA to net interest expense). For the current
+financial year, the Group has met all the requirements specified in the loan agreements. In
+addition to the financial covenants, there are three sustainability-linked covenants that are
+reviewed annually: TRIF rate, Scope 1 and 2 GHG emissions, and percentage of suppliers
+with SBTi-validated targets. The outcome of the sustainability-linked covenants can affect
+the level of the interest rate tier by +/–0.05 percentage points. As of 31 December 2025, the
+assessment is that the outcome of the covenants will not have a material impact on the car-
+rying amount of the liability.
+In 2024, Coor issued a three-year bond of SEK 500 million and five-year bonds totalling
+SEK 750 million. The three-year bond in the amount of SEK 500 million has a variable inter-
+est rate of 3-month STIBOR plus a margin of 1.9 per cent. The five-year bonds totalling SEK
+750 million have a variable interest rate of 3-month STIBOR plus a margin of 2.2 per cent.
+For the five-year bonds, Coor has signed an interest rate swap to fix the interest rate at 2.1
+per cent plus the margin.
+CAPITAL RISK
+Capital risk is the risk that the Group will be unable to main-
+tain an optimal capital structure and therefore be unable to
+continue to generate returns to the shareholders and other
+stakeholders in line with its objectives.
+The Group strives to maintain an efficient capital structure that promotes the long-term
+development of the Group while also generating returns for its shareholders and benefits
+for other stakeholders.
+The Group’s objective is to have a leverage of less than 3.0.
+The table below shows the Group’s capitalisation and debt at 31 December 2025:
+Net debt 2025 2024
+Liabilities to credit institutions 1,044 1,039
+Bonds 1,250 1,250
+Leases, net 431 386
+Other -1 -5
+2,724 2,670
+Cash and cash equivalents -385 -212
+Net debt 2,339 2,458
+Leverage, times 2.6 3.0
+Equity 1,387 1,426
+Equity/assets ratio, % 20 20
+The Group’s Dividend Policy states that, over the course of an economic cycle, approxi-
+mately 50 per cent of the Group’s adjusted net profit for the period should be distributed to
+the shareholders.
+In addition to targets for capital structure and dividends, the Group has defined quantita-
+tive financial targets for organic sales growth, adjusted EBITA margin and cash conversion.
+For definitions and information on target achievement in respect of the financial targets
+for 2025, see the section Strategy, targets and responsibilities on pages 31–33.
+Note 16, cont.
+
+----- PAGE 161 -----
+p. 161 Coor – Annual
+and Sustainability Report 2025
+01. Welcome to Coor
+02. Global trends, market and
+customers
+03. Strategy, targets and
+responsibilities
+04. Directors’ Report
+05. Financial statements and notes
+Consolidated financial statements
+Consolidated financial notes
+Parent company financial statements
+Parent company financial notes
+Declaration of the Board of Directors
+Auditor’s Report
+06. Other
+Financial statements and notes
+Consolidated financial notes
+ACCOUNTING PRINCIPLES
+Provisions are recognised when the Group has a legal or
+constructive obligation arising from past events, it is more
+probable than not that an outflow of resources will be
+required to settle the obligation, and the amount can be
+reliably measured. The provision is measured at the present
+value of the amount expected to be required to settle the
+obligation.
+Provisions for restructuring are recognised when a detailed
+formal plan for the restructuring measure exists and a well-
+founded expectation among those affected has been cre-
+ated. No provisions are made for future operating losses.
+Restructuring costs refer mainly to costs for large-scale
+integration projects or major organisational changes.
+Note 17. Provisions Note 18. Other liabilities
+SPECIFICATION OF CHANGE IN PROVISIONS:
+2025 Restructuring Other provisions Total
+At 1 January 2025 41 1 42
+Recognised in the income statement:
+– additional provisions 32 0 32
+– reversal of unused amounts 0 -1 -12
+Utilised during the year -46 0 -34
+Translation difference 0 0 0
+BS At 31 December 2025 26 1 27
+2024 Restructuring Other provisions Total
+At 1 January 2024 14 2 16
+Recognised in the income statement:
+– additional provisions 66 0 66
+– reversal of unused amounts -4 -1 -4
+Utilised during the year -35 0 -36
+Translation difference 0 0 0
+BS At 31 December 2024 41 1 42
+Other liabilities 2025 2024
+VAT liability 211 194
+Employee withholding tax 92 93
+Other current liabilities 7 3
+BS Total 311 289
+Note 19. Accrued expenses and deferred
+income
+Accrued expenses and
+deferred income 2025 2024
+Social security contributions 220 216
+Holiday pay 653 668
+Other personnel-related liabilities 300 280
+Accrued interest expense 17 22
+Deferred income, subscriptions 250 243
+Deferred income, projects 2 2
+Other accrued expenses 78 38
+BS Total 1,521 1,469
+OTHER PROVISIONS ARE DISTRIBUTED BETWEEN
+NON-CURRENT AND CURRENT COMPONENTS AS
+FOLLOWS:
+2025 2024
+Non-current component 1 11
+Current component 26 32
+BS Total 27 42
+

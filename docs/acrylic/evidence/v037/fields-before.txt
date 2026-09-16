@@ -1,0 +1,67 @@
+=== alligo_2025 === fy=2025 ccy=MSEK
+  total_debt = 3629 @ 0.5 ev= ['quote_on_page', 'value_in_quote', 'period_ok', 'page_is_statement', 'unit_ok'] page= 143 raw_label= 'Räntebärande skulder'
+  due_within_1_year = 473 @ 0.5 ev= ['quote_on_page', 'value_in_quote', 'period_ok', 'page_is_statement', 'unit_ok'] page= 143 raw_label= 'Kortfristiga räntebärande skulder'
+  due_1_to_5_years = None @ 0.0 ev= [] page= None raw_label= ''
+  due_after_5_years = None @ 0.0 ev= [] page= None raw_label= ''
+ check maturity_sums_to_total False due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((473 + 0 (due_1_to_5_years null) + 0 (due_after_5_years null)) - 3629) <= 2
+=== bico_2025 === fy=2025 ccy=None
+  total_debt = None @ 0.0 ev= [] page= None raw_label= None
+  due_within_1_year = None @ 0.0 ev= [] page= None raw_label= None
+  due_1_to_5_years = None @ 0.0 ev= [] page= None raw_label= None
+  due_after_5_years = None @ 0.0 ev= [] page= None raw_label= None
+ check maturity_sums_to_total False missing: due_within_1_year
+=== arjo_2025 === fy=2025 ccy=SEK M
+  total_debt = 5387 @ 1.0 ev= ['quote_on_page', 'value_in_quote', 'arith_ok', 'label_known', 'period_ok', 'page_is_statement', 'unit_ok'] page= 109 raw_label= 'Total interest-bearing liabilities'
+  due_within_1_year = None @ 0.0 ev= [] page= None raw_label= ''
+  due_1_to_5_years = None @ 0.0 ev= [] page= None raw_label= ''
+  due_after_5_years = None @ 0.0 ev= [] page= None raw_label= ''
+ check maturity_sums_to_total False missing: due_within_1_year
+=== humana_2025 === fy=2025 ccy=SEK million
+  total_debt = 4401 @ 0.15 ev= ['period_ok', 'page_is_statement', 'unit_ok'] page= 149 raw_label= 'interest-bearing liabilities'
+  due_within_1_year = 543 @ 0.15 ev= ['period_ok', 'page_is_statement', 'unit_ok'] page= 149 raw_label= 'current liabilities'
+  due_1_to_5_years = None @ 0.0 ev= [] page= None raw_label= None
+  due_after_5_years = None @ 0.0 ev= [] page= None raw_label= None
+ check maturity_sums_to_total False due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((543 + 0 (due_1_to_5_years null) + 0 (due_after_5_years null)) - 4401) <= 2
+ warn: total_debt: quote not found on page 149
+ warn: due_within_1_year: quote not found on page 149
+=== academedia_2025 === fy=2025 ccy=MSEK
+  total_debt = 12103 @ 0.85 ev= ['quote_on_page', 'value_in_quote', 'arith_ok', 'period_ok', 'unit_ok'] page= 87 raw_label= 'SUMMA'
+  due_within_1_year = None @ 0.0 ev= [] page= None raw_label= None
+  due_1_to_5_years = None @ 0.0 ev= [] page= None raw_label= None
+  due_after_5_years = None @ 0.0 ev= [] page= None raw_label= None
+ check maturity_sums_to_total False missing: due_within_1_year
+=== nelly_2025 === fy=2025 ccy=Miljoner kronor
+  total_debt = 287.1 @ 0.9 ev= ['quote_on_page', 'value_in_quote', 'arith_ok', 'period_ok', 'page_is_statement', 'unit_ok'] page= 89 raw_label= 'Leasingskulder som ingår i \xadrapporten över finansiell ställning'
+  due_within_1_year = 287.1 @ 1.0 ev= ['quote_on_page', 'value_derived', 'arith_ok', 'label_known', 'period_ok', 'page_is_statement', 'unit_ok'] page= 89 raw_label= 'Kortfristiga + Långfristiga'
+  due_1_to_5_years = None @ 0.0 ev= [] page= None raw_label= ''
+  due_after_5_years = None @ 0.0 ev= [] page= None raw_label= ''
+ check maturity_sums_to_total True due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((287.1 + 0 (due_1_to_5_years null) + 0 (due_after_5_years null)) - 287.1) <= 2
+ warn: due_within_1_year: 36.2 fails maturity_sums_to_total; 'Kortfristiga 36,2 35,7 Långfristiga 250,9 251,5' sums to 287.1 in every column, which passes
+=== boozt_2025 === fy=2025 ccy=SEK million
+  total_debt = 441 @ 0.5 ev= ['quote_on_page', 'value_in_quote', 'period_ok', 'page_is_statement', 'unit_ok'] page= 121 raw_label= 'Lease liabilities'
+  due_within_1_year = None @ 0.0 ev= [] page= None raw_label= None
+  due_1_to_5_years = 273 @ 0.5 ev= ['quote_on_page', 'value_in_quote', 'period_ok', 'page_is_statement', 'unit_ok'] page= 121 raw_label= 'Lease liabilities'
+  due_after_5_years = 63 @ 0.5 ev= ['quote_on_page', 'value_in_quote', 'period_ok', 'page_is_statement', 'unit_ok'] page= 121 raw_label= 'Lease liabilities'
+ check maturity_sums_to_total False due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((0 (due_within_1_year null) + 273 + 63) - 441) <= 2
+ warn: due_within_1_year: 104 is printed on none of pages [121, 122]; dropped as computed, not read
+=== acast_2025 === fy=2025 ccy=SEK thousand
+  total_debt = 45414 @ 0.5 ev= ['quote_on_page', 'value_in_quote', 'period_ok', 'page_is_statement', 'unit_ok'] page= 65 raw_label= 'Total'
+  due_within_1_year = 555370 @ 0.5 ev= ['quote_on_page', 'value_in_quote', 'period_ok', 'page_is_statement', 'unit_ok'] page= 65 raw_label= 'Total'
+  due_1_to_5_years = 544490 @ 0.5 ev= ['quote_on_page', 'value_derived', 'label_known', 'period_ok', 'page_is_statement', 'unit_ok'] page= 65 raw_label= 'Total'
+  due_after_5_years = None @ 0.0 ev= [] page= None raw_label= None
+ check maturity_sums_to_total False due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((555370 + 544490 + 0 (due_after_5_years null)) - 45414) <= 2
+ warn: total_debt: model returned null; 45414 read from 'Total 555,370 446,990 32,692 32,404 32,404 45,414' by its column order
+ warn: due_within_1_year: model returned null; 555370 read from 'Total 555,370 446,990 32,692 32,404 32,404 45,414' by its column order
+ warn: due_1_to_5_years: model returned null; 544490 read from 'Total 555,370 446,990 32,692 32,404 32,404 45,414' by its column order
+=== coor_service_management_hold_2025 === fy=2025 ccy=SEK million
+  total_debt = 2727 @ 0.85 ev= ['quote_on_page', 'value_in_quote', 'arith_ok', 'period_ok', 'unit_ok'] page= 157 raw_label= 'Total'
+  due_within_1_year = None @ 0.0 ev= [] page= None raw_label= ''
+  due_1_to_5_years = None @ 0.0 ev= [] page= None raw_label= ''
+  due_after_5_years = None @ 0.0 ev= [] page= None raw_label= ''
+ check maturity_sums_to_total False missing: due_within_1_year
+=== storytel_2025 === fy=2025 ccy=MSEK
+  total_debt = 550 @ 0.9 ev= ['quote_on_page', 'value_in_quote', 'arith_ok', 'period_ok', 'page_is_statement', 'unit_ok'] page= 114 raw_label= 'Group’s total loan liabilities'
+  due_within_1_year = 550 @ 0.9 ev= ['quote_on_page', 'value_in_quote', 'arith_ok', 'period_ok', 'page_is_statement', 'unit_ok'] page= 114 raw_label= 'the entire loan classified as current'
+  due_1_to_5_years = None @ 0.0 ev= [] page= None raw_label= ''
+  due_after_5_years = None @ 0.0 ev= [] page= None raw_label= ''
+ check maturity_sums_to_total True due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((550 + 0 (due_1_to_5_years null) + 0 (due_after_5_years null)) - 550) <= 2

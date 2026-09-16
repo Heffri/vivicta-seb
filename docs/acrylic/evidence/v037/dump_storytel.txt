@@ -1,0 +1,453 @@
+----- PAGE 110 -----
+Introduction Operations Strategy Sustainability Corporate governance
+STORYTEL GROUP ANNUAL AND SUSTAINABILITY REPORT 2025 110
+Financial information
+Share capital
+The registered share capital as of December 31, 2025 consists of class A-shares and B-shares.
+A-shares B-shares
+Type of share Ordinary share Ordinary share
+Votes per share 10 1
+Quota value December 31, 2024 0.5 0.5
+Quota value December 31, 2025 0.5 0.5
+Amounts in TSEK
+Opening number of shares January 1, 2024 77,108
+Increase via new share issue 43
+Closing number of shares December 31, 2024 77,151
+Increase via new share issue 156
+Closing number of shares December 31, 2025 77,307
+All shares are fully paid, and no shares are reserved for transfer.
+Other capital contributions
+Other capital contributions consists of capital contributed by Storytel’s owners in the form
+of new issues, including premium payments regarding warrants.
+Translation reserve
+The Group’s translation reserve includes all exchange rate differences that arise when
+translating financial statements from foreign operations that have prepared their finan­
+cial statements in a functional currency other than the currency in which the Group’s fi­
+nancial reports are presented. The Group presents its financial statements in Swedish kro­
+nor (SEK). Accumulated translation difference is recognised in profit/loss upon divestment
+of the foreign operations.
+Retained earnings including profit/loss for the year
+Retained earnings consist of the sum of the year’s earnings and profit/loss from previous
+years, including revaluation of defined-benefit pension plans.
+Note 24 Equity
+
+----- PAGE 111 -----
+Introduction Operations Strategy Sustainability Corporate governance
+STORYTEL GROUP ANNUAL AND SUSTAINABILITY REPORT 2025 111
+Financial information
+Note 25 Financial risks
+The Group’s earnings, financial position and cash flow are
+affected both by changes in the rest of the world and by
+the Group’s own actions. The risk management work aims
+to clarify and analyze the risks that the company encoun­
+ters and, as far as possible, to prevent and limit any nega­
+tive effects.
+Through its operations, the Group is exposed to various
+types of financial risks: credit risk, market risks (interest rate
+risk, currency risk and other price risk) as well as liquidity risk
+and refinancing risk. The Board has the overall responsibil­
+ity for the Group’s risk assesment, including financial risks.
+The risk management includes identifying and evaluating
+the risks that the Group faces. Priority is given to the risks
+that, in an overall assessment regarding possible impact,
+probability and consequence, are judged to have the most
+negative impact on the Group. The Group’s overall objec­
+tive for financial risks is to ensure short- and long-term cap­
+ital supply, achieve a long-term and stable capital structure
+with a granular maturity structure and achieve low risk ex­
+posure.
+Credit risk
+Credit risk is the risk that the Group’s counterparty in a fi­
+nancial instrument will not be able to fulfil its obligation and
+thereby cause the Group a financial loss. The Group’s credit
+risk arises primarily through receivables from customers and
+when investing cash and cash equivalents. At each report­
+ing occasion, the Group evaluates the credit risk of existing
+exposures, taking into account forward-looking factors.
+Below are the financial assets the Group has reserved ex­
+pected credit losses for. In addition to the assets below, the
+Group also monitors provisions for other financial instru­
+ments. In cases where the amounts are not deemed to be
+insignificant, a provision is made for expected credit losses
+for these financial instruments as well.
+Credit risk in accounts receivable (simplified method for
+credit risk reserve)
+For the Group, credit risk is primarily in accounts receivable,
+and Storytel’s goal is to have a continuous follow-up of this
+credit risk. The Group’s customers consist of both compa­
+nies and consumers. The Group has established guidelines
+to ensure that sales of products and services are made to
+customers with a suitable credit background and that the
+credit risk is reduced if necessary and if possible through,
+for example, advance payment and that subscriptions are
+terminated if payment is not made. The payment terms nor­
+mally amount to between 30–60 days depending on the
+counterparty. The historical credit losses amount to a small
+amount in relation to the Group’s sales. Despite the chal­
+lenging economic market due to inflation and high interest
+rates, Storytel has not identified any increased risk of cus­
+tomer losses.
+The Group applies the simplified method for reporting ex­
+pected credit losses for accounts receivable , including in­
+tercompany receivables. This means that expected credit
+losses are reserved for the remaining term, which is ex­
+pected to be less than one year for all receivables. The
+Group’s customers are segmented into three groups: cus­
+tomers with credit ratings, large global corporate custom­
+ers or other. Credit risk for customers with a credit rating is
+assessed on the basis of an established credit rating.
+Customers within each other group are judged to have a
+similar risk profile, which is why the credit risk is initially as­
+sessed collectively for all customers in each group. In the
+event of receivables that are more than 30 days due for
+payment or where the credit risk is deemed significant, the
+credit provision for these receivables is assessed per coun­
+terparty based on historical loss ratio, other known infor­
+mation and forward-looking factors, including information
+about individual customers and management’s assessment
+of impact from the economy of the industry.
+The Group has defined default as when payment of the
+receivable is 90 days late or more or if other factors indi­
+cate that there is a suspension of payment. In these cases,
+an individual assessment is made to estimate further ex­
+pected credit loss. The Group writes off a receivable when
+there is no longer any expectation of receiving payment
+and when active measures to receive payment have been
+terminated.
+Age analysis accounts
+­receivable, Net 12/31/2025 12/31/2024
+Non-overdue accounts receivable 196,091 188,307
+Overdue accounts receivable:
+0-30 days 20,477 20,750
+31-60 days 1,140 3,582
+61-90 days 883 329
+91-120 days 110 1,360
+> 120 days 885 6,053
+Total 219,585 220,381
+The credit quality of receivables that are not overdue for
+more than 90 days is judged to be good, based on histori­
+cally low customer losses and consideration of forward-look­
+ing factors.
+
+----- PAGE 112 -----
+Introduction Operations Strategy Sustainability Corporate governance Financial information
+Expected trade losses for accounts receivable default as when payment of the receivable is 90 days late in market prices. According to IFRS Accounting Standards,
+and contract assets (according to simplified or more or if other factors indicate that there is a suspen­ market risks are divided into three types: currency risk, in­
+method) sion of payment. terest risk and other price risks. The market risk that affects
+Amounts in TSEK 12/31/2025 12/31/2024 the business consists mainly of currency risk.
+Credit risk exposure and credit risk concentration
+Opening carrying amount -6,374 -2,910 Interest risk
+The Group’s credit risk exposure consists of accounts receiv­
+Provision for expected losses -34 -3,464 able, other long-term receivables, other receivables and Interest risk is the risk that fair value or future cash flows
+Reversed, previously written off 3,471 - cash and cash equivalents. The maximum exposure for from a financial instrument will vary due to changes in mar­
+amounts credit risk as per balance sheet date corresponds to the car­ ket interest rates. The goal is not to be exposed to future
+Closing carrying amount -2,937 -6,374 rying amounts as per balance sheet date, as specified in ta­ fluctuations in interest rate changes that affect the Group’s
+ble in note 18. cash flow and earnings to a greater extent than Storytel
+Cash and cash equivalents The Group uses several banks where the majority of cash can handle. A significant factor that affects interest risk is
+The Group’s credit risk also arises from the investment of and cash equivalents is invested in banks with a credit rat­ the fixed interest period. The Group is primarily exposed to
+cash and cash equivalents. Storytel’s goal is to have a con­ ing of between A-1 and A-1 + (short-term) and A + and AA- interest risk for the Group’s loans from credit institutions.
+tinuous follow-up of credit risk attributable to investments. (long-term) (S&P), respectively. Other receivables largely The Group’s borrowings normally are at a variable interest
+One way of counteracting credit risk is for the Group to have consist of blocked funds in bank accounts, relating to secu­ rate. The interest risk is low as the Group’s interest expenses
+bank accounts in several different financial institutions with rity for the PRI pension guarantee related to Norstedts are low in relation to total profit.
+a high credit rating. Förlagsgrupp AB’s defined-benefit obligations. The credit Given the interest-bearing assets and liabilities, including
+risk exposure for most of these is thus the same as for cash unutilized overdraft facilities and credit facilities, which ex­
+Provision for expected credit losses (general method) and cash equivalents. As these funds are invested in banks ist on the balance sheet date, an interest rate increase of 2
+The financial assets that are covered by provisions for ex­ with a high credit rating, ECL is considered to be negligible. percentage points over a one-year period has an effect on
+pected credit losses according to the general method con­ Other items in other long-term receivables and other receiv­ net interest before tax of TSEK -14,000 and an effect on eq­
+sist of financial assets in other non-current receivables, ables have been assessed to be in stage 1, i.e., there has been uity after tax of TSEK -11,116.
+other receivables and cash and cash equivalents where no significant increase in credit risk. The sensitivity analysis for interest rate risk has been pre­
+other receivables largely relate to blocked funds in bank ac­ The Group’s accounts receivable are spread over a large pared based on the Group’s net exposure to variable inter­
+counts regarding non-contingent considerations. According number of different customers and are also diversified in est rates at the reporting date. The exposure comprises in­
+to the general method, credit risk is measured for the next terms of size, country of origin, with a certain concentration terest-bearing liabilities with floating interest rates as well
+twelve months. The Group applies a rating-based method of credit risk to certain major corporate customers. Accounts as interest-bearing assets, including cash and cash equiva­
+where expected credit losses are measured on the product receivable within the Group’s publishing operations mainly lents. Net exposure is determined by offsetting inter­
+of the probability of default, loss given default and expo­ consist of major resellers of printed books and streaming est-bearing assets against interest-bearing liabilities.
+sure in the event of default. Consideration is also given to services in the Nordic markets. The largest accounts receiv­ The analysis includes the drawn portion of the Group’s
+other known information and forward-looking factors for able within the Group’s streaming operations consist of credit facilities and lease liabilities. Undrawn credit facili­
+assessing expected credit losses. As at the balance sheet global companies that provide payment solutions. ties are excluded as they do not expose the Group to inter­
+date, no significant increase in credit risk has been deemed Concentrations of credit risks relating to other accounts re­ est rate risk at the reporting date.
+to exist for any receivable or asset. Such an assessment is ceivable in the streaming business are limited as the cus­ The sensitivity analysis reflects the estimated impact on
+based on whether payment is 30 days late or more or if there tomer base is large and diversified. net finance income of a change in market interest rates, as­
+is a significant deterioration in credit rating resulting in a suming all other variables remain constant.
+credit rating below investment grade. In the event of a sig­ Market risk
+nificant increase in credit risk, the credit risk is measured for Market risk is the risk that the fair value of or future cash
+the remaining term of the exposure. The Group has defined flows from a financial instrument will vary due to changes
+STORYTEL GROUP ANNUAL AND SUSTAINABILITY REPORT 2025 112
+
+----- PAGE 113 -----
+Introduction Operations Strategy Sustainability Corporate governance Financial information
+The table below specifies the terms and repayment dates for each interest-bearing debt. Undiscounted contractual financial cash outflows within
+12 months amount to MSEK 904. Accordingly, the liquidity
+Carrying amount Currency Maturity Interest 12/31/2025 12/31/2024 reserve is lower than the short-term contractual cash out­
+Liabilities to credit institutions SEK Apr 2026 Floating 550,000 650,000 flows by MSEK 67.
+Total 550,000 650,000 The difference is managed through expected future cash
+flows from operating activities (optional addition: where in­
+flows from trade receivables continuously cover short-term
+Currency risk Other obligations such as trade payables). The Group has strong
+USD EUR DKK ­currencies
+Currency risk is the risk that fair value or future cash flows underlying cash flow generation, as illustrated by cash flow
+from a financial instrument will fluctuate due to changes in TSEK, +/- 21,156 13,377 6,161 4,049 from operating activities amounting to MSEK 573 in 2025.
+foreign exchange rates. From a Group perspective, the most Against this background, management assesses that the
+The impact on equity would be approximately TSEK +/- 1,655 if
+significant currency risk is translation exposure, i.e. the risk the SEK changed by 10% against all translation exposure cur­ Group has sufficient liquidity to meet its financial obliga­
+arising when the assets, liabilities, income and expenses of rencies, based on the exposure at the end of the period. tions as they fall due.
+foreign operations are translated into SEK, the Group’s pre­ Refinancing risk refers to the risk that financing for ac­
+sentation currency. quisitions or development cannot be retained, extended,
+The Group is also exposed to transaction exposure when Liquidity risk and refinancing risk expanded, refinanced or that such financing can only take
+Group entities have cash flows in currencies other than their Liquidity risk is the risk that a company will have difficulty place on terms that are unfavourable to the company. The
+functional currency, primarily in DKK, EUR and USD, but this fulfilling obligations that are related to financial liabilities need for refinancing is regularly reviewed by the company
+risk is partly mitigated by the fact that a substantial share that are settled with cash or other financial assets. The com­ and the Board to ensure financing of the company’s expan­
+of revenue and costs arise in the same currencies. pany manages liquidity risk through continuous follow-up sion and investments. The goal is to ensure that the Group
+Storytel Group does not generally hedge commercial of operations and by maintaining a Group account struc­ has ongoing access to external borrowing without the cost
+transaction exposure but may apply currency hedging with ture that ensures the companies’ credit needs. The com­ of borrowing increasing significantly. The refinancing risk is
+forward contracts to manage currency risks related to ac­ pany continuously forecasts future cash flows based on var­ reduced by structuring and starting the refinancing process
+quisition. ious scenarios to ensure that financing takes place on time. in good time. For larger loans, the process begins no later
+2025 2024 The risk is mitigated by the Group’s strong liquidity re­ than three to nine months before the due date. The com­
+Currency Operating Operating Operating Operating serves, which are immediately available. The Group’s oper­ pany also maintains a continuous dialogue with several
+­exposure (%) income expenses income expenses ations are primarily financed through capital raised from lenders.
+DKK 13.2% 14.1% 14.9% 15.6% the capital markets and through bank loans. The Group has The Group’s contractual and undiscounted interest pay­
+a revolving credit facility of MSEK 700. During 2025, a total ments and repayments of financial liabilities are shown in
+EUR 17.6% 18.6% 18.3% 18.9%
+of MSEK 100 was repaid on the revolving credit facility, re­ the table below. Financial instruments with variable interest
+USD 9.4% 9.9% 10.3% 10.3% ducing the outstanding amount from MSEK 650 at the end rates have been calculated with the interest rate that ex­
+Other of 2024 to MSEK 550 as of the end of 2025. isted on the balance sheet date. Liabilities have been in­
+­currencies 10.7% 11.1% 11.2% 11.6% As of 31 December 2025, the Group’s liquidity reserve cluded in the period when repayment can be demanded at
+Impact on net income before tax of a 10% change in foreign amounts to MSEK 836, comprising cash and cash equiva­ the earliest.
+currencies relative to SEK to which we have transaction expo­ lents of MSEK 686 and unutilised committed credit facilities
+sure at the end of the period. of MSEK 150.
+STORYTEL GROUP ANNUAL AND SUSTAINABILITY REPORT 2025 113
+
+----- PAGE 114 -----
+Introduction Operations Strategy Sustainability Corporate governance
+STORYTEL GROUP ANNUAL AND SUSTAINABILITY REPORT 2025 114
+Financial information
+Maturity analysis as of 12/31/2025*, amounts in TSEK <6 months 6-12 months 1-3 years 3-5 years >5 years Total
+Liabilities to credit institutions 555,436 - - - - 555,436
+Lease liabilities 19,430 19,082 59,839 29,951 708 129,010
+Trade payables 244,795 282 - - - 245,078
+Other current liabilities 54,764 9,964 - - - 64,728
+Other long-term liabilities - - 20,000 - - 20,000
+Total 874,426 29,327 79,839 29,951 708 1,014,251
+Maturity analysis as of 12/31/2024*, amounts in TSEK <6 months 6-12 months 1-3 years 3-5 years >5 years Total
+Liabilities to credit institutions 6,500 6,500 653,250 - - 666,250
+Lease liabilities 19,116 18,462 30,845 2,283 1,551 72,256
+Trade payables 291,326 910 - - - 292,236
+Other current liabilities 56,390 921 - - - 57,311
+Other long-term liabilities - - 28,236 - - 28,236
+Total 373,332 26,793 712,330 2,283 1,551 1,116,289
+* Please note that the table includes the forecast future nominal interest payment and thus does not correspond to the net book value in the balance sheet.
+Below are credit contracts/frameworks that Storytel has entered into:
+Amount Utilized Amount Utilized
+Amounts in TSEK 12/31/2025 12/31/2025 12/31/2024 12/31/2024
+Overdraft facility 700,000 550,000 700,000 650,000
+Total 700,000 550,000 700,000 650,000
+Covenants
+As of the balance sheet date on December 31, 2025, the
+Group’s total loan liabilities amounted to MSEK 550, with
+the entire loan classified as current. The loan is covered by
+refinanced loan agreements as of October 18, 2024, which
+include covenants requiring that certain financial ratios be
+met at specified times. As of the balance sheet date, the
+Group met all covenants in accordance with the applica­
+ble loan agreements. The most important covenant asso­
+ciated with the loans includes a requirement that a certain
+Net Debt to EBITDA ratio is not exceeded.
+The covenants are tested quarterly, and at each testing
+occasion, all requirements were met during the financial
+year 2025. Failure to meet these covenants may result in
+lenders demanding immediate repayment of outstanding
+amounts.
+To reduce the risk of covenant breaches, the Group has
+taken measures such as improving liquidity reserves and
+optimizing the capital structure. Management continu­
+ously monitors the company’s financial position to ensure
+compliance with all loan agreement terms.
+Capital management
+The Board’s objective is to maintain an optimal structure
+that contributes to maintaining investor, lender and mar­
+ket confidence and to form a basis for continued develop­
+ment of the business in accordance with the communicated
+market strategy. The capital consists of total equity. The
+Board has proposed that a dividend of SEK 1.50 per share,
+total SEK 115,960,806 shall be distributed to the Parent
+Company’s shareholders. In the long term, Storytel has a
+continued focus on revenue growth and an improved
+EBITDA margin compared with the previous year.
+
+----- PAGE 115 -----
+Introduction Operations Strategy Sustainability Corporate governance
+STORYTEL GROUP ANNUAL AND SUSTAINABILITY REPORT 2025 115
+Financial information
+Note 26 Provisions
+Sales return reserves Other provisions Total
+Amounts in TSEK 2025 2024 2025 2024 2025 2024
+Opening balance as at January 1 14,542 14,892 10,111 26,894 24,653 41,786
+Additional provisions 21,358 13,790 2,217 894 23,575 14,684
+Utilized during the year -13,863 -14,140 -8,713 -4,442 -22,576 -18,582
+Returned unutilized amounts - - -1,599 -13,386 -1,599 -13,386
+Translation effects 52 - -227 152 -175 152
+Closing balance as at December 31 22,089 14,542 1,790 10,111 23,878 24,653
+Other provisions consist mostly of provisions for restructuring cost of TSEK 1,011 and provisions for pensions of TSEK 536.
+Note 27 Accrued expenses and deferred
+income
+Amounts in TSEK 12/31/2025 12/31/2024
+Deferred income 159,210 154,532
+Accrued holiday pay 47,208 67,282
+Accrued social security contribution 27,555 29,755
+Accrued royalties 219,725 195,285
+Accrued interest 4,232 5,991
+Short term incentive program 21,496 38,642
+Other accrued expenses 58,667 76,526
+Carrying amount 538,093 568,013
+
+----- PAGE 116 -----
+Introduction Operations Strategy Sustainability Corporate governance
+STORYTEL GROUP ANNUAL AND SUSTAINABILITY REPORT 2025 116
+Financial information
+Note 28 Cash flow statement
+Adjustments for non-cash items, amounts in TSEK 2025 2024
+Depreciation/amortisation and impairment 324,770 298,122
+Provisions -24,306 798
+Profit from participations in associates -4,527 18,221
+Capital gains -12,589 1,340
+Incentive programs 7,609 8,642
+Defined-benefit pension plans 19,615 -3,799
+Obsolescence/Write-down booked to inventories 3,960 11,919
+Exchange rate effects 46,872 -22,263
+Other -3,309 -2,214
+Total 358,095 310,766
+Change in liabilities attributable to financing activi­
+ties, amounts in TSEK 1/1/2025 Cash flows from financing Leases Translation difference Remeasurement 12/31/2025
+Liabilities to credit institutions 650,000 -100,000 - - - 550,000
+Lease liabilities 72,256 -37,355 96,516 - -2,407 129,010
+Total liabilities attributable to financing activities 722,256 -137,355 96,516 - -2,407 679,010
+Change in liabilities attributable to financing activi­
+ties, amounts in TSEK 1/1/2024 Cash flows from financing Leases Translation difference Remeasurement 12/31/2024
+Liabilities to credit institutions 749,268 -100,000 - - 732 650,000
+Lease liabilities 91,328 -40,326 18,290 1,176 1,788 72,256
+Total liabilities attributable to financing activities 840,596 -140,326 18,290 1,176 2,520 722,256
+
+----- PAGE 119 -----
+Introduction Operations Strategy Sustainability Corporate governance Financial information
+Net sales growth rate, %, CER* Profit before depreciation/amortisation, impairment, inter­ Profit margin (%)*
+2025-01-01 2024-01-01 est and tax. 2025-01-01 2024-01-01
+Amounts in TSEK -2025-12-31 -2024-12-31 Purpose: To help investors and other stakeholders under­ Amounts in TSEK -2025-12-31 -2024-12-31
+Net sales, reporting period 4,022,734 3,797,976 stand the profitability of the ongoing operations, indepen­ Net sales 4,022,734 3,797,976
+dent of investment levels and capital structure.
+Less net sales, previous year re­ Profit for the year 504,002 213,496
+porting period -3,797,976 -3,489,220
+Operating profit before depreciation/ Profit margin (%) 13% 6%
+Currency effects 123,535 7,387 amortisation and impairment (%)*
+Change 348,293 316,143 Profit for the year as a percent of net sales.
+2025-01-01 2024-01-01
+Change % of net sales, previous Amounts in TSEK -2025-12-31 -2024-12-31 Purpose: To help investors and other stakeholders under­
+year reporting period 9% 9% stand the final profitability after all costs and taxes, in re­
+Net sales 4,022,734 3,797,976
+lation to the Group’s total net sales.
+EBITDA 747,383 544,454
+Net sales growth rate, where the current year’s net sales are
+calculated at the exchange rates prevailing in the previous EBITDA % of net sales 19% 14% Items affecting comparability (IAC)*
+year. IACs include items of a significant character that distort
+Purpose: To show the underlying sales growth adjusted for Profit before depreciation/amortisation, impairment, inter­ comparisons over time, such as costs related to acquisitions,
+currency effects, enabling better comparability between est and tax as a percentage of sales. divestments, and market exits; restructuring costs; signifi­
+periods. Purpose: To help investors and other stakeholders under­ cant impair-ments and write-downs; expenses, or reversals
+stand profitability as a percentage of net sales, indepen­ of expenses, arising from the group’s share-based incentive
+Gross profit %* dent of investment levels and capital structure schemes.
+2025-01-01 2024-01-01 Purpose: To provide a clearer view of the underlying op­
+Amounts in TSEK -2025-12-31 -2024-12-31 Operating margin (%)* erational performance by separating items whose nature
+Net sales 4,022,734 3,797,976 2025-01-01 2024-01-01 differs from the ordinary course of business and which would
+otherwise complicate relevant financial comparisons over
+Gross profit 1,832,596 1,699,810 Amounts in TSEK -2025-12-31 -2024-12-31
+Net sales 4,022,734 3,797,976 time.
+Gross profit % of net sales 46% 45%
+Operating profit 422,612 246,332 Equity-to-assets ratio (%)*
+Operating profit as a percentage of sales. Operating profit % of net sales 11% 6% 2025-01-01 2024-01-01
+Purpose: Make it easier for investors and other stakehold­ Amounts in TSEK -2025-12-31 -2024-12-31
+ers to understand profitability as a share of sales. Operating profit as a percentage of sales. Equity 1,899,323 1,551,632
+Purpose: Make it easier for investors and other stakehold­
+Operating profit before depreciation/ ers to understand profitability as a share of sales. Total assets 3,570,422 3,389,147
+amortisation and impairment (EBITDA)* Equity-to-assets ratio (%) 53% 46%
+Profit after financial items (EBT)*
+2025-01-01 2024-01-01
+Amounts in TSEK -2025-12-31 -2024-12-31 Profit after financial income and expenses, before tax. Equity (including non-controlling interests) as a percentage
+Operating profit 422,612 246,332 Purpose: To show the company’s profitability after taking of the balance sheet total.
+financial activities and interest expen-ses into account. Purpose: Make it easier for investors and other stakehold­
+Add back depreciation/amorti­
+sation and impairment 324,770 298,122 ers to understand indebtedness and long-term solvency.
+EBITDA 747,383 544,454
+* The key figure is an alternative performance measure in accordance
+with ESMA’s guidelines.
+STORYTEL GROUP ANNUAL AND SUSTAINABILITY REPORT 2025 119
+
+----- PAGE 120 -----
+Introduction Operations Strategy Sustainability Corporate governance Financial information
+Equity
+The net assets of the business, i.e., the difference between Net Interest-Bearing Debt (NIBD) including sum of non-cur­
+assets and liabilities, including non-controlling interests. rent and current lease liabilities (IFRS16).
+Purpose: To show the amount of capital that has been in­ Purpose: To show the company’s total indebtedness in­
+vested by the owners or earned by the company, serving as cluding lease liabilities, providing a more comprehensive
+a measure of the Groups financial resilience and net worth. view of the financial obligations that will result in future
+cash outflows.
+Balance sheet total
+The company’s total assets. Adjusted gross profit, EBITDA and EBITDA
+Purpose: To provide an overview of the Group’s total re­ margin*
+sources and serve as a basis for analyzing capital efficiency, 2025-01-01 2024-01-01
+leverage, and financial stability. Amounts in TSEK -2025-12-31 -2024-12-31
+Gross profit 1,832,596 1,699,810
+Net Interest-Bearing Debt (NIBD)*
+Items affecting comparability -348 5,842
+2025-01-01 2024-01-01
+Amounts in TSEK -2025-12-31 -2024-12-31 Adjusted gross profit 1,832,248 1,705,652
+Liabilities to credit institutions 550,000 650,000 EBITDA 747,383 544,454
+Cash and cash equivalents -686,395 -622,954 Items affecting comparability 9,250 57,212
+Net Interest-Bearing Debt Adjusted EBITDA 756,633 601,666
+(NIBD) -136,395 27,046
+Net sales 4,022,734 3,797,976
+Adjusted EBITDA margin 19% 16%
+Net Interest-Bearing Debt (NIBD) also called Net Debt is de­
+fined as total interest-bearing liabilities (excluding lease
+and pension liabilities) plus dividend payables, less cash and Adjusted key figures - Gross profit, EBITDA, and EBITDA mar­
+cash equivalents and interest-bearing assets. gin -reflect the underlying key figure when excluding items
+Purpose: To show the company’s actual level of debt by affecting comparability.
+relating interest-bearing liabilities to available cash. Purpose: To provide a clearer picture of the underlying
+profitability and the development of the operational activ­
+Net Interest-Bearing Debt, incl. leasing liabilities ities, adjusted for items of a non-recurring nature.
+(IFRS16)*
+Average paying subscribers
+2025-01-01 2024-01-01
+Amounts in TSEK -2025-12-31 -2024-12-31 The average number of paying subscribers during the pe­
+Net Interest-Bearing Debt riod. For Family subscriptions, each standard stream (not so-
+(NIBD) -136,395 27,046 called Kids Mode) is considered one paying subscriber.
+Non-current lease liabilities 90,498 34,678 Purpose: To show the volume development in the cus­
+tomer base, which is a central driver of revenue growth.
+Current lease liabilities 38,512 37,578
+Net Interest-Bearing Debt, incl. Number of employees
+leasing liabilities (IFRS16) -7,385 99,302
+Average number of employees during the financial year. * The key figure is an alternative performance measure in accordance
+with ESMA’s guidelines
+STORYTEL GROUP ANNUAL AND SUSTAINABILITY REPORT 2025 120
+
+----- PAGE 121 -----
+Introduction Operations Strategy Sustainability Corporate governance
+STORYTEL GROUP ANNUAL AND SUSTAINABILITY REPORT 2025 121
+Financial information
+Parent company’s income statement
+Amounts in TSEK Note 2025 2024
+Net sales 22,741 46,043
+Gross profit 22,741 46,043
+Administrative expenses 3,4 -49,111 -59,672
+Other operating income 2,044 25
+Other operating cost - -66
+Operating profit -24,326 -13,670
+Interest income and similar items 5 23,969 32,752
+Interest expense and similar items 6 -42,030 -55,391
+Profit after financial items -42,387 -36,309
+Appropriations 29,450 -
+Profit before tax -12,937 -36,309
+Tax 7 - -
+Profit for the year -12,937 -36,309
+Parent company's statement of comprehensive income
+Amounts in TSEK 2025 2024
+Profit for the year -12,937 -36,309
+Total comprehensive income for the year -12,937 -36,309
+
