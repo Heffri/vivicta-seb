@@ -688,6 +688,109 @@ def demo():
     assert "7" not in user.splitlines(), user  # bare page-number line stripped (not just "differs per page", see locate's own comment)
     assert "\n...\n" in user  # the head/keyword-hits separator only appears once something was found beyond the head
     assert any(l.endswith(": Note 20 Borrowings") for l in user.splitlines()), user  # the heading, past the head cutoff, surfaces numbered
+    # v050: a prose no-debt statement has no digit for _value_in_quote, so both provenance gates dropped the
+    # model's 0 as "computed, not read" (v048's recorded warning for Creades, seed 4, p.61 real text). The
+    # total_debt schema field now opts in with "zero_if_stated" (the field-level analogue of a check's
+    # null_as_zero): a digit-free quote that sits verbatim on the cited page (whitespace/NBSP-insensitive;
+    # quote_on_page itself requires a number token, which prose never has), names the field's subject (a
+    # schema keyword or one of the field's synonyms) and carries a negation word from the schema's own list,
+    # proves a 0 the report stated in words. The buckets get no opt-in (their descriptions forbid a 0 for an
+    # unprinted bucket), so they stay null -- and _check lifts its all-null guard only when the identity's
+    # remaining operand is itself such a stated zero, making 0+0+0 == 0 a real pass.
+    creades61 = ("Noter 59\nCreades årsredovisning 2025\n"
+                 "Not 18 Klassificering av finansiella instrument värderade till verkligt värde\n"
+                 "Enligt IFRS 9 ska ett företag klassificera sina finansiella tillgångar och skulder. Creades klassificering av sina finansiella tillgångar och skulder\n"
+                 "framgår av följande matris.\n"
+                 "Likvida medel, kundfordringar och leverantörsskulder har kort löptid och bedöms ha ett upplupet anskaffningsvärde som inte avviker\n"
+                 "väsentligt från verkligt värde. Investmentföretaget har varken räntebärande skulder eller kundfordringar.\n"
+                 "Finansiella tillgångar 251231, per värderingskategori enligt IFRS 9\nSEK mn\nTillgångar\n"
+                 "Andelar i portföljbolag 10 879 – 10 879 10 879\nLångfristig fordran 72 – 72 72\nLikvida medel – 287 287 287\n"
+                 "Summa tillgångar 10 951 287 11 237 11 237\n"
+                 "Indelning i hierarkiska nivåer\nTillgångar och skulder värderade till verkligt värde via resultatet\n"
+                 "Creades har inga finansiella tillgångar eller skulder hänförliga\ntill Nivå 2.\n")
+    creades62 = "60 Noter\nCreades årsredovisning 2025\nVärderingen görs vanligen genom principen ”Multipelvärdering”,\n"
+    creades_sentence = "Investmentföretaget har varken räntebärande skulder eller kundfordringar."
+
+    def zero_answer():
+        return {"fields": [
+            {"key": "total_debt", "value": 0, "unit": "SEK mn", "period": "2025",
+             "raw_label": creades_sentence, "source": {"page": 1, "quote": creades_sentence}},
+            {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+            {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+            {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+
+    x.call_llm = lambda *a, **k: zero_answer()
+    out = x.extract([creades61, creades62], [1, 2], dm, {"fiscal_year": 2025})
+    td = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert td["value"] == 0 and td["confidence"] == 0.5 and "stated_zero" in td["evidence"] \
+        and td["source"]["quote"] == creades_sentence, (td, out["warnings"])  # 0.50: the sentence is on the page, the figure never is
+    assert out["checks"][0]["passed"] and "null" in out["checks"][0]["detail"], out["checks"]  # 0+0+0 == 0, every operand named
+    assert all(next(f for f in out["fields"] if f["key"] == k)["value"] is None for k in dmf if k != "total_debt"), out["fields"]  # buckets stay null
+    # off-page quote: the negation sentence not printed on the cited page -> still "computed, not read"
+    off = zero_answer()
+    off["fields"][0]["source"]["quote"] = "Bolaget har absolut inga räntebärande skulder."
+    x.call_llm = lambda *a, **k: off
+    out = x.extract([creades61, creades62], [1, 2], dm, {"fiscal_year": 2025})
+    td = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert td["value"] is None and any("dropped as computed, not read" in w for w in out["warnings"]), (td, out["warnings"])
+    # on-page quote about something else: "Creades klassificering ..." says skulder but holds no total_debt vocabulary word
+    off = zero_answer()
+    off["fields"][0]["source"]["quote"] = "Creades klassificering av sina finansiella tillgångar och skulder"
+    x.call_llm = lambda *a, **k: off
+    out = x.extract([creades61, creades62], [1, 2], dm, {"fiscal_year": 2025})
+    td = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert td["value"] is None and any("dropped as computed, not read" in w for w in out["warnings"]), (td, out["warnings"])
+    # the buckets have no opt-in: 0 + the very same sentence still drops, the buckets' own "null if the table
+    # has no such row" rule stands, and the identity reads missing, never 0 == nothing
+    bucket = zero_answer()
+    bucket["fields"][0] = {"key": "total_debt", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}
+    bucket["fields"][1] = {"key": "due_within_1_year", "value": 0, "unit": "SEK mn", "period": "2025",
+                           "raw_label": creades_sentence, "source": {"page": 1, "quote": creades_sentence}}
+    x.call_llm = lambda *a, **k: bucket
+    out = x.extract([creades61, creades62], [1, 2], dm, {"fiscal_year": 2025})
+    w1y = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
+    assert w1y["value"] is None and any(w.startswith("due_within_1_year: 0 is printed on none of pages") for w in out["warnings"]), (w1y, out["warnings"])
+    assert not out["checks"][0]["passed"] and out["checks"][0]["detail"].startswith("missing:"), out["checks"]
+    # the negation list lives in the schema, and it is what separates a stated zero from a bare row label:
+    # "Summa räntebärande skulder" quoted alone off a column-major table (XANO's 8-column row) has the
+    # vocabulary and sits verbatim on the page, but no negation word -- it must stay a drop, never become a 0
+    assert not x._stated_zero({"value": 0, "source": {"page": 1, "quote": "Summa räntebärande skulder"}},
+                              dmf["total_debt"], dm, ["Summa räntebärande skulder 4 090 8 680 38 305 51 075 768 885 33 784 50 778 904 522"])
+    # a digit-bearing quote is the original gates' business, unchanged (Svolder, seed 4, real p.18 sentence +
+    # p.19's printed axis 0): the quote verifies through quote_on_page, the 0 lands at 0.5 with no stated_zero
+    svol18 = ("Riskhantering\nMSEK\ntillgångarnas värde och har en kreditfacilitet på upp \n"
+              "till 500 MSEK hos en nordisk affärsbank, med aktier \n"
+              "som säkerhet. Vid balansdagen den 31 augusti 2025 \nvar krediten oanvänd.\n")
+    svol19 = "Not 19 Rörelsen\nMSEK\n−200 −100 0 100 200 300 400 500\n"
+    svol = {"fields": [
+        {"key": "total_debt", "value": 0, "unit": "MSEK", "period": "2025", "raw_label": "krediten oanvänd",
+         "source": {"page": 1, "quote": "Vid balansdagen den 31 augusti 2025 var krediten oanvänd."}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    x.call_llm = lambda *a, **k: json.loads(json.dumps(svol))
+    out = x.extract([svol18, svol19], [1, 2], dm, {"fiscal_year": 2025})
+    td = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert td["value"] == 0 and td["confidence"] == 0.5 and "stated_zero" not in td["evidence"] \
+        and "quote_on_page" in td["evidence"], (td, out["warnings"])  # Svolder's own stored read, byte-identical
+    assert not out["checks"][0]["passed"] and out["checks"][0]["detail"].startswith("missing:"), out["checks"]
+    # Flat Capital (v035, seed 1, real p.18): the no-debt sentence sits on p.33, never a locator candidate
+    # ([18, 19] were) -- a p.33 sentence cited against a candidate page is not printed there, so the new rule
+    # must not fire; p.18's own printed "interest-bearing liabilities ... 0 TSEK (0)" keeps the value on the
+    # old printed-zero path, at the no-provenance 0.25 cap, whichever round of code ran
+    fc18 = ("of 34,522 KSEK (0). See also Note 3 regarding changes in \n"
+            "to 144,075 KSEK (158,832), of which interest-bearing liabili-\nties amounted to 0 TSEK (0).\n")
+    fc = {"fields": [
+        {"key": "total_debt", "value": 0, "unit": "KSEK", "period": "2025", "raw_label": "interest-bearing liabilities",
+         "source": {"page": 1, "quote": "the investment company has neither interest-bearing liabilities nor accounts receivable."}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    x.call_llm = lambda *a, **k: json.loads(json.dumps(fc))
+    out = x.extract([fc18], [1], dm, {"fiscal_year": 2025})
+    td = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert td["value"] == 0 and td["confidence"] == 0.25 and "stated_zero" not in td["evidence"], (td, out["warnings"])
+    assert any("quote not found on page 1" in w for w in out["warnings"]), out["warnings"]
     print("confidence self-check ok")
 
 
