@@ -31,3 +31,26 @@ per-lane walkthrough notes live in `docs/acrylic/evidence/`.
   helper over the local Edge channel (`shot.mjs` in the lanes' shared tools — pass
   `--tonekey acrylic-tone --tone dark|light`); it exists because tone and KB rows are awkward to
   drive otherwise. Screenshots go into `docs/acrylic/evidence/<lane>/` next to their notes.
+
+## Playwright e2e smoke
+
+`e2e/` covers the three main chains (cached-report extract, multi-PDF upload → Compare, Knowledge
+base open → Results) plus the embedded Ask citation flow, each in both tones, over local Microsoft
+Edge (`channel: 'msedge'` — no browser download). It never starts a server itself:
+
+```
+# 1. backend, fixture mode (no LLM_* set)
+cd backend && uvicorn app:app --port 8000
+
+# 2. frontend dev server, in another shell
+cd frontend && npm run dev
+
+# 3. the suite, in a third shell
+cd frontend && npm run e2e
+```
+
+`E2E_BASE_URL` overrides the default `http://127.0.0.1:5173` (for a non-default port — see the
+lanes' port-per-session convention in the acrylic evidence docs). Two cases open a Knowledge base
+report and need the real PDF at `data/reports/atlas_copco_2025.pdf` (gitignored, not in this repo —
+copy it in, or those two `test.skip()` with a reason instead of failing); everything else generates
+its own throwaway PDFs at run time (`e2e/fixtures/make-pdf.ts`, no fixture binaries committed).
