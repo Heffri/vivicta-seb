@@ -97,6 +97,7 @@ the 102 reports already parsed into `data/kb/` and/or PDFs fetched for the purpo
 | Three spots in `extract.py` — `_label_known`; `_row_label` (was truncating at the first digit) plus `_statement_row`'s exact-match set; the sum-repair's `own_syns` — now compare the schema synonym through the same cleanup as the printed label, not verbatim. New `scripts/label_regression.py` makes the check repeatable. | A synonym with a digit in it (`"1-5 years"`) could never match a cleaned label (`"1-5years"`, digits glue to neighbours) — every debt-maturity bucket synonym has a digit, so a correctly-read bucket row still capped at 0.9 confidence, or (for `_statement_row`) couldn't be found as a row at all. | [v011 §v011b](evidence/v011.md), [v012](evidence/v012.md), [v014](evidence/v014.md) |
 | `parse.py`'s `page_text()`: block-local baseline merge joins a row's label and figures back together when the text layer split them onto separate lines inside one PyMuPDF block; word-level rebuild as a fallback; pure-prose pages untouched, byte for byte. `PARSER_VERSION` 2 → 3 — existing `data/kb` needs `python -m pipeline.kb build` to pick this up (not run by this branch). New `backend/pipeline/test_parse.py`, `scripts/parse_check.py`. | HANDOFF called this out directly: plain `get_text()` loses table structure, likely to matter more for debt notes (pure tables) than it did for the income statement. | [v013](evidence/v013.md) |
 | `_clean_label` strips a footnote marker — a glued superscript digit, or a bare `digit)` — sitting directly against a currency/unit token, right before the existing currency/unit strip runs. | Same normalization-asymmetry family as the row above, one step later: a footnote glued to a bare currency word with no space (`"SEK1)"`) survived cleanup while the same label without the footnote didn't, per v014's own Findings note. | [v018](evidence/v018.md) |
+| `_clean_label` also strips magnitude-prefixed currency/unit tokens (`MSEK`, `TSEK`, `KSEK`, `kSEK`, `MEUR`, bracketed or not). | The unit regex only matched bare unit words, so `"Revenue, MSEK"` and `"Revenue"` cleaned to different strings; found by v018, fixed the same way. 739/739 stored labels unchanged. | [v023](evidence/v023.md) |
 
 Numbers behind the table: the TOC pass found a table-of-contents target for `debt_maturity` in 0/102
 reports scanning only the front matter, 2/102 once the scan widened to the whole document (0 top-1
@@ -139,11 +140,6 @@ matching after the re-parse.
 - **KB open fails whole, not per-field, when the PDF isn't on disk.** A stem whose PDF isn't in
   `data/reports/` 409s the entire open, not just the page images — right now only Atlas Copco is
   openable offline. [v003](evidence/v003.md).
-- **`_clean_label` never strips a magnitude-prefixed currency/unit token.** The regex only matches bare
-  unit words (`\bSEK\b` can't match inside `MSEK`), so `MSEK`/`TSEK`/`KSEK`/`MEUR` survive cleanup
-  untouched, footnote glued to them or not. Dormant today — no schema synonym contains a
-  magnitude-prefixed unit — but it's the same normalization-asymmetry class as the label/synonym fixes
-  in the backend table above. [v018](evidence/v018.md).
 
 ## Open questions for Kristian / SEB
 
