@@ -296,8 +296,17 @@ def _label_known(label, sf: dict) -> bool:
 
 
 def _row_label(row: str) -> str:
-    """'Gross income 14,753 14,480' -> 'Gross income'."""
-    return re.split(r"\s+(?=[-(–−]?\d)", row.strip(), 1)[0].rstrip(" ,.:;*")
+    """'Gross income 14,753 14,480' -> 'Gross income'. A number the label goes on using stays in it ("Within 1 year",
+    "Inom 1 år" -> "Within 1 year" / "Inom 1 år", debt-maturity bucket rows): the amounts start at the first number
+    that is not followed by a lowercase word ("14 4.74 8.32 MSEK" cuts before the 14, "8, 9, 10" is a note column)."""
+    row = row.strip()
+    for m in re.finditer(r"\s+(?=[-(–−]?\d)", row):
+        rest = row[m.end():]
+        num = re.match(r"[-(–−]?\d[\d,.']*", rest)
+        if num and re.match(r"\s*[a-zåäöæø]", rest[num.end():]):  # "1 year": a label word; "1 000" / "100 MSEK" is where the amounts start
+            continue
+        return row[:m.start()].rstrip(" ,.:;*")
+    return row.rstrip(" ,.:;*")
 
 
 _CCY = re.compile(r"(?<![A-Za-z])(?:[MTk]|Mdr?)?(?:SEK|EUR|USD|NOK|DKK|GBP|CHF|ISK|PLN|EURO|[Kk][Rr]|€|\$|£)(?:m|mn|bn|k|t)?(?![A-Za-z])")  # currency codes as printed: "MSEK", "Mkr", "EUR", "€m"
@@ -465,9 +474,10 @@ def _between_rows(sf: dict, fields: list[dict], sfs: list[dict], defaults: dict,
 
 def _statement_row(rows: list[str], sf: dict, ncols: int) -> str | None:
     """The field's row on a statement page: the full row whose label is exactly a synonym ("Operating profit" for a bank's
-    profit before tax), else the one full row with a known, unexcluded label prefix. None when ambiguous."""
+    profit before tax; the synonym through the same _clean_label as the label — "Within 1 year" is exactly within1year),
+    else the one full row with a known, unexcluded label prefix. None when ambiguous."""
     full = [r for r in rows if len(_row_amounts(r, ncols)) == ncols]
-    syn = {s.lower() for s in sf.get("synonyms", [])}
+    syn = {c for s in sf.get("synonyms", []) if (c := _clean_label(s))}  # a synonym that cleans away to nothing would match every labelless row
     hit = next((r for r in full if _clean_label(_row_label(r)) in syn), None)
     if hit:
         return hit
