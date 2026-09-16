@@ -1,4 +1,4 @@
-import { Database, Loader2 } from 'lucide-react'
+import { Database, Loader2, Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { getKb, getSchemas, openKbExtraction } from '@/api'
 import { Badge } from '@/components/ui/badge'
@@ -16,6 +16,7 @@ export function KbView({ onOpen }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set()) // stems
   const [busy, setBusy] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
 
   useEffect(() => {
     getKb().then(setEntries).catch((e: Error) => setError(e.message))
@@ -51,6 +52,10 @@ export function KbView({ onOpen }: Props) {
   const withSection = [...selected].filter((s) => entries?.find((e) => e.stem === s)?.sections.length)
   const section = schemas[0]?.name ?? 'income_statement'
 
+  // Display-only: narrows which rows render, never touches `selected`.
+  const q = query.trim().toLowerCase()
+  const filtered = (entries ?? []).filter((e) => !q || (e.company ?? '').toLowerCase().includes(q) || e.stem.toLowerCase().includes(q))
+
   return (
     <div className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-5">
@@ -69,7 +74,11 @@ export function KbView({ onOpen }: Props) {
         </Button>
       </header>
 
-      {error && <p className="whitespace-pre-line text-sm text-destructive">{error}</p>}
+      {error && (
+        <div className="whitespace-pre-line rounded-lg border border-danger/30 bg-danger-muted px-4 py-3 text-sm text-danger">
+          {error}
+        </div>
+      )}
 
       {!entries && !error && (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -80,63 +89,95 @@ export function KbView({ onOpen }: Props) {
       {entries && entries.length === 0 && <p className="text-sm text-muted-foreground">Empty — extract a report first.</p>}
 
       {entries && entries.length > 0 && (
-        <Card className="overflow-x-auto py-0">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative w-full sm:w-72">
+            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Filter by company or stem…"
+              aria-label="Filter reports"
+              className="h-8 w-full rounded-lg border border-input bg-background py-2 pr-2.5 pl-8 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            />
+          </div>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {filtered.length} / {entries.length}
+          </span>
+        </div>
+      )}
+
+      {entries && entries.length > 0 && filtered.length === 0 && (
+        <p className="text-sm text-muted-foreground">No matches for "{query}".</p>
+      )}
+
+      {filtered.length > 0 && (
+        <Card className="overflow-hidden py-0 [&_[data-slot=table-container]]:max-h-[70vh] [&_[data-slot=table-container]]:overflow-y-auto">
           <Table>
-            <TableHeader>
+            <TableHeader className="sticky top-0 z-10 bg-muted">
               <TableRow>
                 <TableHead className="w-8" />
                 <TableHead>Company</TableHead>
-                <TableHead>FY</TableHead>
-                <TableHead className="text-right">Pages</TableHead>
+                <TableHead className="text-right">FY</TableHead>
+                <TableHead className="text-right max-[900px]:hidden">Pages</TableHead>
                 <TableHead>Extractions</TableHead>
                 <TableHead>Embeddings</TableHead>
                 <TableHead className="text-right" />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {entries.map((e) => (
-                <TableRow key={e.stem} data-state={selected.has(e.stem) ? 'selected' : undefined}>
-                  <TableCell>
-                    <input
-                      type="checkbox"
-                      aria-label={`Select ${e.company ?? e.stem}`}
-                      checked={selected.has(e.stem)}
-                      disabled={!e.sections.length}
-                      onChange={() => toggle(e.stem)}
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {e.company ?? e.stem}
-                    <span className="ml-2 font-mono text-xs text-muted-foreground">{e.stem}</span>
-                  </TableCell>
-                  <TableCell>{e.fiscal_year ?? '—'}</TableCell>
-                  <TableCell className="text-right tabular-nums">{e.pages}</TableCell>
-                  <TableCell>
-                    <span className="flex flex-wrap gap-1">
-                      {e.sections.length ? (
-                        e.sections.map((s) => (
-                          <Badge key={s} variant="secondary">
-                            {title(s)}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-xs text-muted-foreground">none yet</span>
-                      )}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={e.indexed ? 'default' : 'outline'}>{e.indexed ? 'indexed' : 'not yet'}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {e.sections.map((s) => (
-                      <Button key={s} size="xs" variant="outline" disabled={!!busy} onClick={() => open([e.stem], s)}>
-                        {busy === e.stem ? <Loader2 className="animate-spin" /> : null}
-                        Open
-                      </Button>
-                    ))}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {filtered.map((e) => {
+                const isSelected = selected.has(e.stem)
+                return (
+                  <TableRow
+                    key={e.stem}
+                    className={`border-l-2 ${isSelected ? 'border-l-ring bg-primary/10 hover:bg-primary/15' : 'border-l-transparent hover:bg-primary/5'}`}
+                  >
+                    <TableCell>
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${e.company ?? e.stem}`}
+                        checked={isSelected}
+                        disabled={!e.sections.length}
+                        onChange={() => toggle(e.stem)}
+                        className="size-3.5 accent-ring"
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {e.company ?? e.stem}
+                      <span className="ml-2 font-mono text-xs text-muted-foreground max-[900px]:hidden">{e.stem}</span>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{e.fiscal_year ?? '—'}</TableCell>
+                    <TableCell className="text-right tabular-nums max-[900px]:hidden">{e.pages}</TableCell>
+                    <TableCell>
+                      <span className="flex flex-wrap gap-1">
+                        {e.sections.length ? (
+                          e.sections.map((s) => (
+                            <Badge key={s} variant="secondary">
+                              {title(s)}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-xs text-muted-foreground">none yet</span>
+                        )}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={e.indexed ? 'success' : 'outline'} className={e.indexed ? undefined : 'text-muted-foreground'}>
+                        {e.indexed ? 'indexed' : 'not yet'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {e.sections.map((s) => (
+                        <Button key={s} size="xs" variant="outline" disabled={!!busy} onClick={() => open([e.stem], s)}>
+                          {busy === e.stem ? <Loader2 className="animate-spin" /> : null}
+                          Open
+                        </Button>
+                      ))}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </Card>
