@@ -1,29 +1,40 @@
 """SEB annual-report parser, backend. The contract is docs/API.md; change it there first."""
+import argparse
 import csv
 import io
 import json
+import logging
 import os
 import re
+import sys
 import time
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 import pymupdf
+import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from pipeline import extract as extract_mod, fetch, kb, locate, parse, ppt
+from pipeline import extract as extract_mod, fetch, kb, llm, locate, parse, paths, ppt
 
 load_dotenv()
-HERE = Path(__file__).parent
-UPLOADS = HERE / "uploads"
-UPLOADS.mkdir(exist_ok=True)
-SCHEMAS = HERE / "schemas"
-LIBRARY = HERE.parent / "data" / "reports"  # bundled reports; index.json is committed, PDFs via `python data/fetch.py`
-FIXTURE = HERE / "fixtures" / "sample_extraction.json"
-COMPANIES = json.loads((HERE.parent / "data" / "companies.json").read_text(encoding="utf-8"))  # Nasdaq Stockholm, data/companies_build.py
+UPLOADS = paths.uploads_dir()
+SCHEMAS = paths.schemas_dir()
+LIBRARY = paths.reports_dir()  # bundled reports; index.json is committed, PDFs via `python data/fetch.py`
+def _llm_configured() -> bool:
+    """A model answers /extract when an OpenAI-compatible endpoint is set, or when the Codex CLI provider is selected
+    (v031: LLM_PROVIDER=codex needs no base URL). /index and /ask still need LLM_BASE_URL for embeddings."""
+    return bool(os.getenv("LLM_BASE_URL")) or llm.provider() == "codex"
+
+
+FIXTURE = paths.fixture_path()
+COMPANIES = json.loads(paths.companies_path().read_text(encoding="utf-8"))  # Nasdaq Stockholm, data/companies_build.py
 CSV_HEADER = "report_id,company,fiscal_year,section,key,label,value,unit,period,raw_label,page,quote,confidence".split(",")
 
 app = FastAPI(title="vivicta backend")
@@ -208,7 +219,7 @@ def page_png(report_id: str, n: int):
 def run_extract(report_id: str, body: ExtractBody):
     report = get_report(report_id)
     schema = load_schema(body.section)
-    if not os.getenv("LLM_BASE_URL"):  # frontend dev mode: no model configured
+    if not _llm_configured():  # frontend dev mode: no model configured
         result = json.loads(FIXTURE.read_text(encoding="utf-8")) | {"report_id": report_id}
     else:
         texts = report_texts(report_id)
@@ -268,8 +279,9 @@ def kb_extraction(stem: str, section: str):
 
 @app.get("/api/config")
 def config():
-    return {"model": os.getenv("LLM_MODEL") or "fixture", "embed_model": kb.embed_model(), "base_url": os.getenv("LLM_BASE_URL"),
-            "llm": bool(os.getenv("LLM_BASE_URL"))}
+    model = os.getenv("LLM_MODEL") or ("gpt-5.6-terra" if llm.provider() == "codex" else "fixture")  # codex default lives in llm.py
+    return {"model": model, "embed_model": kb.embed_model(), "base_url": os.getenv("LLM_BASE_URL"),
+            "llm": _llm_configured(), "provider": llm.provider() if _llm_configured() else "fixture"}
 
 
 @app.get("/api/reports/{report_id}/extraction.csv")
@@ -298,3 +310,69 @@ def extraction_pptx(report_id: str):
     data = ppt.build_pptx(x)
     return Response(data, media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
                     headers={"Content-Disposition": f'attachment; filename="{report_id}_{x["section"]}.pptx"'})
+
+
+# ---- static frontend (desktop build only; unset FRONTEND_DIST -> no route added, dev proxy unaffected) --------
+
+FRONTEND_DIST = os.getenv("FRONTEND_DIST")
+if FRONTEND_DIST:
+    class SPAStaticFiles(StaticFiles):
+        """A path with no matching file falls back to index.html (client-side routing). Registered after every
+        /api/* route above, which Starlette always tries first, so this never shadows the API -- the api/ prefix
+        check below is only a backstop for an /api/* typo that no real route matched. StaticFiles signals a miss
+        by raising HTTPException(404), not by returning a 404 response, hence the try/except here. get_path()
+        joins with os.path.join/normpath, so `path` uses OS-native separators (backslash on Windows) -- compare
+        via Path(...).parts, not a literal "api/" prefix, or the guard silently never matches on Windows."""
+        async def get_response(self, path: str, scope):
+            try:
+                return await super().get_response(path, scope)
+            except StarletteHTTPException as exc:
+                if exc.status_code == 404 and Path(path).parts[:1] != ("api",):
+                    return await super().get_response("index.html", scope)
+                raise
+
+    app.mount("/", SPAStaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
+
+
+class _TeeToLog:
+    """Mirrors console output into the rotating log file, so the existing print()-based diagnostics (here and in
+    pipeline/*) are still visible when the packaged exe runs with no attached console. One record per non-empty line."""
+
+    def __init__(self, stream, logger: logging.Logger):
+        self._stream, self._logger = stream, logger
+
+    def write(self, data: str) -> None:
+        self._stream.write(data)
+        for line in data.splitlines():
+            if line.strip():
+                self._logger.info(line)
+
+    def flush(self) -> None:
+        self._stream.flush()
+
+    def isatty(self) -> bool:
+        return self._stream.isatty()
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(prog="backend", description="SEB annual-report parser backend")
+    ap.add_argument("--port", type=int, default=8000)
+    ap.add_argument("--host", default="127.0.0.1")
+    args = ap.parse_args()
+
+    log_dir = paths.data_dir()
+    log_dir.mkdir(parents=True, exist_ok=True)
+    file_logger = logging.getLogger("backend.file")
+    file_logger.setLevel(logging.INFO)
+    file_logger.propagate = False
+    handler = RotatingFileHandler(log_dir / "backend.log", maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+    file_logger.addHandler(handler)
+    sys.stdout = _TeeToLog(sys.stdout, file_logger)  # covers both print() and uvicorn's own ext://sys.stdout handlers
+    sys.stderr = _TeeToLog(sys.stderr, file_logger)
+
+    uvicorn.run(app, host=args.host, port=args.port, loop="asyncio", http="h11", ws="none")
+
+
+if __name__ == "__main__":
+    main()

@@ -57,6 +57,16 @@ ollama pull qwen3:8b               # or qwen2.5:14b / qwen3:14b if you have ≥1
 
 Same three variables point at Azure OpenAI / OpenAI / OpenRouter — no code change.
 
+Or with the Codex CLI instead of a model endpoint (no local model; uses a Codex subscription/API key):
+
+```bash
+# in backend/.env:
+#   LLM_PROVIDER=codex
+#   LLM_MODEL=gpt-5.6-terra   # -m passed to `codex exec`; the CLI must be installed and already logged in
+```
+
+Extraction and Ask's answers then run on Codex; Ask's retrieval still needs `LLM_BASE_URL` (Ollama/OpenAI-compatible) — see `backend/README.md`.
+
 Accuracy:
 
 ```bash
