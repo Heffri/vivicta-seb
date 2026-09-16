@@ -1,10 +1,13 @@
 """PDF -> text, one string per page (pymupdf).
 
-Next for a teammate: plain `page.get_text()` loses table structure, so a row label
-and its numbers can land on separate lines. Try `page.find_tables()` or
-`get_text("blocks")` sorted by (y, x) so each table row becomes one line -- that
-helps both keyword locating and verbatim quote matching. Scanned reports need an
-OCR fallback (pymupdf + tesseract via `page.get_textpage_ocr()`).
+Table rows are kept whole: a text layer that prints a row label on one line and its figures on the
+next is rebuilt from positioned text -- block-local first (prose order is untouched), page-wide from
+words only when that still leaves rows open. Prose pages pass through byte-identical to get_text().
+Column-major layers (Arion Bank prints every figure first, then every label) go through the word-level
+rebuild too.
+
+Next for a teammate: scanned reports need an OCR fallback (pymupdf + tesseract via
+`page.get_textpage_ocr()`).
 """
 import re
 
@@ -15,7 +18,7 @@ _DIGIT_SPACE = re.compile(r" (?=\d)|(?<=\d) ")  # any space touching a digit
 _CHARMAP = str.maketrans({"\u00a0": " ", "\u202f": " ", "\u2013": "-", "\u2212": "-"})  # NBSP, narrow NBSP, en dash, minus
 
 
-PARSER_VERSION = 2  # bump when page_text changes so kb.save_report rewrites cached pages.jsonl
+PARSER_VERSION = 3  # bump when page_text changes so kb.save_report rewrites cached pages.jsonl
 NUMERIC_RUN = 12  # consecutive letterless lines: a column-major text layer (Arion Bank prints every figure first, then every label, in no order)
 _LEADERS = re.compile(r"(?:\s*\.){3,}")
 
@@ -27,10 +30,51 @@ def page_texts(pdf_path) -> list[str]:
 
 
 def page_text(page) -> str:
-    """Plain text; when the text layer is column-major, lines rebuilt from word coordinates instead (label and its
-    figures on one line). Only then: words on a baseline also merge two tables printed side by side (AQ)."""
+    """Plain text; a text layer that splits table rows (a row label on one line, its figures on the next) gets its
+    lines rebuilt so each printed row is one line. Prose-only pages are returned as get_text() wrote them."""
     text = page.get_text()
-    return text if _numeric_run(text) < NUMERIC_RUN else _lines_from_words(page)
+    if _numeric_run(text) >= NUMERIC_RUN:
+        return _lines_from_words(page)
+    if not _split_rows(text):
+        return text
+    merged = _merge_baselines(page)
+    leftover = _split_rows(merged)
+    if leftover:  # rows still open: their cells sit in separate blocks. Word-level merges those, but also merges
+        alt = _lines_from_words(page)  # two tables printed side by side (AQ) -- take it only when it closes more rows
+        if _split_rows(alt) < leftover:
+            return alt
+    return merged
+
+
+def _split_rows(text: str) -> int:
+    """Split-row count: a line with letters but no digits directly followed by a line with digits but no letters --
+    a row label separated from its figures."""
+    lines = [l for l in (l.strip() for l in text.splitlines()) if l]
+    has_alpha = [any(c.isalpha() for c in l) for l in lines]
+    has_digit = [any(c.isdigit() for c in l) for l in lines]
+    return sum(1 for i in range(len(lines) - 1) if has_alpha[i] and not has_digit[i] and has_digit[i + 1] and not has_alpha[i + 1])
+
+
+def _merge_baselines(page) -> str:
+    """Lines of a block that share a baseline (within half the taller line's height) become one line, left to right.
+    Blocks keep their reading order, so a prose paragraph's lines (distinct baselines) come out as before."""
+    out = []
+    for block in page.get_text("dict")["blocks"]:
+        if block["type"] != 0:
+            continue
+        rows: list[list] = []  # [y-center, height, [(x0, text)]]
+        for line in block["lines"]:
+            txt = "".join(s["text"] for s in line["spans"])
+            if not txt.strip():
+                continue
+            yc, h = (line["bbox"][1] + line["bbox"][3]) / 2, line["bbox"][3] - line["bbox"][1]
+            row = next((r for r in rows if abs(r[0] - yc) <= max(h, r[1]) / 2), None)
+            if row is None:
+                rows.append([yc, h, [(line["bbox"][0], txt)]])
+            else:
+                row[2].append((line["bbox"][0], txt))
+        out += [_WS.sub(" ", " ".join(t for _, t in sorted(xs))).strip() for _, _, xs in sorted(rows)]
+    return "\n".join(l for l in out if l)
 
 
 def _numeric_run(text: str) -> int:
