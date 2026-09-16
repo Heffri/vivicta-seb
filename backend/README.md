@@ -38,6 +38,38 @@ Each module's docstring says what to do next.
 - `python ../scripts/smoke_api.py` — every endpoint in `docs/API.md` against a running backend (`--llm` adds extract/index/ask,
   `--fetch "Alfa Laval"` fetches a report live). Run before pushing backend changes.
 - `python -m pipeline.test_confidence` — the evidence scoring in [`docs/CONFIDENCE.md`](../docs/CONFIDENCE.md).
+- `python -m pipeline.test_parse`, `python -m pipeline.test_kb`, `python -m pipeline.test_paths` — table-row
+  reconstruction, KB save idempotency, and dev-tree-vs-frozen path resolution self-checks.
 - `python ../eval/run.py` — accuracy + mean confidence against `eval/labels.csv` (needs Ollama; ~1 min per report).
 - Company + year in the UI calls `POST /api/reports/fetch`: MFN news feed first, DuckDuckGo PDF search as fallback; the PDF must
   be > 40 pages, have a text layer, and mention the company and the year in its first 20 pages. Cached in `data/reports/`.
+
+## Desktop build (PyInstaller)
+
+All filesystem paths go through `pipeline/paths.py` (dev tree vs. frozen onedir build, see its module docstring).
+Two roots: `resource_dir()` (read-only, bundled: `schemas/`, `fixtures/`) and `data_dir()` (read-write: reports
+cache, KB, uploads, `backend.log` — `ARP_DATA_DIR` if set, else `data/` next to the repo root in dev or next to
+the exe when frozen).
+
+```sh
+pip install -r requirements-build.txt        # adds pyinstaller on top of requirements.txt
+python build_exe.py                          # -> dist/backend/backend.exe (onedir; ~106 MB, ~2-6 s cold start)
+
+set ARP_DATA_DIR=C:\path\to\user\data        # companies.json, reports/, kb/, uploads/, backend.log all live here
+set FRONTEND_DIST=C:\path\to\frontend\dist   # optional: serve the built frontend from / (SPA fallback to index.html); unset -> no static route at all
+dist\backend\backend.exe --port 8000 --host 127.0.0.1
+```
+
+- `ARP_DATA_DIR` unset in the packaged exe defaults to a `data/` folder next to `backend.exe` (portable-app style);
+  in the dev tree it defaults to `<repo>/data`, unchanged from before this existed.
+- `KB_DIR` keeps its pre-existing standalone meaning (resolved against `resource_dir()`, independent of
+  `ARP_DATA_DIR`) for backward compatibility with the documented `.env` override.
+- The desktop shell is expected to copy `data/companies.json`, `data/reports/index.json`, and `data/kb/` into
+  `ARP_DATA_DIR` once (and any cached report PDFs it wants pre-seeded) — `backend.exe` never bundles `data/` itself.
+- Logs go to stdout and `<data_dir>/backend.log` (rotated at 5 MB, 3 backups); this mirrors the existing
+  `print()`-based diagnostics too, not just uvicorn's own request log, so a console-less run still leaves a trail.
+- `backend.spec` bundles `schemas/` + `fixtures/` as data and pins hidden imports uvicorn needs for its dynamic
+  loop/protocol imports (`app.py` forces `loop="asyncio", http="h11", ws="none"` so only those concrete
+  implementations need to be listed), plus `pymupdf`/`pptx` package data PyInstaller's static analysis can't see
+  on its own. A PyInstaller `tzdata` hidden-import warning is expected and harmless (nothing here does named-zone
+  `zoneinfo` conversion).
