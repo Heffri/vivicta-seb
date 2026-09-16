@@ -64,6 +64,70 @@ in `app.py` checks only `LLM_BASE_URL`), so a Codex-only setup today also needs 
 Test: `python -m pipeline.test_llm` -- a fake `codex.cmd` + Python script replays discovery, a fenced reply,
 a non-zero exit and a timeout, no network or real Codex install needed.
 
+## Claude CLI provider (`LLM_PROVIDER=claude`)
+
+Same idea as the Codex path above, for a teammate with a Claude subscription (not an API key) and no local
+model or OpenAI-compatible endpoint:
+
+```
+# in backend/.env:
+LLM_PROVIDER=claude
+LLM_MODEL=claude-sonnet-5           # --model passed to `claude -p`; this is the default if unset
+                                     # (claude-opus-5, claude-haiku-4-5-20251001 also work)
+# CLAUDE_BIN=C:\path\to\claude.exe  # only needed if `claude` isn't on PATH
+```
+
+`claude_cli` shells out to `claude -p --output-format json --model <model> --tools "" --no-session-persistence`,
+piping `system` + `user` over stdin (same as Codex -- no separate system-role concept in a one-shot `-p` call)
+and reading the reply from the JSON reply's `result` field. `--tools ""` (`claude --help`: 'Use "" to disable
+all tools') leaves the model nothing to call at all; UAW's own `CLAUDE_CATALOG_ARGUMENTS`
+(`process-transport.ts`, private reference repo) reaches for the same pair to take a headless call down to plain text in, text out --
+stronger than `--permission-mode plan`, which still permits read-only tool calls and exists for an interactive
+approval loop `-p` never runs. Executable discovery order also follows UAW's `discoverClaudeLaunch`: `CLAUDE_BIN`,
+then PATH (bare `claude`, so PATHEXT finds an npm shim too -- a backend process inherits a shell's PATH already,
+so unlike UAW's Electron app there is no separate `%APPDATA%\npm` check), then `~/.local/bin/claude.exe` (the
+native installer's default), then the Claude desktop app's own bundled CLI under
+`%APPDATA%\Claude\claude-code\<newest version>\claude.exe` -- never `%LOCALAPPDATA%\AnthropicClaude`, which is
+the desktop GUI's own `claude.exe`, not the CLI. The Claude CLI manages its own login; this backend never reads
+or writes its credentials. A timeout, a non-zero `claude -p` exit, or a reply with `is_error: true` all raise
+the same way a Codex or `openai.*` failure already does.
+
+**A Claude API key does not need `LLM_PROVIDER=claude`.** That provider is the CLI/subscription path only,
+mirroring Codex; a teammate with an Anthropic API key instead points the *existing* `openai_compatible` path at
+Anthropic's own OpenAI SDK-compatible endpoint -- no new code:
+
+```
+# in backend/.env:
+LLM_PROVIDER=openai
+LLM_BASE_URL=https://api.anthropic.com/v1/
+LLM_API_KEY=<your Anthropic API key>
+LLM_MODEL=claude-sonnet-5
+```
+
+Confirmed against Anthropic's own OpenAI SDK compatibility docs (platform.claude.com/docs/en/cli-sdks-libraries/
+libraries/openai-sdk, fetched 2026-09-16) rather than a live call -- this environment has a Claude Code
+subscription, not a separate Anthropic API key, and the point of this lane's call budget is exercising the real
+`claude_cli` path above, not minting a new billable credential to spend a call on this one instead. Two things
+to know before relying on it:
+
+- **`response_format` (the `json_schema`/`strict` mode `_openai_chat()` sends) is silently ignored** by
+  Anthropic's compatibility layer -- Anthropic's docs say so explicitly ("For JSON output, use Structured
+  Outputs with the native Claude API"). The model still answers -- `extract.py`'s system prompt already asks
+  for compact, schema-shaped JSON in plain language, the same way it does for `codex_cli`/`claude_cli`, neither
+  of which gets strict-schema enforcement either -- but nothing here *guarantees* the reply parses, unlike a
+  real OpenAI/Azure/Ollama endpoint honoring `response_format` today.
+- `temperature=0` (what `_openai_chat()` sends) is within Anthropic's supported 0..1 range, and the model name
+  goes through as-is (`claude-sonnet-5`, `claude-opus-5`, `claude-haiku-4-5-20251001`) -- both unremarkable, no
+  action needed.
+
+**Embeddings never go through Claude either**, for the same reason as Codex: `kb.embed()` always calls an
+OpenAI-compatible `/v1/embeddings` directly, so `/ask`'s retrieval still needs `LLM_BASE_URL` pointed at Ollama
+or a real OpenAI-compatible host even with `LLM_PROVIDER=claude`.
+
+Test: `python -m pipeline.test_llm` -- a fake `claude.cmd` + Python script replays discovery, stdin,
+`--output-format json` parsing, fence stripping, `is_error: true`, a non-zero exit and a timeout, no network or
+real Claude Code install needed.
+
 ## Checks
 
 - `python ../scripts/smoke_api.py` — every endpoint in `docs/API.md` against a running backend (`--llm` adds extract/index/ask,

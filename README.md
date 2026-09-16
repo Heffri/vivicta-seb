@@ -65,7 +65,16 @@ Or with the Codex CLI instead of a model endpoint (no local model; uses a Codex 
 #   LLM_MODEL=gpt-5.6-terra   # -m passed to `codex exec`; the CLI must be installed and already logged in
 ```
 
-Extraction and Ask's answers then run on Codex; Ask's retrieval still needs `LLM_BASE_URL` (Ollama/OpenAI-compatible) — see `backend/README.md`.
+Or with the Claude Code CLI, same idea, for a Claude subscription (a Claude *API key* instead needs no CLI —
+`LLM_PROVIDER=openai` + `LLM_BASE_URL=https://api.anthropic.com/v1/` + `LLM_API_KEY` already works):
+
+```bash
+# in backend/.env:
+#   LLM_PROVIDER=claude
+#   LLM_MODEL=claude-sonnet-5   # --model passed to `claude -p`; the CLI must be installed and already logged in
+```
+
+Extraction and Ask's answers then run on Codex/Claude; Ask's retrieval still needs `LLM_BASE_URL` (Ollama/OpenAI-compatible) — see `backend/README.md`.
 
 Accuracy:
 

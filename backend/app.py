@@ -28,9 +28,10 @@ UPLOADS = paths.uploads_dir()
 SCHEMAS = paths.schemas_dir()
 LIBRARY = paths.reports_dir()  # bundled reports; index.json is committed, PDFs via `python data/fetch.py`
 def _llm_configured() -> bool:
-    """A model answers /extract when an OpenAI-compatible endpoint is set, or when the Codex CLI provider is selected
-    (v031: LLM_PROVIDER=codex needs no base URL). /index and /ask still need LLM_BASE_URL for embeddings."""
-    return bool(os.getenv("LLM_BASE_URL")) or llm.provider() == "codex"
+    """A model answers /extract when an OpenAI-compatible endpoint is set, or when the Codex or Claude CLI provider
+    is selected (v031: LLM_PROVIDER=codex needs no base URL; v039: same for claude). /index and /ask still need
+    LLM_BASE_URL for embeddings."""
+    return bool(os.getenv("LLM_BASE_URL")) or llm.provider() in ("codex", "claude")
 
 
 FIXTURE = paths.fixture_path()
@@ -279,7 +280,8 @@ def kb_extraction(stem: str, section: str):
 
 @app.get("/api/config")
 def config():
-    model = os.getenv("LLM_MODEL") or ("gpt-5.6-terra" if llm.provider() == "codex" else "fixture")  # codex default lives in llm.py
+    # codex/claude defaults live in llm.py; not "fixture" only for a provider _llm_configured() already accepts without LLM_MODEL
+    model = os.getenv("LLM_MODEL") or {"codex": "gpt-5.6-terra", "claude": "claude-sonnet-5"}.get(llm.provider(), "fixture")
     return {"model": model, "embed_model": kb.embed_model(), "base_url": os.getenv("LLM_BASE_URL"),
             "llm": _llm_configured(), "provider": llm.provider() if _llm_configured() else "fixture"}
 
