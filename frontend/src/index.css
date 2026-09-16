@@ -69,9 +69,17 @@
     --glass-hi: rgb(255 255 255 / 8%);
     --glass-shadow: 0 22px 60px rgb(0 0 0 / 55%);
     --blur: saturate(180%) blur(26px);
+    /* The wallpaper is what the one glass pane sits on, and a browser never
+       has OS material to blur instead — so the ground has to carry the colour
+       itself: deep blue -> indigo -> near black, with two soft glows (blue
+       top-left, violet bottom-right) that give the blur something to bite on.
+       Glows are capped at luminaries that keep the resolved glass ground (88%
+       --bg-0 over the brightest point) at the same text-contrast ladder the
+       UAW fallback had — see docs/acrylic/evidence/v006.md for the numbers. */
     --wallpaper:
-        radial-gradient(120% 90% at 50% -20%, #2a3350 0%, transparent 60%),
-        linear-gradient(160deg, #11131b, #0a0a0d 60%);
+        radial-gradient(90% 75% at 14% 0%, rgb(56 96 178 / 26%) 0%, transparent 62%),
+        radial-gradient(75% 65% at 88% 100%, rgb(112 78 190 / 30%) 0%, transparent 60%),
+        linear-gradient(168deg, #1b2444 0%, #131830 45%, #0a0a12 100%);
     color-scheme: dark;
 
     --background: var(--bg-1);
@@ -82,8 +90,10 @@
     --popover-foreground: var(--fg-0);
     /* Never a flat accent fill (reads as a sticker glued to the glass) — a
        tint of the accent hue mixed into the ground, the way UAW's .btn.primary
-       and .send are never solid either. */
+       and .send are never solid either. -hover raises the accent share the way
+       UAW's own :hover does (dark 21% -> 29%, light 16% -> 24%). */
     --primary: color-mix(in srgb, #7aa2f7 22%, var(--bg-0));
+    --primary-hover: color-mix(in srgb, #7aa2f7 29%, var(--bg-0));
     --primary-foreground: color-mix(in srgb, #7aa2f7 34%, #f0f5ff);
     --secondary: var(--bg-2);
     --secondary-foreground: var(--fg-1);
@@ -95,7 +105,9 @@
     /* Status semantics — UAW's --ok/--warn/--err (workbench.css base, dark tone
        keeps the base scheme's values). -foreground is for a solid fill of the
        base color; -muted is the soft tinted background badges actually use
-       below, same 12%-on-transparent tint UAW's own .badge.ok/.warn use. */
+       below. Dark keeps UAW's 12%-on-transparent tint; light drops to 8% so the
+       status text stays >= 4.5:1 on the light card ground (12% measured 4.31:1
+       for success) — see docs/acrylic/evidence/v006.md. */
     --success: #7bc99a;
     --success-foreground: #0f2a1c;
     --success-muted: color-mix(in srgb, #7bc99a 12%, transparent);
@@ -126,9 +138,12 @@
     --fg-3: #60606b;
     --glass-hi: rgb(255 255 255 / 65%);
     --glass-shadow: 0 22px 60px rgb(40 44 60 / 22%);
+    /* Same construction as the dark wallpaper: creamy white -> pale
+       blue-violet, blue glow top-left, lavender bottom-right. */
     --wallpaper:
-        radial-gradient(120% 90% at 50% -20%, #cfd9f0 0%, transparent 60%),
-        linear-gradient(160deg, #eef0f6, #e2e5ee 60%);
+        radial-gradient(90% 75% at 14% 0%, rgb(168 190 235 / 40%) 0%, transparent 62%),
+        radial-gradient(75% 65% at 88% 100%, rgb(196 178 228 / 28%) 0%, transparent 60%),
+        linear-gradient(168deg, #f7f3e9 0%, #ececf6 45%, #e6e6f2 100%);
     color-scheme: light;
 
     --background: var(--bg-1);
@@ -138,6 +153,7 @@
     --popover: var(--bg-4);
     --popover-foreground: var(--fg-0);
     --primary: color-mix(in srgb, #2b5cb4 16%, transparent);
+    --primary-hover: color-mix(in srgb, #2b5cb4 24%, transparent);
     --primary-foreground: #12305e;
     --secondary: var(--bg-2);
     --secondary-foreground: var(--fg-1);
@@ -148,13 +164,13 @@
     --destructive: #a23a32;
     --success: #276f47;
     --success-foreground: #eafff2;
-    --success-muted: color-mix(in srgb, #276f47 12%, transparent);
+    --success-muted: color-mix(in srgb, #276f47 8%, transparent);
     --warning: #805208;
     --warning-foreground: #fff6e6;
-    --warning-muted: color-mix(in srgb, #805208 12%, transparent);
+    --warning-muted: color-mix(in srgb, #805208 8%, transparent);
     --danger: #a23a32;
     --danger-foreground: #fff1ee;
-    --danger-muted: color-mix(in srgb, #a23a32 12%, transparent);
+    --danger-muted: color-mix(in srgb, #a23a32 8%, transparent);
     --border: var(--line-1);
     --input: var(--line-1);
     --ring: #2b5cb4;
