@@ -88,7 +88,8 @@
       "name": "maturity_sums_to_total",
       "expr": "abs((due_within_1_year + due_1_to_5_years + due_after_5_years) - total_debt) <= 2",
       "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding)",
-      "identity": true
+      "identity": true,
+      "null_as_zero": ["due_within_1_year", "due_1_to_5_years", "due_after_5_years"]
     }
   ]
 }
