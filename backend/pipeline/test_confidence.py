@@ -392,9 +392,19 @@ def demo():
     # 3-letter codes the note-ref regex happens to rescue by accident.
     assert x._clean_label("EPS, SEK1)") == x._clean_label("EPS, SEK") == "eps"
     assert x._clean_label("Resultat per aktie, kr¹") == x._clean_label("Resultat per aktie, kr") == "resultat per aktie"
-    assert x._clean_label("Earnings per share, MSEK2)") == x._clean_label("Earnings per share, MSEK")  # MSEK is not itself a recognised currency token -- already symmetric, unaffected by the fix
+    assert x._clean_label("Earnings per share, MSEK2)") == x._clean_label("Earnings per share, MSEK")  # symmetric before v023 too (both kept ", msek"); after v023 both fully strip it instead, see below
     # not a footnote: digits that are part of the label's own meaning are untouched, exactly as before
     assert x._clean_label("1-5 years") == x._clean_label("1–5 years") == "1-5years" and x._clean_label("Within 1 year") == "within1year"
+    # v023: a magnitude prefix (k/K/m/M/b/B/t/T -- thousand/million/billion, "t/T" also covering the Swedish
+    # "tusen" convention) glued directly ahead of a currency code was never stripped: \bSEK\b has no word boundary
+    # between "M" and "S" in "MSEK", so "Revenue, MSEK" kept ", msek" while plain "Revenue" had nothing to strip
+    # (the gap v018's Findings flagged and left open). The bare-code strip ("EPS, SEK" -> "eps") and the
+    # digit-preserving cases above are unaffected -- this only extends the same currency alternation, still
+    # anchored on both sides by \b, to allow one optional magnitude letter immediately before the code.
+    assert x._clean_label("Revenue, MSEK") == x._clean_label("Revenue") == "revenue"
+    assert x._clean_label("Revenue, TSEK") == x._clean_label("Revenue, KSEK") == x._clean_label("Revenue, kSEK") == "revenue"
+    assert x._clean_label("Net sales, MEUR") == x._clean_label("Net sales") == "net sales"
+    assert x._clean_label("Net sales (MSEK)") == x._clean_label("Net sales")
     print("confidence self-check ok")
 
 
