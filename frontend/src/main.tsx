@@ -37,6 +37,9 @@ export type DesktopConfig = {
   embedModel: string
   codexModel: string
   claudeModel: string
+  // EXTRACT_TWO_PASS passthrough (v047) -- ignored by desktop/settings.js's envForConfig() for
+  // 'ollama' (always forced off, see its own comment) and 'fixture' (no model call either way).
+  extractTwoPass: boolean
 }
 
 export type SetSettingsResult =

@@ -302,7 +302,9 @@ async function applySettings(cfg) {
   }
   currentBackend = launched
   backendProcess = launched.proc
-  backendLogStream.write(`\nrestarting backend (settings save): ${launched.source} (port ${port})\n`)
+  // EXTRACT_TWO_PASS logged here (not in /api/config -- that endpoint stays backend territory,
+  // v047 work order) so a settings save's actual env is provable from this file alone.
+  backendLogStream.write(`\nrestarting backend (settings save): ${launched.source} (port ${port}); two-pass: ${env.EXTRACT_TWO_PASS ?? 'unset'}\n`)
   wireBackendLogging(launched)
   const healthy = await waitForHealth(`http://127.0.0.1:${port}/api/config`, 30_000, launched.proc)
   if (!healthy) {
@@ -594,7 +596,7 @@ async function main() {
   }
   currentBackend = backend
   backendProcess = backend.proc
-  backendLogStream.write(`backend source: ${backend.source} (port ${backend.port}); llm provider: ${llmConfig.provider}\n`)
+  backendLogStream.write(`backend source: ${backend.source} (port ${backend.port}); llm provider: ${llmConfig.provider}; two-pass: ${backendEnv.EXTRACT_TWO_PASS ?? 'unset'}\n`)
   wireBackendLogging(backend)
 
   const backendHealthy = await waitForHealth(`http://127.0.0.1:${backend.port}/api/config`, 30_000, backend.proc)

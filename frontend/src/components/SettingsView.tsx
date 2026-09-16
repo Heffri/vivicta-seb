@@ -19,6 +19,17 @@ const DEFAULT_CONFIG: DesktopConfig = {
   embedModel: '',
   codexModel: 'gpt-5.6-terra',
   claudeModel: 'claude-sonnet-5',
+  extractTwoPass: true, // matches desktop/settings.js's own DEFAULTS -- see its comment for why
+}
+
+// Ollama has no toggle for this (see the Local (Ollama) card below) and desktop/settings.js's
+// envForConfig() hardcodes it off for that provider regardless of what's stored -- mirrored here so
+// the status row reads the same "actually applies on Save" value the backend will run with, not
+// just whatever the checkbox last showed while a different card was selected.
+function effectiveTwoPass(cfg: DesktopConfig): boolean | undefined {
+  if (cfg.provider === 'ollama') return false
+  if (cfg.provider === 'fixture') return undefined // no model call either way
+  return cfg.extractTwoPass
 }
 const CODEX_MODELS = ['gpt-5.6-terra', 'gpt-5.6-sol'] // owner rule: no tier above sol
 const CLAUDE_MODELS = ['claude-sonnet-5', 'claude-opus-5', 'claude-haiku-4-5-20251001']
@@ -40,7 +51,11 @@ function TextField({ caption, ...props }: { caption: string } & InputHTMLAttribu
   )
 }
 
-function StatusRow({ status, error }: { status: Config | null; error: string | null }) {
+// `twoPass` is left undefined by ReadOnlySettings (the plain-browser mirror): GET /api/config never
+// carries this field (v047 work order -- backend stays untouched), so that view has no source of
+// truth for it at all and shows nothing rather than guess. DesktopSettings passes its own
+// last-saved config.json value instead, which is where this actually lives.
+function StatusRow({ status, error, twoPass }: { status: Config | null; error: string | null; twoPass?: boolean }) {
   return (
     <Card size="sm">
       <CardContent className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
@@ -56,6 +71,11 @@ function StatusRow({ status, error }: { status: Config | null; error: string | n
             <span className="text-muted-foreground">
               embed <span className="text-foreground">{status.embed_model}</span>
             </span>
+            {twoPass !== undefined && (
+              <span className="text-muted-foreground">
+                two-pass <span className="text-foreground">{twoPass ? 'on' : 'off'}</span>
+              </span>
+            )}
           </>
         ) : (
           <span className="text-muted-foreground">{error ?? 'loading…'}</span>
@@ -85,6 +105,20 @@ function TestOutcome({ result }: { result: TestConnectionResult }) {
   )
 }
 
+// v047: same checkbox styling as ProviderCard.tsx's own radio (`accent-ring`, `size-4`) -- shown on
+// the Codex/Claude/API-endpoint cards only (Ollama has no two-pass evidence to recommend it, Local
+// (Ollama) card below never renders this; fixture mode makes no model call at all).
+function TwoPassToggle({ checked, onChange }: { checked: boolean; onChange: (value: boolean) => void }) {
+  return (
+    <label className="flex cursor-pointer items-start gap-2 text-xs">
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="mt-0.5 size-4 accent-ring" />
+      <span>
+        Two-pass page selection <span className="text-muted-foreground">(recommended for hosted models)</span>
+      </span>
+    </label>
+  )
+}
+
 // Shared by the Codex and Claude cards (v033 owner follow-up added Claude, same shape as Codex): a
 // model dropdown, an optional base URL for embeddings/Ask with an optional key for it, and a status
 // badge from the CLI-specific *Status() check. `info` is whatever that check last returned.
@@ -97,6 +131,8 @@ function SubscriptionCliFields({
   apiKey,
   onBaseUrlChange,
   onApiKeyChange,
+  twoPass,
+  onTwoPassChange,
   info,
 }: {
   cliName: string
@@ -107,6 +143,8 @@ function SubscriptionCliFields({
   apiKey: string
   onBaseUrlChange: (value: string) => void
   onApiKeyChange: (value: string) => void
+  twoPass: boolean
+  onTwoPassChange: (value: boolean) => void
   info: TestConnectionResult | null
 }) {
   return (
@@ -125,6 +163,7 @@ function SubscriptionCliFields({
           </SelectContent>
         </Select>
       </Field>
+      <TwoPassToggle checked={twoPass} onChange={onTwoPassChange} />
       <TextField caption="Base URL (optional)" value={baseUrl} onChange={(e) => onBaseUrlChange(e.target.value)} placeholder="http://127.0.0.1:11434/v1" />
       <p className="text-xs text-muted-foreground">Without a base URL, Ask and re-indexing stay unavailable — Extract still works.</p>
       {baseUrl.trim() && (
@@ -191,6 +230,10 @@ function DesktopSettings({ api }: { api: ArpSettingsApi }) {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  // The status row's own "two-pass on/off" -- the *last saved* value (config.json via api.get(),
+  // then whatever api.set() just persisted), never the in-progress `form` -- same "confirmed, not
+  // edited" contract StatusRow's `status`/`statusError` already keep for provider/model/embed.
+  const [twoPassStatus, setTwoPassStatus] = useState<boolean | undefined>(undefined)
 
   // Clears `status` on failure too (not just setting `statusError`) -- found live: after a failed
   // save leaves the backend answering 500 (LLM_PROVIDER=claude, no backend support yet), a stale
@@ -212,6 +255,7 @@ function DesktopSettings({ api }: { api: ArpSettingsApi }) {
     api.get().then((cfg) => {
       const merged = { ...DEFAULT_CONFIG, ...cfg }
       setForm(merged)
+      setTwoPassStatus(effectiveTwoPass(merged))
       setLoaded(true)
       if (merged.provider === 'codex') api.codexStatus().then(setCodexInfo)
       if (merged.provider === 'claude') api.claudeStatus().then(setClaudeInfo)
@@ -256,6 +300,7 @@ function DesktopSettings({ api }: { api: ArpSettingsApi }) {
     setSaving(false)
     if (res.ok) {
       setSaved(true)
+      setTwoPassStatus(effectiveTwoPass(form))
       if (res.config) setStatus(res.config)
       else refreshStatus()
     } else {
@@ -279,7 +324,7 @@ function DesktopSettings({ api }: { api: ArpSettingsApi }) {
         </p>
       </header>
 
-      <StatusRow status={status} error={statusError} />
+      <StatusRow status={status} error={statusError} twoPass={twoPassStatus} />
 
       {!loaded ? (
         <LoadingLine>Loading current settings…</LoadingLine>
@@ -309,6 +354,7 @@ function DesktopSettings({ api }: { api: ArpSettingsApi }) {
               <TextField caption="Model" value={form.model} onChange={(e) => update({ model: e.target.value })} placeholder="gpt-4o-mini" />
               <TextField caption="API key" type="password" autoComplete="off" value={form.apiKey} onChange={(e) => update({ apiKey: e.target.value })} placeholder="sk-…" />
               <TextField caption="Embed model (optional, for Ask)" value={form.embedModel} onChange={(e) => update({ embedModel: e.target.value })} placeholder="bge-m3" />
+              <TwoPassToggle checked={form.extractTwoPass} onChange={(v) => update({ extractTwoPass: v })} />
             </ProviderCard>
 
             <ProviderCard
@@ -327,6 +373,8 @@ function DesktopSettings({ api }: { api: ArpSettingsApi }) {
                 apiKey={form.apiKey}
                 onBaseUrlChange={(v) => update({ baseUrl: v })}
                 onApiKeyChange={(v) => update({ apiKey: v })}
+                twoPass={form.extractTwoPass}
+                onTwoPassChange={(v) => update({ extractTwoPass: v })}
                 info={codexInfo}
               />
             </ProviderCard>
@@ -347,6 +395,8 @@ function DesktopSettings({ api }: { api: ArpSettingsApi }) {
                 apiKey={form.apiKey}
                 onBaseUrlChange={(v) => update({ baseUrl: v })}
                 onApiKeyChange={(v) => update({ apiKey: v })}
+                twoPass={form.extractTwoPass}
+                onTwoPassChange={(v) => update({ extractTwoPass: v })}
                 info={claudeInfo}
               />
             </ProviderCard>

@@ -17,6 +17,11 @@ const DEFAULTS = {
   embedModel: '',
   codexModel: CODEX_MODELS[0],
   claudeModel: CLAUDE_MODELS[0],
+  // v045's own "for the group" recommendation (docs/acrylic/evidence/v045.md): net positive on a
+  // 30-company debt_maturity before/after against Codex -- default on for the three hosted-model
+  // cards (Codex, Claude, API endpoint). Never run against a local model, so irrelevant for Ollama,
+  // which envForConfig's 'ollama' case below always forces off regardless of this default.
+  extractTwoPass: true,
 }
 
 function sanitize(raw) {
@@ -29,6 +34,7 @@ function sanitize(raw) {
     embedModel: typeof cfg.embedModel === 'string' ? cfg.embedModel.trim() : '',
     codexModel: CODEX_MODELS.includes(cfg.codexModel) ? cfg.codexModel : DEFAULTS.codexModel,
     claudeModel: CLAUDE_MODELS.includes(cfg.claudeModel) ? cfg.claudeModel : DEFAULTS.claudeModel,
+    extractTwoPass: typeof cfg.extractTwoPass === 'boolean' ? cfg.extractTwoPass : DEFAULTS.extractTwoPass,
   }
 }
 
@@ -61,13 +67,17 @@ function envForConfig(clean) {
     case 'ollama':
       // Defaults match backend/.env.example's own Ollama block; EMBED_MODEL default also matches
       // kb.embed_model()'s fallback, set explicitly anyway so /api/config always shows the real value.
+      // EXTRACT_TWO_PASS is hardcoded off here (not `clean.extractTwoPass`, which this card has no
+      // toggle for and may still hold a stale hosted-provider value) -- v045's evidence never ran
+      // two-pass against a local model, see docs/acrylic/README.md's "Model providers".
       return {
         LLM_BASE_URL: clean.baseUrl || 'http://127.0.0.1:11434/v1',
         LLM_MODEL: clean.model || 'qwen3:8b',
         EMBED_MODEL: clean.embedModel || 'bge-m3',
+        EXTRACT_TWO_PASS: '0',
       }
     case 'openai': {
-      const env = {}
+      const env = { EXTRACT_TWO_PASS: clean.extractTwoPass ? '1' : '0' }
       if (clean.baseUrl) env.LLM_BASE_URL = clean.baseUrl
       if (clean.model) env.LLM_MODEL = clean.model
       if (clean.apiKey) env.LLM_API_KEY = clean.apiKey
@@ -80,7 +90,7 @@ function envForConfig(clean) {
       // gate on LLM_BASE_URL alone, so Ask stays unavailable without it. See docs/acrylic/evidence/v033.md.
       // An API key here is optional and only ever reaches that same base URL (embeddings/Ask) --
       // never the codex CLI call itself, which authenticates via `codex login`, not an env var.
-      const env = { LLM_PROVIDER: 'codex', LLM_MODEL: clean.codexModel }
+      const env = { LLM_PROVIDER: 'codex', LLM_MODEL: clean.codexModel, EXTRACT_TWO_PASS: clean.extractTwoPass ? '1' : '0' }
       if (clean.baseUrl) env.LLM_BASE_URL = clean.baseUrl
       if (clean.apiKey) env.LLM_API_KEY = clean.apiKey
       if (clean.embedModel) env.EMBED_MODEL = clean.embedModel
@@ -91,7 +101,7 @@ function envForConfig(clean) {
       // ever reaches that base URL, never the CLI call" rule (Claude Code CLI authenticates via
       // `claude login`/an already-signed-in CLI). LLM_PROVIDER=claude landed in backend/pipeline/llm.py
       // (v039) while this lane was in flight -- merged in, see docs/acrylic/evidence/v033.md.
-      const env = { LLM_PROVIDER: 'claude', LLM_MODEL: clean.claudeModel }
+      const env = { LLM_PROVIDER: 'claude', LLM_MODEL: clean.claudeModel, EXTRACT_TWO_PASS: clean.extractTwoPass ? '1' : '0' }
       if (clean.baseUrl) env.LLM_BASE_URL = clean.baseUrl
       if (clean.apiKey) env.LLM_API_KEY = clean.apiKey
       if (clean.embedModel) env.EMBED_MODEL = clean.embedModel
