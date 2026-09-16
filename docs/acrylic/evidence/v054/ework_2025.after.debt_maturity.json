@@ -1,0 +1,107 @@
+{
+ "report_id": "ework_2025",
+ "company": "Ework Group",
+ "fiscal_year": 2025,
+ "currency": "kSEK",
+ "section": "debt_maturity",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 156410,
+   "unit": "kSEK",
+   "period": "2025",
+   "raw_label": "Interest-bearing liabilities",
+   "source": {
+    "page": 71,
+    "quote": "Interest-bearing liabilities – 156,410 156,410 – 194,667 194,667 Past due accounts receivable >180 days-360"
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": null,
+   "unit": null,
+   "period": null,
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": 1677,
+   "unit": "kSEK",
+   "period": "2025",
+   "raw_label": "Short-term interest-bearing liabilities*",
+   "source": {
+    "page": 70,
+    "quote": "The Company is exposed to translation risk due to assets in curren- Short-term interest-bearing cies other than SEK as at Dec. 31, 2025. A sensitivity analysis that 10% liabilities* – 153,761 971 1,677 – – 156,410 156,410"
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": 0,
+   "unit": "kSEK",
+   "period": "2025",
+   "raw_label": "Short-term interest-bearing liabilities*",
+   "source": {
+    "page": 70,
+    "quote": "The Company is exposed to translation risk due to assets in curren- Short-term interest-bearing cies other than SEK as at Dec. 31, 2025. A sensitivity analysis that 10% liabilities* – 153,761 971 1,677 – – 156,410 156,410"
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "detail": "missing: due_within_1_year"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [70, 71] selected from candidates [70, 71, 66, 49, 51, 55]",
+  "due_within_1_year: 154732 is printed on none of pages [70, 71]; dropped as computed, not read"
+ ],
+ "_calls": [
+  "page_select",
+  "extraction"
+ ],
+ "_candidates": [
+  70,
+  71,
+  66,
+  49,
+  51,
+  55
+ ],
+ "_retry_prompt_fired": false,
+ "_seconds": 29.1
+}

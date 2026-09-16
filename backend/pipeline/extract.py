@@ -5,7 +5,9 @@ statement, then extract from that page alone (less context, fewer hallucinations
 as an opt-in `EXTRACT_TWO_PASS=1` (default off, see `_select_pages`); see docs/acrylic/evidence/v043.md
 and docs/acrylic/evidence/v045.md for two rounds of 30-company before/after and the group's call on
 whether to flip the default;
-(2) on "quote not found" retry once with the warnings fed back into the prompt;
+(2) on "quote not found" retry once with the page's own rows shown back, so the model copies the
+    printed line it meant instead of paraphrasing one -- opt-in `EXTRACT_QUOTE_RETRY=1` (default off,
+    see `_quote_retry` and docs/acrylic/evidence/v054.md for the before/after that decides it);
 (3) pick the period column explicitly (current vs prior year) instead of trusting
 the model's "leftmost number" habit; (4) tune SYSTEM_PROMPT_TEMPLATE against eval/.
 """
@@ -118,6 +120,45 @@ Always name TWO pages: the primary page (the one with the table itself, must be 
 
 Return ONE JSON object {{"pages": [primary, companion]}}, primary first. Never invent a primary page number that is not listed above."""
 
+# EXTRACT_QUOTE_RETRY: the follow-up call's schema is the field structure's own subset -- the key, the
+# (possibly corrected) value, and the source line copied verbatim; everything else (label, unit, period,
+# raw_label) the first answer already carries, and validation re-derives what matters from the quote.
+_QUOTE_RETRY_FIELD = {
+    "type": "object",
+    "properties": {
+        "key": {"type": "string"},
+        "value": {"type": ["number", "string", "null"]},
+        "source": {
+            "type": ["object", "null"],
+            "properties": {"page": {"type": "integer"}, "quote": {"type": "string"}},
+            "required": ["page", "quote"],
+            "additionalProperties": False,
+        },
+    },
+    "required": ["key", "value", "source"],
+    "additionalProperties": False,
+}
+QUOTE_RETRY_SCHEMA = {
+    "type": "object",
+    "properties": {"fields": {"type": "array", "items": _QUOTE_RETRY_FIELD}},
+    "required": ["fields"],
+    "additionalProperties": False,
+}
+QUOTE_RETRY_MAX_ROWS = 50  # rows shown per page before the value/synonym filter (_retry_rows) kicks in
+QUOTE_RETRY_PROMPT = """Some of the source lines in your extraction are not printed on the page as you gave them. Below are the fields in question, and the table rows of the page each field cites, one row per numbered line.
+
+For each field: find the row that is this field's own row -- its label names the field and its figures hold the value you reported (thousands separators may differ). Copy that row character for character as quote: the whole row, every number on it, no reformatting, no words added or dropped. Set value to what that row prints for the fiscal year. If no printed row on the page states this field's figure, set source to null -- do not pick the nearest look-alike row instead.
+
+Fields to fix:
+{field_lines}
+
+{page_blocks}
+
+Return ONE JSON object {{"fields": [...]}} with exactly one entry per key above, in that order.
+Entry: key, value (number), source = {{"page": <n>, "quote": "<the row copied verbatim>"}}, or source = null when the page prints no such row.
+- Only rows that are printed. Never compute a value. Never invent numbers. Prefer null over a guess.
+- Compact JSON: no indentation, no line breaks."""
+
 
 def _page_snippet(text: str, keywords: list[str]) -> str:
     """Pass-1's view of one candidate page: the first PAGE_SELECT_SNIPPET chars of text (running headers/
@@ -173,6 +214,89 @@ def _select_pages(schema: dict, pages: list[int], texts: list[str]) -> list[int]
     if companion not in (primary - 1, primary + 1) or not 1 <= companion <= len(texts):
         return None
     return sorted([primary, companion])
+
+
+def _retry_rows(text: str, wants: list[tuple]) -> list[tuple[int, str]]:
+    """(number, row) for the retry prompt: every _page_rows row up to QUOTE_RETRY_MAX_ROWS, past that only
+    the rows matching one of the fields' values (any printed grouping, _num_pattern) or synonyms, plus two
+    rows of context either side -- a statement page can carry far more rows than the question is about, and
+    the numbers a whole page holds are what got the quote garbled in the first place."""
+    rows = _page_rows(text)
+    if len(rows) <= QUOTE_RETRY_MAX_ROWS:
+        return list(enumerate(rows, 1))
+    keep: set[int] = set()
+    for i, row in enumerate(rows, 1):
+        low = normalize_ws(row).lower()
+        for value, syns in wants:
+            pat = _num_pattern(value)
+            if (pat and re.search(pat, row)) or any((s := normalize_ws(x).lower()) and s in low for x in syns):
+                keep.update(range(max(1, i - 2), min(len(rows), i + 2) + 1))
+                break
+    return [(i, rows[i - 1]) for i in sorted(keep)]
+
+
+def _quote_retry(by_key: dict, system: str, schema: dict, texts: list[str], pages: list[int],
+                 fiscal_year, warnings: list[str]) -> dict:
+    """EXTRACT_QUOTE_RETRY (default off; default decided by docs/acrylic/evidence/v054.md): one follow-up
+    call after the model's first answer, before validation, for the fields that returned a value whose
+    quote quote_on_page cannot find on the page it cites -- rewritten, spliced, invented, the recurring
+    "quote not found" / "dropped as computed, not read" shape of every hardening round (Storytel, MEKO,
+    MedCap...). The user message lists each such field's key/label/earlier value plus the _page_rows of
+    its own cited page (the first candidate page when it cited none), and asks for the row copied verbatim,
+    or null when no printed row states the figure. A field adopts the reply only when the new quote
+    verifies on the page it names; null, missing or still-unverified replies keep the original answer, so
+    the retry can never leave a field worse than the first call alone. Fields v050's _stated_zero already
+    proves (a 0 the report states in words -- Creades) are not retried: the sentence is the provenance, and
+    a row list could only talk the model out of it. One call, never two; any failure keeps the originals."""
+    if os.getenv("EXTRACT_QUOTE_RETRY") != "1" or not texts or not pages:
+        return by_key
+    cands = []
+    for sf in schema["fields"]:
+        f = by_key.get(sf["key"])
+        if not isinstance(f, dict) or f.get("value") is None:
+            continue
+        src = f.get("source") or {}
+        if isinstance(src.get("page"), int) and 1 <= src["page"] <= len(texts):
+            if str(src.get("quote") or "") and quote_on_page(src["quote"], texts[src["page"] - 1]):
+                continue  # verbatim where it cites: nothing to fix
+            if _stated_zero(f, sf, schema, texts):
+                continue  # the report's own words already prove this 0; a row list has nothing to add
+        cands.append(sf)
+    if not cands:
+        return by_key
+    wants: dict[int, list] = {}
+    lines = []
+    for sf in cands:
+        f = by_key[sf["key"]]
+        src = f.get("source") or {}
+        page = src.get("page") if isinstance(src.get("page"), int) and 1 <= src.get("page") <= len(texts) else pages[0]
+        lines.append(f"- {sf['key']} | {sf.get('label', '')} | your value: {f.get('value')} | cited page: {page}")
+        wants.setdefault(page, []).append((f.get("value"), sf.get("synonyms", [])))
+    blocks = "\n\n".join(f"=== PAGE {p} (rows) ===\n" + "\n".join(f"{n}: {r}" for n, r in _retry_rows(texts[p - 1], wants[p]))
+                         for p in sorted(wants))
+    user = (f"Fiscal year to extract: {fiscal_year}\n\n" if fiscal_year else "") + \
+        QUOTE_RETRY_PROMPT.format(field_lines="\n".join(lines), page_blocks=blocks)
+    try:
+        got = call_llm(system, user, QUOTE_RETRY_SCHEMA, "quote_retry").get("fields", [])
+    except Exception as e:  # ponytail: teammates feed the error back to the model, same as the main call
+        warnings.append(f"quote_retry: {type(e).__name__}: {e}")
+        return by_key
+    fixed = {g.get("key"): g for g in got if isinstance(g, dict) and g.get("key")}
+    for sf in cands:
+        g = fixed.get(sf["key"])
+        if not isinstance(g, dict):
+            continue
+        src = g.get("source") or {}
+        page, quote = src.get("page"), str(src.get("quote") or "")
+        if not isinstance(page, int) or not 1 <= page <= len(texts) or not quote or not quote_on_page(quote, texts[page - 1]):
+            continue  # null, or still not the printed line: the first answer stands
+        old = by_key[sf["key"]]
+        value = _num(g.get("value"))
+        moved = "" if value == old.get("value") else f", value {old.get('value')} -> {value}"
+        warnings.append(f"quote_retry: {sf['key']}: quote replaced by page {page} row {quote!r}{moved}")
+        by_key[sf["key"]] = {**old, "value": value if value is not None else old.get("value"),
+                             "source": {"page": page, "quote": quote}}
+    return by_key
 
 
 def _num(v):
@@ -899,6 +1023,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
         if 2 * nonnull(raw) < len(schema["fields"]) and len(attempt) == 2 and len(pages) > 2:
             windows = [tuple(pages[:4])]  # most fields came back empty: widen once
     by_key = {f.get("key"): f for f in raw if isinstance(f, dict)}
+    by_key = _quote_retry(by_key, system, schema, texts, pages, fiscal_year, warnings)
 
     fields, filled, sfs, stated_zeros = [], set(), [], set()
     for sf in schema["fields"]:
