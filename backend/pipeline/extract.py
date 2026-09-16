@@ -286,12 +286,13 @@ def _clean_label(label) -> str:
 
 
 def _label_known(label, sf: dict) -> bool:
-    """The printed label is one of the field's synonyms (prefix match) and none of its exclude_labels patterns
-    (an adjusted / diluted / continuing-operations variant of the row is not the row)."""
+    """The printed label is one of the field's synonyms (prefix match, the synonym run through the same _clean_label as
+    the label — it glues digits, so "Within 1 year" / "1–5 years" / "> 5 år" compare against within1year, 1-5years, >5år)
+    and none of its exclude_labels patterns (an adjusted / diluted / continuing-operations variant of the row is not the row)."""
     rl = _clean_label(label)
     if not rl or any(re.search(p, rl) for p in sf.get("exclude_labels", [])):
         return False
-    return any(rl.startswith(s.lower()) for s in sf.get("synonyms", []))
+    return any(rl.startswith(cleans) for s in sf.get("synonyms", []) if (cleans := _clean_label(s)))  # a synonym that cleans away to nothing would prefix-match everything
 
 
 def _row_label(row: str) -> str:

@@ -330,6 +330,16 @@ def demo():
     assert c["passed"] and "due_after_5_years null" in c["detail"], (c, out["warnings"])
     total = next(f for f in out["fields"] if f["key"] == "total_debt")
     assert total["confidence"] == 1.0 and "arith_ok" in total["evidence"], total
+    # v011b: a printed bucket label is a known synonym — _clean_label glues digits ("Within 1 year" -> within1year), so
+    # _label_known must run the synonym through the same cleaning before the prefix match (en dash, ">", space variants).
+    dmf = {f["key"]: f for f in dm["fields"]}
+    assert x._label_known("Within 1 year", dmf["due_within_1_year"]) and x._label_known("Inom 1 år", dmf["due_within_1_year"]) and x._label_known("< 1 år", dmf["due_within_1_year"])
+    assert x._label_known("1-5 years", dmf["due_1_to_5_years"]) and x._label_known("1–5 years", dmf["due_1_to_5_years"]) and x._label_known("1–5 år", dmf["due_1_to_5_years"])
+    assert x._label_known("After 5 years", dmf["due_after_5_years"]) and x._label_known("> 5 år", dmf["due_after_5_years"]) and x._label_known("Later than 5 years", dmf["due_after_5_years"])
+    assert not x._label_known("1-5 years", dmf["due_after_5_years"]) and not x._label_known("Total borrowings", dmf["due_1_to_5_years"])  # prefix match, not substring
+    # ... so the Ericsson fixture's buckets read perfectly at full confidence too
+    out = x.extract([ericsson], [1], dm, {"fiscal_year": 2025})
+    assert [(f["value"], f["confidence"]) for f in out["fields"]] == [(32703, 1.0), (3538, 1.0), (29165, 1.0), (None, 0.0)], (out["fields"], out["warnings"])
     print("confidence self-check ok")
 
 
