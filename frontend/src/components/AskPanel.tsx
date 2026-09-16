@@ -1,6 +1,7 @@
 import { TriangleAlert } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { ask, indexReport, pdfUrl } from '@/api'
+import { AnswerText } from '@/components/ask/AnswerText'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -78,8 +79,7 @@ export function AskPanel({ reports, onCitation }: Props) {
                 ) : (
                   t.answer && (
                     <>
-                      {/* ponytail: answer is markdown per the contract; plain text + stripped ** is enough — the inline [Company p.N] cites read fine as-is. */}
-                      <p className="whitespace-pre-wrap break-words leading-relaxed">{t.answer.answer.replaceAll('**', '')}</p>
+                      <AnswerText text={t.answer.answer} citations={t.answer.citations} onCitation={onCitation} />
                       {t.answer.citations.length > 0 && (
                         <div className="flex flex-wrap gap-1.5">
                           {t.answer.citations.map((c, j) => (
