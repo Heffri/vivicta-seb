@@ -132,7 +132,7 @@ export function KbView({ onOpen }: Props) {
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Filter by company or stem…"
               aria-label="Filter reports"
-              className="h-8 w-full rounded-lg border border-input bg-background py-2 pr-2.5 pl-8 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="h-8 w-full rounded-lg border border-input bg-background py-2 pr-2.5 pl-8 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring"
             />
           </div>
           <span className="text-xs text-muted-foreground tabular-nums">
