@@ -277,8 +277,10 @@ def _page_rows(text: str) -> list[str]:
 
 
 def _clean_label(label) -> str:
-    label = re.sub(r"(?i)\bresult\b", "profit", unicodedata.normalize("NFKC", str(label or "")))  # Ericsson prints "ﬁnancial" with a ligature  # SSAB / Elekta / Stora Enso: "Operating result", "Result before tax", "Result for the year"
+    label = re.sub(r"(?<=[^\W\d_])[⁰¹²³⁴⁵⁶⁷⁸⁹]+", "", str(label or ""))  # footnote superscript glued to the label's own word ("SEK¹" -> "SEK"), stripped before NFKC turns it into a plain digit
+    label = re.sub(r"(?i)\bresult\b", "profit", unicodedata.normalize("NFKC", label))  # Ericsson prints "ﬁnancial" with a ligature  # SSAB / Elekta / Stora Enso: "Operating result", "Result before tax", "Result for the year"
     label = re.sub(r"\s*[/(]\s*\(?loss\)?|/förlust", "", normalize_ws(label), flags=re.I)  # "Profit/loss before tax", "Profit (loss)"; normalize_ws glues digits to the word before
+    label = re.sub(r"(?<=[^\W\d_])\d{1,2}\)", "", label)  # footnote marker glued to the label's own word, before currency/unit strip: SSAB "SEK1)" -> "SEK", "MSEK2)" -> "MSEK"
     label = re.sub(r",?\s*\(?\b(?:SEK|EUR|USD|NOK|DKK|ISK|GBP|CHF|kr)\b\)?", "", label, flags=re.I)  # Castellum "Earnings, SEK per share before and after dilution"; "Resultat per aktie (SEK)"
     label = re.sub(r"(?:\s+[A-Z]{1,3}\.?\d{1,2}(?:[-–]\d{1,2})?,?)+$", "", label)  # "Net sales IE.3", "Net sales B1, B2"
     label = re.sub(r"(?:\s*\[\d{1,2}\])+", "", label)  # TRATON "Income taxes [6]"

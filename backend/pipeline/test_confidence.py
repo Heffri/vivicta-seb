@@ -384,6 +384,17 @@ def demo():
         and cost["raw_label"] == "Cost of sales" \
         and cost["source"]["quote"] == "Within 1 year items -20 -15 Cost total -100 -90", (cost, out["warnings"])
     assert out["checks"][0]["passed"], out["checks"]
+    # v018: a currency/unit token glued to a footnote marker ("SEK1)") defeated both the currency-strip regex (no
+    # word boundary between the letter and the digit) and the trailing note-ref regex (the closing ")" sits past
+    # the digit, short of the end-of-string anchor) -- so the token survived there while the same currency word
+    # without a footnote was fully stripped. Superscript digits ("SEK¹") hit the same gap once NFKC turns them
+    # into a plain digit; stripped pre-NFKC so a lowercase unit ("kr") is covered too, not only the uppercase
+    # 3-letter codes the note-ref regex happens to rescue by accident.
+    assert x._clean_label("EPS, SEK1)") == x._clean_label("EPS, SEK") == "eps"
+    assert x._clean_label("Resultat per aktie, kr¹") == x._clean_label("Resultat per aktie, kr") == "resultat per aktie"
+    assert x._clean_label("Earnings per share, MSEK2)") == x._clean_label("Earnings per share, MSEK")  # MSEK is not itself a recognised currency token -- already symmetric, unaffected by the fix
+    # not a footnote: digits that are part of the label's own meaning are untouched, exactly as before
+    assert x._clean_label("1-5 years") == x._clean_label("1–5 years") == "1-5years" and x._clean_label("Within 1 year") == "within1year"
     print("confidence self-check ok")
 
 
