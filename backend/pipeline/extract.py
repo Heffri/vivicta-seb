@@ -188,7 +188,7 @@ def _num(v):
 
 
 def _check(check: dict, values: dict, texts: list[str] | None = None, pages: list[int] | None = None,
-           fields: list[dict] | None = None, schema: dict | None = None) -> dict:
+           fields: list[dict] | None = None, schema: dict | None = None, stated_zeros: set | None = None) -> dict:
     out = {"name": check["name"], "passed": False, "detail": ""}
     # "null_as_zero" operands (schema: Ericsson's note prints no >5y bucket — null there is a real 0, not an unanswered
     # field) count as 0 while null, but only while at least one of them is real: all buckets null would sum to 0 == total
@@ -211,7 +211,12 @@ def _check(check: dict, values: dict, texts: list[str] | None = None, pages: lis
         rows = [normalize_ws(r).lower() for p in search if 0 < p <= len(texts) for r in _page_rows(texts[p - 1])]
         zero = {k for k in naz if not any((cs := normalize_ws(s).lower()) and cs in r
                                            for s in sf_by_key.get(k, {}).get("synonyms", []) for r in rows)}
-    ns = {**values, **{k: 0 for k in zero}} if naz and len(naz) < len(listed) else values
+    # v050: all listed operands null, but the identity's remaining operand(s) are themselves stated zeros --
+    # the report said in words there is no interest-bearing debt (Creades), so the buckets ARE zeros and
+    # 0+0+0 == 0 is a real pass, not the "pass on nothing" the guard above exists for (nothing read at all).
+    others = set(re.findall(r"\b[A-Za-z_]\w*\b", check["expr"])) - set(_SAFE_BUILTINS) - set(listed)
+    all_stated = naz and len(naz) == len(listed) and bool(others) and others <= (stated_zeros or set())
+    ns = {**values, **{k: 0 for k in zero}} if naz and (len(naz) < len(listed) or all_stated) else values
     try:
         result = eval(check["expr"], {"__builtins__": {}, **_SAFE_BUILTINS}, ns)  # ponytail: our own schema files, not user input
     except NameError as e:
@@ -228,6 +233,7 @@ def _check(check: dict, values: dict, texts: list[str] | None = None, pages: lis
 WEIGHTS = {"quote_on_page": 0.35, "value_in_quote": 0.20, "arith_ok": 0.20, "label_known": 0.10,
            "period_ok": 0.05, "page_is_statement": 0.05, "unit_ok": 0.05,  # docs/CONFIDENCE.md; sums to 1.0
            "value_derived": 0.20,  # stands in for value_in_quote when the printed number is unreadable, never both
+           "stated_zero": 0.20,  # stands in for value_in_quote when the figure is never printed: the report says 0 in words (v050)
            "identity_all_columns": 0.0}  # a marker: an unknown label whose identity holds in every column earns label_known
 
 
@@ -470,6 +476,31 @@ def repair_value(value, quote: str):
         if (cand != int(cand) or abs(cand) >= 10) and _value_in_quote(cand, quote):  # "168 343" never becomes 168.343; 230 -> "23.0" is fine
             return int(cand) if cand == int(cand) else cand
     return None
+
+
+def _stated_zero(field: dict, sf: dict, schema: dict, texts: list[str]) -> bool:
+    """A 0 the model returned is proven by the report's own words, not by a printed figure. Every gate
+    must hold: the field's schema opted in ("zero_if_stated" -- the field-level analogue of a check's
+    null_as_zero); the value is exactly 0; the quote carries no digit at all (a numeric quote is the
+    existing provenance gates' job -- repair_value, the printed-zero checks -- not this one); the
+    sentence sits verbatim on the cited page, whitespace/NBSP-insensitive via normalize_ws (quote_on_page
+    itself requires a number token, which a prose negation structurally never has, Creades v048); the
+    sentence names the field's subject (a schema keyword or one of the field's own synonyms); and a
+    negation word from the schema's own list is present -- so a bare row label quoted alone ("Summa
+    räntebärande skulder" off a column-major table) stays a drop, never becomes a 0."""
+    if isinstance(field.get("value"), bool) or field.get("value") != 0 or not isinstance(sf.get("zero_if_stated"), dict):
+        return False
+    src = field.get("source") or {}
+    quote, page = src.get("quote") or "", src.get("page")
+    if not isinstance(page, int) or not 1 <= page <= len(texts) or not quote or any(c.isdigit() for c in quote):
+        return False
+    q = normalize_ws(quote).lower()
+    if q not in normalize_ws(texts[page - 1]).lower():
+        return False
+    vocab = [normalize_ws(v).lower() for v in schema.get("keywords", []) + sf.get("synonyms", [])]
+    if not any(v and v in q for v in vocab):  # the sentence must be about this field's subject
+        return False
+    return bool(set(q.split()) & {w.lower() for w in sf["zero_if_stated"].get("negations", [])})
 
 
 def _signed(amounts: list, col: int, value) -> list:
@@ -869,7 +900,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             windows = [tuple(pages[:4])]  # most fields came back empty: widen once
     by_key = {f.get("key"): f for f in raw if isinstance(f, dict)}
 
-    fields, filled, sfs = [], set(), []
+    fields, filled, sfs, stated_zeros = [], set(), [], set()
     for sf in schema["fields"]:
         if sf.get("fallback_synonyms") and pages and not any(_label_known(_row_label(r), sf) for r in _page_rows(texts[pages[0] - 1])):
             # a bank prints no "profit before tax" row: its "Operating profit" is the line before tax (NOBA); its top line is "Total operating income"
@@ -916,12 +947,18 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             if not verified:
                 nearby = sorted({page, *pages[:2]})
                 if not any(_value_in_quote(field["value"], texts[p - 1]) for p in nearby if 0 < p <= len(texts)):
-                    # Sectra: "Net sales" minus "Goods for resale" offered as gross profit with a quote that is not on the page. A number
-                    # printed nowhere on the cited page or the statement spread was computed or invented, and the rules say null then.
-                    warnings.append(f"{sf['key']}: {field['value']} is printed on none of pages {nearby}; dropped as computed, not read")
-                    field.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
-                    fields.append(field)
-                    continue
+                    if not _stated_zero(field, sf, schema, texts):
+                        # Sectra: "Net sales" minus "Goods for resale" offered as gross profit with a quote that is not on the page. A number
+                        # printed nowhere on the cited page or the statement spread was computed or invented, and the rules say null then.
+                        warnings.append(f"{sf['key']}: {field['value']} is printed on none of pages {nearby}; dropped as computed, not read")
+                        field.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
+                        fields.append(field)
+                        continue
+                    # Creades (v048): "Investmentföretaget har varken räntebärande skulder eller kundfordringar" -- a prose
+                    # no-debt statement never contains the digit _value_in_quote needs; the sentence itself is the provenance.
+                    warnings.append(f"{sf['key']}: 0 is printed on none of pages {nearby}; kept on the report's own words, page {page}: {src.get('quote')!r}")
+                    field["evidence"] += ["quote_on_page", "stated_zero"]
+                    stated_zeros.add(sf["key"])
                 warnings.append(f"{sf['key']}: quote not found on page {page}")
             else:
                 field["evidence"].append("quote_on_page")
@@ -1071,7 +1108,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
     units = Counter(f["unit"] for f in fields if f["unit"])
     periods = Counter(f["period"] for f in fields if re.fullmatch(r"\d{4}", str(f["period"])))
     defaults = {sf["key"]: sf["default"] for sf in schema["fields"] if "default" in sf}  # optional rows (discontinued ops) count as 0
-    checks = [_check(c, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema) for c in schema.get("checks", [])]
+    checks = [_check(c, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema, stated_zeros=stated_zeros) for c in schema.get("checks", [])]
     for c, sc in zip(checks, schema.get("checks", [])):  # NCC: "Result from sales of Group companies 20" offered as discontinued operations; the identity holds without it
         if c["passed"] or c["detail"].startswith("missing:") or not sc.get("identity"):
             continue
@@ -1082,7 +1119,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                 warnings.append(f"{k}: {f.get('raw_label')!r} {f['value']} dropped: not a known {sf['label'].lower()} label, and {c['name']} holds without it")
                 f.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
                 del values[k]
-                c.update(_check(sc, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema))
+                c.update(_check(sc, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema, stated_zeros=stated_zeros))
                 break
     for c, sc in zip(checks, schema.get("checks", [])):
         if c["passed"] or c["detail"].startswith("missing:") or not sc.get("identity"):
@@ -1092,7 +1129,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                     and "quote_on_page" in f["evidence"] and _check(sc, {**defaults, **values, f["key"]: -f["value"]})["passed"]:
                 warnings.append(f"{f['key']}: printed unsigned as {f['value']}; stored as {-f['value']} (an expense), which makes {c['name']} pass")
                 f["value"] = values[f["key"]] = -f["value"]
-                c.update(_check(sc, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema))
+                c.update(_check(sc, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema, stated_zeros=stated_zeros))
                 break
     for c, sc in zip(checks, schema.get("checks", [])):
         missing = c["detail"].split(": ", 1)[1] if c["detail"].startswith("missing: ") else next(  # ABB: discontinued operations answered null, defaulted
@@ -1107,7 +1144,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                          evidence=["quote_on_page", "value_derived" if fix[3] > 1 else "identity_all_columns"])
                 values[key] = fix[0]
                 filled.add(key)
-                c.update(_check(sc, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema))
+                c.update(_check(sc, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema, stated_zeros=stated_zeros))
         if c["detail"].startswith("missing:") or not sc.get("identity"):  # only an equality proves a sum of rows; margin_sanity would accept anything
             continue
         for f, sf in zip(fields, sfs):  # an operand whose figure is proven by the rows around its quote: Röko "1,01", Catena's two tax rows
@@ -1134,11 +1171,12 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                     warnings.append(f"{f['key']}: {f['value']} is not printed; it is the sum of {fix[1]!r}, and {c['name']} holds with those rows in every column")
                 f["value"], f["source"]["quote"], f["raw_label"], values[f["key"]] = fix[0], fix[1], fix[2], fix[0]
                 f["evidence"].append("value_derived")
-                c.update(_check(sc, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema))
+                c.update(_check(sc, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema, stated_zeros=stated_zeros))
                 break
     for f, sf in zip(fields, sfs):  # Sectra (by nature): net sales minus goods for resale offered as gross profit, quoting "Total income 3,689,793"
         src = f["source"] or {}
-        if f["value"] is None or "value_derived" in f["evidence"] or not src.get("page") or _value_in_quote(f["value"], src.get("quote", "")):
+        if f["value"] is None or "value_derived" in f["evidence"] or not src.get("page") or f["key"] in stated_zeros \
+                or _value_in_quote(f["value"], src.get("quote", "")):
             continue
         nearby = sorted({src["page"], *pages[:2]})
         if not any(_value_in_quote(f["value"], texts[q - 1]) for q in nearby if 0 < q <= len(texts)):  # nothing above could read or derive it
@@ -1152,7 +1190,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             f.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
             values.pop(sf["key"], None)
     _fill_bucket_columns(fields, sfs, schema, texts, pages, fiscal_year, warnings, values, filled)
-    checks = [_check(c, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema) for c in schema.get("checks", [])]
+    checks = [_check(c, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema, stated_zeros=stated_zeros) for c in schema.get("checks", [])]
     for c, sc in zip(checks, schema.get("checks", [])):
         if not c["passed"] or not sc.get("identity"):
             continue
