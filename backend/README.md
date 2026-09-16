@@ -128,6 +128,19 @@ Test: `python -m pipeline.test_llm` -- a fake `claude.cmd` + Python script repla
 `--output-format json` parsing, fence stripping, `is_error: true`, a non-zero exit and a timeout, no network or
 real Claude Code install needed.
 
+## Two-pass page selection (`EXTRACT_TWO_PASS`)
+
+Opt-in, default **off**: `EXTRACT_TWO_PASS=1` makes `extract()` run a small pass-1 call that asks the
+model which locator candidate page holds the target table before pass-2 extracts from that narrower
+window, instead of every candidate page at once (`_select_pages` in `pipeline/extract.py`). v045's
+30-company `debt_maturity` before/after (Codex `gpt-5.6-terra`) found this a net positive over v043's
+first round -- 11 of 13 regressions no longer worse, only 2 still worse for narrow, understood reasons
+-- and recommended flipping the default on for hosted providers; kept off here pending the group's
+call, and specifically because it has never been run against a local Ollama model, only Codex/Claude.
+The desktop Settings tab's Codex/Claude/API-endpoint cards carry a matching toggle (on by default)
+that writes this same env var on Save; there is no toggle for Local Ollama, which always runs with it
+off. See `pipeline/extract.py`'s own module docstring and `docs/acrylic/evidence/v043.md`/`v045.md`.
+
 ## Checks
 
 - `python ../scripts/smoke_api.py` — every endpoint in `docs/API.md` against a running backend (`--llm` adds extract/index/ask,

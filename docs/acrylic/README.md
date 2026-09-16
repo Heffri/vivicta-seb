@@ -143,6 +143,24 @@ extraction the local-model baseline used: Codex (`gpt-5.6-terra`) matched **9/9*
 warnings; Claude (`claude-sonnet-5`) matched **9/9** fields, 0 warnings — same values, same
 citations, same pages, both on the first attempt. [v031](evidence/v031.md), [v039](evidence/v039.md)
 
+**Two-pass page selection** (`EXTRACT_TWO_PASS`, default **off**) is an opt-in `extract()` mode: a
+small pass-1 call first asks the model which of the locator's candidate pages actually holds the
+target table, then pass-2 extracts from that narrower window instead of every candidate at once —
+fewer hallucinations from unrelated pages, one extra model call per extraction. v045's 30-company
+`debt_maturity` before/after (Codex `gpt-5.6-terra`) found this a net positive over v043's first
+round — 11 of v043's own 13 regressions no longer worse (7 exact recoveries, 4 improvements beyond
+the original baseline), full-confidence count up (5→6), only 2 companies worse for narrow, understood
+reasons — and recommended flipping the default on for hosted providers. It stays off by default here
+because it has only ever been run against Codex/Claude: the local Ollama path (`qwen3:8b`) has never
+been validated with it, so flipping the *default* for local models would be an unverified guess, not
+a confirmed win. Turn it on with `EXTRACT_TWO_PASS=1` in `backend/.env`, or the desktop Settings
+tab's "Two-pass page selection (recommended for hosted models)" toggle on the Codex/Claude/API
+endpoint cards (on by default there; Save restarts the backend with it applied) — there is no toggle
+on the Local (Ollama) card, which always runs with it off regardless of any previously-saved value.
+`GET /api/config` does not report this field (backend untouched by the Settings lane); the status
+row's "two-pass on/off" reads the desktop's own last-saved `config.json` instead.
+[v043](evidence/v043.md), [v045](evidence/v045.md), [v047](evidence/v047.md)
+
 ## Backend hardening
 
 Most of the below calls no model at all — each row is a deterministic pipeline or schema change,
@@ -165,6 +183,8 @@ green throughout — see "How to verify".
 | `extract.py` gains a general column-bucket reader — schema-driven off the identity check's own total/parts fields, not company-specific — that fills a null or overrides a disagreeing model answer from a qualifying page's row/column layout, declining rather than guessing when a row's column count doesn't match its header | Fixes the shape v035 found: 1 of its 4 gap companies (Cloetta, all 4 fields lift); the other 3 (XANO, Ework, Bergman & Beving) verified by hand to have a scrambled header or a genuine two-basis mismatch, and correctly still decline | [v036](evidence/v036.md) |
 | `debt_maturity` hardening loop, seed 2 (`random_check.py --seed 2`, Codex `gpt-5.6-terra`): full-confidence count unchanged at 1/10; 3 schema commits (a Swedish current/non-current label, Swedish digit-form bucket splits, broadened finer-split wording) shipped but moved no confidence number in this seed — 7/10 blocked by the report's own bucket granularity or basis not matching the schema's ask (or a locator miss on the real page), not a keyword gap; 2/10 are real `extract.py` bugs precisely diagnosed but left for a separate change | Second seed of the same loop, to see whether v036's fix generalized and what the next-largest failure mode is | [v037](evidence/v037.md) |
 | `extract.py`: the column-bucket mechanism now rejects a whole row's column reading — not just one field — if any bucket value exceeds the row's own total past the check's rounding tolerance (Acast, which had been reading a stale prior-year row); `_derived_value`'s neighbour-sum repair no longer requires a row's label to be a *known* schema synonym before treating it as the model's own row, only that the value is literally quoted and the model's own label names that row (Nelly, whose correct current-portion answer was being overwritten by a current+non-current sum) | Fixes v037's two precisely-diagnosed bugs, both offline, zero model calls | [v040](evidence/v040.md) |
+| Opt-in two-pass page selection (`EXTRACT_TWO_PASS=1`, default off — see "Model providers" above), round 2: a longer, boilerplate-stripped pass-1 snippet with schema-keyword lines appended beyond its head; a forced two-page reply (primary + companion, repaired rather than rejected when the model names only one page); the schema's own `description` text reused verbatim as pass-1's steer | v043 (below) found three causes for its own 13 regressions — a starved 400-char snippet, a lost companion page, no schema-specific steer — and left them for the group; this round implements all three and re-runs the same 30 companies | [v045](evidence/v045.md) |
+| `debt_maturity.json` gains 26 bucket-label synonyms — spelled-out digit forms (`after five years`, `one to five years`) and Swedish `mellan`/`inom`/`efter`/`över` phrasing — found by reading every debt-maturity page cited across three prior hardening seeds, then corpus-wide false-positive-checked (four risky candidates found and left out) before shipping; zero code changes, zero model calls | Closes the spelled-out/Swedish vocabulary gap directly; two companies (Coor Service Management, Storytel) newly covered cleanly, two more (Ependion, Gentoo Media) confirmed still blocked by an unrelated parser-level column scramble, not vocabulary | [v046](evidence/v046.md) |
 
 **A single before/after model call is not proof.** v037 re-ran its own 10 companies a second time
 with no code change and watched two confidence numbers move anyway (Humana up, Storytel down) —
