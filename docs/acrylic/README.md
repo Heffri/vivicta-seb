@@ -141,19 +141,21 @@ matching after the re-parse.
   `data/reports/` 409s the entire open, not just the page images — right now only Atlas Copco is
   openable offline. [v003](evidence/v003.md).
 
-## Open questions for Kristian / SEB
+## Assumptions to confirm with Kristian / SEB
 
-- **Carrying amount or contractual (undiscounted) maturities?** HANDOFF already asks this; what we
-  found says it can't be settled from the locator alone. When a report prints both a borrowings note
-  and a liquidity-risk note with its own maturity table, keyword weighting trades one off against the
-  other — an attempt to prefer borrowings-note pages improved 2 companies' top pick and hurt 16 others.
-  Whichever table is correct, the fix likely belongs on the extraction/arithmetic side (check the
-  picked table's total against the balance-sheet borrowings figure), not the locator.
-  [v008](evidence/v008.md).
-- **Is "a missing bucket counts as 0" the right call?** We made that assumption — a report with no
-  `>5y` row treats that bucket as 0 in the sum check — because HANDOFF says null buckets are normal,
-  but it's our assumption, not a confirmed one. Worth a sentence from Kristian if a missing bucket
-  should instead fail the check rather than pass it. [v011](evidence/v011.md).
+Three calls the `debt_maturity` schema now makes on Kristian's behalf, written into its field
+descriptions (and the prompt the model reads) so they're applied consistently — not yet confirmed:
+
+- **Carrying amount, not contractual undiscounted maturities.** We assumed the table whose total
+  reconciles to interest-bearing borrowings on the balance sheet, never the liquidity-risk note's
+  undiscounted cash-flow table (includes future interest); the locator alone can't tell them apart.
+  We assumed this; confirm it or tell us to flip it. [v008](evidence/v008.md), [v028](evidence/v028.md).
+- **Lease liabilities (IFRS 16) follow the report's own convention.** `total_debt` includes them only
+  if the report's own note already does — we never add or remove leases ourselves. We assumed this;
+  confirm it or tell us to flip it. [v028](evidence/v028.md).
+- **A missing bucket (e.g. no `>5y` row) counts as 0 in the sum check**, not a check failure. We
+  assumed this; confirm it or tell us to flip it (fail the check instead).
+  [v011](evidence/v011.md), [v028](evidence/v028.md).
 
 ## How to verify
 
