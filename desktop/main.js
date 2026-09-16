@@ -257,10 +257,11 @@ async function startViteDevServer(repoRoot) {
       env: process.env,
       windowsHide: true,
       // Node's spawn() wraps a .cmd target in its own cmd.exe invocation on Windows, and that
-      // wrapping throws EINVAL when cwd contains a space (nodejs/node#21825) — true here on this
-      // machine (`C:\Users\xingyi chen\...`). `shell: true` routes through a real shell instead,
-      // which quotes correctly. Not needed for the backend spawns below: those target python.exe
-      // directly (a real PE, no indirection), which CreateProcess handles natively.
+      // wrapping throws EINVAL when cwd contains a space (nodejs/node#21825) — true whenever the
+      // checkout sits under a user profile path with a space in the account name. `shell: true`
+      // routes through a real shell instead, which quotes correctly. Not needed for the backend
+      // spawns below: those target python.exe directly (a real PE, no indirection), which
+      // CreateProcess handles natively.
       shell: isWindows,
     }),
     'vite',
@@ -400,6 +401,7 @@ async function main() {
   }
 
   const acrylic = supportsAcrylic()
+  backendLogStream.write(`windows version: ${isWindows ? process.getSystemVersion() : 'n/a'}; acrylic material: ${acrylic}\n`)
   mainWindow = createWindow(acrylic)
 
   ipcMain.on('arp:tone-changed', (_event, tone) => {
