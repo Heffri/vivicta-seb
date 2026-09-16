@@ -187,13 +187,31 @@ def _num(v):
         return v
 
 
-def _check(check: dict, values: dict) -> dict:
+def _check(check: dict, values: dict, texts: list[str] | None = None, pages: list[int] | None = None,
+           fields: list[dict] | None = None, schema: dict | None = None) -> dict:
     out = {"name": check["name"], "passed": False, "detail": ""}
     # "null_as_zero" operands (schema: Ericsson's note prints no >5y bucket — null there is a real 0, not an unanswered
     # field) count as 0 while null, but only while at least one of them is real: all buckets null would sum to 0 == total
     # and the check would pass on nothing.
-    naz = [k for k in check.get("null_as_zero", []) if values.get(k) is None]
-    ns = {**values, **{k: 0 for k in naz}} if naz and len(naz) < len(check["null_as_zero"]) else values
+    listed = check.get("null_as_zero", [])
+    naz = [k for k in listed if values.get(k) is None]
+    zero = set(naz)
+    if naz and len(naz) < len(listed) and texts and schema:
+        # MedCap (v041 finding 3): a bucket the model failed to extract reads identically to a bucket the report
+        # never prints -- both are null -- but only the second one is really a 0. Before defaulting a null bucket
+        # to 0, look for its own synonym label (same normalize_ws digit-gluing as _clean_label/v012/v014, so
+        # "< 1 år" reaches a "<1 år" column header too) on the pages the check's *other*, real operands
+        # were sourced from, or the candidate pages -- MedCap's due_within_1_year has no row on the carrying-amount
+        # table (p.101, where total_debt/due_1_to_5_years were read) but its own "<1 år" column header sits on the
+        # contractual table two pages later (still a candidate page): present, so leave it out of ns (-> "missing:
+        # <field>", never a false 0) instead of zero-filling it into a hard failure.
+        sf_by_key = {sf["key"]: sf for sf in schema.get("fields", [])}
+        field_pages = {f["key"]: f["source"]["page"] for f in (fields or []) if f.get("source")}
+        search = sorted({field_pages[k] for k in listed if k not in naz and k in field_pages} | set(pages or ()))
+        rows = [normalize_ws(r).lower() for p in search if 0 < p <= len(texts) for r in _page_rows(texts[p - 1])]
+        zero = {k for k in naz if not any((cs := normalize_ws(s).lower()) and cs in r
+                                           for s in sf_by_key.get(k, {}).get("synonyms", []) for r in rows)}
+    ns = {**values, **{k: 0 for k in zero}} if naz and len(naz) < len(listed) else values
     try:
         result = eval(check["expr"], {"__builtins__": {}, **_SAFE_BUILTINS}, ns)  # ponytail: our own schema files, not user input
     except NameError as e:
@@ -202,7 +220,7 @@ def _check(check: dict, values: dict) -> dict:
     except Exception as e:
         out["detail"] = f"{type(e).__name__}: {e}"
         return out
-    substituted = re.sub(r"\b[A-Za-z_]\w*\b", lambda m: f"0 ({m.group()} null)" if m.group() in naz else str(ns.get(m.group(), m.group())), check["expr"])
+    substituted = re.sub(r"\b[A-Za-z_]\w*\b", lambda m: f"0 ({m.group()} null)" if m.group() in zero else str(ns.get(m.group(), m.group())), check["expr"])
     out.update(passed=bool(result), detail=f"{check.get('detail', '')} | {substituted}".strip(" |"))
     return out
 
@@ -993,7 +1011,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
     units = Counter(f["unit"] for f in fields if f["unit"])
     periods = Counter(f["period"] for f in fields if re.fullmatch(r"\d{4}", str(f["period"])))
     defaults = {sf["key"]: sf["default"] for sf in schema["fields"] if "default" in sf}  # optional rows (discontinued ops) count as 0
-    checks = [_check(c, {**defaults, **values}) for c in schema.get("checks", [])]
+    checks = [_check(c, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema) for c in schema.get("checks", [])]
     for c, sc in zip(checks, schema.get("checks", [])):  # NCC: "Result from sales of Group companies 20" offered as discontinued operations; the identity holds without it
         if c["passed"] or c["detail"].startswith("missing:") or not sc.get("identity"):
             continue
@@ -1004,7 +1022,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                 warnings.append(f"{k}: {f.get('raw_label')!r} {f['value']} dropped: not a known {sf['label'].lower()} label, and {c['name']} holds without it")
                 f.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
                 del values[k]
-                c.update(_check(sc, {**defaults, **values}))
+                c.update(_check(sc, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema))
                 break
     for c, sc in zip(checks, schema.get("checks", [])):
         if c["passed"] or c["detail"].startswith("missing:") or not sc.get("identity"):
@@ -1014,7 +1032,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                     and "quote_on_page" in f["evidence"] and _check(sc, {**defaults, **values, f["key"]: -f["value"]})["passed"]:
                 warnings.append(f"{f['key']}: printed unsigned as {f['value']}; stored as {-f['value']} (an expense), which makes {c['name']} pass")
                 f["value"] = values[f["key"]] = -f["value"]
-                c.update(_check(sc, {**defaults, **values}))
+                c.update(_check(sc, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema))
                 break
     for c, sc in zip(checks, schema.get("checks", [])):
         missing = c["detail"].split(": ", 1)[1] if c["detail"].startswith("missing: ") else next(  # ABB: discontinued operations answered null, defaulted
@@ -1029,7 +1047,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                          evidence=["quote_on_page", "value_derived" if fix[3] > 1 else "identity_all_columns"])
                 values[key] = fix[0]
                 filled.add(key)
-                c.update(_check(sc, {**defaults, **values}))
+                c.update(_check(sc, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema))
         if c["detail"].startswith("missing:") or not sc.get("identity"):  # only an equality proves a sum of rows; margin_sanity would accept anything
             continue
         for f, sf in zip(fields, sfs):  # an operand whose figure is proven by the rows around its quote: Röko "1,01", Catena's two tax rows
@@ -1056,7 +1074,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                     warnings.append(f"{f['key']}: {f['value']} is not printed; it is the sum of {fix[1]!r}, and {c['name']} holds with those rows in every column")
                 f["value"], f["source"]["quote"], f["raw_label"], values[f["key"]] = fix[0], fix[1], fix[2], fix[0]
                 f["evidence"].append("value_derived")
-                c.update(_check(sc, {**defaults, **values}))
+                c.update(_check(sc, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema))
                 break
     for f, sf in zip(fields, sfs):  # Sectra (by nature): net sales minus goods for resale offered as gross profit, quoting "Total income 3,689,793"
         src = f["source"] or {}
@@ -1074,7 +1092,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             f.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
             values.pop(sf["key"], None)
     _fill_bucket_columns(fields, sfs, schema, texts, pages, fiscal_year, warnings, values, filled)
-    checks = [_check(c, {**defaults, **values}) for c in schema.get("checks", [])]
+    checks = [_check(c, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema) for c in schema.get("checks", [])]
     for c, sc in zip(checks, schema.get("checks", [])):
         if not c["passed"] or not sc.get("identity"):
             continue
