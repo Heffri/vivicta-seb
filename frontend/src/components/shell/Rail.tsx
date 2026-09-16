@@ -27,7 +27,7 @@ export function Rail({ active, enabled, compareCount, onSelect, tone, onToneChan
                 aria-current={isActive ? 'page' : undefined}
                 onClick={() => onSelect(t.id)}
                 title={t.label}
-                className={`flex w-full items-center justify-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors disabled:pointer-events-none disabled:opacity-40 min-[901px]:justify-start ${
+                className={`flex w-full items-center justify-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-40 min-[901px]:justify-start ${
                   isActive ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
                 }`}
               >
@@ -48,7 +48,7 @@ export function Rail({ active, enabled, compareCount, onSelect, tone, onToneChan
           type="button"
           onClick={() => onToneChange(tone === 'dark' ? 'light' : 'dark')}
           title={tone === 'dark' ? 'Switch to light glass' : 'Switch to dark glass'}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border border-border py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground min-[901px]:justify-start min-[901px]:px-3"
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-border py-1.5 text-sm text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring min-[901px]:justify-start min-[901px]:px-3"
         >
           {tone === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
           <span className="max-[900px]:hidden">{tone === 'dark' ? 'Light' : 'Dark'}</span>
