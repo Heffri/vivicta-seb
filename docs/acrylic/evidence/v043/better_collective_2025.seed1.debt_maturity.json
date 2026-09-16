@@ -1,0 +1,147 @@
+{
+  "seed": 1,
+  "stem": "better_collective_2025",
+  "candidate_pages": [
+    129,
+    130,
+    171,
+    181,
+    183,
+    160,
+    158
+  ],
+  "before": {
+    "report_id": "lib-better_collective_2025",
+    "company": "Better Collective",
+    "fiscal_year": 2025,
+    "currency": "tEUR",
+    "section": "debt_maturity",
+    "fields": [
+      {
+        "key": "total_debt",
+        "label": "Total borrowings",
+        "value": null,
+        "unit": null,
+        "period": null,
+        "raw_label": null,
+        "source": null,
+        "confidence": 0.0,
+        "evidence": []
+      },
+      {
+        "key": "due_within_1_year",
+        "label": "Due within 1 year",
+        "value": null,
+        "unit": null,
+        "period": null,
+        "raw_label": null,
+        "source": null,
+        "confidence": 0.0,
+        "evidence": []
+      },
+      {
+        "key": "due_1_to_5_years",
+        "label": "Due 1–5 years",
+        "value": null,
+        "unit": null,
+        "period": null,
+        "raw_label": null,
+        "source": null,
+        "confidence": 0.0,
+        "evidence": []
+      },
+      {
+        "key": "due_after_5_years",
+        "label": "Due after 5 years",
+        "value": null,
+        "unit": null,
+        "period": null,
+        "raw_label": null,
+        "source": null,
+        "confidence": 0.0,
+        "evidence": []
+      }
+    ],
+    "checks": [
+      {
+        "name": "maturity_sums_to_total",
+        "passed": false,
+        "detail": "missing: due_within_1_year"
+      }
+    ],
+    "warnings": []
+  },
+  "after": {
+    "report_id": "lib-better_collective_2025",
+    "company": "Better Collective",
+    "fiscal_year": 2025,
+    "currency": "tEUR",
+    "section": "debt_maturity",
+    "fields": [
+      {
+        "key": "total_debt",
+        "label": "Total borrowings",
+        "value": 11976,
+        "unit": "tEUR",
+        "period": "2025",
+        "raw_label": "Total lease liabilities",
+        "source": {
+          "page": 158,
+          "quote": "Total lease liabilities 11,976 16,936 lying asset is available for use). Right -of-use assets are measured at cost, less any accumulated depreciation"
+        },
+        "confidence": 0.9,
+        "evidence": [
+          "quote_on_page",
+          "value_in_quote",
+          "arith_ok",
+          "period_ok",
+          "page_is_statement",
+          "unit_ok"
+        ]
+      },
+      {
+        "key": "due_within_1_year",
+        "label": "Due within 1 year",
+        "value": null,
+        "unit": "tEUR",
+        "period": "2025",
+        "raw_label": "",
+        "source": null,
+        "confidence": 0.0,
+        "evidence": []
+      },
+      {
+        "key": "due_1_to_5_years",
+        "label": "Due 1–5 years",
+        "value": null,
+        "unit": "tEUR",
+        "period": "2025",
+        "raw_label": "",
+        "source": null,
+        "confidence": 0.0,
+        "evidence": []
+      },
+      {
+        "key": "due_after_5_years",
+        "label": "Due after 5 years",
+        "value": null,
+        "unit": "tEUR",
+        "period": "2025",
+        "raw_label": "",
+        "source": null,
+        "confidence": 0.0,
+        "evidence": []
+      }
+    ],
+    "checks": [
+      {
+        "name": "maturity_sums_to_total",
+        "passed": false,
+        "detail": "missing: due_within_1_year"
+      }
+    ],
+    "warnings": [
+      "two_pass: page [158] selected from candidates [129, 130, 171, 181, 183, 160, 158]"
+    ]
+  }
+}

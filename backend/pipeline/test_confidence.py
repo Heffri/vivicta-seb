@@ -600,6 +600,51 @@ def demo():
     assert not out["checks"][0]["passed"] and not out["checks"][0]["detail"].startswith("missing:"), out["checks"]
     within = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
     assert within["confidence"] == 0.5, within  # still capped: neither sibling bucket's label is anywhere on the page
+    # v043: EXTRACT_TWO_PASS (default off) -- pass 1 is a small "which candidate page" question over a
+    # head-of-page snippet of *every* candidate (not just the top-2 the single-pass window shows), pass 2
+    # is the existing extraction prompt fed only the page(s) pass 1 picks. Candidate 3 (never reached by
+    # the old pages[:2] window) is the real note; 1-2 are decoys.
+    import os
+    decoy1 = "Five-year summary\nMSEK\n2025 2024 2023 2022 2021\nNet sales 100 90 80 70 60\n"
+    decoy2 = "Segment overview\nNothing about borrowings here.\n"
+    real = ("Note 20 Borrowings\nMSEK\n2025 2024\nTotal borrowings 32 703 34 500\nWithin 1 year 3 538 4 100\n"
+            "1-5 years 29 165 30 000\n1-5 years, of which fixed rate 10 000 9 000\n")
+    full_answer = {"fields": [
+        {"key": "total_debt", "value": 32703, "unit": "MSEK", "period": "2025", "raw_label": "Total borrowings", "source": {"page": 3, "quote": "Total borrowings 32,703"}},
+        {"key": "due_within_1_year", "value": 3538, "unit": "MSEK", "period": "2025", "raw_label": "Within 1 year", "source": {"page": 3, "quote": "Within 1 year 3,538"}},
+        {"key": "due_1_to_5_years", "value": 29165, "unit": "MSEK", "period": "2025", "raw_label": "1-5 years", "source": {"page": 3, "quote": "1-5 years 29,165"}},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    calls = []
+
+    def fake_llm(system, user, schema=x.RESPONSE_SCHEMA, name="extraction"):
+        calls.append((name, "=== PAGE 1 ===" in user, "=== PAGE 3 ===" in user))
+        return {"pages": [3]} if name == "page_select" else full_answer
+    x.call_llm = fake_llm
+
+    calls.clear()
+    out = x.extract([decoy1, decoy2, real], [1, 2, 3], dm, {"fiscal_year": 2025})
+    assert calls == [("extraction", True, False)], calls  # off: exactly the old single call, over pages[:2]; page 3 never shown
+    assert not any(w.startswith("two_pass") for w in out["warnings"]), out["warnings"]
+
+    os.environ["EXTRACT_TWO_PASS"] = "1"
+    try:
+        calls.clear()
+        out = x.extract([decoy1, decoy2, real], [1, 2, 3], dm, {"fiscal_year": 2025})
+        assert calls == [("page_select", True, True), ("extraction", False, True)], calls  # pass 1 sees every candidate; pass 2 only the page it picked
+        assert "two_pass: page [3] selected from candidates [1, 2, 3]" in out["warnings"], out["warnings"]
+        got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
+        assert got["total_debt"] == (32703, 1.0) and got["due_within_1_year"] == (3538, 1.0) and got["due_1_to_5_years"] == (29165, 1.0), (got, out["warnings"])
+
+        def illegal_llm(system, user, schema=x.RESPONSE_SCHEMA, name="extraction"):
+            calls.append((name, "=== PAGE 1 ===" in user, "=== PAGE 3 ===" in user))
+            return {"pages": [99]} if name == "page_select" else full_answer  # 99 is not a candidate: illegal
+        x.call_llm = illegal_llm
+        calls.clear()
+        out = x.extract([decoy1, decoy2, real], [1, 2, 3], dm, {"fiscal_year": 2025})
+        assert calls == [("page_select", True, True), ("extraction", True, False)], calls  # illegal pick falls back to pages[:2]
+        assert any("page selection failed or illegal" in w for w in out["warnings"]), out["warnings"]
+    finally:
+        del os.environ["EXTRACT_TWO_PASS"]
     print("confidence self-check ok")
 
 
