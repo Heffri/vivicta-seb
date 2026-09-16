@@ -137,7 +137,7 @@
     ],
     "warnings": [
       "two_pass: page [160, 161] selected from candidates [159, 160, 157]",
-      "llm: TimeoutExpired: Command '['C:\\\\Users\\\\xingyi chen\\\\AppData\\\\Local\\\\Programs\\\\OpenAI\\\\Codex\\\\bin\\\\codex.EXE', 'exec', '-m', 'gpt-5.6-terra', '-s', 'read-only', '-C', 'C:\\\\Users\\\\XINGYI~1\\\\AppData\\\\Local\\\\Temp\\\\vivicta-codex-nahmgnrm', '--skip-git-repo-check', '--json', '-o', 'C:\\\\Users\\\\XINGYI~1\\\\AppData\\\\Local\\\\Temp\\\\vivicta-codex-nahmgnrm\\\\last-message.txt', '-']' timed out after 120.0 seconds (pages [160, 161])"
+      "llm: TimeoutExpired: Command '['C:\\\\Users\\\\<user>\\\\AppData\\\\Local\\\\Programs\\\\OpenAI\\\\Codex\\\\bin\\\\codex.EXE', 'exec', '-m', 'gpt-5.6-terra', '-s', 'read-only', '-C', '<temp>\\\\vivicta-codex-nahmgnrm', '--skip-git-repo-check', '--json', '-o', '<temp>\\\\vivicta-codex-nahmgnrm\\\\last-message.txt', '-']' timed out after 120.0 seconds (pages [160, 161])"
     ]
   }
 }
