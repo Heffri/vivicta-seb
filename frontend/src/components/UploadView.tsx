@@ -11,6 +11,8 @@ import type { Company, LibraryEntry, Report, Result, Schema } from '@/types'
 
 type Props = { onDone: (results: Result[]) => void }
 
+const isPdf = (f: File) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
+
 export function UploadView({ onDone }: Props) {
   const [schemas, setSchemas] = useState<Schema[]>([])
   const [schemasError, setSchemasError] = useState<string | null>(null)
@@ -23,7 +25,7 @@ export function UploadView({ onDone }: Props) {
   const [companies, setCompanies] = useState<Company[]>([])
   const [dirError, setDirError] = useState<string | null>(null)
   const [picked, setPicked] = useState<Company[]>([]) // directory picks, deduped by name
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([]) // uploads, in drop/pick order, deduped by name+size
   const [dragging, setDragging] = useState(false)
   const [progress, setProgress] = useState<string | null>(null) // non-null = busy
   const [error, setError] = useState<string | null>(null)
@@ -59,15 +61,27 @@ export function UploadView({ onDone }: Props) {
       .catch((e: Error) => setLibraryError(e.message))
   }, [])
 
-  const pickFile = (f: File | undefined) => {
-    if (!f) return
-    if (f.type !== 'application/pdf' && !f.name.toLowerCase().endsWith('.pdf')) {
-      setError('Only PDF files are supported.')
-      return
-    }
-    setError(null)
-    setFile(f)
+  // Reject non-PDFs individually (named in the error) and keep the rest; re-picking/re-dropping appends.
+  const pickFiles = (incoming: File[]) => {
+    if (incoming.length === 0) return
+    const rejected = incoming.filter((f) => !isPdf(f))
+    const accepted = incoming.filter(isPdf)
+    setError(rejected.length > 0 ? `Only PDF files are supported: ${rejected.map((f) => f.name).join(', ')}` : null)
+    if (accepted.length === 0) return
+    setFiles((prev) => {
+      const seen = new Set(prev.map((f) => `${f.name}:${f.size}`))
+      const next = [...prev]
+      for (const f of accepted) {
+        const key = `${f.name}:${f.size}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        next.push(f)
+      }
+      return next
+    })
   }
+
+  const removeFile = (target: File) => setFiles((prev) => prev.filter((f) => f !== target))
 
   const allSelected = (files: string[]) => files.length > 0 && files.every((f) => selected.has(f))
   // Chip semantics: all of the tag already selected → deselect them, otherwise select them.
@@ -89,7 +103,7 @@ export function UploadView({ onDone }: Props) {
     setPicked((prev) => (prev.some((p) => p.name === c.name) ? prev.filter((p) => p.name !== c.name) : [...prev, c]))
 
   const busy = progress !== null
-  const count = picked.length + selected.size + (file ? 1 : 0)
+  const count = picked.length + selected.size + files.length
   const canExtract = count > 0 && !!section && !busy
 
   const run = async () => {
@@ -97,9 +111,9 @@ export function UploadView({ onDone }: Props) {
     setError(null)
     setTried({})
     const sectionTitle = schemas.find((s) => s.name === section)?.title ?? section
-    // Queue = directory picks (fetched on demand) + selected cached entries (library order) + the uploaded file.
-    // Sequential on purpose: the local LLM is one GPU, parallel requests would only queue there and we'd lose the
-    // per-report progress line.
+    // Queue = directory picks (fetched on demand) + selected cached entries (library order) + the uploaded
+    // files, in drop order. Sequential on purpose: the local LLM is one GPU, parallel requests would only
+    // queue there and we'd lose the per-report progress line.
     const queue = [
       ...picked.map((c) => ({
         label: c.name,
@@ -109,8 +123,8 @@ export function UploadView({ onDone }: Props) {
       ...library
         .filter((e) => selected.has(e.file))
         .map((e) => ({ label: e.company, getReport: () => registerLibraryReport(e.file) })),
-      ...(file ? [{ label: file.name, getReport: () => uploadReport(file) }] : []),
-    ] as { label: string; prep?: string; getReport: () => Promise<Report> }[]
+      ...files.map((f) => ({ label: f.name, getReport: () => uploadReport(f), fromUpload: true })),
+    ] as { label: string; prep?: string; getReport: () => Promise<Report>; fromUpload?: boolean }[]
     const results: Result[] = []
     for (const [i, item] of queue.entries()) {
       const n = `(${i + 1}/${queue.length}${item.prep ? ', can take a minute' : ''})`
@@ -119,8 +133,8 @@ export function UploadView({ onDone }: Props) {
         const report = await item.getReport()
         setProgress(`Extracting ${item.label} ${n}… about a minute per report with a local model.`)
         const extraction = await extractSection(report.report_id, section)
-        // Library entries keep the curated name; the upload gets whatever the backend/LLM guessed.
-        const label = item.label === file?.name ? (extraction.company ?? report.company ?? item.label) : item.label
+        // Library entries keep the curated name; each upload gets whatever the backend/LLM guessed.
+        const label = item.fromUpload ? (extraction.company ?? report.company ?? item.label) : item.label
         results.push({ label, sectionTitle, extraction })
       } catch (e) {
         results.push({ label: item.label, sectionTitle, error: (e as Error).message })
@@ -178,7 +192,14 @@ export function UploadView({ onDone }: Props) {
             onToggleTag={toggleAll}
             onToggleOne={toggleOne}
           />
-          <Dropzone file={file} dragging={dragging} busy={busy} onDragStage={setDragging} onPick={pickFile} />
+          <Dropzone
+            files={files}
+            dragging={dragging}
+            busy={busy}
+            onDragStage={setDragging}
+            onPick={pickFiles}
+            onRemove={removeFile}
+          />
         </div>
 
         {/* Action bar: section choice, run button, progress line. */}
