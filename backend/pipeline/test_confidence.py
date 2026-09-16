@@ -541,6 +541,7 @@ def demo():
     decoy2 = "Segment overview\nNothing about borrowings here.\n"
     real = ("Note 20 Borrowings\nMSEK\n2025 2024\nTotal borrowings 32 703 34 500\nWithin 1 year 3 538 4 100\n"
             "1-5 years 29 165 30 000\n1-5 years, of which fixed rate 10 000 9 000\n")
+    decoy4 = "Appendix\nUnrelated content, never a pass-1 candidate.\n"  # page 4: not in `pages`, only reachable as page 3's default +1 companion
     full_answer = {"fields": [
         {"key": "total_debt", "value": 32703, "unit": "MSEK", "period": "2025", "raw_label": "Total borrowings", "source": {"page": 3, "quote": "Total borrowings 32,703"}},
         {"key": "due_within_1_year", "value": 3538, "unit": "MSEK", "period": "2025", "raw_label": "Within 1 year", "source": {"page": 3, "quote": "Within 1 year 3,538"}},
@@ -554,16 +555,19 @@ def demo():
     x.call_llm = fake_llm
 
     calls.clear()
-    out = x.extract([decoy1, decoy2, real], [1, 2, 3], dm, {"fiscal_year": 2025})
+    out = x.extract([decoy1, decoy2, real, decoy4], [1, 2, 3], dm, {"fiscal_year": 2025})
     assert calls == [("extraction", True, False)], calls  # off: exactly the old single call, over pages[:2]; page 3 never shown
     assert not any(w.startswith("two_pass") for w in out["warnings"]), out["warnings"]
 
     os.environ["EXTRACT_TWO_PASS"] = "1"
     try:
         calls.clear()
-        out = x.extract([decoy1, decoy2, real], [1, 2, 3], dm, {"fiscal_year": 2025})
-        assert calls == [("page_select", True, True), ("extraction", False, True)], calls  # pass 1 sees every candidate; pass 2 only the page it picked
-        assert "two_pass: page [3] selected from candidates [1, 2, 3]" in out["warnings"], out["warnings"]
+        out = x.extract([decoy1, decoy2, real, decoy4], [1, 2, 3], dm, {"fiscal_year": 2025})
+        assert calls == [("page_select", True, True), ("extraction", False, True)], calls  # pass 1 sees every candidate; pass 2 only the pages it picked
+        # v045: a single-page reply ({"pages": [3]}) is no longer taken at face value -- it is repaired with
+        # the default companion (3+1=4, page 4 was never itself a candidate), so the companion page single-pass
+        # always got for free (locate.candidate_pages forces pages[0]+1 into position 2) is not lost here either.
+        assert "two_pass: page [3, 4] selected from candidates [1, 2, 3]" in out["warnings"], out["warnings"]
         got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
         assert got["total_debt"] == (32703, 1.0) and got["due_within_1_year"] == (3538, 1.0) and got["due_1_to_5_years"] == (29165, 1.0), (got, out["warnings"])
 
@@ -572,11 +576,50 @@ def demo():
             return {"pages": [99]} if name == "page_select" else full_answer  # 99 is not a candidate: illegal
         x.call_llm = illegal_llm
         calls.clear()
-        out = x.extract([decoy1, decoy2, real], [1, 2, 3], dm, {"fiscal_year": 2025})
+        out = x.extract([decoy1, decoy2, real, decoy4], [1, 2, 3], dm, {"fiscal_year": 2025})
         assert calls == [("page_select", True, True), ("extraction", True, False)], calls  # illegal pick falls back to pages[:2]
         assert any("page selection failed or illegal" in w for w in out["warnings"]), out["warnings"]
     finally:
         del os.environ["EXTRACT_TWO_PASS"]
+
+    # v045: _select_pages itself -- the companion repair/validation rules, direct (no EXTRACT_TWO_PASS/extract()
+    # wiring needed here, unlike the end-to-end checks above).
+    four = ["p1 text", "p2 text", "p3 text", "p4 text"]
+    x.call_llm = lambda *a, **k: {"pages": [2]}
+    assert x._select_pages(dm, [1, 2, 3], four) == [2, 3]  # single-page reply repaired with the default +1
+    x.call_llm = lambda *a, **k: {"pages": [4]}
+    assert x._select_pages(dm, [1, 2, 4], four) == [3, 4]  # primary is the last page: +1 doesn't exist, falls back to -1
+    x.call_llm = lambda *a, **k: {"pages": [2, 1]}
+    assert x._select_pages(dm, [1, 2, 3], four) == [1, 2]  # the model's own -1 override, honoured as given
+    x.call_llm = lambda *a, **k: {"pages": [2, 4]}
+    assert x._select_pages(dm, [1, 2, 3, 4], four) is None  # companion not adjacent to the primary: illegal
+    x.call_llm = lambda *a, **k: {"pages": [2, 3]}
+    assert x._select_pages(dm, [1, 2], four) == [2, 3]  # companion (3) need not itself be a candidate -- only the primary must be
+    x.call_llm = lambda *a, **k: {"pages": [99]}
+    assert x._select_pages(dm, [1, 2, 3], four) is None  # primary outside the candidate list: illegal, same as v043
+    x.call_llm = lambda *a, **k: {"pages": [2, 3, 4]}
+    assert x._select_pages(dm, [1, 2, 3, 4], four) is None  # more than 2 pages: illegal, unchanged from v043
+
+    # v045: pass-1's own snippet -- running headers (locate.strip_boilerplate) and bare page-number lines
+    # dropped, ~1200-char head, plus (Apotea's own failure mode, docs/acrylic/evidence/v043.md) any schema
+    # keyword line found beyond that head, numbered, so a heading pushed past the cutoff by filler still surfaces.
+    captured = {}
+
+    def capture_llm(system, user, schema=x.PAGE_SELECT_SCHEMA, name="page_select"):
+        captured["user"] = user
+        return {"pages": [1, 2]}
+    x.call_llm = capture_llm
+    running_header = "ACME GROUP ANNUAL REPORT 2025"
+    filler = "\n".join(f"Filler line number {i} of running prose unrelated to the statement." for i in range(30))  # > PAGE_SELECT_SNIPPET chars
+    p1 = f"{running_header}\n7\n{filler}\nNote 20 Borrowings\nTotal borrowings 32,703 34,500\n"
+    p2 = f"{running_header}\n8\nSegment overview, nothing about borrowings here.\n"
+    other_pages = [f"{running_header}\n{n}\nUnrelated page." for n in range(20, 29)]  # > 10% of the doc repeats running_header
+    x._select_pages(dm, [1, 2], [p1, p2] + other_pages)
+    user = captured["user"]
+    assert running_header not in user, user  # running header stripped (locate.strip_boilerplate)
+    assert "7" not in user.splitlines(), user  # bare page-number line stripped (not just "differs per page", see locate's own comment)
+    assert "\n...\n" in user  # the head/keyword-hits separator only appears once something was found beyond the head
+    assert any(l.endswith(": Note 20 Borrowings") for l in user.splitlines()), user  # the heading, past the head cutoff, surfaces numbered
     print("confidence self-check ok")
 
 

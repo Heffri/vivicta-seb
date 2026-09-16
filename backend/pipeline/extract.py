@@ -3,7 +3,8 @@
 Next for a teammate: (1) two-pass -- first ask the model *which* candidate page is the
 statement, then extract from that page alone (less context, fewer hallucinations) -- implemented
 as an opt-in `EXTRACT_TWO_PASS=1` (default off, see `_select_pages`); see docs/acrylic/evidence/v043.md
-for a 30-company before/after and the group's call on whether to flip the default;
+and docs/acrylic/evidence/v045.md for two rounds of 30-company before/after and the group's call on
+whether to flip the default;
 (2) on "quote not found" retry once with the warnings fed back into the prompt;
 (3) pick the period column explicitly (current vs prior year) instead of trusting
 the model's "leftmost number" habit; (4) tune SYSTEM_PROMPT_TEMPLATE against eval/.
@@ -105,34 +106,73 @@ PAGE_SELECT_SCHEMA = {
     "required": ["pages"],
     "additionalProperties": False,
 }
-PAGE_SELECT_SNIPPET = 400  # chars of head-of-page text per candidate; enough to see a heading, not a whole table
+PAGE_SELECT_SNIPPET = 1200  # chars of head-of-page text per candidate, after stripping running headers/page
+# numbers -- long enough to reach past a front-matter breadcrumb to a note's own heading (Apotea's page 113
+# opened with the report's own breadcrumb before "29. Borrowings", docs/acrylic/evidence/v043.md), not a whole table
+PAGE_SELECT_KEYWORD_LINES = 20  # cap on schema-keyword-hit lines appended per candidate beyond the head
 PAGE_SELECT_PROMPT = """You are given the start of {n} candidate pages from a corporate annual report (Swedish or English), each labelled with its page number. Which page holds the {title} statement itself -- the printed table of figures -- not a table of contents, a note reference, or an unrelated table?
 
-If the table's heading or first rows are cut off here because it continues onto the very next page, include that page too.
+{description}
 
-Return ONE JSON object {{"pages": [n]}} or {{"pages": [n, n+1]}}, using only page numbers from the candidates below, in ascending order. Never invent a page number that is not listed."""
+Always name TWO pages: the primary page (the one with the table itself, must be one of the candidates above) and a companion page next to it, since a table's header or rows often continue onto the neighbouring page. Default the companion to primary+1; use primary-1 instead only if the table's own heading or first rows actually sit on the page before the primary one -- the companion does not itself have to be one of the candidates above.
+
+Return ONE JSON object {{"pages": [primary, companion]}}, primary first. Never invent a primary page number that is not listed above."""
+
+
+def _page_snippet(text: str, keywords: list[str]) -> str:
+    """Pass-1's view of one candidate page: the first PAGE_SELECT_SNIPPET chars of text (running headers/
+    footers already dropped by locate.strip_boilerplate, bare page-number lines dropped here), plus -- from
+    beyond that head -- any line containing a schema keyword, prefixed with its line number. Apotea's own
+    page 113 (docs/acrylic/evidence/v043.md) opens with a repeated front-matter breadcrumb before reaching
+    its "29. Borrowings" heading: a plain head-of-page cut loses the heading entirely; the keyword lines
+    give the model a second chance to see it, and roughly where on the page it sits."""
+    lines = [l for l in text.splitlines() if not locate.FOLIO.match(l.strip())]
+    head, used, i = [], 0, 0
+    while i < len(lines) and used < PAGE_SELECT_SNIPPET:
+        used += len(lines[i]) + 1
+        head.append(lines[i])
+        i += 1
+    hits = [f"{n}: {l}" for n, l in enumerate(lines[i:], i + 1) if any(k in l.lower() for k in keywords)]
+    out = "\n".join(head)
+    if hits:
+        out += "\n...\n" + "\n".join(hits[:PAGE_SELECT_KEYWORD_LINES])
+    return out
 
 
 def _select_pages(schema: dict, pages: list[int], texts: list[str]) -> list[int] | None:
-    """EXTRACT_TWO_PASS pass 1: ask the model which 1-2 of the candidate pages (locate.candidate_pages,
-    up to top_n=8) hold the statement itself, from a short head-of-page snippet of each -- cheaper than
-    handing over the full prompt budget's worth of pages, and lets the model reach a candidate ranked
-    below the top-2 that the single-pass window never shows it. None on any call failure or an illegal
-    reply (not 1-2 unique integers, all members of the candidate list): the caller then falls back to
-    the single-pass window (pages[:2])."""
+    """EXTRACT_TWO_PASS pass 1: ask the model which of the candidate pages (locate.candidate_pages, up to
+    top_n=8) holds the statement itself, from a head-of-page snippet of each (_page_snippet) -- cheaper
+    than handing over the full prompt budget's worth of pages, and lets the model reach a candidate ranked
+    below the top-2 that the single-pass window never shows it. The reply must name a companion page next
+    to its primary pick (default primary+1, or primary-1 when the model says the table starts on the page
+    before): v043 found a single-page reply loses the companion page single-pass always got for free
+    (locate.candidate_pages forces pages[0]+1 into position 2 unconditionally, whether or not it scored),
+    so a lone primary here is repaired the same way, not treated as a failure. None on any call failure, a
+    primary outside the candidate list, or a second page that is not the primary's immediate neighbour: the
+    caller then falls back to the single-pass window (pages[:2])."""
     if len(pages) < 2:
         return None
-    user = "\n\n".join(f"=== PAGE {n} ===\n{texts[n - 1][:PAGE_SELECT_SNIPPET]}" for n in pages)
-    system = PAGE_SELECT_PROMPT.format(n=len(pages), title=schema.get("title", schema["name"]))
+    keywords = [k.lower() for k in schema.get("keywords", [])]
+    cleaned = locate.strip_boilerplate(texts)
+    user = "\n\n".join(f"=== PAGE {n} ===\n{_page_snippet(cleaned[n - 1], keywords)}" for n in pages)
+    system = PAGE_SELECT_PROMPT.format(n=len(pages), title=schema.get("title", schema["name"]), description=schema.get("description", ""))
     try:
         got = call_llm(system, user, PAGE_SELECT_SCHEMA, "page_select").get("pages")
     except Exception:
         return None
     if not isinstance(got, list) or not 1 <= len(got) <= 2 or len(set(got)) != len(got):
         return None
-    if any(not isinstance(p, int) or isinstance(p, bool) or p not in pages for p in got):
+    if any(not isinstance(p, int) or isinstance(p, bool) for p in got):
         return None
-    return sorted(got)
+    primary = got[0]
+    if primary not in pages:
+        return None
+    if len(got) == 1:
+        return sorted([primary, primary + 1 if primary + 1 <= len(texts) else primary - 1])
+    companion = got[1]
+    if companion not in (primary - 1, primary + 1) or not 1 <= companion <= len(texts):
+        return None
+    return sorted([primary, companion])
 
 
 def _num(v):
