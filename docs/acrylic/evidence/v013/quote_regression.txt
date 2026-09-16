@@ -1,0 +1,25 @@
+parse_check quote-regression run: PARSER_VERSION=3, 10 PDFs
+
+== atlas_copco_2025: quotes=8 old_found=8 new_found=8
+
+== bravida_holding_2025: quotes=8 old_found=8 new_found=8
+
+== camurus_2025: quotes=8 old_found=8 new_found=8
+
+== clas_ohlson_2025: quotes=6 old_found=6 new_found=6
+
+== ericsson_2025: quotes=8 old_found=8 new_found=8
+
+== getinge_2025: quotes=8 old_found=8 new_found=8
+
+== husqvarna_2025: quotes=8 old_found=8 new_found=8
+
+== noba_bank_2025: quotes=6 old_found=6 new_found=6
+
+== saab_2025_sv: quotes=8 old_found=8 new_found=8
+
+== skanska_2025: quotes=8 old_found=8 new_found=8
+
+== totals ==
+   old: 76/76 found, 0 lost
+   new: 76/76 found, 0 lost
