@@ -223,6 +223,24 @@
     box-shadow: inset 0 1px 0 var(--glass-hi), var(--glass-shadow);
 }
 
+/* Desktop shell drag region (desktop/main.js: titleBarStyle: 'hidden' removes the system
+   titlebar, so Titlebar.tsx is the only thing left that can move the window). -webkit-app-region
+   is an unrecognized property in a plain browser tab and on the native, non-hidden titlebar
+   main.js falls back to off Windows, so this is inert everywhere except the Windows desktop
+   shell — same pattern UAW's own titlebar uses (renderer/styles.css: `.titlebar` / `.titlebar
+   button`). */
+.app-titlebar {
+    -webkit-app-region: drag;
+}
+.app-titlebar button,
+.app-titlebar a,
+.app-titlebar input,
+.app-titlebar select,
+.app-titlebar textarea,
+.app-titlebar [role="button"] {
+    -webkit-app-region: no-drag;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
