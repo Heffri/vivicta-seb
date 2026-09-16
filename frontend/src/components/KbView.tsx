@@ -50,7 +50,13 @@ export function KbView({ onOpen }: Props) {
     })
 
   const withSection = [...selected].filter((s) => entries?.find((e) => e.stem === s)?.sections.length)
-  const section = schemas[0]?.name ?? 'income_statement'
+  // Batch section = the first schema (in schema order) every selected report actually has; schemas[0] is
+  // debt_maturity since that schema landed, which no KB entry has yet, so it 404'd both legs of a Compare.
+  const has = (stem: string, name: string) => !!entries?.find((e) => e.stem === stem)?.sections.includes(name)
+  const section =
+    schemas.map((s) => s.name).find((n) => withSection.length > 0 && withSection.every((s) => has(s, n))) ??
+    entries?.find((e) => e.stem === withSection[0])?.sections[0] ??
+    'income_statement'
 
   // Display-only: narrows which rows render, never touches `selected`.
   const q = query.trim().toLowerCase()
