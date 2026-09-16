@@ -32,6 +32,9 @@ tables and badges never do — they just get the highlight (`--glass-hi`) and a 
 | `--radius` | `--radius` | `0.875rem` | same, tone-independent | shadcn's sm/md/lg/xl ladder now lands near UAW's 7/10/14px |
 | accent (raw hue) | feeds `--primary`, `--ring` | `#7aa2f7` (UAW default scheme) | `#2b5cb4` (UAW light-acrylic accent) | focus rings, links, primary button tint |
 | `--destructive` | `--destructive` | `#e0897f` | `#a23a32` | UAW's `--err` |
+| `--success`/`-foreground`/`-muted` | `--success`, `--success-foreground`, `--success-muted` | `#7bc99a` / `#0f2a1c` / 12%-tint | `#276f47` / `#eafff2` / 12%-tint | UAW's `--ok`; status badges (v002+ swaps ResultsView's hardcoded emerald here) |
+| `--warning`/`-foreground`/`-muted` | `--warning`, `--warning-foreground`, `--warning-muted` | `#d9b06a` / `#2b1c05` / 12%-tint | `#805208` / `#fff6e6` / 12%-tint | UAW's `--warn`; same treatment as success |
+| `--danger`/`-foreground`/`-muted` | `--danger`, `--danger-foreground`, `--danger-muted` | `#e0897f` / `#2a0d09` / 12%-tint | `#a23a32` / `#fff1ee` / 12%-tint | UAW's `--err` again — same hue as `--destructive`, kept as a separate token because it names a data *status* (a failed check), not a destructive *action*; `Badge` gets matching `success`/`warning`/`danger` variants (additive, existing variants untouched) |
 
 `--primary` is never a flat accent fill — it reads as a sticker glued onto glass. UAW's `.btn.primary`/`.send`
 always tint the ground instead: dark = `color-mix(in srgb, #7aa2f7 22%, var(--bg-0))`,

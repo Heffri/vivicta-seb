@@ -24,6 +24,15 @@
     --color-input: var(--input);
     --color-border: var(--border);
     --color-destructive: var(--destructive);
+    --color-success-foreground: var(--success-foreground);
+    --color-success-muted: var(--success-muted);
+    --color-success: var(--success);
+    --color-warning-foreground: var(--warning-foreground);
+    --color-warning-muted: var(--warning-muted);
+    --color-warning: var(--warning);
+    --color-danger-foreground: var(--danger-foreground);
+    --color-danger-muted: var(--danger-muted);
+    --color-danger: var(--danger);
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
     --radius-lg: var(--radius);
@@ -83,6 +92,19 @@
     --accent: var(--bg-3);
     --accent-foreground: var(--fg-0);
     --destructive: #e0897f;
+    /* Status semantics — UAW's --ok/--warn/--err (workbench.css base, dark tone
+       keeps the base scheme's values). -foreground is for a solid fill of the
+       base color; -muted is the soft tinted background badges actually use
+       below, same 12%-on-transparent tint UAW's own .badge.ok/.warn use. */
+    --success: #7bc99a;
+    --success-foreground: #0f2a1c;
+    --success-muted: color-mix(in srgb, #7bc99a 12%, transparent);
+    --warning: #d9b06a;
+    --warning-foreground: #2b1c05;
+    --warning-muted: color-mix(in srgb, #d9b06a 12%, transparent);
+    --danger: #e0897f;
+    --danger-foreground: #2a0d09;
+    --danger-muted: color-mix(in srgb, #e0897f 12%, transparent);
     --border: var(--line-1);
     --input: var(--line-1);
     --ring: #7aa2f7;
@@ -124,6 +146,15 @@
     --accent: var(--bg-3);
     --accent-foreground: var(--fg-0);
     --destructive: #a23a32;
+    --success: #276f47;
+    --success-foreground: #eafff2;
+    --success-muted: color-mix(in srgb, #276f47 12%, transparent);
+    --warning: #805208;
+    --warning-foreground: #fff6e6;
+    --warning-muted: color-mix(in srgb, #805208 12%, transparent);
+    --danger: #a23a32;
+    --danger-foreground: #fff1ee;
+    --danger-muted: color-mix(in srgb, #a23a32 12%, transparent);
     --border: var(--line-1);
     --input: var(--line-1);
     --ring: #2b5cb4;
