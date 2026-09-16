@@ -114,7 +114,7 @@ export function AskPanel({ reports, onCitation }: Props) {
           </ol>
         )}
 
-        {busy && <LoadingLine>Thinking… local model, 10–40 s</LoadingLine>}
+        {busy && <LoadingLine>Thinking… 10–40 s</LoadingLine>}
 
         <div className="space-y-2">
           <div className="flex flex-wrap gap-1.5">
