@@ -4,7 +4,8 @@ Source: unified-agent-workbench (UAW) `demo` branch — `src/workbench-shell/ren
 (+ `theme-schemes.css`, `styles.css` for rail/titlebar/statusbar sizing). Read via
 `git -C <UAW checkout> show demo:<path>`, reference-only, nothing written there. Browsers have no OS acrylic
 material, so UAW's own "no material" fallback — wallpaper gradient behind a `backdrop-filter` pane — is our
-permanent state, not an edge case. Font stays Geist Variable; not part of the UAW port.
+permanent state, not an edge case. Font stays Geist Variable in the browser; desktop/'s real material
+(v029) also switches the font stack, see the `--font-sans`/`--font-mono` row below.
 
 ## One material
 
@@ -20,6 +21,8 @@ tables and badges never do — they just get the highlight (`--glass-hi`) and a 
 | Token | shadcn variable | Dark | Light | Use |
 |---|---|---|---|---|
 | `--bg-0` | shell fill only | `rgb(11 11 14/66%)` | `rgb(252 252 254/76%)` | the one blurred ground. v006b: 88/90% → 66/76% — at 88/90% only ~10% of the wallpaper showed and the window read flat. Contrast re-verified on the composited ground (worst = under the brightest glow), `evidence/v006.md` §v006b |
+| `--bg-0` under `[data-material="on"]` | same | `rgb(11 11 14/52%)` | `rgb(252 252 254/62%)` | desktop/'s real Windows acrylic (v029) replaces the painted `--wallpaper` with the OS's own blurred desktop, so `--bg-0` drops another 14pp to let more of it through; browser tab is unaffected (attribute is never set outside Electron), `evidence/v029.md` |
+| `--font-sans`/`--font-mono` under `[data-material="on"]` | `--font-heading`, `html`'s base font, `.font-mono` | `'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif` / `'Cascadia Code', 'Cascadia Mono', ui-monospace, Consolas, monospace` | same, tone-independent | UAW's own stack (`renderer/styles.css:73-74`) is `Inter, "Segoe UI Variable Text", ...` / `"Cascadia Code", "Cascadia Mono", ...`; ours drops the leading `Inter` since we don't bundle it and the whole point (owner, 2026-09-16) is a zero-download desktop font — both remaining stacks ship with Windows 11. Required an `html { font-family: var(--font-sans) }` fix alongside: `@apply font-sans` (the prior rule) bakes Tailwind's font utility in as a literal at build time and never re-resolves per `data-material`, confirmed by inspecting the compiled CSS — `.font-mono` was already a real `var()` reference so needed no such fix. Browser tab keeps Geist (`--font-sans` only changes under the attribute Electron sets), `evidence/v029.md` |
 | `--bg-1` | `--background` | `rgb(22 22 27/58%)` | `rgb(0 0 0/2.5%)` | subtlest raised step (outline button fill) |
 | `--bg-2` | `--muted`, `--secondary` | `rgb(32 32 39/62%)` | `rgb(0 0 0/4%)` | hover feedback, quiet fill, selected table row |
 | `--bg-3` | `--card`, `--accent` | `rgb(48 48 57/64%)` | `rgb(0 0 0/6%)` | card surface, hover/selected row, active button step. Dark rose 58% → 64% in v006b so cards stay solid over the more transparent glass (light keeps 6% — raising it darkens the card and kills the badge-text gate) |

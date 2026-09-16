@@ -16,6 +16,9 @@ backend/.env
 # node
 node_modules/
 frontend/dist/
+desktop/dist/
+desktop/build-resources/
+desktop/icons/icon.png
 
 # misc
 .DS_Store

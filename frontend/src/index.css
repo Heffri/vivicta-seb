@@ -6,6 +6,7 @@
 @theme inline {
     --font-heading: var(--font-sans);
     --font-sans: 'Geist Variable', sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
     --color-accent-foreground: var(--accent-foreground);
     --color-accent: var(--accent);
     --color-muted-foreground: var(--muted-foreground);
@@ -187,6 +188,29 @@
     --ring: #2b5cb4;
 }
 
+/* Real Windows acrylic (desktop/, BrowserWindow backgroundMaterial: 'acrylic') replaces the
+   painted --wallpaper: the OS itself blurs the desktop behind the window, so the body's own
+   gradient would just sit on top of it, doubling up. main.tsx sets this from the preload-exposed
+   window.arp.material flag (desktop/preload.js); a browser tab never has this attribute, so its
+   look is unchanged (docs/acrylic/DESIGN.md, "Real Windows material" table row). */
+:root[data-material="on"] {
+  --bg-0: rgb(11 11 14 / 52%);
+  /* UAW's own stack (renderer/styles.css:73-74) leads with Inter, a downloaded web font; we have
+     no reason to bundle it just for the desktop shell, so this starts one step later, at the part
+     that *is* the point — Segoe UI Variable ships with Windows 11, Cascadia Code/Mono with Windows
+     Terminal, both zero-download. Browser tab never sets data-material, so Geist is untouched. */
+  --font-sans: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'Cascadia Code', 'Cascadia Mono', ui-monospace, Consolas, monospace;
+}
+
+[data-tone="light"][data-material="on"] {
+  --bg-0: rgb(252 252 254 / 62%);
+}
+
+[data-material="on"] body {
+  background-image: none;
+}
+
 /* The one shell material: translucent ground + blur + a specular top edge +
    a contact shadow. Applied once, to the app shell — and to floating popups
    (the select dropdown), which UAW also lets keep their own thin glass since
@@ -204,7 +228,10 @@
     @apply border-border outline-ring/50;
     }
   html {
-    @apply font-sans;
+    /* Not @apply font-sans: Tailwind inlines that utility's font stack as a build-time literal
+       (confirmed in the compiled output), which would never see [data-material="on"]'s override
+       below. var(--font-sans) is the same default, but actually re-resolves at runtime. */
+    font-family: var(--font-sans);
     height: 100%;
     }
   body {
