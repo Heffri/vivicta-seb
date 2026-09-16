@@ -273,6 +273,31 @@ def _year_run(text: str) -> list[str]:
     return []
 
 
+def _row_year_column(rows: list[str], i: int, fiscal_year) -> tuple[int, int] | None:
+    """The year header of the table the row rows[i] belongs to: the nearest year run ABOVE it (_year_run over the
+    rows[j:i] window, j walked upward from just above the row), not the page's first. A note page can stack a second
+    table above the statement's (MedCap p.101: a receivables-ageing table over the maturity table), and the page's
+    first header then names 2 columns for 4-amount rows, so every row derivation bails. The fiscal year once in that
+    run -> (pos, len(run)); twice and the run's row or the one above it names Group before Parent ("Koncernen
+    Moderbolaget" / "Group Parent Company") -> the first pair, Parent first -> the last; anything else -> None, the
+    shape _year_column declines (Volvo's four segment pairs stay unknowable here)."""
+    for j in range(i - 1, -1, -1):  # windows grow upward, so the nearest run wins: the row's own header is found before any higher table's
+        run = _year_run(" ".join(rows[j:i]))
+        if not run:
+            continue
+        if run.count(str(fiscal_year)) == 1:
+            return (run.index(str(fiscal_year)), len(run))
+        if run.count(str(fiscal_year)) == 2:  # Group | Parent pairs on one page
+            near = " ".join(rows[max(j - 1, 0):j + 1]).lower()  # the run's own row and the one above it
+            g, e = locate.GROUP.search(near), locate.ENTITY.search(near)
+            if g and e:
+                if g.start() < e.start():
+                    return (run.index(str(fiscal_year)), len(run))
+                return (len(run) - 1 - run[::-1].index(str(fiscal_year)), len(run))
+        return None  # the nearest run wins even when it names no usable column: climbing past it would cross into the table above
+    return None
+
+
 def _segment_column(text: str, fiscal_year, fields: list[dict]) -> tuple[int, int] | None:
     """Volvo prints "2025 2024" once per segment (Industrial Operations, Financial Services, Eliminations, Volvo Group) and the
     model read the tax from the first pair and the rest from the last. The fiscal-year column is the one most of the page's
@@ -483,11 +508,21 @@ def _signed(amounts: list, col: int, value) -> list:
     return [-a for a in amounts] if col < len(amounts) and amounts[col] == -value and value else amounts
 
 
-def _column_values(field: dict, fields: list[dict], defaults: dict, texts: list[str], fiscal_year) -> list[dict] | None:
+def _column_values(field: dict, fields: list[dict], defaults: dict, texts: list[str], fiscal_year, anchor: str | None = None) -> list[dict] | None:
     """Per table column, the other fields' printed figures ({key: amount}), for fields whose verified quote is a full row
-    of the same table layout. Lets a check be evaluated in the comparative column too."""
+    of the same table layout. Lets a check be evaluated in the comparative column too. The header is the quoted row's own
+    table's (_row_year_column), not the page's first -- a note page can stack two tables -- and each other field is
+    admitted by the header of ITS OWN quoted row, so same-page rows of the other table are not mixed in; `anchor` stands
+    in for the quote when the caller derives for a rowless field (_between_rows), and a quote that is not a printed row
+    falls back to the page's own header, as before."""
     src = field.get("source") or {}
-    header = _year_column(texts[src["page"] - 1], fiscal_year) if src.get("page") else None
+    if not src.get("page"):
+        return None
+    text = texts[src["page"] - 1]
+    quote = src.get("quote") or anchor
+    rows = _page_rows(text)
+    i = rows.index(quote) if quote and quote in rows else None
+    header = _row_year_column(rows, i, fiscal_year) if i is not None else _year_column(text, fiscal_year)
     if not header:
         return None
     col, ncols = header
@@ -496,7 +531,10 @@ def _column_values(field: dict, fields: list[dict], defaults: dict, texts: list[
         gs = g.get("source") or {}
         if g is field or g["value"] is None or not gs.get("page") or "quote_on_page" not in g["evidence"]:
             continue
-        if _year_column(texts[gs["page"] - 1], fiscal_year) != header:
+        gtext, grows = texts[gs["page"] - 1], _page_rows(texts[gs["page"] - 1])
+        gi = grows.index(gs["quote"]) if gs.get("quote") and gs["quote"] in grows else None
+        gheader = _row_year_column(grows, gi, fiscal_year) if gi is not None else _year_column(gtext, fiscal_year)
+        if gheader != header:
             continue
         am = _signed(_row_amounts(gs["quote"], ncols), col, g["value"])
         if len(am) == ncols and am[col] == g["value"]:
@@ -519,11 +557,15 @@ def _derived_value(field: dict, texts: list[str], fiscal_year, check: dict | Non
     "Items affecting comparability (IAC) – cost of goods sold" closes gross profit; Sagax's "Deferred tax" never joins "Profit before tax"."""
     src = field.get("source") or {}
     text = texts[src["page"] - 1] if src.get("page") else ""
-    header, rows = _year_column(text, fiscal_year), _page_rows(text)
-    if not header or src.get("quote") not in rows:
+    rows = _page_rows(text)
+    if src.get("quote") not in rows:
+        return None
+    i = rows.index(src["quote"])
+    header = _row_year_column(rows, i, fiscal_year)  # row-anchored: this derivation proves the quoted row's own table, not whichever table printed first on the page
+    if not header:
         return None
     col, ncols = header
-    i, own = rows.index(src["quote"]), _row_amounts(src["quote"], ncols)
+    own = _row_amounts(src["quote"], ncols)
     for k in range(2, 7 if len(own) == ncols else 2):
         parts = [_row_amounts(r, ncols) for r in rows[max(i - k, 0):i]]
         if len(parts) < k or any(len(a) != ncols for a in parts):
@@ -554,33 +596,51 @@ def _derived_value(field: dict, texts: list[str], fiscal_year, check: dict | Non
 def _between_rows(sf: dict, fields: list[dict], sfs: list[dict], defaults: dict, texts: list[str], fiscal_year, check: dict, page: int):
     """A missing operand of an identity when the model answered nothing: the full rows printed strictly between the other
     operands' rows, when their sums close the identity in every column (Addnode: "Profit after financial items 514 536",
-    "Current tax -157 -154", "Deferred tax 27 20", "Profit for the year 384 402"; no total tax row exists), or the one row among them
-    printed with the field's label when it alone closes the identity (ABB's discontinued operations under the continuing-ops subtotal).
-    None of the rows may carry another field's label. (value, quote, label, number of rows) or None."""
+    "Current tax -157 -154", "Deferred tax 27 20", "Profit for the year 384 402"; no total tax row exists), the one row among them
+    printed with the field's label when it alone closes the identity (ABB's discontinued operations under the continuing-ops subtotal),
+    or -- when nothing sits between -- the k full rows printed directly above the uppermost operand's row, where a first-year
+    bucket split lives (MedCap prints "6 månader eller mindre" + "6 – 12 månader" directly above the "1 – 5 år" row, so no row is
+    strictly between the operands). None of the rows may carry another field's label. (value, quote, label, number of rows) or None."""
     text = texts[page - 1]
-    header, rows = _year_column(text, fiscal_year), _page_rows(text)
-    if not header or header[1] < 2:
-        return None
-    col, ncols = header
+    rows = _page_rows(text)
     idx = [rows.index(g["source"]["quote"]) for g in fields if g["value"] is not None and (g.get("source") or {}).get("page") == page
            and g["source"]["quote"] in rows and re.search(rf"\b{re.escape(g['key'])}\b", check["expr"])]
     if len(idx) < 2:
         return None
-    between = [r for i, r in enumerate(rows) if min(idx) < i < max(idx) and i not in idx and len(_row_amounts(r, ncols)) == ncols]  # ABB: the tax row sits between too
-    if not between or any(_label_known(_row_label(r), gs) for r in between for gs in sfs if gs is not sf):
+    top = min(idx)
+    header = _row_year_column(rows, top, fiscal_year)  # row-anchored at the uppermost operand row: the rows this derivation reads sit at or directly above it
+    if not header or header[1] < 2:
         return None
-    parts = [_row_amounts(r, ncols) for r in between]
-    sums = [round(sum(a[c] for a in parts), 2) for c in range(ncols)]
-    others, quote = _column_values({"source": {"page": page}}, fields, defaults, texts, fiscal_year), " ".join(between)
+    col, ncols = header
+    between = [r for i, r in enumerate(rows) if min(idx) < i < max(idx) and i not in idx and len(_row_amounts(r, ncols)) == ncols]  # ABB: the tax row sits between too
+    others = _column_values({"source": {"page": page}}, fields, defaults, texts, fiscal_year, anchor=rows[top])  # rowless caller: anchor at the operand row
     if not others:
         return None
-    known = [r for r in between if _label_known(_row_label(r), sf)]  # ABB: "Income from discontinued operations, net of tax 174 226" sits between the
-    if len(known) == 1 and quote_on_page(known[0], text):  # tax and net income rows under the "continuing operations, net of tax" subtotal; the one row with the field's label is it
-        am = _row_amounts(known[0], ncols)
-        if all(_check(check, {**others[c], sf["key"]: am[c]})["passed"] for c in range(ncols)):
-            return am[col], known[0], _row_label(known[0]), 1
-    if all(_check(check, {**others[c], sf["key"]: sums[c]})["passed"] for c in range(ncols)) and quote_on_page(quote, text):
-        return sums[col], quote, " + ".join(_row_label(r) for r in between), len(between)
+    if between and not any(_label_known(_row_label(r), gs) for r in between for gs in sfs if gs is not sf):
+        parts = [_row_amounts(r, ncols) for r in between]
+        sums = [round(sum(a[c] for a in parts), 2) for c in range(ncols)]
+        quote = " ".join(between)
+        known = [r for r in between if _label_known(_row_label(r), sf)]  # ABB: "Income from discontinued operations, net of tax 174 226" sits between the
+        if len(known) == 1 and quote_on_page(known[0], text):  # tax and net income rows under the "continuing operations, net of tax" subtotal; the one row with the field's label is it
+            am = _row_amounts(known[0], ncols)
+            if all(_check(check, {**others[c], sf["key"]: am[c]})["passed"] for c in range(ncols)):
+                return am[col], known[0], _row_label(known[0]), 1
+        if all(_check(check, {**others[c], sf["key"]: sums[c]})["passed"] for c in range(ncols)) and quote_on_page(quote, text):
+            return sums[col], quote, " + ".join(_row_label(r) for r in between), len(between)
+    for k in range(2, 9):  # the window above the uppermost operand row: 2..8 full rows, the same span the sum repair reads
+        start = top - k
+        if start < 0:
+            break
+        window = rows[start:top]
+        if any(len(_row_amounts(r, ncols)) != ncols for r in window):
+            continue
+        if any(_label_known(_row_label(r), gs) for r in window for gs in sfs if gs is not sf):
+            continue
+        parts = [_row_amounts(r, ncols) for r in window]
+        sums = [round(sum(a[c] for a in parts), 2) for c in range(ncols)]
+        quote = " ".join(window)
+        if all(_check(check, {**others[c], sf["key"]: sums[c]})["passed"] for c in range(ncols)) and quote_on_page(quote, text):
+            return sums[col], quote, " + ".join(_row_label(r) for r in window), k
     return None
 
 
@@ -856,7 +916,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             # Telia: the model answered null although "Income after financial items 7,300 6,234" is printed on the statement
             # page under a synonym label. Fill it from the page; everything below then verifies it like a model answer.
             first = texts[pages[0] - 1]
-            h = _year_column(first, fiscal_year)
+            h = _year_column(first, fiscal_year)  # page-level, not row-anchored: the statement spread's first header is the statement's own, and no quote exists yet to anchor to
             if h and (hit := _statement_row(_page_rows(first), sf, h[1])):  # SEB "Basic earnings per share, SEK"
                 am = _row_amounts(hit, h[1])
                 warnings.append(f"{sf['key']}: model returned null, filled from page {pages[0]} row {hit!r}")
@@ -907,7 +967,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                 if fixed is not None:
                     warnings.append(f"{sf['key']}: value {field['value']} rescaled to {fixed} as printed in the quote")
                     field["value"] = fixed
-                header = _year_column(texts[page - 1], fiscal_year) if fiscal_year else None
+                header = _year_column(texts[page - 1], fiscal_year) if fiscal_year else None  # page-level, not row-anchored: this verifies the model's own read of the page's main statement, it does not derive across tables (left to _derived_value/_between_rows/_column_values)
                 ncols = header and header[1]
                 row = src["quote"] = next((r for r in rows if quote_on_page(verified, r)), verified)  # the full printed row, all columns
                 amounts = _row_amounts(row, ncols)
@@ -1020,7 +1080,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             if len(am) == ncols and am[col] != f["value"]:
                 warnings.append(f"{f['key']}: {f['value']} is another segment's column; the page's rows are read from column {col + 1} of {ncols}, which prints {am[col]}")
                 f["value"], f["period"] = am[col], str(fiscal_year)
-    if pages and fiscal_year and (h := _year_column(texts[pages[0] - 1], fiscal_year) or segs.get(pages[0])):
+    if pages and fiscal_year and (h := _year_column(texts[pages[0] - 1], fiscal_year) or segs.get(pages[0])):  # page-level, not row-anchored: statement-spread fill, no quote to anchor to
         first = _page_rows(texts[pages[0] - 1])
         for sf, f in zip(sfs, fields):  # Volvo: profit before tax answered as "Income for the period * 34,707 50,576", a row the page does not print;
             if "quote_on_page" in f["evidence"] or not (hit := _statement_row(first, sf, h[1])):  # the statement's own "Income after financial items" row is the answer
@@ -1138,7 +1198,10 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             src = f["source"] or {}
             if f["value"] is None or _label_known(f.get("raw_label"), sf) or "quote_on_page" not in f["evidence"] or not re.search(rf"\b{re.escape(f['key'])}\b", sc["expr"]):
                 continue
-            header, others = _year_column(texts[src["page"] - 1], fiscal_year), _column_values(f, fields, defaults, texts, fiscal_year)
+            rws = _page_rows(texts[src["page"] - 1])
+            ri = rws.index(src["quote"]) if src.get("quote") and src["quote"] in rws else None
+            header = _row_year_column(rws, ri, fiscal_year) if ri is not None else _year_column(texts[src["page"] - 1], fiscal_year)  # row-anchored like _column_values below: both must name the field's own table
+            others = _column_values(f, fields, defaults, texts, fiscal_year)
             if not header or header[1] < 2 or others is None:
                 continue  # one column is one equation; two independent years name the row
             own = _signed(_row_amounts(src["quote"], header[1]), header[0], f["value"])
