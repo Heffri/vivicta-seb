@@ -1,6 +1,6 @@
 import { Database, Loader2, Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { type ApiError, getKb, getSchemas, openKbExtraction } from '@/api'
+import { type ApiError, getKb, getLibrary, getSchemas, openKbExtraction } from '@/api'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -9,6 +9,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import type { KbEntry, Result, Schema } from '@/types'
 
 type Props = { onOpen: (results: Result[]) => void }
+
+const NO_PDF_DESC_ID = 'kb-no-pdf-desc'
+const NO_PDF_TITLE = 'PDF not cached — fetch it from the Extract tab first'
 
 // Everything the parser has learnt so far: one row per report in data/kb, opened from disk without a model call.
 export function KbView({ onOpen }: Props) {
@@ -19,11 +22,21 @@ export function KbView({ onOpen }: Props) {
   const [busy, setBusy] = useState<string | null>(null)
   const [notCached, setNotCached] = useState(false) // last error was the 409 "PDF no longer cached"
   const [query, setQuery] = useState('')
+  // Basenames present in data/reports/ right now (GET /api/library, disk-backed). null = not known yet — either
+  // still loading or the call failed (old backend / network); either way fall back to "everything openable".
+  const [pdfFiles, setPdfFiles] = useState<Set<string> | null>(null)
+  const [pdfOnly, setPdfOnly] = useState(false)
 
   useEffect(() => {
     getKb().then(setEntries).catch((e: Error) => setError(e.message))
     getSchemas().then(setSchemas).catch(() => {})
+    getLibrary()
+      .then((lib) => setPdfFiles(new Set(lib.map((l) => l.file))))
+      .catch(() => {}) // fixture-era backend or a blip: stay null, every row stays openable
   }, [])
+
+  // Same join the backend's own GET /api/kb/{stem}/{section} 409 check uses (app.py: file == f"{stem}.pdf").
+  const hasPdf = (stem: string) => !pdfFiles || pdfFiles.has(`${stem}.pdf`)
 
   const title = (section: string) => schemas.find((s) => s.name === section)?.title ?? section
 
@@ -65,7 +78,11 @@ export function KbView({ onOpen }: Props) {
 
   // Display-only: narrows which rows render, never touches `selected`.
   const q = query.trim().toLowerCase()
-  const filtered = (entries ?? []).filter((e) => !q || (e.company ?? '').toLowerCase().includes(q) || e.stem.toLowerCase().includes(q))
+  const filtered = (entries ?? []).filter(
+    (e) =>
+      (!q || (e.company ?? '').toLowerCase().includes(q) || e.stem.toLowerCase().includes(q)) &&
+      (!pdfOnly || hasPdf(e.stem)),
+  )
 
   return (
     <div className="space-y-5">
@@ -73,7 +90,9 @@ export function KbView({ onOpen }: Props) {
         <div>
           <p className="text-xs text-muted-foreground uppercase tracking-wide">Knowledge base</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-            {entries ? `${entries.length} reports` : 'Reports'}
+            {entries
+              ? `${entries.length} reports${pdfFiles ? ` · ${entries.filter((e) => hasPdf(e.stem)).length} with PDF` : ''}`
+              : 'Reports'}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Stored page text, extractions and embeddings in <code>data/kb</code>. Opening a row reads the saved extraction — no model call.
@@ -119,6 +138,19 @@ export function KbView({ onOpen }: Props) {
           <span className="text-xs text-muted-foreground tabular-nums">
             {filtered.length} / {entries.length}
           </span>
+          <label
+            className={`flex items-center gap-1.5 text-xs ${pdfFiles ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}
+            title={pdfFiles ? undefined : 'PDF cache list unavailable — cannot filter by it'}
+          >
+            <input
+              type="checkbox"
+              checked={pdfOnly}
+              disabled={!pdfFiles}
+              onChange={(e) => setPdfOnly(e.target.checked)}
+              className="size-3.5 accent-ring"
+            />
+            With PDF only
+          </label>
         </div>
       )}
 
@@ -128,6 +160,9 @@ export function KbView({ onOpen }: Props) {
 
       {filtered.length > 0 && (
         <Card className="overflow-hidden py-0 [&_[data-slot=table-container]]:max-h-[70vh] [&_[data-slot=table-container]]:overflow-y-auto">
+          <span id={NO_PDF_DESC_ID} className="sr-only">
+            {NO_PDF_TITLE}
+          </span>
           <Table>
             <TableHeader className="sticky top-0 z-10 bg-muted">
               <TableRow>
@@ -143,6 +178,7 @@ export function KbView({ onOpen }: Props) {
             <TableBody>
               {filtered.map((e) => {
                 const isSelected = selected.has(e.stem)
+                const available = hasPdf(e.stem)
                 return (
                   <TableRow
                     key={e.stem}
@@ -153,7 +189,8 @@ export function KbView({ onOpen }: Props) {
                         type="checkbox"
                         aria-label={`Select ${e.company ?? e.stem}`}
                         checked={isSelected}
-                        disabled={!e.sections.length}
+                        disabled={!e.sections.length || !available}
+                        title={available ? undefined : NO_PDF_TITLE}
                         onChange={() => toggle(e.stem)}
                         className="size-3.5 accent-ring"
                       />
@@ -161,6 +198,11 @@ export function KbView({ onOpen }: Props) {
                     <TableCell className="font-medium">
                       {e.company ?? e.stem}
                       <span className="ml-2 font-mono text-xs text-muted-foreground max-[900px]:hidden">{e.stem}</span>
+                      {!available && (
+                        <Badge variant="outline" className="ml-2 text-muted-foreground">
+                          no PDF
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">{e.fiscal_year ?? '—'}</TableCell>
                     <TableCell className="text-right tabular-nums max-[900px]:hidden">{e.pages}</TableCell>
@@ -184,7 +226,15 @@ export function KbView({ onOpen }: Props) {
                     </TableCell>
                     <TableCell className="text-right">
                       {e.sections.map((s) => (
-                        <Button key={s} size="xs" variant="outline" disabled={!!busy} onClick={() => open([e.stem], s)}>
+                        <Button
+                          key={s}
+                          size="xs"
+                          variant="outline"
+                          disabled={!!busy || !available}
+                          title={available ? undefined : NO_PDF_TITLE}
+                          aria-describedby={available ? undefined : NO_PDF_DESC_ID}
+                          onClick={() => open([e.stem], s)}
+                        >
                           {busy === e.stem ? <Loader2 className="animate-spin" /> : null}
                           Open
                         </Button>
