@@ -1,0 +1,603 @@
+----- PAGE 97 -----
+BOOZT GROUP
+ANNUAL REPORT 2025
+PAGE _ 97
+CONSOLIDATED INCOME STATEMENT
+SEK million unless otherwise indicated Note Jan 1 - Dec 31, 2025 Jan 1 - Dec 31, 2024
+OPERATING INCOME
+Net revenue 3, 4 8,287 8,244
+Total operating income 8,287 8,244
+OPERATING COSTS
+Goods for resale -5,187 -5,031
+Other external costs 6, 7, 8 -1,671 -1,655
+Cost of personnel 9 -688 -825
+Depreciation 10 -331 -273
+Other operating costs 5 -7 -8
+Total operating costs -7,883 -7,792
+OPERATING PROFIT (EBIT) 404 452
+FINANCIAL INCOME AND COSTS
+Financial income 11 19 18
+Financial costs 8, 11 -42 -43
+Net financial items -22 -25
+PROFIT BEFORE TAX 382 428
+Income tax 12 -81 -85
+PROFIT FOR THE YEAR 301 342
+Earnings per share (SEK) 13 4.80 5.25
+Earnings per share after dilution (SEK) 13 4.47 4.99
+CONSOLIDATED STATEMENT OF OTHER COMPREHENSIVE INCOME
+SEK million Jan 1 - Dec 31, 2025 Jan 1 - Dec 31, 2024
+PROFIT FOR THE YEAR 301 342
+Other comprehensive income (translation differences) 24 -35 16
+TOTAL COMPREHENSIVE PROFIT FOR THE YEAR 266 359
+ATTRIBUTABLE TO
+Parent company's shareholders 266 359
+Rounding differences may affect the summations.
+INTRODUCTION OUR BUSINESS DIRECTORS' REPORT SUSTAINABILITY STATEMENT CORPORATE GOVERNANCE REPORT FINANCIAL STATEMENTS ADDITIONAL INFORMATION
+Consolidated financial statements
+
+----- PAGE 98 -----
+BOOZT GROUP
+ANNUAL REPORT 2025
+PAGE _ 98
+CONSOLIDATED STATEMENT OF FINANCIAL POSITION
+SEK million Note Dec 31, 2025 Dec 31, 2024
+ASSETS
+Non-current assets
+Intangible assets
+Trademarks 14, 15 91 96
+Goodwill 14, 15 290 309
+Web platform 15 249 241
+630 646
+Tangible assets
+Right of use asset 8 381 475
+Machinery and equipment 16 765 817
+1,145 1,292
+Other non-current assets
+Deposits 28 11
+Shares in associated companies 29 14 14
+Deferred tax asset 12 10 14
+52 38
+Total non-current assets 1,827 1,975
+Current assets
+Inventories 17 2,421 2,674
+Account receivables 18, 27 48 38
+Other receivables 27 96 173
+Current tax assets 69 57
+Prepaid costs and accrued income 19 145 201
+Cash and cash equivalents 20 1,098 1,174
+Total current assets 3,878 4,317
+TOTAL ASSETS 5,704 6,293
+SEK million Note Dec 31, 2025 Dec 31, 2024
+EQUITY AND LIABILITIES
+Equity 24
+Share capital 6 6
+Other capital contributions 2,367 2,372
+Reserves 18 53
+Retained earnings including profit for the year 401 553
+Total equity 2,793 2,983
+Non-current liabilities 27
+Non-current interest bearing liabilities 21 0 380
+Non-current lease liabilities 8 337 401
+Other non-current provisions 22 21 21
+Deferred tax liabilities 12 18 20
+Total non-current liabilities 376 821
+Current liabilities 27
+Lease liabilities 8 104 97
+Accounts payable 1,384 1,235
+Current tax liabilities 84 85
+Other liabilities 14 533 531
+Accrued costs and prepaid income 23 430 540
+Total current liabilities 2,535 2,488
+Total liabilities 2,911 3,310
+TOTAL EQUITY AND LIABILITIES 5,704 6,293
+INTRODUCTION OUR BUSINESS DIRECTORS' REPORT SUSTAINABILITY STATEMENT CORPORATE GOVERNANCE REPORT FINANCIAL STATEMENTS ADDITIONAL INFORMATION
+
+----- PAGE 99 -----
+BOOZT GROUP
+ANNUAL REPORT 2025
+PAGE _ 99
+CONSOLIDATED STATEMENT OF CHANGES IN EQUITY
+SEK million Share capital Other capital contributions Reserves
+Profit brought forward incl. profit
+for the year
+Total equity attributable to parent
+company shareholders
+Equity as per Jan 1, 2024 6 2,307 36 373 2,721
+Profit for the year - - - 342 342
+Other comprehensive income - - 16 - 16
+COMPREHENSIVE PROFIT/LOSS FOR THE YEAR 0 0 16 342 359
+Share capital increases 0 - - 0 -
+Share based compensation - 65 - - 65
+Share buyback - - - -162 -162
+Total transactions with owners 0 65 0 -162 -97
+Equity as per Dec 31, 2024 6 2,372 52 553 2,983
+SEK million Share capital Other capital contributions Reserves
+Profit brought forward incl. profit
+for the year
+Total equity attributable to parent
+company shareholders
+Equity as per Jan 1, 2025 6 2,372 52 553 2,983
+Profit for the year - - - 301 301
+Other comprehensive income - - -35 - -35
+COMPREHENSIVE PROFIT/LOSS FOR THE YEAR 0 0 -35 301 266
+Share-based compensation - -4 - - -4
+Share buyback - - - -452 -452
+Total transactions with owners 0 -4 0 -452 -457
+Equity as per Dec 31, 2025 6 2,367 18 401 2,793
+INTRODUCTION OUR BUSINESS DIRECTORS' REPORT SUSTAINABILITY STATEMENT CORPORATE GOVERNANCE REPORT FINANCIAL STATEMENTS ADDITIONAL INFORMATION
+
+----- PAGE 107 -----
+BOOZT GROUP
+ANNUAL REPORT 2025
+PAGE _ 107
+5 Other operating income and costs
+SEK million Jan 1 - Dec 31, 2025 Jan 1 - Dec 31, 2024
+Currency exchange rate differences -6 -6
+Other -1 -2
+Total -7 -8
+6 External costs
+SEK million Jan 1 - Dec 31, 2025 Jan 1 - Dec 31, 2024
+Fulfilment and distribution costs -606 -640
+Marketing costs -822 -836
+Administration and other external costs -243 -179
+Total -1,671 -1,655
+7 Audit fees
+SEK million Jan 1 - Dec 31, 2025 Jan 1 - Dec 31, 2024
+Deloitte
+Auditing assignments -2 -2
+Tax advice -1 -
+Other services -1 -1
+Total -4 -2
+Other
+Auditing assignments -1 0
+Tax advice 0 0
+Other services 0 0
+Total -1 0
+Auditing assignments include auditing of the annual accounts and bookkeeping as well as administration for the Board of Directors and the CEO, other
+duties undertaken by the Group's accountants, and advice or other assistance arising from observations during such auditing or implementation of
+similar tasks. Other services include advice in accountancy related fields such as accounting, due diligence etc.
+8 Leases
+AMOUNTS REPORTED IN THE STATEMENT OF FINANCIAL POSITION
+The Group recognizes a right of use asset and a corresponding lease liability for all leases in which the Group is lessee, except for short-term leases
+(leases with a leasing period of a maximum of 12 months) and for leases where the underlying asset is of low value (approximately SEK 50,000).
+The lease portfolio mainly comprises of:
+• Warehouse premises recognised in the asset class of property,
+• Headquarter and minor offices and stores recognised in the asset class of office and store premises,
+• Cars and trucks recognised in the asset class of vehicles.
+RIGHT OF USE ASSET
+SEK million Property
+Office- and
+store-premises Vehicles Total
+Opening balance as of January 1, 2024 419 98 9 526
+New and amended contracts 30 4 17 51
+Depreciation for the year -62 -33 -6 -101
+Translation difference for the year - - -1 -1
+Translation difference for the year - -1 - -1
+Closing balance as of December 31, 2024 387 68 19 475
+Opening balance as of January 1, 2025 387 68 19 475
+New and amended contracts 54 0 1 55
+Depreciation for the year -69 -29 -7 -105
+Impairment losses for the year -3 -35 - -38
+Terminated contracts -4 - 0 -3
+Translation difference for the year - -1 - -1
+Closing balance as of December 31, 2025 365 3 14 381
+INTRODUCTION OUR BUSINESS DIRECTORS' REPORT SUSTAINABILITY STATEMENT CORPORATE GOVERNANCE REPORT FINANCIAL STATEMENTS ADDITIONAL INFORMATION
+
+----- PAGE 108 -----
+BOOZT GROUP
+ANNUAL REPORT 2025
+PAGE _ 108
+New and amended contracts are primarily related to an expansion of the Group's HQ and a minor warehouse in Ängelholm used in the Group's
+fulfilment operations.
+Right of use asset are included within tangible asset in the Statement of financial position.
+LEASE LIABILITY
+SEK million Dec 31, 2025 Dec 31, 2024
+Short-term liability 104 97
+Long-term liability 337 401
+Total 441 499
+Long and short-term lease liabilities are included within interest-bearing liabilities in the Statement of financial position.
+AMOUNT REPORTED IN THE STATEMENT OF PROFIT OR LOSS AND OTHER COMPREHENSIVE INCOME
+SEK million Jan 1 - Dec 31, 2025 Jan 1 - Dec 31, 2024
+Depreciation of right of use asset -107 -101
+Write-down Right-of-use assets -38 -
+Interest on lease liabilities -16 -19
+Variable lease payments not included in the the lease liability -15 -13
+Costs for short-term leasing and contracts of lower value -23 -12
+Total -200 -145
+AMOUNT REPORTED IN THE CASH FLOW STATEMENT
+SEK million Jan 1 - Dec 31, 2025 Jan 1 - Dec 31, 2024
+Cash flow attributable to leases -164 -138
+Total -164 -138
+FUTURE LEASE PAYMENTS
+Existing lease contracts vary in length from 1 to 10 years. There are no material subleases, no material contingent rents, no renewal or purchase options
+nor any restrictions imposed by leasing agreements.
+Future payments, including interest for non-cancellable lease amount to SEK 440 million (499) and are broken down as follows:
+FUTURE LEASE PAYMENTS
+SEK million Dec 31, 2025 Dec 31, 2024
+Within 3 months 26 29
+Between 3-12 months 78 85
+Between 2 and 5 years 273 251
+Between 5 and 9 years 63 135
+Longer than 9 years 0 0
+Total 440 499
+LEASE AGREEMENTS NOT YET STARTED
+At the end of December 2024, a new 10-year leasing contract was signed regarding the rent of office premises in the Krystallen property in
+Copenhagen. The group moved to the head office in February 2026 and in connection with this the use of the premises began.
+INTRODUCTION OUR BUSINESS DIRECTORS' REPORT SUSTAINABILITY STATEMENT CORPORATE GOVERNANCE REPORT FINANCIAL STATEMENTS ADDITIONAL INFORMATION
+
+----- PAGE 109 -----
+BOOZT GROUP
+ANNUAL REPORT 2025
+PAGE _ 109
+9 Employees and personnel costs
+Average number of employees by country 2024
+Average number
+of employees Whereof women Whereof men
+Sweden 910 467 444
+Denmark 108 54 54
+Lithuania 66 16 51
+Total 1,085 536 549
+Gender among senior executives 2024
+Board members 6 3 2
+CEO and other senior executives 7 1 6
+Total 13 4 8
+Average number of employees by country 2025
+Sweden 820 414 407
+Denmark 116 58 58
+Lithuania 60 16 44
+Total 996 488 508
+Gender among senior executives 2025
+Board members 6 3 3
+CEO and other senior executives 7 2 5
+Total 13 5 8
+PERSONNEL COSTS AND REMUNERATION TO SENIOR EXECUTIVES
+PERSONNEL COSTS FOR THE GROUP
+SEK million Jan 1 - Dec 31, 2025 Jan 1 - Dec 31, 2024
+Salaries and remuneration -504 -601
+Social costs -147 -184
+Pension costs -28 -29
+Other employee costs -9 -10
+Total -688 -825
+SALARIES AND REMUNERATION TO SENIOR EXECUTIVES INCLUDING BENEFITS
+SEK million Jan 1 - Dec 31, 2025 Jan 1 - Dec 31, 2024
+Hermann Haraldsson (Group CEO)
+Base salary and remuneration -10 -10
+Variable remuneration -2 -4
+Other benefits (incl. taxable benefit related to LTIP) -1 -8
+Costs according to share-based payments 0 -7
+Social security costs -3 -7
+Pension costs - -
+Total -16 -35
+INTRODUCTION OUR BUSINESS DIRECTORS' REPORT SUSTAINABILITY STATEMENT CORPORATE GOVERNANCE REPORT FINANCIAL STATEMENTS ADDITIONAL INFORMATION
+
+----- PAGE 120 -----
+BOOZT GROUP
+ANNUAL REPORT 2025
+PAGE _ 120
+27 Financial risks
+The Group's business is exposed to various financial risks; currency risk, interest rate risk, credit risk and liquidity risk. The Group's overall risk
+management strategy is focused on managing uncertainty in the financial markets and strives to minimise potential adverse effects on the Group's
+financial results. The Group has developed a risk management framework in order to strengthen risk management in the Group. The framework
+establishes how risks are identified, assessed and monitored. The Board of Directors has decided on the general principles that apply to the
+management of financial risks through the adopted treasury policy. The treasury policy mainly covers the following areas; capital structure, capital
+raising, debt financing and liquidity management. The key financial risks are described below.
+CURRENCY RISK
+Currency risk is the risk that the fair value or future cash flows of a financial instrument will fluctuate due to changes in foreign exchange rates. The main
+exposure is derived from the Group's sales and purchases in foreign currencies. This exposure is called transactional exposure. Currency risks also
+exist in the translation of foreign operations' assets and liabilities into the parent company's functional currency, known as translational exposure. The
+translational exposure for the Group is limited. According to the Group's treasury policy, transactional exposure is primarily managed through natural
+hedges, which means that the risk of major performance impact due to fluctuations in exchange rates is reduced by having available cash with the
+corresponding currency distribution as for future payments of current liabilities.
+CURRENCY EXPOSURE 2025 (2024)
+Currency / SEK million Operating income Operating expenditure
+SEK 33% (32) 2,708 (2,611) 58% (59) 4,376 (4,432)
+DKK 32% (33) 2,615 (2,731) 26% (23) 1,942 (1,748)
+EUR 18% (19) 1,518 (1,571) 14% (14) 1,054 (1,084)
+NOK 12% (11) 957 (893) 1% (2) 95 (160)
+USD 0% (0) 0 (0) 0% (1) 29 (44)
+Other 6% (5) 489 (438) 1% (1) 50 (43)
+Total 100% (100) 8,287 (8,244) 100% (100) 7,546 (7,511)
+Currency / SEK million Short term liabilities Cash and cash equivalents
+SEK 56% (44) 1,413 (1,086) 27% (6) 292 (71)
+DKK 17% (19) 434 (482) 36% (27) 390 (315)
+EUR 22% (31) 554 (761) 22% (53) 246 (620)
+NOK 4% (4) 96 (102) 10% (8) 109 (94)
+USD 0% (0) 2 (8) 0% (2) 2 (18)
+Other 1% (2) 38 (51) 5% (5) 59 (56)
+Total 100% (100) 2,536 (2,488) 100% (100) 1,098 (1,174)
+The applied principle also implies that the Group will strive to make procurement with the corresponding currency distribution as budgeted revenues.
+In addition, the Group shall evaluate any imbalances in the currency inflow and outflow and seek forward contracts to hedge those imbalances. The
+Group has outstanding forward exchange contracts as of the reporting date to hedge output VAT on sales within the CIS. As shown in the table below,
+the Group's main transaction exposure consists of SEK, DKK, EUR and NOK. A 3% stronger SEK against the EUR and DKK would have an estimated
+negative effect on profit before tax of SEK 34 million (42). A 3% stronger NOK against the SEK would have, with all other variables held constant, an
+estimated positive effect on profit before tax for the year of SEK 26 million (20).
+INTEREST RATE RISK
+The Group is exposed to interest rate risk on interest-bearing long-term and current liabilities. The Group is exposed to the impact of variable interest
+on liabilities to credit institutions. On fixed-rate loans, the Group is exposed to market risk. With regards to the Group’s loan-to-value ratio, the present
+interest risk is limited. During 2025 the average effective interest rate for liabilities to credit institutions has been 4.4% per annum (4.8). If interest rates
+had been 3 percentage points higher with all other variables held constant, profit before tax for the year would have been approximately SEK 9 million
+(14) lower. If the interest will increase with 3% the group´s future lease contracts will be discounted with an implicit rate of 6.5%.
+CREDIT RISK
+At the time of a consumer transaction, the Group receives the payment immediately, or the transaction is transferred to the payment provider, whom
+the Group recognises an "other receivable" towards until the payment is collected. In general, the payment is collected within 1-3 days. If the consumer
+chooses to use invoice as payment option, the Group transfers the receivable to a credit institution who grants and carries the credit risk. The Group
+has recognised a receivable of SEK 38 million towards its payment providers from undeposited funds from sales transactions around the reporting date,
+included in other receivables in the statement of financial position. Business-to-Consumer represents 95% of the Group's total net revenue in 2024.
+The Business-to-Business sale relates to sales of marketing services to the Group’s brand partners and sale of goods through wholesale. The counter
+parties to the Group's account receivables are the Group´s brand partners, which the Group continuously is buying goods from and holds account
+payables towards. The account receivables are monitored continuously, and the value of doubtful debts is not significant, for information is available in
+Note 18. With regard to credit risks arising from the Group's other financial assets, which include cash and cash equivalents, the Group's main credit risk
+is associated with counterparties' failure to comply with their commitments, e.g. due to the counterparty going into bankruptcy. The Group's maximum
+exposure consists of the carrying value of these financial instruments. Approximately 100% of the Group's financial assets has a financial institute
+or bank as counterpart. Of the Group's financial assets, including cash and cash equivalent, approximately 82% are towards the Group's main bank,
+Danske Bank. Placement of liquid assets may only be made in banks or credit institutions with a high credit rating in accordance with the Group's
+Treasury policy. Historically, there have never been any credit losses regarding cash and cash equivalents, and it is also not considered likely that this will
+occur in the future. The Group assesses that there is no significant credit risk for the Group's financial assets at the end of 2025.
+INTRODUCTION OUR BUSINESS DIRECTORS' REPORT SUSTAINABILITY STATEMENT CORPORATE GOVERNANCE REPORT FINANCIAL STATEMENTS ADDITIONAL INFORMATION
+
+----- PAGE 121 -----
+BOOZT GROUP
+ANNUAL REPORT 2025
+PAGE _ 121
+MATURITY STRUCTURE OF OUTSTANDING ACCOUNT RECEIVABLES AND OTHER RECEIVABLES
+SEK million Dec 31, 2025 Dec 31, 2024
+Accounts receivables
+Payment not due 29 24
+Overdue 1-30 days 8 6
+Overdue > 30 days 14 12
+Doubtful accounts receivables -3 -3
+Total 48 38
+Other receivables
+Paid within 0-30 days 96 173
+Paid later than 30 days - -
+Doubtful other receivables - -
+Total 96 173
+For the Group´s principles regarding expected credit loss, see Note 1.
+LIQUIDITY RISK
+The liquidity risk to which the Group is exposed is attributable to the operation’s seasonal variations. Purchases are cyclical, and inventories are built
+up before each season, based on the Group's expected sales. This means that the timing of the outflow of cash for the purchase of stock items is not
+consistent with the timing of inflows of cash and cash equivalents attributable to sales, resulting in a liquidity risk. The liquidity risk is managed by the
+principle of financial flexibility covered by the Group's treasury policy and implies that there should be available liquid funds covering expected liquidity
+needs during the periods when the Group has the lowest access to liquid funds. This is managed by having access to overdraft facilities, which as
+per year-end 2025 amounts to SEK 100 million and a revolving credit facility of another SEK 1,000 million, which can be called without further credit
+approval. As per year-end 2025, available liquidity amounts to SEK 2,198 million. There is also a liquidity risk attributable to business growth and the
+need to improve, upgrade and invest in technology and infrastructure to manage increased sales volumes and complexity in operations. To manage this
+risk, the Board of Directors has set guidelines for the level of liquidity reserves to strive for in order to meet the arising needs. Cash flow forecasts are
+prepared and followed up on a weekly basis (operational activities, credits and current liquidity). Rolling forecasts are also prepared to ensure constant
+availability of sufficient liquidity to meet business needs as well as to have reserves in unexploited credit flows. The Group monitors that credit limits are
+not violated.
+The maturity structure for all of the Group’s financial liabilities, including principal and interest, is shown in the table below. The table shows contractual
+undiscounted amounts.
+MATURITY STRUCTURE OF OUTSTANDNING ACCOUNT PAYABLES AND OTHER LIABILITIES
+Total borrowing
+Maturity within
+3 months
+Maturity within
+three to twelve
+months
+Maturity within
+one to five
+years
+Maturity within
+five to nie years
+Maturity after
+nine years
+Maturity structure of
+borrowing Dec 31,2024
+Liabilities to credit institutions 380 - - 380 - -
+Lease liabilities 499 29 85 251 135 -
+Accounts payables 1,235 1,225 10 - - -
+Other liabilities 531 527 4 - - -
+Total 2,645 1,781 99 631 135 0
+Maturity structure of
+borrowing Dec 31, 2025
+Liabilities to credit institutions 0 - - 0 - -
+Lease liabilities 441 26 78 273 63 -
+Accounts payables 1,384 1,374 10 - - -
+Other liabilities 533 528 4 - - -
+Total 2,358 1,928 92 273 63 0
+CAPITAL RISK MANAGEMENT
+Regarding capital structure, the Group strives to secure the Group’s ability to continue to operate in order to continue to generate profit for shareholders
+and value for other stakeholders as well as maintaining an optimal capital structure. To maintain or adjust the capital structure, the Group can change
+any future dividends paid to shareholders, repay capital to shareholders, issue new shares or sell assets to reduce liabilities. The Group assesses
+the capital based on the debt/equity ratio. The debt/equity ratio is calculated as net debt divided by total capital. Net debt is calculated as total
+borrowings (including current interest-bearing liabilities and non-current interest-bearing liabilities) less cash and cash equivalents. The Group has
+covenant obligations requiring that Group’s net debt to adjusted EBITDA ratio does not increase above 3.0:1 and that the interest coverage ratio must
+not be less than 4.0:1. The covenants are reported quarterly on a rolling 12-month basis and have not been breached at any time during 2025. See Note
+21 for further information.
+INTRODUCTION OUR BUSINESS DIRECTORS' REPORT SUSTAINABILITY STATEMENT CORPORATE GOVERNANCE REPORT FINANCIAL STATEMENTS ADDITIONAL INFORMATION
+
+----- PAGE 122 -----
+BOOZT GROUP
+ANNUAL REPORT 2025
+PAGE _ 122
+28 Financial instruments at fair value
+SEK million
+Financial
+assets valued
+at amortised
+costs
+Financial
+liabilities
+valued at
+amortised
+costs
+Financial
+instruments
+measured at
+fair value via
+income
+statement
+Total carrying
+amount Fair value
+Financial assets as per December 31, 2024
+Deposits 11 - - 11 11
+Accounts receivable 38 - - 38 38
+Other receivables 173 - 1 173 173
+Cash and cash equivalents 1,174 - - 1,174 1,174
+Total financial assets December 31, 2024 1,396 0 1 1,396 1,396
+Financial liabilities as per December 31, 2024
+Liabilities to credit institutions - 380 - 380 380
+Lease liabilities - 499 - 499 499
+Accounts payables - 1,235 - 1,235 1,235
+Other liabilities - 531 - 531 531
+Total financial liabilities December 31, 2024 0 2,645 0 2,645 2,645
+SEK million
+Financial
+assets valued
+at amortised
+costs
+Financial
+liabilities
+valued at
+amortised
+costs
+Financial
+instruments
+measured at
+fair value via
+income
+statement
+Total carrying
+amount Fair value
+Financial assets as per December 31, 2025
+Deposits 28 - - 28 28
+Accounts receivable 48 - - 48 48
+Other receivables 96 - - 96 96
+Cash and cash equivalents 1,103 - -5 1,098 1,098
+Total financial assets December 31, 2025 1,275 0 -5 1,270 1,270
+Financial liabilities as per December 31, 2025
+Lease liabilities - 441 - 441 441
+Accounts payables - 1,384 - 1,384 1,384
+Other liabilities - 533 0 533 533
+Total financial liabilities December 31, 2025 0 2,357 0 2,357 2,357
+INTRODUCTION OUR BUSINESS DIRECTORS' REPORT SUSTAINABILITY STATEMENT CORPORATE GOVERNANCE REPORT FINANCIAL STATEMENTS ADDITIONAL INFORMATION
+
+----- PAGE 138 -----
+BOOZT GROUP
+ANNUAL REPORT 2025
+PAGE _ 138
+Reconciliation of
+financial statements
+RECONCILIATION OF TOTAL OPERATING INCOME
+SEK million
+Jan 1 - Dec 31,
+Jan 1 - Dec 31,
+2025
+2024
+Group
+Transactional net revenue 7,935 7,896
+Less consignment sales 0 0
+Other revenue 352 348
+Net revenue 8,287 8,244
+Boozt.com
+Transactional net revenue 6,344 6,344
+Less consignment sales 0 0
+Other revenue 315 315
+Net revenue 6,659 6,658
+Booztlet.com
+Transactional net revenue 1,591 1,553
+Less consignment sales 0 0
+Other revenue 37 34
+Net revenue 1,628 1,586
+RECONCILIATION OF ADJUSTED EBIT
+SEK million
+Jan 1 - Dec 31,
+Jan 1 - Dec 31,
+2025
+2024
+EBIT 404 452
+Share based payments related to employees (social charges) -7 15
+Share-based payments related to employees -4 65
+Non-recurring items affecting comparability* 81 -60
+Adjusted EBIT 474 473
+SPECIFICATION OF ADJUSTMENTS AFFECTING COMPERABILITY
+SEK million
+Jan 1 - Dec 31,
+Jan 1 - Dec 31,
+2025
+2024
+Admin & other costs 31 20
+Depreciation and amortisation 38 0
+Total adjustments 70 20
+INTRODUCTION OUR BUSINESS DIRECTORS' REPORT SUSTAINABILITY STATEMENT CORPORATE GOVERNANCE REPORT FINANCIAL STATEMENTS ADDITIONAL INFORMATION
+
+----- PAGE 139 -----
+BOOZT GROUP
+ANNUAL REPORT 2025
+PAGE _ 139
+RECONCILIATION WITH FINANCIAL STATEMENTS ACCORDING TO IFRS
+SEK million
+Jan 1 - Dec 31,
+Jan 1 - Dec 31,
+2025
+2024
+Cash flow from operating activites (A) 1,032 251
+Cash flow from investing activities (B) -161 -239
+Free cash flow (A) + (B) 871 12
+Transactional net revenue (A) 6,344 6,344
+Other sales (B) 169 192
+No of orders (000) (C) 6,407 6,384
+Average order value (Boozt.com) (A)-(B)/(C) 964 964
+No. of orders (000) (LTM) (A) 6,407 6,384
+Active customers (000) (B) 2,808 2,748
+No. of orders per active customer (Boozt.com) (A) / (B) 2.28 2.32
+Gross margin (%) 37.4% 39.0%
+Fulfilment cost ratio (%) -10.1% -10.6%
+Marketing cost ratio (% -9.9% -10.1%
+Admin & other cost ratio (%) -8.6% -9.4%
+Depreciation cost ratio (%) -4.0% -3.3%
+EBIT margin (%) 4.9% 5.5%
+Rounding differences may affect the summations.
+SEK million Dec 31, 2025 Dec 31, 2024
+Cash and cash equivalents 1,098 1,174
+Interest bearing liabilities (current and non-current) 0 -380
+Other non-current liabilities 0 0
+Net cash (+) / net debt (-) 1,098 795
+Total equity 2,793 2,983
+Total assets 5,704 6,293
+Equity / asset ratio 49.0% 47.4%
+Inventory 2,421 2,674
+Accounts receivable 48 38
+Other receivables 96 173
+Current tax asset 69 57
+Prepaid expenses and accrued income 145 201
+Accounts payables -1,384 -1,235
+Current tax liabilities -84 -85
+Other liabilities -534 -531
+Accrued expenses and prepaid income -430 -540
+Net working capital 347 752
+Net working capital - percent of LTM net revenue rolling 12 months 4.2% 9.1%
+INTRODUCTION OUR BUSINESS DIRECTORS' REPORT SUSTAINABILITY STATEMENT CORPORATE GOVERNANCE REPORT FINANCIAL STATEMENTS ADDITIONAL INFORMATION
+
+----- PAGE 140 -----
+BOOZT GROUP
+ANNUAL REPORT 2025
+PAGE _ 140
+Financial calendar 2026
+April 23, 2026
+Annual General Meeting 2026
+April 24, 2026
+Interim Financial Report for Q1 2026
+August 14, 2026
+Interim Financial Report for Q2 2026
+November 3, 2026
+Interim Financial Report for Q3 2026
+ 
+Consolidated financial statements are available at www.booztgroup.com.
+In case of enquiries or questions to the Group, please contact:
+Magnus Thorstholm Jensen, Head of Investor Relations
+majt@boozt.com / +45 30 50 44 02
+This report may contain forward-looking information that is based on the present expectations of Boozt’s management. No 
+assurance may be given that these expectations will prove to be correct. Actual outcomes may deviate significantly from what 
+is reflected in the forward-looking information due to changed conditions relating to the economy, market or competition, changes in 
+legal requirements and other political measures, fluctuations in exchange rates and other factors outside of Boozt’s control.
+INTRODUCTION
+OUR BUSINESS
+DIRECTORS' REPORT
+SUSTAINABILITY STATEMENT
+CORPORATE GOVERNANCE REPORT
+FINANCIAL STATEMENTS
+ADDITIONAL INFORMATION
+
+

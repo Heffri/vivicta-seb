@@ -1,0 +1,93 @@
+{
+  "report_id": "lib-acast_2025",
+  "company": "Acast",
+  "fiscal_year": 2025,
+  "currency": "SEK thousand",
+  "section": "debt_maturity",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 45414,
+      "unit": "SEK thousand",
+      "period": "2025",
+      "raw_label": "Total",
+      "source": {
+        "page": 65,
+        "quote": "Total 555,370 446,990 32,692 32,404 32,404 45,414"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 555370,
+      "unit": "SEK thousand",
+      "period": "2025",
+      "raw_label": "Total",
+      "source": {
+        "page": 65,
+        "quote": "Total 555,370 446,990 32,692 32,404 32,404 45,414"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": 544490,
+      "unit": "SEK thousand",
+      "period": "2025",
+      "raw_label": "Total",
+      "source": {
+        "page": 65,
+        "quote": "Total 555,370 446,990 32,692 32,404 32,404 45,414"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "value_derived",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "SEK thousand",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((555370 + 544490 + 0 (due_after_5_years null)) - 45414) <= 2"
+    }
+  ],
+  "warnings": [
+    "total_debt: 135382 disagrees with the maturity table; 45414 read from 'Total 555,370 446,990 32,692 32,404 32,404 45,414' by its column order",
+    "due_within_1_year: model returned null; 555370 read from 'Total 555,370 446,990 32,692 32,404 32,404 45,414' by its column order",
+    "due_1_to_5_years: model returned null; 544490 read from 'Total 555,370 446,990 32,692 32,404 32,404 45,414' by its column order"
+  ]
+}
