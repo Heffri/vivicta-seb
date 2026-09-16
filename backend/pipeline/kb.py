@@ -21,7 +21,7 @@ from pathlib import Path
 
 from openai import OpenAI
 
-from . import paths
+from . import llm, paths
 from .parse import normalize_ws
 
 CHUNK, OVERLAP, BATCH = 800, 100, 64
@@ -230,7 +230,6 @@ def _norm_name(s: str) -> str:
 
 def ask(stems: list[str], question: str, k=8, ids: dict[str, str] | None = None) -> dict:
     """Answer dict per docs/API.md. ids maps stem -> report_id (defaults to the stem)."""
-    from .extract import call_llm  # lazy: extract imports us for few-shot
     ids = ids or {}
     metas = {s: _meta(s) for s in stems}
     label = {s: f"{m.get('company') or s} FY{m.get('fiscal_year') or '?'}" for s, m in metas.items()}
@@ -240,7 +239,7 @@ def ask(stems: list[str], question: str, k=8, ids: dict[str, str] | None = None)
             + "\n\n".join(f"[{label[h['stem']]} p.{h['page']}]\n{h['text']}" for h in hits))
     warnings: list[str] = []
     try:
-        raw = call_llm(ASK_SYSTEM, user, ANSWER_SCHEMA, "answer")
+        raw = json.loads(llm.chat(ASK_SYSTEM, user, ANSWER_SCHEMA, "answer"))
     except Exception as e:  # ponytail: no retry, same as extract
         raw, warnings = {"answer": "", "citations": []}, [f"llm: {type(e).__name__}: {e}"]
 

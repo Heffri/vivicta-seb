@@ -10,12 +10,9 @@ import json
 import os
 import re
 import unicodedata
-import urllib.request
 from collections import Counter
 
-from openai import OpenAI
-
-from . import kb, locate
+from . import kb, llm, locate
 from .parse import normalize_ws, quote_on_page
 
 SYSTEM_PROMPT_TEMPLATE = """You extract figures from a corporate annual report (Swedish or English) into JSON.
@@ -97,24 +94,7 @@ def system_prompt(schema: dict, exclude_stem: str | None = None) -> str:
 
 
 def call_llm(system: str, user: str, schema: dict = RESPONSE_SCHEMA, name: str = "extraction") -> dict:
-    base, timeout = os.environ["LLM_BASE_URL"], float(os.getenv("LLM_TIMEOUT", "120"))  # a local 8b model that answers in 30-40 s and is still going after two minutes is stuck
-    messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
-    if re.search(r":11434/v1/?$", base):
-        # Ollama's native API: think=false makes qwen3 answer in ~35 s instead of ~100 s. Its OpenAI-compatible /v1 ignores
-        # both the think option and the "/no_think" soft switch, and the model then reasons for a minute before the JSON.
-        body = {"model": os.environ["LLM_MODEL"], "stream": False, "think": os.getenv("LLM_THINK", "0") == "1", "format": schema,
-                "options": {"temperature": 0, "num_ctx": int(os.getenv("LLM_NUM_CTX", "16384"))}, "messages": messages}
-        req = urllib.request.Request(base.rsplit("/v1", 1)[0] + "/api/chat", json.dumps(body).encode(), {"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            content = json.loads(r.read())["message"]["content"]
-    else:  # any OpenAI-compatible endpoint (Azure, OpenAI, a hosted model for the demo)
-        client = OpenAI(base_url=base, api_key=os.getenv("LLM_API_KEY") or "none", timeout=timeout, max_retries=0)
-        resp = client.chat.completions.create(model=os.environ["LLM_MODEL"], temperature=0, messages=messages,
-                                              response_format={"type": "json_schema", "json_schema": {"name": name, "strict": True, "schema": schema}})
-        content = resp.choices[0].message.content or ""
-    content = re.sub(r"<think>.*?</think>", "", content, flags=re.S)  # qwen3 & co
-    content = re.sub(r"^\s*```(?:json)?\s*|\s*```\s*$", "", content)  # fenced anyway? strip
-    return json.loads(content)
+    return json.loads(llm.chat(system, user, schema, name))
 
 
 def _num(v):

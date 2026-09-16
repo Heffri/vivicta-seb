@@ -21,12 +21,18 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from pipeline import extract as extract_mod, fetch, kb, locate, parse, paths, ppt
+from pipeline import extract as extract_mod, fetch, kb, llm, locate, parse, paths, ppt
 
 load_dotenv()
 UPLOADS = paths.uploads_dir()
 SCHEMAS = paths.schemas_dir()
 LIBRARY = paths.reports_dir()  # bundled reports; index.json is committed, PDFs via `python data/fetch.py`
+def _llm_configured() -> bool:
+    """A model answers /extract when an OpenAI-compatible endpoint is set, or when the Codex CLI provider is selected
+    (v031: LLM_PROVIDER=codex needs no base URL). /index and /ask still need LLM_BASE_URL for embeddings."""
+    return bool(os.getenv("LLM_BASE_URL")) or llm.provider() == "codex"
+
+
 FIXTURE = paths.fixture_path()
 COMPANIES = json.loads(paths.companies_path().read_text(encoding="utf-8"))  # Nasdaq Stockholm, data/companies_build.py
 CSV_HEADER = "report_id,company,fiscal_year,section,key,label,value,unit,period,raw_label,page,quote,confidence".split(",")
@@ -213,7 +219,7 @@ def page_png(report_id: str, n: int):
 def run_extract(report_id: str, body: ExtractBody):
     report = get_report(report_id)
     schema = load_schema(body.section)
-    if not os.getenv("LLM_BASE_URL"):  # frontend dev mode: no model configured
+    if not _llm_configured():  # frontend dev mode: no model configured
         result = json.loads(FIXTURE.read_text(encoding="utf-8")) | {"report_id": report_id}
     else:
         texts = report_texts(report_id)
@@ -273,8 +279,9 @@ def kb_extraction(stem: str, section: str):
 
 @app.get("/api/config")
 def config():
-    return {"model": os.getenv("LLM_MODEL") or "fixture", "embed_model": kb.embed_model(), "base_url": os.getenv("LLM_BASE_URL"),
-            "llm": bool(os.getenv("LLM_BASE_URL"))}
+    model = os.getenv("LLM_MODEL") or ("gpt-5.6-terra" if llm.provider() == "codex" else "fixture")  # codex default lives in llm.py
+    return {"model": model, "embed_model": kb.embed_model(), "base_url": os.getenv("LLM_BASE_URL"),
+            "llm": _llm_configured(), "provider": llm.provider() if _llm_configured() else "fixture"}
 
 
 @app.get("/api/reports/{report_id}/extraction.csv")
