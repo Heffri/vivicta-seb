@@ -60,7 +60,8 @@
       "unit_hint": "currency_millions",
       "synonyms": [
         "within 1 year", "less than 1 year", "0-1 year", "0-1 years", "within one year",
-        "inom 1 år", "förfaller inom 1 år", "< 1 år", "kortfristiga räntebärande skulder",
+        "under 1 year", "under one year", "within 3 months", "3-12 months",
+        "inom 1 år", "inom ett år", "förfaller inom 1 år", "< 1 år", "kortfristiga räntebärande skulder",
         "borrowings, current"
       ]
     },
@@ -70,8 +71,12 @@
       "description": "Amount falling due between one and five years from the balance sheet date. If the report splits this further (e.g. 1-2y, 2-5y), sum those columns. null if the table has no such row — do not enter 0 for a bucket the report doesn't print.",
       "unit_hint": "currency_millions",
       "synonyms": [
-        "1-5 years", "1 to 5 years", "between 1 and 5 years", "1-2 years", "2-5 years",
-        "1-5 år", "1–5 år", "mellan 1 och 5 år", "1-2 år", "2-5 år"
+        "1-5 years", "1 to 5 years", "between 1 and 5 years", "one to five years",
+        "1-2 years", "1-3 years", "2-3 years", "3-4 years", "4-5 years", "2-5 years",
+        "between 1 and 2 years", "between 2 and 3 years", "between 3 and 4 years",
+        "between 4 and 5 years", "between 2 and 5 years",
+        "1-5 år", "1–5 år", "mellan 1 och 5 år", "mellan ett och fem år", "inom fem år",
+        "1-2 år", "mellan 1 och 3 år", "mellan 3 och 5 år", "2-5 år"
       ]
     },
     {
@@ -81,7 +86,9 @@
       "unit_hint": "currency_millions",
       "synonyms": [
         "after 5 years", "more than 5 years", "later than 5 years", "over 5 years",
-        "senare än 5 år", "efter 5 år", "> 5 år"
+        "after five years", "more than five years", "later than five years",
+        "senare än 5 år", "efter 5 år", "> 5 år",
+        "senare än fem år", "efter fem år", "över 5 år", "över fem år"
       ]
     }
   ],
