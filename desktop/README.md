@@ -57,6 +57,22 @@ $env:ARP_DEV_BACKEND_DIR = "C:\path\to\backend"
 .\dist\win-unpacked\"Annual Report Parser.exe"
 ```
 
+## Settings
+
+The Settings tab (desktop only — a browser tab gets a read-only mirror, see `frontend/README.md`)
+picks a model provider from four cards — **Ollama** (a local server, defaults to
+`http://127.0.0.1:11434/v1` + `qwen3:8b`), an **API endpoint** (any OpenAI-compatible `/v1` host —
+OpenAI itself, or an Anthropic-compatible one), **Codex** (subscription: the local Codex CLI login,
+model `gpt-5.6-terra`/`gpt-5.6-sol`), and **Claude** (subscription: the local Claude Code CLI login,
+model `claude-sonnet-5`/`claude-opus-5`/`claude-haiku-4-5-20251001`) — plus a demo-mode link back to
+the fixture default. "Test" checks reachability (`GET <base>/models`) or, for Codex/Claude, runs
+`codex --version`/`claude --version` + a login-status check, never a real model call. "Save" writes
+`<userData>/config.json` (API key in plaintext — this file is the only place it's ever stored, and
+it never reaches a log) and restarts the backend on the same port with the matching `LLM_*` env
+(`desktop/settings.js` has the full translation table); if the restart fails the window shows the
+error and keeps running (no backend, not a crash) rather than reverting to what was there before —
+see `docs/acrylic/evidence/v033.md` for why a revert-on-failure wasn't added.
+
 ## Not signed
 
 `npm run dist` does not code-sign anything (no certificate configured). Windows SmartScreen will
@@ -68,8 +84,8 @@ certificate, which is out of scope here.
 
 - Code signing / SmartScreen suppression.
 - Auto-update.
-- A settings panel (backend port override, data directory override, etc. — currently only via the
-  `ARP_DEV_BACKEND_DIR` env var above, which is a testing escape hatch, not a UI).
+- Data directory override in the Settings UI (still only via `ARP_DEV_BACKEND_DIR`, a testing escape
+  hatch — see "Settings" above for what the UI does cover: provider/model, not paths).
 - macOS/Linux packaging targets (`win` only in `electron-builder.yml`; the acrylic material itself
   is Windows-11-only regardless — `supportsAcrylic()` in `main.js` degrades to an opaque window
   everywhere else, including Windows 10).
@@ -77,10 +93,14 @@ certificate, which is out of scope here.
 ## Files
 
 - `main.js` — main process: single-instance lock, backend launch + health check, window creation,
-  acrylic detection, titlebar-overlay tone sync.
-- `preload.js` — exposes `window.arp = { material, platform, version }` to the renderer (read by
-  `frontend/src/main.tsx`) and mirrors `<html data-tone>` back to the main process over IPC so the
-  native titlebar-overlay buttons can match the app's dark/light toggle.
+  acrylic detection, titlebar-overlay tone sync, Settings IPC (get/set/test/codexStatus/claudeStatus)
+  and the backend-restart-on-save logic.
+- `settings.js` — `<userData>/config.json` load/save and its translation to the backend's `LLM_*` env
+  vars; see "Settings" above.
+- `preload.js` — exposes `window.arp = { material, platform, version, settings }` to the renderer
+  (read by `frontend/src/main.tsx` and `frontend/src/components/SettingsView.tsx`) and mirrors
+  `<html data-tone>` back to the main process over IPC so the native titlebar-overlay buttons can
+  match the app's dark/light toggle.
 - `electron-builder.yml` — nsis + portable targets, `extraResources` from `build-resources/`
   (staged by `scripts/prepare-resources.js`, gitignored).
 - `icons/icon.ico` (+ `make-icon.js`, its generator) — placeholder mark, "AR" in a 5x7 dot-matrix

@@ -5,7 +5,8 @@ const fs = require('node:fs')
 const fsp = require('node:fs/promises')
 const http = require('node:http')
 const net = require('node:net')
-const { spawn } = require('node:child_process')
+const { spawn, spawnSync, execFile } = require('node:child_process')
+const settings = require('./settings')
 
 const isDev = !app.isPackaged
 const isWindows = process.platform === 'win32'
@@ -18,6 +19,10 @@ let mainWindow = null
 let backendProcess = null
 let viteProcess = null
 let backendLogStream = null
+let logFile = '' // set once in main(); read by applySettings()'s error messages too
+let backendBaseEnv = {} // ARP_DATA_DIR/KB_DIR/FRONTEND_DIST -- fixed for the app's lifetime, merged
+// with settings.envForConfig()'s LLM_* vars both at startup and on every settings-triggered restart
+let currentBackend = { port: null, proc: null } // the backend this instance actually owns right now
 
 function crashLog(label, err) {
   const line = `\n[${new Date().toISOString()}] ${label}: ${err && err.stack ? err.stack : err}\n`
@@ -200,15 +205,21 @@ async function startBackendFromVenv(backendDir, env, port) {
   return { port, proc, source: pythonExe }
 }
 
-async function startBackend(env) {
+// Spawns on a *specific* port, given -- the piece startBackend() and applySettings() (v033, settings
+// restart) both need, factored out so a restart can reuse the exact port the window already loaded
+// instead of re-deriving one (dev mode's is fixed anyway; packaged mode's window has already loaded
+// http://127.0.0.1:<port>/, so a restart must keep serving that same origin).
+async function launchBackendOnPort(env, port) {
   if (isDev) {
-    return startBackendFromVenv(path.join(findRepoRoot(), 'backend'), env, DEV_PORT)
+    return startBackendFromVenv(path.join(findRepoRoot(), 'backend'), env, port)
   }
 
   const backendExeName = isWindows ? 'backend.exe' : 'backend'
   const backendExe = path.join(process.resourcesPath, 'backend', backendExeName)
-  const port = await findFreePort()
   if (fs.existsSync(backendExe)) {
+    if (await httpGetOk(`http://127.0.0.1:${port}/api/config`)) {
+      return { port, proc: null, source: `${backendExe} (reusing backend already listening on :${port})` }
+    }
     const proc = attachProcLogging(
       spawn(backendExe, ['--port', String(port)], {
         env: { ...process.env, ...env },
@@ -232,6 +243,227 @@ async function startBackend(env) {
     `packaged backend not found at ${backendExe} (v030 build artifact not bundled).\n` +
       `Dev-machine smoke test: set ARP_DEV_BACKEND_DIR to a backend/ checkout with its own .venv, then relaunch.`,
   )
+}
+
+async function startBackend(env) {
+  const port = isDev ? DEV_PORT : await findFreePort()
+  return launchBackendOnPort(env, port)
+}
+
+function wireBackendLogging(backend) {
+  if (!backend.proc) return
+  backend.proc.stdout?.pipe(backendLogStream, { end: false })
+  backend.proc.stderr?.pipe(backendLogStream, { end: false })
+  backend.proc.on('exit', (code) => backendLogStream.write(`\nbackend exited with code ${code}\n`))
+}
+
+function waitForExit(proc, timeoutMs = 5000) {
+  if (!proc || proc.exitCode !== null) return Promise.resolve()
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, timeoutMs) // taskkill is fire-and-forget (killProcessTree); don't hang Save forever if it never lands
+    proc.once('exit', () => {
+      clearTimeout(timer)
+      resolve()
+    })
+  })
+}
+
+async function stopProcess(proc) {
+  killProcessTree(proc)
+  await waitForExit(proc)
+}
+
+// ---------------------------------------------------------------------------
+// Settings (v033): <userData>/config.json, save-triggers-restart, test connection.
+// ---------------------------------------------------------------------------
+
+/** Save + kill the owned backend + respawn on the *same* port with the new env + health check.
+ *  Resolves only once the new backend answers /api/config, which is also what tells the renderer
+ *  (awaiting window.arp.settings.set()) it's safe to stop showing "Restarting..." -- no separate
+ *  onBackendRestart event or renderer-side poll loop needed. */
+async function applySettings(cfg) {
+  if (!currentBackend.proc) {
+    return {
+      ok: false,
+      error:
+        'Backend is running outside this app (dev mode reused an already-listening server on this port) — ' +
+        'stop it by hand, then relaunch the app so it can apply new settings.',
+    }
+  }
+  const clean = settings.saveConfig(app.getPath('userData'), cfg)
+  const port = currentBackend.port
+  await stopProcess(currentBackend.proc)
+  const env = { ...backendBaseEnv, ...settings.envForConfig(clean) }
+  let launched
+  try {
+    launched = await launchBackendOnPort(env, port)
+  } catch (err) {
+    return { ok: false, error: err.message }
+  }
+  currentBackend = launched
+  backendProcess = launched.proc
+  backendLogStream.write(`\nrestarting backend (settings save): ${launched.source} (port ${port})\n`)
+  wireBackendLogging(launched)
+  const healthy = await waitForHealth(`http://127.0.0.1:${port}/api/config`, 30_000, launched.proc)
+  if (!healthy) {
+    return { ok: false, error: `backend did not respond on :${port} within 30s after restart (log: ${logFile})` }
+  }
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/api/config`)
+    return { ok: true, port, config: await res.json() }
+  } catch {
+    return { ok: true, port } // healthy per waitForHealth; this second fetch is just a nicety
+  }
+}
+
+async function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(url, { ...options, signal: controller.signal })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function testOpenAiCompatible(cfg) {
+  const base = (cfg.baseUrl || (cfg.provider === 'ollama' ? 'http://127.0.0.1:11434/v1' : '')).replace(/\/+$/, '')
+  if (!base) return { ok: false, error: 'Base URL is required.' }
+  try {
+    const res = await fetchWithTimeout(
+      `${base}/models`,
+      { headers: cfg.apiKey ? { Authorization: `Bearer ${cfg.apiKey}` } : {} },
+      5000,
+    )
+    if (!res.ok) return { ok: false, error: `${res.status} ${res.statusText}` }
+    const body = await res.json().catch(() => ({}))
+    const list = Array.isArray(body.data) ? body.data : Array.isArray(body.models) ? body.models : []
+    const models = list.map((m) => (typeof m === 'string' ? m : m.id || m.name)).filter(Boolean)
+    return { ok: true, kind: 'models', models }
+  } catch (err) {
+    // Node's fetch collapses every network failure to the one message "fetch failed" and puts the
+    // actual reason (ECONNREFUSED, a blocked port, DNS failure, ...) on `.cause` instead -- verified
+    // live against an unreachable port, which is not a generic "connection refused" case here but
+    // undici's own blocked-port list ("bad port"). Surface `.cause` too, or a financial user sees only
+    // the unhelpful top-level message.
+    const detail = err.cause && err.cause.message ? `: ${err.cause.message}` : ''
+    return { ok: false, error: err.name === 'AbortError' ? 'Timed out after 5s' : `${String(err.message || err)}${detail}` }
+  }
+}
+
+function findOnPath(name) {
+  try {
+    const res = spawnSync(isWindows ? 'where' : 'which', [name], { encoding: 'utf-8', windowsHide: true })
+    if (res.status === 0 && res.stdout) {
+      const first = res.stdout.split(/\r?\n/).find(Boolean)
+      if (first) return first.trim()
+    }
+  } catch {
+    /* not found */
+  }
+  return null
+}
+
+// Ports backend/pipeline/llm.py's _codex_executable() discovery order to the main process, so Test
+// (and a future restart) find the same `codex` the backend itself would: CODEX_BIN overrides, else
+// PATH (bare "codex" so Windows' PATHEXT picks up the .cmd/.ps1 shim `npm install -g` writes), else
+// the two Windows install roots llm.py already knows about.
+function codexExecutable() {
+  if (process.env.CODEX_BIN) return process.env.CODEX_BIN
+  const onPath = findOnPath('codex')
+  if (onPath) return onPath
+  const home = app.getPath('home')
+  const roots = isWindows
+    ? [
+        path.join(home, 'AppData', 'Local', 'OpenAI', 'Codex', 'bin', 'codex.exe'),
+        path.join(home, 'AppData', 'Local', 'Programs', 'OpenAI', 'Codex', 'bin', 'codex.exe'),
+      ]
+    : [path.join(home, '.codex', 'bin', 'codex')]
+  const found = roots.find((candidate) => fs.existsSync(candidate))
+  if (found) return found
+  throw new Error('codex executable not found (PATH, or the usual OpenAI Codex install dirs); set CODEX_BIN to override')
+}
+
+function runCapture(exe, args, timeoutMs = 5000) {
+  return new Promise((resolve) => {
+    execFile(exe, args, { timeout: timeoutMs, windowsHide: true }, (err, stdout, stderr) => {
+      if (err) resolve({ ok: false, error: String(err.killed ? 'Timed out' : stderr || err.message).trim() })
+      else resolve({ ok: true, stdout: stdout.trim(), stderr: stderr.trim() })
+    })
+  })
+}
+
+// `codex login status` is a real subcommand (verified: `codex login --help` lists it, this machine's
+// 0.153.4 runs it in well under a second, read-only, no model call). Fall back to the auth.json file
+// per the work order if some other Codex version lacks it -- don't guess any other subcommand.
+// Its "Logged in using ChatGPT" line comes out on *stderr*, not stdout -- confirmed by running the
+// exact execFile call standalone and printing both streams separately; missed on first pass because
+// a plain `codex login status` in a terminal merges both onto the screen with no visible distinction.
+// Checking both streams is the fix rather than hardcoding stderr, in case a future version moves it.
+async function testCodex() {
+  let exe
+  try {
+    exe = codexExecutable()
+  } catch (err) {
+    return { ok: false, error: err.message }
+  }
+  const version = await runCapture(exe, ['--version'])
+  if (!version.ok) return { ok: false, error: version.error }
+  const status = await runCapture(exe, ['login', 'status'])
+  const loggedIn = status.ok
+    ? /logged in/i.test(`${status.stdout}\n${status.stderr}`)
+    : fs.existsSync(path.join(app.getPath('home'), '.codex', 'auth.json'))
+  return { ok: true, kind: 'codex', version: version.stdout, loggedIn }
+}
+
+// Claude Code CLI discovery. `CLAUDE_BIN` matches backend/pipeline/llm.py's own _claude_executable()
+// (v039, landed after this lane started -- merged in), so a user's override works the same way for
+// both the backend's real calls and this Test button. The rest is scaled down from UAW's own
+// src/agent-runtime/claude/process-transport.ts (discoverClaudeLaunch): that version also scans an
+// npm global prefix and a "managed version" root (itself a fallback-of-a-fallback by UAW's own
+// account) neither this app nor backend/llm.py's port of it bothers with; kept here are the two steps
+// that matter for a normal install -- PATH, then the official non-npm Windows installer's target --
+// verified live on this machine (`where claude` already resolves to the second one, ~/.local/bin/claude.exe).
+function claudeExecutable() {
+  if (process.env.CLAUDE_BIN) return process.env.CLAUDE_BIN
+  const onPath = findOnPath('claude')
+  if (onPath) return onPath
+  const officialCandidate = path.join(app.getPath('home'), '.local', 'bin', isWindows ? 'claude.exe' : 'claude')
+  if (fs.existsSync(officialCandidate)) return officialCandidate
+  throw new Error('claude executable not found (PATH, or ~/.local/bin); set CLAUDE_BIN to override')
+}
+
+// `claude auth status --json` (verified live: this machine's 2.1.270 answers in well under a second,
+// read-only, no model call) -- the exact subcommand UAW's authentication-status.ts uses, not a guess.
+// Its JSON also carries email/orgId/orgName/subscriptionType; UAW's own ClaudeAuthenticationStatus type
+// deliberately keeps only {loggedIn, authMethod, apiProvider} and documents why ("no account, email,
+// organization, or token value is read here"). Same cut here: `loggedIn` is the only field that leaves
+// this function, so that account information never reaches the renderer, an IPC log, or evidence.
+async function testClaude() {
+  let exe
+  try {
+    exe = claudeExecutable()
+  } catch (err) {
+    return { ok: false, error: err.message }
+  }
+  const version = await runCapture(exe, ['--version'])
+  if (!version.ok) return { ok: false, error: version.error }
+  const status = await runCapture(exe, ['auth', 'status', '--json'])
+  let loggedIn = false
+  if (status.ok) {
+    try {
+      loggedIn = JSON.parse(status.stdout).loggedIn === true
+    } catch {
+      /* leave loggedIn false -- unparsable output is not a logged-in signal */
+    }
+  }
+  return { ok: true, kind: 'claude', version: version.stdout, loggedIn }
+}
+
+function testConnection(cfg) {
+  if (cfg?.provider === 'codex') return testCodex()
+  if (cfg?.provider === 'claude') return testClaude()
+  return testOpenAiCompatible(cfg || {})
 }
 
 // ---------------------------------------------------------------------------
@@ -335,7 +567,7 @@ async function main() {
   const userDataDir = app.getPath('userData')
   const logDir = path.join(userDataDir, 'logs')
   await fsp.mkdir(logDir, { recursive: true })
-  const logFile = path.join(logDir, 'backend.log')
+  logFile = path.join(logDir, 'backend.log')
   backendLogStream = fs.createWriteStream(logFile, { flags: 'a' })
   backendLogStream.write(`\n--- launch ${new Date().toISOString()} (isDev=${isDev}) ---\n`)
 
@@ -344,11 +576,13 @@ async function main() {
   const dataDir = await ensureUserData(userDataDir, bundledDataDir)
   const frontendDistDir = isDev ? path.join(repoRoot, 'frontend', 'dist') : path.join(process.resourcesPath, 'frontend-dist')
 
-  const backendEnv = {
+  backendBaseEnv = {
     ARP_DATA_DIR: dataDir,
     KB_DIR: path.join(dataDir, 'kb'),
     ...(fs.existsSync(frontendDistDir) ? { FRONTEND_DIST: frontendDistDir } : {}),
   }
+  const llmConfig = settings.loadConfig(userDataDir) // v033: provider/model/etc. saved by a previous Settings save
+  const backendEnv = { ...backendBaseEnv, ...settings.envForConfig(llmConfig) }
 
   let backend
   try {
@@ -358,13 +592,10 @@ async function main() {
     app.quit()
     return
   }
+  currentBackend = backend
   backendProcess = backend.proc
-  backendLogStream.write(`backend source: ${backend.source} (port ${backend.port})\n`)
-  if (backend.proc) {
-    backend.proc.stdout?.pipe(backendLogStream, { end: false })
-    backend.proc.stderr?.pipe(backendLogStream, { end: false })
-    backend.proc.on('exit', (code) => backendLogStream.write(`\nbackend exited with code ${code}\n`))
-  }
+  backendLogStream.write(`backend source: ${backend.source} (port ${backend.port}); llm provider: ${llmConfig.provider}\n`)
+  wireBackendLogging(backend)
 
   const backendHealthy = await waitForHealth(`http://127.0.0.1:${backend.port}/api/config`, 30_000, backend.proc)
   if (!backendHealthy) {
@@ -409,6 +640,12 @@ async function main() {
     if (typeof mainWindow.setTitleBarOverlay !== 'function') return
     mainWindow.setTitleBarOverlay(toneOverlayOptions(tone === 'light' ? 'light' : 'dark'))
   })
+
+  ipcMain.handle('arp:settings:get', () => settings.loadConfig(app.getPath('userData')))
+  ipcMain.handle('arp:settings:set', (_event, cfg) => applySettings(cfg))
+  ipcMain.handle('arp:settings:test', (_event, cfg) => testConnection(cfg))
+  ipcMain.handle('arp:settings:codex-status', () => testCodex())
+  ipcMain.handle('arp:settings:claude-status', () => testClaude())
 
   const shellUrl = isDev ? 'http://127.0.0.1:5173' : `http://127.0.0.1:${backend.port}/`
   mainWindow.loadURL(shellUrl)
