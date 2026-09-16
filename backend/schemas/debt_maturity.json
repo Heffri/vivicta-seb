@@ -40,7 +40,7 @@
     "liquidity risk",
     "likviditetsrisk"
   ],
-  "value_convention": "Numbers exactly as printed in the maturity table. Unit = the unit stated in the table header (MSEK, SEK m, MEUR, USD m ...). Bucket boundaries follow the report's own columns; a report with finer splits (e.g. 1-2y, 2-5y) should have its 1-5y bucket taken as the sum of those columns.",
+  "value_convention": "Numbers exactly as printed in the maturity table. Unit = the unit stated in the table header (MSEK, SEK m, MEUR, USD m ...). Bucket boundaries follow the report's own columns, which do not always match the three buckets below one-for-one — sum whichever of the report's own columns fall entirely inside a bucket's range (e.g. a first-year split of <3 months + 3-12 months into due_within_1_year, 1-2y + 2-5y into due_1_to_5_years, or 6-10y + >10y into due_after_5_years); see each field's own description.",
   "fields": [
     {
       "key": "total_debt",
@@ -56,7 +56,7 @@
     {
       "key": "due_within_1_year",
       "label": "Due within 1 year",
-      "description": "Amount falling due within one year of the balance sheet date (current portion of borrowings). null if the table has no such row — do not enter 0 for a bucket the report doesn't print.",
+      "description": "Amount falling due within one year of the balance sheet date (current portion of borrowings). If the report splits the first year further (e.g. <3 months, 3-12 months), sum those columns. null if the table has no such row — do not enter 0 for a bucket the report doesn't print.",
       "unit_hint": "currency_millions",
       "synonyms": [
         "within 1 year", "less than 1 year", "0-1 year", "0-1 years", "within one year",
@@ -76,7 +76,7 @@
     {
       "key": "due_after_5_years",
       "label": "Due after 5 years",
-      "description": "Amount falling due more than five years from the balance sheet date. null if the table has no such row — do not enter 0 for a bucket the report doesn't print.",
+      "description": "Amount falling due more than five years from the balance sheet date. If the report splits this further (e.g. 6-10y, >10y), sum those columns. null if the table has no such row — do not enter 0 for a bucket the report doesn't print.",
       "unit_hint": "currency_millions",
       "synonyms": [
         "after 5 years", "more than 5 years", "later than 5 years", "over 5 years",
