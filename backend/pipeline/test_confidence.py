@@ -405,6 +405,74 @@ def demo():
     assert x._clean_label("Revenue, TSEK") == x._clean_label("Revenue, KSEK") == x._clean_label("Revenue, kSEK") == "revenue"
     assert x._clean_label("Net sales, MEUR") == x._clean_label("Net sales") == "net sales"
     assert x._clean_label("Net sales (MSEK)") == x._clean_label("Net sales")
+    # v036: the dominant failure mode v035 found across a seed of 10 -- a maturity note that prints one row
+    # (often "Total") with the buckets as *columns* instead of one row per bucket. _year_column finds no year in
+    # a bucket header, so it and everything built on it (_column_values, _derived_value, _between_rows) bail
+    # before trying. Cloetta's own Note 21 (real text, trimmed to the header + the one row that matters):
+    cloetta = ("Note 21 Borrowings\n31 Dec 2025\nSEKm\nRemaining term\n< 1 year\nRemaining term\nRemaining term\n"
+               "1–2 years\nRemaining term\n2–5 years\n> 5 years Total\nLoans from credit institutions - - 1,353 - 1,353\n"
+               "Capitalised transaction costs -3 -5 -4 - -12\nCommercial papers 149 - - - 149\nAccrued interest 0 - - - 0\n"
+               "Lease liabilities 51 27 28 9 115\nTotal 197 22 1,377 9 1,605\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 1605, "unit": "SEKm", "period": "2025", "raw_label": "Total", "source": {"page": 1, "quote": "Total 197 22 1,377 9 1,605"}},
+        {"key": "due_within_1_year", "value": 197, "unit": "SEKm", "period": "2025", "raw_label": "Total", "source": {"page": 1, "quote": "Total 197 22 1,377 9 1,605"}},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},  # the model tried 22+1,377=1,399, correctly dropped: no literal quote for a computed sum
+        {"key": "due_after_5_years", "value": 9, "unit": "SEKm", "period": "2025", "raw_label": "Total", "source": {"page": 1, "quote": "Total 197 22 1,377 9 1,605"}}]}
+    out = x.extract([cloetta], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
+    assert got == {"total_debt": (1605, 0.9), "due_within_1_year": (197, 0.9), "due_1_to_5_years": (1399, 1.0), "due_after_5_years": (9, 0.9)}, (got, out["warnings"])
+    assert out["checks"][0]["passed"], out["checks"]  # null-filling the one bucket the model couldn't quote closes the identity, lifting the other three off their failed-check 0.5 cap too
+    d15 = next(f for f in out["fields"] if f["key"] == "due_1_to_5_years")
+    assert d15["source"]["quote"] == "Total 197 22 1,377 9 1,605" and "value_derived" in d15["evidence"] and "value_in_quote" not in d15["evidence"]  # a sum of two columns has no literal quote of its own
+    # disagree: the model attributes the "1-2 years" column (22) to due_within_1_year instead of its own "< 1 year" column -- the page's column order wins, same as every other repair in this file
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 1605, "unit": "SEKm", "period": "2025", "raw_label": "Total", "source": {"page": 1, "quote": "Total 197 22 1,377 9 1,605"}},
+        {"key": "due_within_1_year", "value": 22, "unit": "SEKm", "period": "2025", "raw_label": "Total", "source": {"page": 1, "quote": "Total 197 22 1,377 9 1,605"}},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": 9, "unit": "SEKm", "period": "2025", "raw_label": "Total", "source": {"page": 1, "quote": "Total 197 22 1,377 9 1,605"}}]}
+    out = x.extract([cloetta], [1], dm, {"fiscal_year": 2025})
+    within = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
+    assert within["value"] == 197 and any("22 disagrees with the maturity table" in w for w in out["warnings"]), (within, out["warnings"])
+    # a maturity table whose columns are calendar years rather than named buckets ("2026 2027 2028 Later"), per HANDOFF's "expect these": folded to <1y / 1-5y / >5y off the report's own fiscal year, not the model's
+    yr = "Note 20 Borrowings\nMSEK\n2026 2027 2028 Later Total\nTotal borrowings 412 1,286 933 47 2,678\n"
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 2678, "unit": "MSEK", "period": "2025", "raw_label": "Total borrowings", "source": {"page": 1, "quote": "Total borrowings 412 1,286 933 47 2,678"}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([yr], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 2678, "due_within_1_year": 412, "due_1_to_5_years": 2219, "due_after_5_years": 47} and out["checks"][0]["passed"], (got, out["warnings"])  # 2027 + 2028 = 1,286 + 933
+    # not every bucket-as-columns table is readable this way, and guessing wrong is worse than not fixing it -- three
+    # real shapes from the same seed that stay exactly as they were (v035's own "not fixed" verdicts, unchanged):
+    # XANO: the header wraps across two of _page_rows' lines ("Summa" / "inom 1 år"), scrambling column order out of
+    # print order; the safety valve is the row's own column count (8) never matching however many bucket keys are found
+    xano = ("FINANSIELLA SKULDER Förfallotid\nPER 2025-12-31 –30 dgr 31–90 dgr 91–360 dgr Summa Mellan 1 Mellan 3 Efter 5 år Totalt\n"
+            "inom 1 år och 3 år och 5 år\nSumma räntebärande skulder 4 090 8 680 38 305 51 075 768 885 33 784 50 778 904 522\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 904522, "unit": "TSEK", "period": "2025", "raw_label": "Summa räntebärande skulder", "source": {"page": 1, "quote": "Summa räntebärande skulder 4 090 8 680 38 305 51 075 768 885 33 784 50 778 904 522"}},
+        {"key": "due_within_1_year", "value": 51075, "unit": "TSEK", "period": "2025", "raw_label": "inom 1 år och 3 år och 5 år: Summa räntebärande skulder", "source": {"page": 1, "quote": "Summa räntebärande skulder 4 090 8 680 38 305 51 075 768 885 33 784 50 778 904 522"}},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([xano], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
+    assert got == {"total_debt": (904522, 0.5), "due_within_1_year": (51075, 0.5), "due_1_to_5_years": (None, 0.0), "due_after_5_years": (None, 0.0)} and not out["warnings"], (got, out["warnings"])
+    # Ework: the table's own finer split (<1 month / 1-3 / 3-12 months) never says "year", and an unexplained
+    # 6th numeric column means the header's bucket-key hits never reach the row's own column count (8) either
+    ework = ("kSEK Due < 1 month 1-3 months 3-12 months 1-5 years > 5 years Total undis- Carrying\ncounted value amount\n2025\n"
+             "Short-term interest-bearing\nliabilities* – 153,761 971 1,677 – – 156,410 156,410\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 156410, "unit": "kSEK", "period": "2025", "raw_label": "Interest-bearing liabilities", "source": {"page": 1, "quote": "Short-term interest-bearing liabilities* – 153,761 971 1,677 – – 156,410 156,410"}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": 1677, "unit": "kSEK", "period": "2025", "raw_label": "Short-term interest-bearing liabilities*", "source": {"page": 1, "quote": "Short-term interest-bearing liabilities* – 153,761 971 1,677 – – 156,410 156,410"}},
+        {"key": "due_after_5_years", "value": 0, "unit": "kSEK", "period": "2025", "raw_label": "Short-term interest-bearing liabilities*", "source": {"page": 1, "quote": "Short-term interest-bearing liabilities* – 153,761 971 1,677 – – 156,410 156,410"}}]}
+    out = x.extract([ework], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 156410, "due_within_1_year": None, "due_1_to_5_years": 1677, "due_after_5_years": None}, (got, out["warnings"])  # unchanged from the model's own (repair-dropped) answer
+    # Bergman & Beving: the only row that could be "the total" is "Total financial liabilities", which is not a
+    # total_debt synonym (no "interest-bearing"/"borrowings") and not bare Total/Summa/Totalt either -- it also
+    # includes non-interest-bearing accounts payable, so treating it as one would have been wrong, not just unproven
+    assert x._bucket_total_row(x._page_rows("Total financial liabilities 3,111 3,380 778 454 2,116 32\n"), dmf["total_debt"]) == []
     print("confidence self-check ok")
 
 

@@ -192,10 +192,12 @@ def _segment_column(text: str, fiscal_year, fields: list[dict]) -> tuple[int, in
     return (max(votes, key=lambda i: (votes[i], i)), len(run)) if votes else None  # ponytail: tie -> the rightmost pair, where the group total conventionally sits
 
 
-def _row_amounts(quote: str, ncols: int | None = None) -> list:
-    """Numbers after the row label, parsed; note references ("6, 7", "G2") dropped; a lone dash is nil (0), so columns stay aligned.
-    With the column count known, Swedish space-grouped rows are split by it: "Total sales 6, 10 155 113 161 921"
-    is a note reference plus two 6-digit amounts, which no regex can tell from five small numbers."""
+def _row_amounts(quote: str, ncols: int | None = None, nil=0) -> list:
+    """Numbers after the row label, parsed; note references ("6, 7", "G2") dropped; a lone dash is nil (0 by
+    default), so columns stay aligned. With the column count known, Swedish space-grouped rows are split by it:
+    "Total sales 6, 10 155 113 161 921" is a note reference plus two 6-digit amounts, which no regex can tell
+    from five small numbers. nil=None for callers that must tell "not printed" apart from a printed 0 (a
+    maturity-bucket column, where "-" means no debt is due in that window, not a literal zero)."""
     q = _FOOTNOTE.sub("", quote.translate(_DASHES))
     toks = q.split()
     last_alpha = max((i for i, t in enumerate(toks) if re.search(r"[^\W\d_]", t)), default=-1)
@@ -215,7 +217,7 @@ def _row_amounts(quote: str, ncols: int | None = None) -> list:
     for t in toks[last_alpha + 1:]:
         t = t.rstrip(",;")
         if t == "-":  # Volvo "Income taxes 10 -11,669 -15,542 -1,016 -1,092 – – -12,685 -16,634": the eliminations columns are nil
-            out.append(0)
+            out.append(nil)
             noteish.append(False)
             small.append(False)  # Cloetta "Accrued interest 0 - - - 0": a run of nil dashes must not desync small from out/noteish, or small[0] below runs off the end
             continue
@@ -453,6 +455,175 @@ def _between_rows(sf: dict, fields: list[dict], sfs: list[dict], defaults: dict,
     if all(_check(check, {**others[c], sf["key"]: sums[c]})["passed"] for c in range(ncols)) and quote_on_page(quote, text):
         return sums[col], quote, " + ".join(_row_label(r) for r in between), len(between)
     return None
+
+
+_BUCKET_BOUNDARY = {  # the schema's own synonyms cover most of this (dash-normalised below, so "1–2 years" matches
+    # the schema's "1-2 years"); these patch the one gap HANDOFF's examples use that the schema only states in
+    # Swedish ("< 1 år", "> 5 år") -- reports also print the plain English symbol form, e.g. Cloetta's "< 1 year".
+    "due_within_1_year": re.compile(r"(?i)<\s*1\s*years?\b"),
+    "due_after_5_years": re.compile(r"(?i)>\s*5\s*years?\b"),
+}
+_BARE_TOTAL = re.compile(r"(?i)\btotalt?\b|\bsumma\b")
+_YEAR_TAIL = re.compile(r"(?i)\b(?:later|thereafter|senare|övriga år)\b")
+
+
+def _identity_parts(schema: dict) -> tuple[str, list[str]] | None:
+    """(total_key, part_keys) read from the schema's own identity check ("parts sum to total") via null_as_zero
+    and expr -- generic, not a debt_maturity-only hook wired in by field name: any schema whose check has the
+    same shape (>=2 null_as_zero operands and exactly one other field in expr) qualifies."""
+    for sc in schema.get("checks", []):
+        parts = sc.get("null_as_zero")
+        if not (sc.get("identity") and parts and len(parts) >= 2):
+            continue
+        keys = set(re.findall(r"\b[A-Za-z_]\w*\b", sc["expr"])) - set(_SAFE_BUILTINS)
+        others = keys - set(parts)
+        if len(others) == 1:
+            return next(iter(others)), parts
+    return None
+
+
+def _bucket_synonym_hits(text: str, bucket_sfs: dict) -> list[tuple[int, str]]:
+    """[(position, key)] for every maturity-bucket synonym of every field in bucket_sfs found in text, dash-
+    normalised (so "1–2 years" matches the schema's "1-2 years"), plus _BUCKET_BOUNDARY's English-symbol patch.
+    A finer split that maps to the same key twice (Cloetta: "1–2 years" and "2–5 years" are both due_1_to_5_years)
+    keeps both hits -- each is its own table column, later summed by _bucket_assign."""
+    htext = text.translate(_DASHES)
+    hits = []
+    for key, sf in bucket_sfs.items():
+        for syn in sf.get("synonyms", []):
+            hits.extend((m.start(), key) for m in re.finditer(re.escape(syn.translate(_DASHES)), htext, re.I))
+        if key in _BUCKET_BOUNDARY:
+            hits.extend((m.start(), key) for m in _BUCKET_BOUNDARY[key].finditer(htext))
+    return hits
+
+
+def _bucket_year_hits(text: str, fiscal_year) -> list[tuple[int, str]]:
+    """A maturity table whose columns are calendar years rather than named buckets ("2026 2027 2028 Later"):
+    [(position, key)] classifying each ascending year found right after fiscal_year (1 year out =
+    due_within_1_year, 2-5 years out = due_1_to_5_years, further out or a trailing "Later"/"thereafter"/
+    "senare"/"övriga år" = due_after_5_years). [] without >=2 such years."""
+    if not fiscal_year:
+        return []
+    run = _year_run(text)
+    start = next((i for i, y in enumerate(run) if int(y) == int(fiscal_year) + 1), None)
+    if start is None or len(run) - start < 2:
+        return []
+    head = " ".join(text[:4000].split())
+    hits, pos = [], -1
+    for i, y in enumerate(run[start:], start=1):
+        pos = head.find(y, pos + 1)
+        hits.append((pos, "due_within_1_year" if i == 1 else "due_1_to_5_years" if i <= 5 else "due_after_5_years"))
+    tail = _YEAR_TAIL.search(head[pos:])
+    if tail:
+        hits.append((pos + tail.start(), "due_after_5_years"))
+    return hits
+
+
+def _bucket_header(rows: list[str], idx: int, bucket_sfs: dict, fiscal_year, max_back: int = 25) -> list[str] | None:
+    """The ordered column keys of the maturity-bucket table whose grand-total sits on rows[idx]: each bucket hit
+    above it, in print order, plus a "total" slot wherever a bare Total/Summa/Totalt column header is seen.
+    Read from a generous window of the rows above idx, not just the one right above it: pymupdf sometimes wraps
+    a two-line column header (Summa / inom 1 år) into two of _page_rows' rows, and the note's own heading and
+    instrument rows sit between the header and the total row. None without >=2 distinct bucket keys -- a page
+    that merely mentions one bucket word in passing prose is not a bucket-column table. Falls back to a literal
+    calendar-year header (_bucket_year_hits) when no named bucket reaches that bar."""
+    window = rows[max(0, idx - max_back):idx]
+    hits = []
+    for row in window:
+        row_hits = _bucket_synonym_hits(row, bucket_sfs) + [(m.start(), "total") for m in _BARE_TOTAL.finditer(row.translate(_DASHES))]
+        hits.extend(key for _, key in sorted(row_hits))
+    if len({k for k in hits if k != "total"}) < 2:
+        year_hits = None
+        for row in window:
+            yh = _bucket_year_hits(row, fiscal_year)
+            if len({k for _, k in yh}) >= 2:
+                year_hits = sorted(yh)
+                break
+        if not year_hits:
+            return None
+        hits = [key for _, key in year_hits] + (["total"] if any(_BARE_TOTAL.search(r) for r in window) else [])
+    return hits
+
+
+def _bucket_total_row(rows: list[str], total_sf: dict) -> list[int]:
+    """Indices of rows that could be a maturity table's grand-total row: the total field's own synonym ("Summa
+    räntebärande skulder"), or a bare Total/Totalt/Summa -- a schema's total-field synonyms are themselves
+    phrased as row labels ("total borrowings"), but plenty of reports print just the bare word on the total row
+    of a table that is already, by construction, about borrowings (the page only got here as a debt_maturity
+    candidate), e.g. Cloetta's and Ework's own maturity notes."""
+    return [i for i, r in enumerate(rows) if len(_row_amounts(r)) >= 2
+            and (_label_known(_row_label(r), total_sf) or _clean_label(_row_label(r)) in ("total", "totalt", "summa"))]
+
+
+def _bucket_assign(amounts: list, col_keys: list[str]) -> dict[str, float | None]:
+    """{key: value} from a row's amounts by column key: a key spanning more than one column (a finer split,
+    "1-2 years" + "2-5 years" both due_1_to_5_years) is their sum; a key whose every column is nil (None, not a
+    printed 0) is None overall, not a fabricated 0 -- "-" in a maturity table means no debt is due in that
+    window, same principle as the bucket fields' own "null if the table has no such row" rule, one level down."""
+    out: dict[str, float | None] = {}
+    for key in dict.fromkeys(col_keys):
+        vals = [amounts[i] for i, k in enumerate(col_keys) if k == key and amounts[i] is not None]
+        out[key] = round(sum(vals), 2) if vals else None
+    return out
+
+
+def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, texts: list[str], pages: list[int],
+                          fiscal_year, warnings: list[str], values: dict, filled: set) -> None:
+    """A maturity-bucket note that prints on one row, columns = buckets, instead of one row per bucket (Cloetta's
+    borrowings note: "Total 197 22 1,377 9 1,605" under a header of "< 1 year / 1-2 years / 2-5 years / > 5 years
+    / Total") -- a shape none of this file's other repairs cover, since _year_column finds no year in a bucket
+    header and every repair built on it (_column_values, _derived_value, _between_rows) bails out before it can
+    even try (docs/acrylic/evidence/v035.md, "the dominant failure mode"). Column order comes from the header
+    text itself, so this reads the shape in general, not one company's table: find the header (_bucket_header),
+    zip the row's own numbers to it (_bucket_assign), and either fill a null field or -- if the model's own
+    answer disagrees by more than the check's own rounding tolerance -- let the page win, exactly like every
+    other repair in this file (Pandox, Getinge, ...)."""
+    ident = _identity_parts(schema)
+    if not ident:
+        return
+    total_key, part_keys = ident
+    bucket_sfs = {sf["key"]: sf for sf in sfs if sf["key"] in part_keys}
+    total_sf = next((sf for sf in sfs if sf["key"] == total_key), None)
+    if len(bucket_sfs) != len(part_keys) or not total_sf:
+        return
+    by_key = {f["key"]: f for f in fields}
+    cited = {by_key[k]["source"]["page"] for k in (total_key, *part_keys) if by_key[k]["source"]}
+    for page in dict.fromkeys([p for p in pages[:2] if p] + sorted(cited)):
+        if not (0 < page <= len(texts)):
+            continue
+        rows = _page_rows(texts[page - 1])
+        candidates = _bucket_total_row(rows, total_sf)
+        if not candidates:
+            continue
+        matched = [i for i in candidates if fiscal_year and str(fiscal_year) in " ".join(rows[max(0, i - 25):i])]
+        for idx in (matched or candidates):
+            col_keys = _bucket_header(rows, idx, bucket_sfs, fiscal_year)
+            if not col_keys:
+                continue
+            amounts = _row_amounts(rows[idx], len(col_keys), nil=None)
+            if len(amounts) != len(col_keys):
+                continue
+            derived = _bucket_assign(amounts, [total_key if k == "total" else k for k in col_keys])
+            if sum(v is not None for v in derived.values()) < 2:
+                continue  # one recognised column proves nothing about the row's shape
+            acted = False
+            for key in (total_key, *part_keys):
+                value = derived.get(key)
+                current = by_key[key]["value"]
+                if value is None or (isinstance(current, (int, float)) and abs(current - value) <= 2):
+                    continue  # nothing to add, or agrees with the model's own answer -- its evidence already covers it
+                warnings.append(f"{key}: {'model returned null' if current is None else f'{current} disagrees with the maturity table'}; "
+                                 f"{value} read from {rows[idx]!r} by its column order")
+                # score_field derives value_in_quote itself from quote_on_page; only value_derived (a sum with no
+                # literal quote, e.g. two finer bucket columns) needs to be pre-seeded, or it would double-count
+                by_key[key].update(value=value, period=str(fiscal_year) if fiscal_year else by_key[key]["period"],
+                                    raw_label=_row_label(rows[idx]), source={"page": page, "quote": rows[idx]},
+                                    evidence=["quote_on_page"] if _value_in_quote(value, rows[idx]) else ["quote_on_page", "value_derived"])
+                values[key] = value
+                filled.add(key)
+                acted = True
+            if acted:
+                return
 
 
 def _statement_row(rows: list[str], sf: dict, ncols: int) -> str | None:
@@ -798,6 +969,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             warnings.append(f"{sf['key']}: {f.get('raw_label')!r} {f['value']} dropped: not a known {sf['label'].lower()} label and the statement has no {req}")
             f.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
             values.pop(sf["key"], None)
+    _fill_bucket_columns(fields, sfs, schema, texts, pages, fiscal_year, warnings, values, filled)
     checks = [_check(c, {**defaults, **values}) for c in schema.get("checks", [])]
     for c, sc in zip(checks, schema.get("checks", [])):
         if not c["passed"] or not sc.get("identity"):
