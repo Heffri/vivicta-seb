@@ -1,7 +1,7 @@
 {
   "name": "debt_maturity",
   "title": "Debt maturity structure",
-  "description": "Total interest-bearing debt and when it falls due, as printed in the borrowings note (often 'Note 20' but the number varies by issuer). Amounts only — no interest rates, no covenants.",
+  "description": "Total interest-bearing debt and when it falls due, as printed in the borrowings note (often 'Note 20' but the number varies by issuer). Amounts only — no interest rates, no covenants. Some reports print two maturity tables on nearby pages: the borrowings note's carrying amounts, and a liquidity-risk note's contractual undiscounted cash flows (includes future interest, a higher total). Read the carrying-amount table — the one whose total ties to interest-bearing borrowings on the balance sheet.",
   "keywords": [
     "borrowings",
     "loans and borrowings",
@@ -47,7 +47,7 @@
     {
       "key": "total_debt",
       "label": "Total borrowings",
-      "description": "Total interest-bearing debt / borrowings, the row the maturity table sums to (or the note's own total if the maturity table has no total row).",
+      "description": "Total interest-bearing debt / borrowings, the row the maturity table sums to (or the note's own total if the maturity table has no total row). Must be a carrying amount that reconciles to interest-bearing borrowings on the balance sheet, not an undiscounted contractual cash-flow total. Include lease liabilities (IFRS 16) only if the report's own note includes them in this total — do not add or remove leases yourself; keep the row's own wording in raw_label so the choice is traceable.",
       "unit_hint": "currency_millions",
       "synonyms": [
         "total borrowings", "total loans", "total interest-bearing liabilities", "total debt",
@@ -57,7 +57,7 @@
     {
       "key": "due_within_1_year",
       "label": "Due within 1 year",
-      "description": "Amount falling due within one year of the balance sheet date (current portion of borrowings).",
+      "description": "Amount falling due within one year of the balance sheet date (current portion of borrowings). null if the table has no such row — do not enter 0 for a bucket the report doesn't print.",
       "unit_hint": "currency_millions",
       "synonyms": [
         "within 1 year", "less than 1 year", "0-1 year", "0-1 years", "within one year",
@@ -67,7 +67,7 @@
     {
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
-      "description": "Amount falling due between one and five years from the balance sheet date. If the report splits this further (e.g. 1-2y, 2-5y), sum those columns.",
+      "description": "Amount falling due between one and five years from the balance sheet date. If the report splits this further (e.g. 1-2y, 2-5y), sum those columns. null if the table has no such row — do not enter 0 for a bucket the report doesn't print.",
       "unit_hint": "currency_millions",
       "synonyms": [
         "1-5 years", "1 to 5 years", "between 1 and 5 years", "1-2 years", "2-5 years",
@@ -77,7 +77,7 @@
     {
       "key": "due_after_5_years",
       "label": "Due after 5 years",
-      "description": "Amount falling due more than five years from the balance sheet date.",
+      "description": "Amount falling due more than five years from the balance sheet date. null if the table has no such row — do not enter 0 for a bucket the report doesn't print.",
       "unit_hint": "currency_millions",
       "synonyms": [
         "after 5 years", "more than 5 years", "later than 5 years", "over 5 years",
@@ -90,6 +90,7 @@
       "name": "maturity_sums_to_total",
       "expr": "abs((due_within_1_year + due_1_to_5_years + due_after_5_years) - total_debt) <= 2",
       "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding)",
+      "description": "A bucket with no row in the table is null upstream (see the bucket fields' description), not a fabricated 0 — but null_as_zero still counts a null bucket as 0 here, so the total is verified against whatever buckets the report does print.",
       "identity": true,
       "null_as_zero": ["due_within_1_year", "due_1_to_5_years", "due_after_5_years"]
     }
