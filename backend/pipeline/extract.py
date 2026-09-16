@@ -1,7 +1,9 @@
 """Candidate pages -> Extraction dict: one LLM call, then provenance check + arithmetic checks.
 
 Next for a teammate: (1) two-pass -- first ask the model *which* candidate page is the
-statement, then extract from that page alone (less context, fewer hallucinations);
+statement, then extract from that page alone (less context, fewer hallucinations) -- implemented
+as an opt-in `EXTRACT_TWO_PASS=1` (default off, see `_select_pages`); see docs/acrylic/evidence/v043.md
+for a 30-company before/after and the group's call on whether to flip the default;
 (2) on "quote not found" retry once with the warnings fed back into the prompt;
 (3) pick the period column explicitly (current vs prior year) instead of trusting
 the model's "leftmost number" habit; (4) tune SYSTEM_PROMPT_TEMPLATE against eval/.
@@ -95,6 +97,42 @@ def system_prompt(schema: dict, exclude_stem: str | None = None) -> str:
 
 def call_llm(system: str, user: str, schema: dict = RESPONSE_SCHEMA, name: str = "extraction") -> dict:
     return json.loads(llm.chat(system, user, schema, name))
+
+
+PAGE_SELECT_SCHEMA = {
+    "type": "object",
+    "properties": {"pages": {"type": "array", "items": {"type": "integer"}, "minItems": 1, "maxItems": 2}},
+    "required": ["pages"],
+    "additionalProperties": False,
+}
+PAGE_SELECT_SNIPPET = 400  # chars of head-of-page text per candidate; enough to see a heading, not a whole table
+PAGE_SELECT_PROMPT = """You are given the start of {n} candidate pages from a corporate annual report (Swedish or English), each labelled with its page number. Which page holds the {title} statement itself -- the printed table of figures -- not a table of contents, a note reference, or an unrelated table?
+
+If the table's heading or first rows are cut off here because it continues onto the very next page, include that page too.
+
+Return ONE JSON object {{"pages": [n]}} or {{"pages": [n, n+1]}}, using only page numbers from the candidates below, in ascending order. Never invent a page number that is not listed."""
+
+
+def _select_pages(schema: dict, pages: list[int], texts: list[str]) -> list[int] | None:
+    """EXTRACT_TWO_PASS pass 1: ask the model which 1-2 of the candidate pages (locate.candidate_pages,
+    up to top_n=8) hold the statement itself, from a short head-of-page snippet of each -- cheaper than
+    handing over the full prompt budget's worth of pages, and lets the model reach a candidate ranked
+    below the top-2 that the single-pass window never shows it. None on any call failure or an illegal
+    reply (not 1-2 unique integers, all members of the candidate list): the caller then falls back to
+    the single-pass window (pages[:2])."""
+    if len(pages) < 2:
+        return None
+    user = "\n\n".join(f"=== PAGE {n} ===\n{texts[n - 1][:PAGE_SELECT_SNIPPET]}" for n in pages)
+    system = PAGE_SELECT_PROMPT.format(n=len(pages), title=schema.get("title", schema["name"]))
+    try:
+        got = call_llm(system, user, PAGE_SELECT_SCHEMA, "page_select").get("pages")
+    except Exception:
+        return None
+    if not isinstance(got, list) or not 1 <= len(got) <= 2 or len(set(got)) != len(got):
+        return None
+    if any(not isinstance(p, int) or isinstance(p, bool) or p not in pages for p in got):
+        return None
+    return sorted(got)
 
 
 def _num(v):
@@ -687,6 +725,15 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
     system, warnings, raw = system_prompt(schema, report_meta.get("stem")), [], []
     nonnull = lambda fs: sum(isinstance(f, dict) and f.get("value") is not None for f in fs)
     windows = [tuple(pages[:2])]  # the statement spread first: a quick call (four pages timed out on NOBA / Nordnet)
+    two_pass_pages = None  # pass 1's own pick, if EXTRACT_TWO_PASS is on and it succeeded -- also stands in for
+    if os.getenv("EXTRACT_TWO_PASS") == "1" and len(pages) >= 2:  # pages[:2] below wherever that means "the statement", not "cast a wider net"
+        selected = _select_pages(schema, pages, texts)
+        if selected:
+            warnings.append(f"two_pass: page {selected} selected from candidates {pages}")
+            windows = [tuple(selected)]
+            two_pass_pages = selected
+        else:
+            warnings.append(f"two_pass: page selection failed or illegal for candidates {pages}; fell back to the single-pass window")
     while windows:
         attempt = windows.pop()
         user = (f"Fiscal year to extract: {fiscal_year}\n\n" if fiscal_year else "") + \
@@ -1018,7 +1065,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             # a row filled from the page, or one the model returned without a unit, has the statement's unit
             f["unit"] = _ccy(currency) if sf.get("unit_hint") == "currency_per_share" else currency
     fiscal_year = fiscal_year or (int(periods.most_common(1)[0][0]) if periods else None)
-    statement_pages = set(pages[:2])  # the locator's statement spread: best page + the one after it
+    statement_pages = set(two_pass_pages or pages[:2])  # the locator's statement spread: best page + the one after it; pass 1's own pick under EXTRACT_TWO_PASS
     for sf, field in zip(sfs, fields):
         if field["value"] is not None:
             score_field(field, sf, checks, schema, currency, fiscal_year, statement_pages)
