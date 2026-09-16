@@ -29,8 +29,9 @@ SCHEMAS = paths.schemas_dir()
 LIBRARY = paths.reports_dir()  # bundled reports; index.json is committed, PDFs via `python data/fetch.py`
 def _llm_configured() -> bool:
     """A model answers /extract when an OpenAI-compatible endpoint is set, or when the Codex or Claude CLI provider
-    is selected (v031: LLM_PROVIDER=codex needs no base URL; v039: same for claude). /index and /ask still need
-    LLM_BASE_URL for embeddings."""
+    is selected (v031: LLM_PROVIDER=codex needs no base URL; v039: same for claude). /ask runs on that model too:
+    since v034 its retrieval falls back to pure BM25 without LLM_BASE_URL (kb.retrieval_mode()), and /index then
+    reports keyword-only chunks instead of embedding anything."""
     return bool(os.getenv("LLM_BASE_URL")) or llm.provider() in ("codex", "claude")
 
 
@@ -235,8 +236,10 @@ def run_extract(report_id: str, body: ExtractBody):
 @app.post("/api/reports/{report_id}/index")
 def index_report(report_id: str):
     report = get_report(report_id)
-    if not os.getenv("LLM_BASE_URL"):
+    if not _llm_configured():
         return {"report_id": report_id, "chunks": 0, "embed_model": "fixture", "cached": True}
+    if kb.retrieval_mode() == "bm25":  # codex/claude-only setup: no embeddings endpoint, retrieval is keyword-only
+        return {"report_id": report_id, "chunks": len(kb.chunks(report["stem"])), "embed_model": "bm25", "cached": True}
     return kb.index(report["stem"]) | {"report_id": report_id}
 
 
@@ -247,13 +250,13 @@ def ask(body: AskBody):
     if len(body.question) > 2000:  # trust boundary: the question goes straight into the prompt
         raise HTTPException(400, "question too long (max 2000 chars)")
     ids = {get_report(r)["stem"]: r for r in body.report_ids}  # stem -> report_id; 404 on unknown ids
-    if not os.getenv("LLM_BASE_URL"):  # frontend dev mode: canned Answer, one citation
+    if not _llm_configured():  # frontend dev mode: canned Answer, one citation
         return {"question": body.question, "answer": "Fixture mode (LLM_BASE_URL unset). Revenue was 152 340 MSEK [Nordic Industrials p.64].",
                 "citations": [{"report_id": body.report_ids[0], "company": "Nordic Industrials AB (fictional fixture)", "fiscal_year": 2025,
                                "page": 64, "quote": "Intäkter 152 340 141 902", "score": 0.91}],
                 "warnings": ["fixture answer: LLM_BASE_URL unset"], "model": "fixture"}
     t0 = time.time()
-    answer = kb.ask(list(ids), body.question, ids=ids)  # indexes on demand
+    answer = kb.ask(list(ids), body.question, ids=ids)  # retrieval (BM25 or hybrid) + a real model call
     print(f"[ask] {body.report_ids}: {len(answer['citations'])} citations, {len(answer['warnings'])} warnings in {time.time() - t0:.1f}s")
     return answer
 
@@ -283,7 +286,8 @@ def config():
     # codex/claude defaults live in llm.py; not "fixture" only for a provider _llm_configured() already accepts without LLM_MODEL
     model = os.getenv("LLM_MODEL") or {"codex": "gpt-5.6-terra", "claude": "claude-sonnet-5"}.get(llm.provider(), "fixture")
     return {"model": model, "embed_model": kb.embed_model(), "base_url": os.getenv("LLM_BASE_URL"),
-            "llm": _llm_configured(), "provider": llm.provider() if _llm_configured() else "fixture"}
+            "llm": _llm_configured(), "provider": llm.provider() if _llm_configured() else "fixture",
+            "retrieval": kb.retrieval_mode()}  # v034: "hybrid" | "bm25" | "fixture"
 
 
 @app.get("/api/reports/{report_id}/extraction.csv")

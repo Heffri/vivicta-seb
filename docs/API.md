@@ -20,6 +20,7 @@ Backend runs on `http://localhost:8000`, frontend dev server proxies `/api` to i
 | `POST` | `/api/reports/{report_id}/index` | – | `IndexStatus` — chunk + embed the report into the knowledge base (idempotent, cached on disk). ~10–30 s per report locally |
 | `POST` | `/api/ask` | `{ "question": string, "report_ids": string[] }` | `Answer` — RAG over the selected reports (page texts + prior extractions). Indexes on demand if `/index` was not called |
 | `GET`  | `/api/kb` | – | `KbEntry[]` — what is in `data/kb/` (one per parsed report: pages indexed, sections extracted) |
+| `GET`  | `/api/config` | – | `{ model, embed_model, base_url, llm, provider, retrieval }` — what the backend runs with; `retrieval` is `"hybrid"` (cosine+BM25) \| `"bm25"` (keyword-only, e.g. codex/claude subscription with no embeddings endpoint) \| `"fixture"` |
 | `POST` | `/api/reports/from-library` | `{ "file": "<LibraryEntry.file>" }` | `Report` — registers a bundled report exactly like an upload would. Same file twice = same `report_id` |
 
 Errors: JSON `{ "detail": "message" }` with 4xx/5xx.
@@ -182,7 +183,8 @@ data/kb/<stem>/
 - Upload or library registration writes `meta.json` + `pages.jsonl`. `/extract` writes `extractions/<section>.json`.
 - `/index` chunks `pages.jsonl` (~800 chars, page-aware) **and** turns each extracted field into a fact chunk
   (`"Atlas Copco FY2025 · Consolidated income statement · Revenue = 176 771 MSEK (p.106)"`), embeds both with `EMBED_MODEL`.
-- `/ask` retrieves top-k chunks by cosine (+ keyword overlap rerank so exact figures/labels win), prompts `LLM_MODEL` with
+- `/ask` retrieves top-k chunks — hybrid cosine+BM25 when `LLM_BASE_URL` provides embeddings, pure BM25 otherwise
+  (a codex/claude subscription has no embeddings endpoint; see `GET /api/config`'s `retrieval`) — prompts `LLM_MODEL` with
   the chunks labelled `[Company p.N]`, requires verbatim quotes, verifies them on the page — same provenance rule as fields.
 - "Gets better over time": `/extract` includes up to 2 prior *checks-passed* extractions of the same section from the KB
   as few-shot examples in the prompt (`FEWSHOT=0` disables). Fine-tuning is out of scope; the KB is the training set if it ever isn't.
