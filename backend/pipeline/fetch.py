@@ -16,8 +16,8 @@ from pathlib import Path
 
 import pymupdf as fitz
 
-REPORTS = Path(__file__).resolve().parents[2] / "data" / "reports"
-INDEX = REPORTS / "index.json"
+from . import paths
+
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36"}
 MAX_TRIES = 6
 NOT_AR = re.compile(r"general meeting|st[äa]mma|notice|kallelse|nomination|valberedning|20-f|interim|delårs|quarter", re.I)
@@ -255,8 +255,9 @@ def _validate(data, company, year):
     return doc, text
 
 
-def _load_index():
-    return json.loads(INDEX.read_text(encoding="utf-8")) if INDEX.exists() else []
+def _load_index(dest_dir: Path) -> list:
+    p = dest_dir / "index.json"
+    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else []
 
 
 def _stub_pages(data, toks):
@@ -277,10 +278,10 @@ def _stub_pages(data, toks):
             ("/investor-relations/annual-report.html", "/investor-relations.html", "/en/investors", "/investors", "/")]
 
 
-def fetch_report(company: str, year: int, dest_dir=REPORTS) -> dict:
-    dest_dir = Path(dest_dir)
+def fetch_report(company: str, year: int, dest_dir: "Path | None" = None) -> dict:
+    dest_dir = Path(dest_dir) if dest_dir is not None else paths.reports_dir()
     fname = f"{slugify(company)}_{year}.pdf"
-    index = _load_index()
+    index = _load_index(dest_dir)
     for e in index:  # cache hit
         if e["file"] == fname and (dest_dir / fname).exists():
             return {**e, "tried": []}
@@ -316,7 +317,7 @@ def fetch_report(company: str, year: int, dest_dir=REPORTS) -> dict:
         index = [e for e in index if e["file"] != fname] + [entry]
         s = json.dumps(index, ensure_ascii=False, indent=2)
         s = re.sub(r'\[\s+("[^\]]*?")\s+\]', lambda m: "[" + re.sub(r",\s+", ", ", m.group(1)) + "]", s)  # tags on one line
-        INDEX.write_text(s + "\n", encoding="utf-8")
+        (dest_dir / "index.json").write_text(s + "\n", encoding="utf-8")
         return {**entry, "tried": tried}
     raise LookupError(tried)
 

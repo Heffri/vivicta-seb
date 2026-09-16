@@ -21,9 +21,9 @@ from pathlib import Path
 
 from openai import OpenAI
 
+from . import paths
 from .parse import normalize_ws
 
-HERE = Path(__file__).resolve().parent.parent  # backend/
 CHUNK, OVERLAP, BATCH = 800, 100, 64
 ASK_SYSTEM = ("You answer questions about annual reports using ONLY the excerpts. Each excerpt is labelled "
               "[Company FY p.N]. Cite every number/claim inline as [Company p.N]. For each citation also give a short "
@@ -45,7 +45,7 @@ _pages_cache: dict[str, tuple[float, dict[int, str]]] = {}
 
 
 def kb_dir() -> Path:  # function, not constant: app.py calls load_dotenv() after importing us
-    return (HERE / os.getenv("KB_DIR", "../data/kb")).resolve()
+    return paths.kb_dir()
 
 
 def embed_model() -> str:
@@ -120,7 +120,7 @@ def _fmt(v) -> str:
 
 
 def _title(section: str) -> str:
-    p = HERE / "schemas" / f"{section}.json"
+    p = paths.schemas_dir() / f"{section}.json"
     return json.loads(p.read_text(encoding="utf-8")).get("title", section) if p.exists() else section
 
 
@@ -305,7 +305,7 @@ def fewshot_examples(section: str, exclude_stem: str | None, n: int) -> list[dic
 def build() -> None:
     """meta + pages + embeddings for every data/reports/index.json entry present on disk."""
     from .parse import page_texts
-    lib = HERE.parent / "data" / "reports"
+    lib = paths.reports_dir()
     for e in json.loads((lib / "index.json").read_text(encoding="utf-8")):
         pdf = lib / e["file"]
         if not pdf.exists():
@@ -320,7 +320,7 @@ def build() -> None:
 if __name__ == "__main__":
     import sys
     from dotenv import load_dotenv
-    load_dotenv(HERE / ".env")
+    load_dotenv(paths.resource_dir() / ".env")
     if sys.argv[1:] == ["build"]:
         build()
     else:

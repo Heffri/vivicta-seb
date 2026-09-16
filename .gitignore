@@ -1,6 +1,6 @@
 # data
 data/reports/*.pdf
-backend/uploads/
+data/uploads/
 # derived, rebuilt by POST /index; meta.json, pages.jsonl, extractions/ stay committed
 data/kb/*/embeddings.jsonl
 data/kb/*/*.tmp
@@ -12,6 +12,8 @@ __pycache__/
 *.pyc
 .venv/
 backend/.env
+backend/dist/
+backend/build/
 
 # node
 node_modules/
