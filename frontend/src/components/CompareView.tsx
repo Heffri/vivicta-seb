@@ -34,35 +34,30 @@ export function CompareView({ results, onSelect, onReset }: Props) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Field</TableHead>
+              <TableHead className="sticky left-0 z-10 bg-card">Field</TableHead>
               {results.map((r, i) => {
                 const x = r.extraction
                 const failed = x?.checks.filter((c) => !c.passed).length ?? 0
                 return (
-                  <TableHead key={i} className="min-w-40 align-top">
-                    <button
-                      type="button"
-                      onClick={() => x && onSelect(i)}
-                      disabled={!x}
-                      className="flex flex-col items-start gap-1 py-2 text-left enabled:cursor-pointer enabled:hover:underline"
-                    >
-                      <span className="font-medium text-foreground">{r.label}</span>
-                      <span className="text-xs font-normal">FY {x?.fiscal_year ?? '—'}</span>
-                      {x ? (
-                        <Badge
-                          variant="outline"
-                          className={
-                            failed === 0
-                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                              : 'border-red-200 bg-red-50 text-red-700'
-                          }
-                        >
-                          {x.checks.length === 0 ? 'No checks' : `${x.checks.length - failed}/${x.checks.length} checks`}
-                        </Badge>
-                      ) : (
-                        <Badge variant="destructive">failed</Badge>
-                      )}
-                    </button>
+                  <TableHead key={i} className="min-w-48 p-1.5 align-top">
+                    <Card size="sm" className="gap-1">
+                      <button
+                        type="button"
+                        onClick={() => x && onSelect(i)}
+                        disabled={!x}
+                        className="flex w-full flex-col items-start gap-1 px-3 py-1.5 text-left enabled:cursor-pointer enabled:hover:underline"
+                      >
+                        <span className="font-medium text-foreground">{r.label}</span>
+                        <span className="text-xs font-normal text-muted-foreground">FY {x?.fiscal_year ?? '—'}</span>
+                        {x ? (
+                          <Badge variant={failed === 0 ? 'success' : 'danger'}>
+                            {x.checks.length === 0 ? 'No checks' : `${x.checks.length - failed}/${x.checks.length} checks`}
+                          </Badge>
+                        ) : (
+                          <Badge variant="danger">failed</Badge>
+                        )}
+                      </button>
+                    </Card>
                   </TableHead>
                 )
               })}
@@ -71,12 +66,12 @@ export function CompareView({ results, onSelect, onReset }: Props) {
           <TableBody>
             {rows.map((row, ri) => (
               <TableRow key={row.key}>
-                <TableCell className="font-medium">{row.label}</TableCell>
+                <TableCell className="sticky left-0 z-10 bg-card font-medium">{row.label}</TableCell>
                 {results.map((r, i) => {
                   if (!r.extraction) {
                     // One tall cell with the error instead of N empty ones.
                     return ri === 0 ? (
-                      <TableCell key={i} rowSpan={rows.length} className="max-w-60 whitespace-normal align-top text-xs text-destructive">
+                      <TableCell key={i} rowSpan={rows.length} className="max-w-60 whitespace-normal align-top text-xs text-danger">
                         {r.error}
                       </TableCell>
                     ) : null
@@ -99,7 +94,7 @@ export function CompareView({ results, onSelect, onReset }: Props) {
           </TableBody>
           <TableFooter>
             <TableRow>
-              <TableCell />
+              <TableCell className="sticky left-0 z-10 bg-muted/50" />
               {results.map((r, i) => (
                 <TableCell key={i}>
                   {r.extraction && (

@@ -73,7 +73,7 @@ export function AskPanel({ reports, onCitation }: Props) {
               <li key={i} className="space-y-2 border-b pb-4 text-sm last:border-b-0">
                 <p className="font-medium">{t.question}</p>
                 {t.error ? (
-                  <p role="alert" className="text-destructive">
+                  <p role="alert" className="text-danger">
                     {t.error}
                   </p>
                 ) : (
@@ -89,7 +89,7 @@ export function AskPanel({ reports, onCitation }: Props) {
                               variant="outline"
                               render={<button type="button" />}
                               title={c.quote}
-                              className="cursor-pointer hover:bg-muted"
+                              className="cursor-pointer transition-colors hover:border-ring hover:bg-accent hover:text-accent-foreground"
                               onClick={() =>
                                 onCitation
                                   ? onCitation(c.report_id, c.page)
@@ -102,7 +102,7 @@ export function AskPanel({ reports, onCitation }: Props) {
                         </div>
                       )}
                       {t.answer.warnings.map((w) => (
-                        <p key={w} className="flex gap-1.5 text-xs text-amber-700/80">
+                        <p key={w} className="flex gap-1.5 text-xs text-warning">
                           <TriangleAlert className="mt-0.5 size-3 shrink-0" aria-hidden />
                           <span className="break-words">{w}</span>
                         </p>
@@ -124,9 +124,19 @@ export function AskPanel({ reports, onCitation }: Props) {
         <div className="space-y-2">
           <div className="flex flex-wrap gap-1.5">
             {EXAMPLES.map((q) => (
-              <Button key={q} size="xs" variant="outline" disabled={busy || ids.length === 0} onClick={() => submit(q)}>
+              <Badge
+                key={q}
+                variant="outline"
+                render={<button type="button" />}
+                aria-disabled={busy || ids.length === 0}
+                onClick={() => {
+                  if (busy || ids.length === 0) return
+                  submit(q)
+                }}
+                className="cursor-pointer transition-colors hover:bg-accent hover:text-accent-foreground aria-disabled:pointer-events-none aria-disabled:opacity-40"
+              >
                 {q}
-              </Button>
+              </Badge>
             ))}
           </div>
           <div className="flex items-end gap-2">
