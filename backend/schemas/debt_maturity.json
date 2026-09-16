@@ -38,7 +38,9 @@
     "maturity",
     "maturities",
     "förfall",
-    "loans payable"
+    "loans payable",
+    "liquidity risk",
+    "likviditetsrisk"
   ],
   "value_convention": "Numbers exactly as printed in the maturity table. Unit = the unit stated in the table header (MSEK, SEK m, MEUR, USD m ...). Bucket boundaries follow the report's own columns; a report with finer splits (e.g. 1-2y, 2-5y) should have its 1-5y bucket taken as the sum of those columns.",
   "fields": [
