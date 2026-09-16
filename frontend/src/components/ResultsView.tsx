@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { csvUrl, pptxUrl } from '@/api'
 import { AskPanel } from '@/components/AskPanel'
 import { FieldsTable } from '@/components/results/FieldsTable'
+import { MaturityChart } from '@/components/results/MaturityChart'
 import { SourcePanel, type Viewer } from '@/components/results/SourcePanel'
 import { StatusCards } from '@/components/results/StatusCards'
 import { Badge } from '@/components/ui/badge'
@@ -144,6 +145,10 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack, initial
           brokenPage={brokenPage}
           onBrokenPage={setBrokenPage}
         />
+
+        {/* Maturity buckets (v009) — nothing renders unless the fields look like
+            maturity buckets, the same rule ppt.py uses to pick chart over table. */}
+        <MaturityChart extraction={extraction} selectedKey={selectedKey} onSelect={selectField} />
 
         <StatusCards checks={checks} warnings={warnings} />
 
