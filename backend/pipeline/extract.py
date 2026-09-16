@@ -606,6 +606,18 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
             derived = _bucket_assign(amounts, [total_key if k == "total" else k for k in col_keys])
             if sum(v is not None for v in derived.values()) < 2:
                 continue  # one recognised column proves nothing about the row's shape
+            total_val = derived.get(total_key)
+            over = {k: v for k, v in derived.items() if k != total_key and v is not None and total_val is not None and v > total_val + 2}
+            if over:
+                # Acast: two stacked calendar-year tables (this year, prior year) end in their own bare "Total" row;
+                # the wrong-year row's own header can still be read as *a* bucket header of the same column count by
+                # coincidence, producing a bucket bigger than the row's own total -- never true of a real maturity
+                # table (every bucket is part of the total). The column reading is untrustworthy across the whole
+                # row, not just the one field that happens to look wrong, so every field here keeps the model's own
+                # answer rather than have one column "fixed" out of a header that was never really aligned to begin with.
+                warnings.append(f"{total_key}: column reading of {rows[idx]!r} rejected -- {', '.join(f'{k} {v}' for k, v in over.items())} "
+                                 f"exceed{'s' if len(over) == 1 else ''} its own total {total_val}; model's own values kept")
+                continue
             acted = False
             for key in (total_key, *part_keys):
                 value = derived.get(key)
@@ -939,8 +951,13 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                 continue
             taken = {g["source"]["quote"] for g in fields if g is not f and g["value"] is not None and g.get("source")}  # Nordea: tax row + net profit row offered as net profit
             own_syns = {cl for s in sf.get("synonyms", []) if (cl := _clean_label(s))}  # the synonyms through the same _clean_label as the rows' labels ("Within 1 year" is within1year); a synonym that cleans away to nothing must not match every row
-            own_row = _value_in_quote(f["value"], f["source"]["quote"]) and _clean_label(_row_label(f["source"]["quote"])) in own_syns \
-                    and _clean_label(f.get("raw_label")) == _clean_label(_row_label(f["source"]["quote"]))  # IPC: "Cost of sales" heading over a "Production costs" row is not the row
+            own_row = _value_in_quote(f["value"], f["source"]["quote"]) \
+                    and _clean_label(f.get("raw_label")) == _clean_label(_row_label(f["source"]["quote"]))  # IPC: "Cost of sales" heading over a "Production costs"
+            # row is not the row. Deliberately not also gated on that label being a *known* synonym (Nelly: "Kortfristiga"
+            # 36,2 is due_within_1_year's own row, printed and labelled faithfully, but the schema has no bare
+            # "kortfristiga" synonym -- requiring one here left the row uncounted as "its own", so the unrestricted
+            # search below was free to fold in "Långfristiga" (non-current) as if it belonged, overwriting a correct
+            # current-portion read with the current+non-current total)
             # Sagax: "Profit before tax 4,485" is the row; it may be corrected by the rows above it summing differently (Röko), or joined by a
             # row named as part of it (Essity), never by any other neighbour ("Profit before tax + Deferred tax") -- the tax row's problem
             fix = _derived_value(f, texts, fiscal_year, sc, _column_values(f, fields, defaults, texts, fiscal_year), taken,

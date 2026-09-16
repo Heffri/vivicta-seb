@@ -473,6 +473,65 @@ def demo():
     # total_debt synonym (no "interest-bearing"/"borrowings") and not bare Total/Summa/Totalt either -- it also
     # includes non-interest-bearing accounts payable, so treating it as one would have been wrong, not just unproven
     assert x._bucket_total_row(x._page_rows("Total financial liabilities 3,111 3,380 778 454 2,116 32\n"), dmf["total_debt"]) == []
+    # v040: Acast (seed 2, real Note text) -- two stacked calendar-year maturity tables (this year, then a
+    # prior-year comparative), each ending in a bare "Total" row. The current year's own Total row is glued to
+    # trailing sidebar prose by the PDF's column layout ("...19,250 approximation of fair value." then "2024"
+    # on its own line merges onto the same row), so it never reads as >=2 amounts and drops out as a candidate;
+    # only the prior year's row is left. Its own column count (6) still happens to match the *current* year's
+    # own header (found first, scanning top-down over the whole page) closely enough to pass the safety valve,
+    # producing a due_within_1_year bigger than its own total_debt. A bucket can never exceed the total it is
+    # part of, in any report: reject the whole row's column reading when one does, rather than "fix" one field
+    # out of a header that was never really aligned to that row to begin with.
+    acast = ("SEK thousand Carrying amount 2026 2027 2028 2029 After 2029 The carrying amounts of the Group's finance lease\n"
+             "Total 690,785 592,113 34,980 33,467 21,826 19,250 approximation of fair value.\n2024\n"
+             "SEK thousand Carrying amount 2025 2026 2027 2028 After 2028\n"
+             "Total 555,370 446,990 32,692 32,404 32,404 45,414\n")
+    leases = "SEK thousand 31.12.2025 31.12.2024\nLease liabilities\nCurrent 32,052 23,443\nNon-current 103,330 117,709\nTotal lease Liability 135,382 141,152\n"
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 135382, "unit": "SEK thousand", "period": "2025", "raw_label": "Total lease Liability",
+         "source": {"page": 1, "quote": "Total lease Liability 135,382 141,152"}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([leases, acast], [1, 2], dm, {"fiscal_year": 2025})
+    got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
+    assert got == {"total_debt": (135382, 0.9), "due_within_1_year": (None, 0.0), "due_1_to_5_years": (None, 0.0), "due_after_5_years": (None, 0.0)}, (got, out["warnings"])
+    assert any("exceed its own total 45414" in w for w in out["warnings"]), out["warnings"]  # the column reading is rejected outright, not one field silently "fixed"
+    # v040: Nelly Group (seed 2, real Note text) -- the model correctly reads due_within_1_year from its own
+    # "Kortfristiga" (current) row, but the schema has no bare "kortfristiga" synonym (only the compound
+    # "kortfristiga räntebärande skulder"), so the row was never recognised as due_within_1_year's own -- and
+    # the neighbour-sum repair, left unrestricted, folded in "Långfristiga" (non-current) too, turning a
+    # correct current-portion read into the current+non-current total. A row the model already read and
+    # labelled faithfully is its own row whether or not the schema happens to recognise that label as a
+    # synonym *yet* -- see own_row in extract().
+    nelly = ("Leasingskulder (Miljoner kronor) 2025 2024\nKortfristiga 36,2 35,7\nLångfristiga 250,9 251,5\n"
+             "Leasingskulder som ingår i\n\xadrapporten över finansiell ställning 287,1 287,2\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 287.1, "unit": "Miljoner kronor", "period": "2025",
+         "raw_label": "Leasingskulder som ingår i rapporten över finansiell ställning",
+         "source": {"page": 1, "quote": "\xadrapporten över finansiell ställning 287,1 287,2"}},
+        {"key": "due_within_1_year", "value": 36.2, "unit": "Miljoner kronor", "period": "2025", "raw_label": "Kortfristiga",
+         "source": {"page": 1, "quote": "Kortfristiga 36,2 35,7"}},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([nelly], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
+    assert got == {"total_debt": (287.1, 0.5), "due_within_1_year": (36.2, 0.5), "due_1_to_5_years": (None, 0.0), "due_after_5_years": (None, 0.0)}, (got, out["warnings"])
+    assert not out["warnings"], out["warnings"]  # no repair fires at all: the model's own, correctly-labelled row stands unmolested
+    # v040: a maturity table's own Total row is not immune to the report's usual "-" nil convention either --
+    # a dash inside the bucket columns (not just in the instrument rows above the total, which Cloetta's own
+    # test above already covers) must not desync col_keys from amounts, trailing or mid-row, and must read as
+    # "no debt due in that window" (None), never a fabricated 0.
+    header = "Note 21 Borrowings\n31 Dec 2025\nSEKm\nRemaining term\n< 1 year\nRemaining term\nRemaining term\n1–2 years\nRemaining term\n2–5 years\n> 5 years Total\n"
+    x.call_llm = lambda *a, **k: {"fields": [{"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None} for k in dmf]}
+    out = x.extract([header + "Total 197 22 1,377 - 1,596\n"], [1], dm, {"fiscal_year": 2025})  # trailing dash: no >5y bucket
+    got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
+    assert got == {"total_debt": (1596, 0.9), "due_within_1_year": (197, 0.9), "due_1_to_5_years": (1399, 1.0), "due_after_5_years": (None, 0.0)}, (got, out["warnings"])
+    assert out["checks"][0]["passed"], out["checks"]
+    out = x.extract([header + "Total 197 - 1,377 9 1,583\n"], [1], dm, {"fiscal_year": 2025})  # mid-row dash: no 1-2y bucket, 2-5y and >5y still line up
+    got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
+    assert got == {"total_debt": (1583, 0.9), "due_within_1_year": (197, 0.9), "due_1_to_5_years": (1377, 0.9), "due_after_5_years": (9, 0.9)}, (got, out["warnings"])
+    assert out["checks"][0]["passed"], out["checks"]
     print("confidence self-check ok")
 
 
