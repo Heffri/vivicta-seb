@@ -361,6 +361,29 @@ def demo():
         ("total_debt", 32703, 1.0), ("due_within_1_year", 3538, 1.0), ("due_1_to_5_years", 29165, 1.0),
         ("due_after_5_years", None, 0.0)], (out["fields"], out["warnings"])
     assert out["checks"][0]["passed"] and "due_after_5_years null" in out["checks"][0]["detail"], out["checks"]
+    # v014: the sum-repair's own_syns (extract(), the _derived_value call) held the synonyms verbatim while the
+    # rows' labels go through _clean_label -- a part row named by a digit-bearing synonym ("Within 1 year" is
+    # within1year) could never join the field's own row, so the Essity-style join silently died for digit labels.
+    # "cost total" (digit-free) names the quote's own row, so own_row itself is true on both sides of the change;
+    # the digit synonym names the part row that must be allowed to join.
+    gp14 = {"name": "gp14", "expr": "abs((revenue + special_cost) - gross_profit) <= 2", "identity": True}
+    syn14 = {"name": "is", "keywords": [], "fields": [
+        {"key": "revenue", "label": "Revenue", "synonyms": ["revenue"], "unit_hint": "currency_millions"},
+        {"key": "special_cost", "label": "Special cost", "synonyms": ["cost total", "within 1 year"], "unit_hint": "currency_millions"},
+        {"key": "gross_profit", "label": "Gross profit", "synonyms": ["gross profit"], "unit_hint": "currency_millions"}],
+        "checks": [gp14]}
+    p14 = ("Consolidated income statement\nSEKm\nNote\n2025\n2024\nCost of sales\nWithin 1 year items -20 -15\n"
+           "Cost total -100 -90\nRevenue 500 450\nGross profit 380 345\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "revenue", "value": 500, "unit": "SEKm", "period": "2025", "raw_label": "Revenue", "source": {"page": 1, "quote": "Revenue 500 450"}},
+        {"key": "special_cost", "value": -100, "unit": "SEKm", "period": "2025", "raw_label": "Cost total", "source": {"page": 1, "quote": "Cost total -100 -90"}},
+        {"key": "gross_profit", "value": 380, "unit": "SEKm", "period": "2025", "raw_label": "Gross profit", "source": {"page": 1, "quote": "Gross profit 380 345"}}]}
+    out = x.extract([p14], [1], syn14, {"fiscal_year": 2025})
+    cost = out["fields"][1]
+    assert (cost["value"], cost["confidence"]) == (-120, 1.0) and "value_derived" in cost["evidence"] \
+        and cost["raw_label"] == "Cost of sales" \
+        and cost["source"]["quote"] == "Within 1 year items -20 -15 Cost total -100 -90", (cost, out["warnings"])
+    assert out["checks"][0]["passed"], out["checks"]
     print("confidence self-check ok")
 
 

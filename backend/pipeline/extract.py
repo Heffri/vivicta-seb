@@ -784,12 +784,13 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                     or "value_derived" in f["evidence"] or (c["passed"] and _value_in_quote(f["value"], f["source"]["quote"])):
                 continue
             taken = {g["source"]["quote"] for g in fields if g is not f and g["value"] is not None and g.get("source")}  # Nordea: tax row + net profit row offered as net profit
-            own_row = _value_in_quote(f["value"], f["source"]["quote"]) and _clean_label(_row_label(f["source"]["quote"])) in {x.lower() for x in sf.get("synonyms", [])} \
+            own_syns = {cl for s in sf.get("synonyms", []) if (cl := _clean_label(s))}  # the synonyms through the same _clean_label as the rows' labels ("Within 1 year" is within1year); a synonym that cleans away to nothing must not match every row
+            own_row = _value_in_quote(f["value"], f["source"]["quote"]) and _clean_label(_row_label(f["source"]["quote"])) in own_syns \
                     and _clean_label(f.get("raw_label")) == _clean_label(_row_label(f["source"]["quote"]))  # IPC: "Cost of sales" heading over a "Production costs" row is not the row
             # Sagax: "Profit before tax 4,485" is the row; it may be corrected by the rows above it summing differently (Röko), or joined by a
             # row named as part of it (Essity), never by any other neighbour ("Profit before tax + Deferred tax") -- the tax row's problem
             fix = _derived_value(f, texts, fiscal_year, sc, _column_values(f, fields, defaults, texts, fiscal_year), taken,
-                                 {x.lower() for x in sf.get("synonyms", [])} if own_row else None)
+                                 own_syns if own_row else None)
             if fix and _check(sc, {**defaults, **values, f["key"]: fix[0]})["passed"]:
                 if fix[0] != f["value"]:
                     warnings.append(f"{f['key']}: {f['value']} fails {c['name']}; {fix[1]!r} sums to {fix[0]} in every column, which passes")
