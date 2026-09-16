@@ -84,8 +84,9 @@ export function CachedReports({
               })}
             </div>
             {/* Fills its face at ≥1280 (like the dropzone already does) up to the same max-h-72
-                cap that bounds the stacked layout; cards stay top-aligned either way. */}
-            <div className="grid max-h-72 gap-2 overflow-y-auto pr-0.5 sm:grid-cols-2 min-[1280px]:grid-cols-1 min-[1280px]:flex-1 min-[1280px]:min-h-0">
+                cap that bounds the stacked layout; content-start keeps the cards at their own
+                height, packed at the top. */}
+            <div className="grid max-h-72 content-start gap-2 overflow-y-auto pr-0.5 sm:grid-cols-2 min-[1280px]:grid-cols-1 min-[1280px]:flex-1 min-[1280px]:min-h-0">
               {library.map((e) => (
                 <label
                   key={e.file}
