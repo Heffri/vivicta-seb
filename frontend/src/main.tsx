@@ -5,11 +5,48 @@ import App from './App.tsx'
 
 // desktop/preload.js exposes this on Electron only; a browser tab never has `window.arp`, so
 // dataset.material is simply never set and index.css's [data-material="on"] block never matches.
+// `settings` (v033) is SettingsView.tsx's only way to read/write the desktop config and restart the
+// backend — declared here, the one place `window.arp`'s shape exists, so it stays a single source of
+// truth instead of a second `declare global` risking a conflicting re-declaration.
+export type ArpSettingsApi = {
+  get(): Promise<DesktopConfig>
+  set(cfg: DesktopConfig): Promise<SetSettingsResult>
+  test(cfg: DesktopConfig): Promise<TestConnectionResult>
+  codexStatus(): Promise<TestConnectionResult>
+  claudeStatus(): Promise<TestConnectionResult>
+}
+
 declare global {
   interface Window {
-    arp?: { material: 'acrylic' | 'none'; platform: string; version: string }
+    arp?: {
+      material: 'acrylic' | 'none'
+      platform: string
+      version: string
+      settings: ArpSettingsApi
+    }
   }
 }
+
+export type Provider = 'ollama' | 'openai' | 'codex' | 'claude' | 'fixture'
+
+export type DesktopConfig = {
+  provider: Provider
+  baseUrl: string
+  model: string
+  apiKey: string
+  embedModel: string
+  codexModel: string
+  claudeModel: string
+}
+
+export type SetSettingsResult =
+  | { ok: true; port: number; config?: { model: string; embed_model: string; base_url: string | null; llm: boolean; provider: string } }
+  | { ok: false; error: string }
+
+export type TestConnectionResult =
+  | { ok: true; kind: 'models'; models: string[] }
+  | { ok: true; kind: 'codex' | 'claude'; version: string; loggedIn: boolean }
+  | { ok: false; error: string }
 
 if (window.arp?.material === 'acrylic') {
   document.documentElement.dataset.material = 'on'

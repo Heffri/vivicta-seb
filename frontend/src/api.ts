@@ -64,7 +64,8 @@ export const pptxUrl = (reportId: string) => `/api/reports/${reportId}/extractio
 export const pdfUrl = (reportId: string, page?: number) =>
   `/api/reports/${reportId}/pdf${page ? `#page=${page}` : ''}`
 
-export type Config = { model: string; embed_model: string; base_url: string | null; llm: boolean }
+// provider added in v031 (backend/app.py); this type lagged behind until v033's Settings view needed it.
+export type Config = { model: string; embed_model: string; base_url: string | null; llm: boolean; provider: string }
 export const getConfig = () => request<Config>('/api/config')
 export const getKb = () => request<KbEntry[]>('/api/kb')
 // Stored extraction, no model call; the backend re-registers the PDF so pageUrl/csvUrl work.

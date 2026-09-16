@@ -11,6 +11,7 @@ import { Titlebar } from './components/shell/Titlebar'
 import { useHeadingFocus } from './components/shell/useHeadingFocus'
 import { useTone } from './components/shell/useTone'
 import { ResultsView } from './components/ResultsView'
+import { SettingsView } from './components/SettingsView'
 import { UploadView } from './components/UploadView'
 import type { Result } from './types'
 
@@ -48,6 +49,7 @@ export default function App() {
     compare: results.length > 1,
     ask: reports.length > 0,
     kb: true,
+    settings: true,
   }
 
   return (
@@ -82,6 +84,7 @@ export default function App() {
             )}
             {tab === 'ask' && <AskView reports={reports} />}
             {tab === 'kb' && <KbView onOpen={done} />}
+            {tab === 'settings' && <SettingsView />}
           </div>
         </main>
       </div>

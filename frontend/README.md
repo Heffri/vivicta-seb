@@ -6,10 +6,17 @@ React 19 + Vite 8 + Tailwind 4 + shadcn/ui. No router, no state lib: `fetch` + `
 - `npm run dev` — dev server on http://localhost:5173, proxies `/api` → **backend must run on :8000**
 - `npm run build` — production build to `dist/`
 
-Where things live: `src/App.tsx` mounts the five tabs (Extract / Results / Compare / Ask / Knowledge base) through `src/components/shell/`;
+Where things live: `src/App.tsx` mounts the six tabs (Extract / Results / Compare / Ask / Knowledge base / Settings) through `src/components/shell/`;
 `src/components/UploadView.tsx` (dropzone, section select, POST upload + extract);
 `src/components/ResultsView.tsx` (fields table, checks/warnings, provenance pane with page image + quote);
 `src/api.ts` (fetch wrappers + URL helpers); `src/types.ts` (copied from `docs/API.md` — change the contract there first).
+
+`src/components/SettingsView.tsx` (+ `src/components/settings/ProviderCard.tsx`) is read-only here: it
+mirrors `GET /api/config` (provider/model/embed model) with a note that settings are edited in the
+desktop app or `backend/.env`, since a browser tab has no `window.arp` to read or write
+`<userData>/config.json` or restart the backend. The desktop app's editable version — four
+provider cards (Ollama, an OpenAI-compatible API endpoint, Codex, Claude), Test and Save — is
+documented in `desktop/README.md`.
 
 ## Acrylic UI
 
