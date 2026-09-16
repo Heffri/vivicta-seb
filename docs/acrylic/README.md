@@ -84,11 +84,74 @@ fetch order, prop signatures — with one exception: v021 turned Extract's uploa
 library, no new dependency). Every other piece of evidence above says the same thing: "logic change:
 none." This was a restyle, not a rewrite.
 
-## Backend (model-free hardening)
+## Desktop app
 
-Nothing below calls a model. Each row is a deterministic pipeline or schema change, checked against
-the 102 reports already parsed into `data/kb/` and/or PDFs fetched for the purpose.
-`python -m pipeline.test_confidence` and `test_parse` are green throughout — see "How to verify".
+A double-click Windows app, not just a browser tab: an Electron shell (`desktop/`) around the same
+frontend, launching a PyInstaller-built `backend.exe` instead of a dev `uvicorn` process. Dev mode
+starts the venv backend, `frontend`'s own dev server, and the Electron window in sequence, each
+gated on a health check; packaged mode bundles `backend.exe` + `frontend/dist` and serves both from
+the same origin — the backend itself hosts the static frontend at `/` and the API at `/api`, no
+proxy or CORS involved. [v029](evidence/v029.md), [v030](evidence/v030.md), [v032](evidence/v032.md)
+
+On Windows 11 the window paints with real OS acrylic material (`backgroundMaterial: 'acrylic'`,
+confirmed live via a logged `acrylic material: true` check; Windows 10 and earlier degrade to an
+opaque window — implemented, not testable on this branch's machines). The custom titlebar (no
+native chrome) is draggable and supports double-click-to-maximize/restore, verified at the Windows
+message level (`WM_NCHITTEST`/`WM_NCLBUTTONDBLCLK` against the real window). `npm run dist`
+produces two unsigned packages, portable and NSIS — unsigned means Windows SmartScreen warns on
+first run ("More info" → "Run anyway"). The data directory (reports, KB, uploads, `backend.log`)
+lives under the user's own `app.getPath('userData')/data`, seeded once from the bundled repo data
+on first launch and left alone on later launches/upgrades; first launch has no model provider
+configured, so it defaults to demo/fixture mode until Settings picks one (see "Model providers"
+below). [v029](evidence/v029.md), [v038](evidence/v038.md), [v032](evidence/v032.md)
+
+**Build** (full detail: [`desktop/README.md`](../../desktop/README.md)):
+
+```powershell
+cd backend  && python build_exe.py     # -> backend/dist/backend/backend.exe (PyInstaller onedir)
+cd frontend && npm run build           # -> frontend/dist
+cd desktop  && npm run dist            # -> desktop/dist/*.exe (portable + nsis, both unsigned)
+```
+
+## Model providers
+
+Four ways to answer `/extract` and `/ask`, selected by `LLM_PROVIDER` (`backend/.env` or the
+desktop Settings tab) — **Local Ollama**, an **OpenAI-compatible endpoint** (OpenAI/Azure/
+OpenRouter, or Anthropic's own OpenAI-compatible endpoint with an API key), **Codex CLI**, and
+**Claude CLI**:
+
+| Provider | `LLM_PROVIDER` | Env | Auth |
+|---|---|---|---|
+| Local Ollama | unset (default) | `LLM_BASE_URL=http://127.0.0.1:11434/v1`, `LLM_MODEL` (e.g. `qwen3:8b`) | none |
+| API endpoint (OpenAI/Azure/OpenRouter/Anthropic-compatible) | unset (default) | `LLM_BASE_URL`, `LLM_MODEL`, `LLM_API_KEY` | API key |
+| Codex CLI | `codex` | `LLM_MODEL` (default `gpt-5.6-terra`), optional `CODEX_BIN` | `codex login` (subscription/API key); no `LLM_BASE_URL` needed |
+| Claude CLI | `claude` | `LLM_MODEL` (default `claude-sonnet-5`), optional `CLAUDE_BIN` | `claude login` (subscription); no `LLM_BASE_URL` needed |
+
+Nothing set at all (no `LLM_BASE_URL`, no `LLM_PROVIDER`) means fixture/demo mode — no model call,
+canned data. The desktop Settings tab (browser tabs get a read-only mirror) turns this into four
+provider cards plus a text link back to demo mode; Save writes `<userData>/config.json` (API key in
+plaintext, never logged) and restarts the backend on the same port with the matching env.
+[v031](evidence/v031.md), [v033](evidence/v033.md), [v039](evidence/v039.md)
+
+**Embeddings are the one thing that never follows `LLM_PROVIDER`** — `/index` and `/ask`'s retrieval
+always call an OpenAI-compatible `/v1/embeddings` endpoint directly, so both still need
+`LLM_BASE_URL` pointed at Ollama or a real endpoint even when extraction itself runs on Codex or
+Claude. [v031](evidence/v031.md), [v039](evidence/v039.md)
+
+Both CLI providers were checked end-to-end against the same real Atlas Copco `income_statement`
+extraction the local-model baseline used: Codex (`gpt-5.6-terra`) matched **9/9** fields, 0
+warnings; Claude (`claude-sonnet-5`) matched **9/9** fields, 0 warnings — same values, same
+citations, same pages, both on the first attempt. [v031](evidence/v031.md), [v039](evidence/v039.md)
+
+## Backend hardening
+
+Most of the below calls no model at all — each row is a deterministic pipeline or schema change,
+checked against the 102+ reports already parsed into `data/kb/` and/or PDFs fetched for the
+purpose. The four `debt_maturity` hardening-loop rows are the exception: each runs
+`scripts/random_check.py` against a real model (Codex CLI) to find failures on a random sample,
+then lands a deterministic fix — schema wording/keywords, or an `extract.py` code change — verified
+afterwards with no further model calls. `python -m pipeline.test_confidence` and `test_parse` are
+green throughout — see "How to verify".
 
 | Change | Why | Evidence |
 |---|---|---|
@@ -98,6 +161,16 @@ the 102 reports already parsed into `data/kb/` and/or PDFs fetched for the purpo
 | `parse.py`'s `page_text()`: block-local baseline merge joins a row's label and figures back together when the text layer split them onto separate lines inside one PyMuPDF block; word-level rebuild as a fallback; pure-prose pages untouched, byte for byte. `PARSER_VERSION` 2 → 3 — existing `data/kb` needs `python -m pipeline.kb build` to pick this up (not run by this branch). New `backend/pipeline/test_parse.py`, `scripts/parse_check.py`. | HANDOFF called this out directly: plain `get_text()` loses table structure, likely to matter more for debt notes (pure tables) than it did for the income statement. | [v013](evidence/v013.md) |
 | `_clean_label` strips a footnote marker — a glued superscript digit, or a bare `digit)` — sitting directly against a currency/unit token, right before the existing currency/unit strip runs. | Same normalization-asymmetry family as the row above, one step later: a footnote glued to a bare currency word with no space (`"SEK1)"`) survived cleanup while the same label without the footnote didn't, per v014's own Findings note. | [v018](evidence/v018.md) |
 | `_clean_label` also strips magnitude-prefixed currency/unit tokens (`MSEK`, `TSEK`, `KSEK`, `kSEK`, `MEUR`, bracketed or not). | The unit regex only matched bare unit words, so `"Revenue, MSEK"` and `"Revenue"` cleaned to different strings; found by v018, fixed the same way. 739/739 stored labels unchanged. | [v023](evidence/v023.md) |
+| `debt_maturity` hardening loop, seed 1 (`random_check.py --seed 1`, Mid Cap, Codex `gpt-5.6-terra`): 3/10 already correct (no note to extract, or already full confidence), 1/10 a known locator gap left alone (bare "maturity" keyword, already tried and reverted in v017), 2/10 fixed by schema-keyword-only changes (NCAB's locator ranking, Apotea's `total_debt` label), 4/10 hit a new gap — a maturity note that prints its buckets as *columns of one row* instead of separate rows, which every existing `extract.py` repair assumes | First seed of a repeated hardening pass on the section SEB actually scoped; surfaces failure modes the earlier locator/label lanes hadn't hit | [v035](evidence/v035.md) |
+| `extract.py` gains a general column-bucket reader — schema-driven off the identity check's own total/parts fields, not company-specific — that fills a null or overrides a disagreeing model answer from a qualifying page's row/column layout, declining rather than guessing when a row's column count doesn't match its header | Fixes the shape v035 found: 1 of its 4 gap companies (Cloetta, all 4 fields lift); the other 3 (XANO, Ework, Bergman & Beving) verified by hand to have a scrambled header or a genuine two-basis mismatch, and correctly still decline | [v036](evidence/v036.md) |
+| `debt_maturity` hardening loop, seed 2 (`random_check.py --seed 2`, Codex `gpt-5.6-terra`): full-confidence count unchanged at 1/10; 3 schema commits (a Swedish current/non-current label, Swedish digit-form bucket splits, broadened finer-split wording) shipped but moved no confidence number in this seed — 7/10 blocked by the report's own bucket granularity or basis not matching the schema's ask (or a locator miss on the real page), not a keyword gap; 2/10 are real `extract.py` bugs precisely diagnosed but left for a separate lane | Second seed of the same loop, to see whether v036's fix generalized and what the next-largest failure mode is | [v037](evidence/v037.md) |
+| `extract.py`: the column-bucket mechanism now rejects a whole row's column reading — not just one field — if any bucket value exceeds the row's own total past the check's rounding tolerance (Acast, which had been reading a stale prior-year row); `_derived_value`'s neighbour-sum repair no longer requires a row's label to be a *known* schema synonym before treating it as the model's own row, only that the value is literally quoted and the model's own label names that row (Nelly, whose correct current-portion answer was being overwritten by a current+non-current sum) | Fixes v037's two precisely-diagnosed bugs, both offline, zero model calls | [v040](evidence/v040.md) |
+
+**A single before/after model call is not proof.** v037 re-ran its own 10 companies a second time
+with no code change and watched two confidence numbers move anyway (Humana up, Storytel down) —
+this model's run-to-run variance is large enough that a lone before/after pair can look like a fix
+or a regression when it's neither. Verify anything below a full pass with a repeated-trial (n≥3)
+check before trusting a small confidence delta. [v037](evidence/v037.md)
 
 Numbers behind the table: the TOC pass found a table-of-contents target for `debt_maturity` in 0/102
 reports scanning only the front matter, 2/102 once the scan widened to the whole document (0 top-1
@@ -156,13 +229,26 @@ descriptions (and the prompt the model reads) so they're applied consistently �
 - **A missing bucket (e.g. no `>5y` row) counts as 0 in the sum check**, not a check failure. We
   assumed this; confirm it or tell us to flip it (fail the check instead).
   [v011](evidence/v011.md), [v028](evidence/v028.md).
+- **A report's own finer bucket splits (e.g. `1-2y`/`2-5y`, or nothing finer than a plain
+  current/non-current split) get summed into our three buckets, not kept as their own fields.** The
+  schema tells the model to add a report's own finer columns into `due_within_1_year`/
+  `due_1_to_5_years`/`due_after_5_years`, and (since v036/v040) `extract.py`'s column-bucket reader
+  does the same arithmetic deterministically off the page where it can. We assumed a 3-bucket shape
+  is what's wanted downstream; confirm it, or tell us to add the finer buckets as their own schema
+  fields instead — that would also mean touching `ppt.py`'s `BUCKET_ORDER`/`BUCKET_LABELS` and the
+  frontend's maturity charts, not just the schema.
+  [v035](evidence/v035.md), [v036](evidence/v036.md), [v037](evidence/v037.md).
 
 ## How to verify
 
 ```bash
 cd frontend && npm run build && npm run lint       # tsc -b + vite build, then oxlint
+cd frontend && npm run e2e                         # Playwright end-to-end pass
 cd backend  && python -m pipeline.test_confidence  # extract.py's evidence/confidence scoring
 cd backend  && python -m pipeline.test_parse       # parse.py's row-merge behavior
+cd backend  && python -m pipeline.test_kb          # kb.save_report idempotency self-check
+cd backend  && python -m pipeline.test_paths       # dev-tree-vs-frozen path resolution self-check
+cd backend  && python -m pipeline.test_llm         # codex_cli/claude_cli discovery + round-trip self-check
 ```
 
 Three offline, read-only scripts (repo root `scripts/`, no model calls, nothing started):

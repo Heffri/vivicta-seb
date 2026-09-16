@@ -84,6 +84,12 @@ python eval/run.py                 # runs the real pipeline over data/reports + 
 python scripts/random_check.py --n 10 --seed 1   # fetches 10 untuned Large Cap reports; how many parse at full confidence
 ```
 
+## Desktop app
+
+A double-click Windows app instead of a browser tab — same frontend, a packaged `backend.exe`, real
+OS acrylic material on Windows 11. Build and run it from `desktop/`:
+[`desktop/README.md`](desktop/README.md).
+
 ## How a section works
 
 One JSON file per report section in `backend/schemas/` — fields, sv+en locator keywords, arithmetic checks.
