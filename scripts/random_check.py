@@ -1,6 +1,6 @@
 """Fetch N random listed companies' annual reports and extract a section; report how many parse at full confidence.
 
-    python scripts/random_check.py [--n 10] [--seed 1] [--year 2025] [--section income_statement] [--market "Large Cap"]
+    python scripts/random_check.py [--n 10] [--seed 1] [--year 2025] [--section income_statement] [--market "Large Cap"] [--exclude-sector "Real Estate"]
 
 "Full confidence" = every non-null field at confidence 1.0 and every arithmetic check passed (docs/CONFIDENCE.md).
 No labels involved: this is the backend's own evidence on companies nobody tuned the parser on. The labelled eval set
@@ -34,12 +34,15 @@ def main():
     ap.add_argument("--year", type=int, default=2025)
     ap.add_argument("--section", default="income_statement")
     ap.add_argument("--market", default="Large Cap", help="substring of the market field; '' for all")
+    ap.add_argument("--exclude-sector", action="append", default=[],
+                    help="drop companies whose sector contains this substring, e.g. 'Real Estate'; repeatable")
     ap.add_argument("--only", nargs="*", default=[], help="re-check only companies whose name contains one of these")
     a = ap.parse_args()
 
     companies = json.loads((ROOT / "data" / "companies.json").read_text("utf-8"))
     known = {line.split("_")[0] for line in (ROOT / "eval" / "labels.csv").read_text("utf-8").splitlines()[1:]}
     pool = [c for c in companies if a.market.lower() in c.get("market", "").lower()
+            and not any(s.lower() in c.get("sector", "").lower() for s in a.exclude_sector)
             and c["name"].split()[0].lower() not in known]
     random.Random(a.seed).shuffle(pool)
     if a.only:
@@ -70,7 +73,8 @@ def main():
               f" {time.time() - t0:.0f}s  {' '.join(low)}  {[w for w in x['warnings'] if 'llm' in w]}", flush=True)
 
     perfect = sum(p for *_, p in results)
-    print(f"\n{perfect}/{len(results)} companies at full confidence ({tried} tried, seed {a.seed}, {a.market or 'all markets'})")
+    cut = ", ".join(a.exclude_sector) if a.exclude_sector else "no sector excluded"
+    print(f"\n{perfect}/{len(results)} companies at full confidence ({tried} tried, seed {a.seed}, {a.market or 'all markets'}, {cut})")
     sys.exit(0 if perfect == len(results) else 1)
 
 
