@@ -1,0 +1,43 @@
+parse_check locator run: PARSER_VERSION=3, 10 PDFs
+
+== atlas_copco_2025 ==
+  [debt_maturity] old [135, 136, 146] -> new [135, 136, 158]
+  [income_statement] old [106, 107, 16, 151] -> new [106, 107, 16, 151]
+
+== bravida_holding_2025 ==
+  [debt_maturity] old [144, 145, 149] -> new [144, 145, 149]
+  [income_statement] old [112, 113, 165, 115] -> new [112, 113, 165, 126]
+
+== camurus_2025 ==
+  [debt_maturity] old [70, 71] -> new [70, 71]
+  [income_statement] old [60, 61, 79] -> new [60, 61, 79]
+
+== clas_ohlson_2025 ==
+  [debt_maturity] old [140, 141, 139, 124] -> new [140, 141, 139, 124]
+  [income_statement] old [98, 99, 108, 139] -> new [98, 99, 108, 106]
+
+== ericsson_2025 ==
+  [debt_maturity] old [65, 66] -> new [65, 66]
+  [income_statement] old [33, 34, 87, 18] -> new [33, 34, 18, 48]
+
+== getinge_2025 ==
+  [debt_maturity] old [160, 161, 190, 166] -> new [160, 161, 190, 166]
+  [income_statement] old [140, 141, 207] -> new [140, 141, 207]
+
+== husqvarna_2025 ==
+  [debt_maturity] old [99, 100] -> new [26, 27]  <== top-2 changed
+  [income_statement] old [84, 85, 25, 24] -> new [84, 85, 24, 114]
+
+== noba_bank_2025 ==
+  [debt_maturity] old [222, 223, 189, 188] -> new [222, 223, 272, 252]
+  [income_statement] old [162, 163, 265, 214] -> new [162, 163, 265, 214]
+
+== saab_2025_sv ==
+  [debt_maturity] old [194, 195, 212] -> new [194, 195, 212]
+  [income_statement] old [151, 152, 165] -> new [151, 152, 214]
+
+== skanska_2025 ==
+  [debt_maturity] old [143, 144, 124] -> new [143, 144, 124]
+  [income_statement] old [121, 122, 159, 131] -> new [121, 122, 159, 131]
+
+== 1 section rankings with a changed top-2 ==
