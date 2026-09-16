@@ -31,7 +31,7 @@ export function Segmented<T extends string>({ options, value, onChange, classNam
             type="button"
             aria-pressed={pressed}
             onClick={() => onChange(o.value)}
-            className={`h-6 rounded-md px-2 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+            className={`h-6 rounded-md px-2 text-xs font-medium transition-colors outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring ${
               pressed
                 ? 'bg-muted text-foreground shadow-[inset_0_1px_0_var(--glass-hi)]'
                 : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'

@@ -147,7 +147,7 @@ export function AskPanel({ reports, onCitation }: Props) {
                   submit()
                 }
               }}
-              className="min-h-16 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
+              className="min-h-16 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50"
             />
             <Button onClick={() => submit()} disabled={busy || !question.trim() || ids.length === 0}>
               Ask

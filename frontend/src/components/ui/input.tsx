@@ -14,7 +14,7 @@ export function Input({ icon, className = '', ...props }: InputProps) {
       )}
       <input
         {...props}
-        className={`h-8 w-full rounded-lg border border-input bg-background/50 text-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50 ${
+        className={`h-8 w-full rounded-lg border border-input bg-background/50 text-sm transition-colors outline-none placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50 ${
           icon ? 'pr-3 pl-8' : 'px-2.5'
         }`}
       />

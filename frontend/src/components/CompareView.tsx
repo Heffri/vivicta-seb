@@ -21,7 +21,7 @@ export function CompareView({ results, onSelect, onReset }: Props) {
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4 border-b pb-5">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Annual Report Parser</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Comparison</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">Comparison</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {results[0].sectionTitle} · {ok} of {results.length} reports extracted
@@ -73,6 +73,9 @@ export function CompareView({ results, onSelect, onReset }: Props) {
                     return ri === 0 ? (
                       <TableCell key={i} rowSpan={rows.length} className="max-w-60 whitespace-normal align-top text-xs text-danger">
                         {r.error}
+                        <p className="mt-2 text-danger/80">
+                          Next step: fetch the PDF from the Extract tab’s Directory search, then open it here again.
+                        </p>
                       </TableCell>
                     ) : null
                   }

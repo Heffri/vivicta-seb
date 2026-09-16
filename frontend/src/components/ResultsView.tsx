@@ -97,7 +97,7 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack, initial
               <ArrowLeft /> Back to comparison
             </Button>
           ) : (
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Annual Report Parser</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Results</p>
           )}
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">{company ?? 'Unknown company'}</h1>
           <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
