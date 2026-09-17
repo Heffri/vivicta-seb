@@ -606,6 +606,66 @@ def demo():
     assert not out["checks"][0]["passed"] and not out["checks"][0]["detail"].startswith("missing:"), out["checks"]
     within = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
     assert within["confidence"] == 0.5, within  # still capped: neither sibling bucket's label is anywhere on the page
+    # v060: Ependion's *current* page text (post-v049 parse.py fix; not the sidebar-scrambled snapshot the case
+    # above was recorded against, and a still-open gap this one doesn't touch). "Within 12 months" and the day/
+    # month-range header wording the schema's synonyms deliberately exclude from row-label matching (v046) now
+    # live in each bucket field's own header_synonyms, read only by _bucket_synonym_hits/_bucket_header, never
+    # by _label_known -- label_regression stays 0 because of exactly this split. The bucket row is labelled
+    # "Borrowing" (a total_debt fallback synonym, not "total"/"summa"), so _bucket_total_row's debt-row fallback
+    # picks it -- and not the *other* "- Borrowing 583,531 557,173" row two lines above (a leading "- " that
+    # breaks _label_known's prefix match) or "Accounts payable-trade" (not a debt synonym at all).
+    ependion_real = ("Financial liabilities\n- Borrowing 583,531 557,173\n- Accounts payable-trade 164,155 154,411\n"
+                      "Contracted terms\nSEK 000 Within 12 months\nBetween 1 and 2 years\nBetween 2 and 3 years Total\n"
+                      "Borrowing 167,546 35,636 380,348 583,531\n"
+                      "Accounts payable-trade 164,155 164,155 331,701 35,636 380,348 747,686\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([ependion_real], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
+    assert got == {"total_debt": (583531, 0.85), "due_within_1_year": (167546, 0.85), "due_1_to_5_years": (415984, 0.95),
+                    "due_after_5_years": (None, 0.0)}, (got, out["warnings"])
+    assert out["checks"][0]["passed"], out["checks"]  # due_after_5_years null_as_zero: this table prints no such bucket
+    total = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert total["raw_label"] == "Borrowing" and total["source"]["quote"] == "Borrowing 167,546 35,636 380,348 583,531", total  # not the "- Borrowing" row, not Accounts payable-trade
+    # v060: Boozt's bucket row is labelled "Lease liabilities" (also a debt-row fallback synonym: the report's own
+    # total_debt *is* its lease liabilities, no other interest-bearing debt) with a header split across two of
+    # _page_rows' own rows ("Maturity within" / "3 months", a bare word-wrap, not the header-transposition XANO/
+    # Ework hit below) that header_synonyms now reads correctly -- both this row and the page's own bare "Total"
+    # rows (whole-table sums, wrong scope regardless) read a 6-column header matching their own column count.
+    # due_within_1_year (=26+78, not printed) still stays null: a pre-existing _row_amounts limit outside this
+    # lane's territory reads the row's own adjacent 2- and 3-digit columns ("78 273") as the single Swedish-
+    # grouped number 78273 (the same ambiguity as "6, 10 155" elsewhere in this file), so no candidate row's
+    # column count ever matches its header's after all, and the safety valve declines every one rather than
+    # guess -- named for whoever next touches _row_amounts, out of reach here. due_1_to_5_years/due_after_5_years/
+    # total_debt were already correct (same row, the model's own read) and stay that way: v060 neither improves
+    # nor corrupts them, and produces no warning either (nothing was attempted and rejected, nothing to report).
+    boozt = ("Total borrowing\nMaturity within\n3 months\nMaturity within three to twelve months\n"
+             "Maturity within one to five years\nMaturity within five to nie years\nMaturity after nine years\n"
+             "Maturity structure of borrowing Dec 31,2024\n"
+             "Liabilities to credit institutions 380 - - 380 - -\nLease liabilities 499 29 85 251 135 -\n"
+             "Accounts payables 1,235 1,225 10 - - -\nOther liabilities 531 527 4 - - -\n"
+             "Total 2,645 1,781 99 631 135 0\n"
+             "Maturity structure of borrowing Dec 31, 2025\n"
+             "Liabilities to credit institutions 0 - - 0 - -\nLease liabilities 441 26 78 273 63 -\n"
+             "Accounts payables 1,384 1,374 10 - - -\nOther liabilities 533 528 4 - - -\n"
+             "Total 2,358 1,928 92 273 63 0\n")
+    bucket_sfs = {k: dmf[k] for k in ("due_within_1_year", "due_1_to_5_years", "due_after_5_years")}
+    boozt_rows = x._page_rows(boozt)
+    assert x._bucket_header(boozt_rows, 15, bucket_sfs, 2025) == \
+        ["total", "due_within_1_year", "due_within_1_year", "due_1_to_5_years", "due_after_5_years", "due_after_5_years"]  # the header itself now reads right
+    assert x._row_amounts(boozt_rows[15], 6, nil=None) != [441, 26, 78, 273, 63, None]  # ... but _row_amounts (out of this lane's territory) still merges "78 273" into 78273
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 441, "unit": "SEK million", "period": "2025", "raw_label": "Lease liabilities", "source": {"page": 1, "quote": "Lease liabilities 441 26 78 273 63 -"}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": 273, "unit": "SEK million", "period": "2025", "raw_label": "Lease liabilities", "source": {"page": 1, "quote": "Lease liabilities 441 26 78 273 63 -"}},
+        {"key": "due_after_5_years", "value": 63, "unit": "SEK million", "period": "2025", "raw_label": "Lease liabilities", "source": {"page": 1, "quote": "Lease liabilities 441 26 78 273 63 -"}}]}
+    out = x.extract([boozt], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
+    assert got == {"total_debt": (441, 0.5), "due_within_1_year": (None, 0.0), "due_1_to_5_years": (273, 0.5), "due_after_5_years": (63, 0.5)}, (got, out["warnings"])
+    assert not out["warnings"], out["warnings"]
     qcalls = []
     # v054: EXTRACT_QUOTE_RETRY (default off) -- one follow-up call for the fields whose answer cites a quote
     # that is not printed on the page it names: the cited page's own _page_rows go out numbered, and the model

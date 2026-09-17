@@ -73,6 +73,13 @@
         "6 månader eller mindre", "6 – 12 månader",
         "inom 1 år", "inom ett år", "förfaller inom 1 år", "< 1 år", "kortfristiga räntebärande skulder",
         "borrowings, current", "total borrowings in current liabilities"
+      ],
+      "header_synonyms": [
+        "within 12 months", "< 1 month", "1-3 months",
+        "3 months", "three to twelve months",
+        "-30 dgr", "31-90 dgr", "91-360 dgr",
+        "inom 12 månader",
+        "summa inom 1 år", "total within 1 year"
       ]
     },
     {
@@ -87,6 +94,9 @@
         "between 4 and 5 years", "between 2 and 5 years",
         "1-5 år", "1–5 år", "mellan 1 och 5 år", "mellan ett och fem år", "inom fem år",
         "1-2 år", "mellan 1 och 3 år", "mellan 3 och 5 år", "2-5 år"
+      ],
+      "header_synonyms": [
+        "3-5 years"
       ]
     },
     {
@@ -99,6 +109,9 @@
         "after five years", "more than five years", "later than five years",
         "senare än 5 år", "efter 5 år", "> 5 år",
         "senare än fem år", "efter fem år", "över 5 år", "över fem år"
+      ],
+      "header_synonyms": [
+        "five to nie years", "after nine years"
       ]
     }
   ],
