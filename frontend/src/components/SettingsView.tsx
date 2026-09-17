@@ -68,9 +68,18 @@ function StatusRow({ status, error, twoPass }: { status: Config | null; error: s
             <span className="text-muted-foreground">
               model <span className="text-foreground">{status.model}</span>
             </span>
-            <span className="text-muted-foreground">
-              embed <span className="text-foreground">{status.embed_model}</span>
-            </span>
+            {status.retrieval === 'bm25' ? (
+              // bm25 state (v034: codex/claude, no base URL) embeds nothing, so the strip names the
+              // retrieval mode instead of an embed model that is not in use (v056); hybrid keeps the
+              // embed model name, fixture mode unchanged.
+              <span className="text-muted-foreground">
+                retrieval <span className="text-foreground">BM25</span>
+              </span>
+            ) : (
+              <span className="text-muted-foreground">
+                embed <span className="text-foreground">{status.embed_model}</span>
+              </span>
+            )}
             {twoPass !== undefined && (
               <span className="text-muted-foreground">
                 two-pass <span className="text-foreground">{twoPass ? 'on' : 'off'}</span>
