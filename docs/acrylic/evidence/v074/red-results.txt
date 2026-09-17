@@ -1,0 +1,17 @@
+RED Novo Nordisk 2025 -> HTTP 200 in 12s: {"report_id":"lib-novo_nordisk_2025","filename":"novo_nordisk_2025.pdf","pages":137,"company":"Novo Nordisk","fiscal_year":2025,"stem":"novo_nordisk_2025"}
+RED Kone 2025 -> HTTP 200 in 8s: {"report_id":"lib-kone_2025","filename":"kone_2025.pdf","pages":183,"company":"Kone","fiscal_year":2025,"stem":"kone_2025"}
+RED2 Nestle 2025 -> HTTP 404 in 4s body: 
+{
+  "detail": "no annual report found for Nestle 2025",
+  "tried": []
+}
+RED2 Siemens 2025 -> HTTP 404 in 4s body: 
+{
+  "detail": "no annual report found for Siemens 2025",
+  "tried": []
+}
+RED2 Shell 2025 -> HTTP 404 in 3s body: 
+{
+  "detail": "no annual report found for Shell 2025",
+  "tried": []
+}

@@ -15,7 +15,7 @@ Backend runs on `http://localhost:8000`, frontend dev server proxies `/api` to i
 | `GET`  | `/api/reports/{report_id}/extraction.csv` | – | last extraction for this report as CSV (one row per field). 404 if none |
 | `GET`  | `/api/reports/{report_id}/pdf` | – | the PDF itself, `Content-Disposition: inline`, so `<iframe src=".../pdf#page=64">` opens the browser's own viewer on that page |
 | `GET`  | `/api/companies?q=<text>` | – | `Company[]` — the listed-company directory (`data/companies.json`, Nasdaq Stockholm), filtered by name/ticker substring; max 50. Empty `q` = first 50 |
-| `POST` | `/api/reports/fetch` | `{ "company": "<Company.name>", "year": 2025 }` | `Report` — finds the company's annual report for that year on the web, downloads it into the cache (`data/reports/`), registers it like an upload. 10–90 s. `404` with `{detail, tried: string[]}` when nothing usable was found. Cached = instant |
+| `POST` | `/api/reports/fetch` | `{ "company": "<Company.name>", "year": 2025, "country"?, "hint"? }` | `Report` — finds the company's annual report for that year on the web, downloads it into the cache (`data/reports/`), registers it like an upload. 10–90 s. Any company name is accepted — not just directory entries; `country`/`hint` are optional context for the model search (v074). `404` with `{detail, tried: string[]}` when nothing usable was found (a failed model search says so in `detail`). Cached = instant |
 | `GET`  | `/api/library` | – | `LibraryEntry[]` — the report **cache** in `data/reports/` (only files present on disk). Populated by `/fetch`; hand-curated entries also live in `index.json` |
 | `POST` | `/api/reports/{report_id}/index` | – | `IndexStatus` — chunk + embed the report into the knowledge base (idempotent, cached on disk). ~10–30 s per report locally |
 | `POST` | `/api/ask` | `{ "question": string, "report_ids": string[] }` | `Answer` — RAG over the selected reports (page texts + prior extractions). Indexes on demand if `/index` was not called |
@@ -166,6 +166,17 @@ the first candidate that is a real PDF with a text layer and > 40 pages, save it
 and append a manifest entry to `data/reports/index.json` (`file, company, fiscal_year, language, source_url,
 tags: ["fetched"], fetched_at`). `data/reports/` is therefore a cache: gitignored PDFs, committed manifest.
 `GET /api/library` lists the cache; `python data/fetch.py` re-downloads manifest entries that are missing.
+
+**Foreign companies (v074).** The directory is Swedish-listed only, but `/api/reports/fetch` accepts any name.
+`fetch.py` tries four sources in order — MFN/Cision feeds, Nasdaq notices, the DuckDuckGo web search — and, only
+when all three found nothing usable *and* the backend runs on a CLI provider (`LLM_PROVIDER=codex|claude`), asks
+the model itself for links, via its own web-search tool (`codex --search exec`, `claude -p --tools WebSearch`):
+at most 3 direct URLs to the official annual-report PDF on the issuer's investor-relations site or a regulatory
+repository (no ESEF zips, quarterly or sustainability reports). Every candidate from every source passes the same
+validation; the first survivor registers with `note: "model search (<provider>)"` and `tags: ["fetched", "foreign"]`.
+With an OpenAI-compatible or no provider the fourth level never runs and the 404 keeps its usual shape (a model
+search that errored — unavailable CLI, unparseable reply — says so in `detail`). `country`/`hint` in the request
+body only feed that search's prompt.
 
 ## Knowledge base — `data/kb/` (RAG + memory)
 
