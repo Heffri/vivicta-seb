@@ -57,7 +57,8 @@
           "varken", "ingen", "inga", "inget", "inte", "icke", "ej", "utan", "saknar", "noll",
           "skuldfri", "skuldfritt", "skuldfria",
           "no", "not", "neither", "nor", "none", "without", "lacks", "zero", "nil", "debt-free"
-        ]
+        ],
+        "subject_terms": ["loan", "loans"]
       }
     },
     {
