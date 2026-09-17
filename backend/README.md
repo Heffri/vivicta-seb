@@ -133,6 +133,31 @@ Test: `python -m pipeline.test_llm` -- a fake `claude.cmd` + Python script repla
 `--output-format json` parsing, fence stripping, `is_error: true`, a non-zero exit and a timeout, no network or
 real Claude Code install needed.
 
+## Model web search for report fetching (v074)
+
+The report cache used to only know how to find Swedish issuers. `pipeline/fetch.py` now has a fourth source for
+the rest of the world: when the MFN/Cision feeds, the Nasdaq notices and the DuckDuckGo search all come up empty
+(the norm for foreign companies -- the Swedish feeds never carry them, and DuckDuckGo bot-blocks this backend),
+and the provider is `LLM_PROVIDER=codex` or `claude`, `llm.web_lookup()` makes the same one-shot CLI call as
+`chat()` with the provider's web-search tool switched on:
+
+- codex: `codex --search exec ...` -- `--search` is a *top-level* flag (enables the native Responses
+  `web_search` tool, no per-call approval); `codex exec --search` is rejected.
+- claude: `claude -p --tools WebSearch ...` -- `chat()`'s `--tools ""` disables every tool, so the allowlist
+  is the whole difference.
+
+The model is asked for at most 3 direct URLs to the official annual-report PDF on the issuer's investor-relations
+site or a regulatory repository (no ESEF zips, quarterly, sustainability or governance reports). Every candidate
+then runs fetch's regular validation -- real PDF, text layer, > 40 pages, issuer token + fiscal year in the first
+20 pages -- and the first survivor is registered with `note: "model search (<provider>)"` and
+`tags: ["fetched", "foreign"]`. An OpenAI-compatible provider has no search tool: `web_lookup()` raises rather
+than answer from memory, `fetch.websearch_provider()` keeps such a backend on the three plain sources, and a
+model search that errors (CLI unavailable, unparseable reply) is reported in `/api/reports/fetch`'s usual 404
+`detail`. The endpoint takes optional `country`/`hint` fields that only feed this search's prompt.
+
+Test: `python -m pipeline.test_fetch` -- a scripted `web_lookup` stand-in and a loopback http server serving one
+generated PDF; no CLI, no model call, no external network.
+
 ## Two-pass page selection (`EXTRACT_TWO_PASS`)
 
 Opt-in, default **off**: `EXTRACT_TWO_PASS=1` makes `extract()` run a small pass-1 call that asks the

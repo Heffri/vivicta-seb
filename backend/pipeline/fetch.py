@@ -1,6 +1,8 @@
 """Find + download a company's annual report PDF into data/reports/ (the cache) and register it in index.json.
 Sources, cheapest first: MFN feed (aggregates Cision too) and Nasdaq notices, then the web (DuckDuckGo html) when the
-feeds only carried press releases or ESEF zips (AstraZeneca, Lundin Gold, SkiStar).
+feeds only carried press releases or ESEF zips (AstraZeneca, Lundin Gold, SkiStar). Fourth (v074), only after all of
+those fail and a CLI model provider is configured: the model's own web search, asked for official annual-report PDF
+links for foreign companies the Swedish feeds never carry (Nestlé, Siemens, Shell ...).
 CLI: python -m pipeline.fetch "Boliden" 2025"""
 import datetime as dt
 import io
@@ -16,7 +18,7 @@ from pathlib import Path
 
 import pymupdf as fitz
 
-from . import paths
+from . import llm, paths
 
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36"}
 MAX_TRIES = 6
@@ -25,6 +27,62 @@ IS_AR = re.compile(r"annual|årsredovisning|års- och", re.I)
 # a PDF that is not *the* annual report even though the search matched: Nordea's Pillar 3 report, AGM decks, quarterlies
 BAD_URL = re.compile(r"interim|q[1-4]\b|quarter|delars|half-?year|risk|pillar|remuneration|ersattning|sustainab|hallbarhet|governance|bolagsstyrning|presentation|agm|stamma|prospect", re.I)
 NOT_REPORT = re.compile(r"capital and risk management|pillar 3|remuneration report|sustainability (report|statement)|corporate governance report|prospectus|interim report|half-year|year-end report|bokslutskommunik", re.I)
+
+# ---- fourth source (v074): the model's own web search, after feeds + crawl + DDG are exhausted ----
+
+MAX_MODEL_CANDIDATES = 3  # each one still goes through the same download + validation as every other source
+SEARCH_SCHEMA = {  # codex/claude ignore the schema (llm.py); it states the reply shape the prompt asks for
+    "type": "object",
+    "properties": {"candidates": {"type": "array", "items": {"type": "object", "properties": {
+        "url": {"type": "string"}, "title": {"type": "string"}, "reason": {"type": "string"}}}}},
+    "required": ["candidates"],
+}
+SEARCH_SYSTEM = (
+    "You are locating a company's official annual report PDF using web search. Reply with JSON only, no prose: "
+    '{"candidates": [{"url": "https://...", "title": "...", "reason": "..."}]}. '
+    "Rules: at most 3 candidates, best first; every URL must be a direct link to the annual report PDF itself for "
+    "the stated fiscal year, hosted on the company's own investor-relations site or an official regulatory filing "
+    "repository; exclude ESEF/xBRL zip packages, interim or quarterly reports, sustainability, remuneration, "
+    "governance or capital-markets reports, and press releases."
+)
+
+
+def websearch_provider() -> "str | None":
+    """The CLI provider a model search may use, or None: only codex/claude have a web-search tool
+    (llm.web_lookup raises for anything else), so an openai/fixture backend never reaches level 4."""
+    try:
+        p = llm.provider()
+    except ValueError:
+        return None
+    return p if p in ("codex", "claude") else None
+
+
+def _model_candidates(company, year, country=None, hint=None):
+    """Ask the model for official annual-report PDF links. (urls, note): at most MAX_MODEL_CANDIDATES
+    cleaned URLs, best first, plus a short note for the eventual 404 detail -- the model being
+    unavailable or replying with something unparseable is not the same thing as "no links found"."""
+    user = f"Company: {company}\nFiscal year: {year}"
+    if country:
+        user += f"\nCountry: {country}"
+    if hint:
+        user += f"\nHint: {hint}"
+    try:
+        data = json.loads(llm.web_lookup(SEARCH_SYSTEM, user, SEARCH_SCHEMA))
+    except Exception as e:  # the CLI's RuntimeError, a timeout, or bad JSON -- one clear note either way
+        print(f"model search failed: {e}")
+        return [], f"model search ({llm.provider()}) failed: {str(e)[:200]}"
+    urls = []
+    for c in (data.get("candidates") or [])[:MAX_MODEL_CANDIDATES]:
+        u = str(c.get("url", "")).strip() if isinstance(c, dict) else ""
+        if not u.startswith(("http://", "https://")) or BAD_URL.search(u):
+            print(f"model candidate dropped: {u!r}")  # not a direct link, or an interim/risk/AGM URL by name
+            continue
+        urls.append(u)
+        # models hand back percent-encoded paths (Siemens' asset API: uuid%3A... -> 400s); the decoded
+        # twin is a free second try for servers that only accept the raw characters
+        if (dec := urllib.parse.unquote(u)) != u and not BAD_URL.search(dec):
+            urls.append(dec)
+    return urls, None
 
 
 def _get(url, timeout=60):
@@ -278,7 +336,21 @@ def _stub_pages(data, toks):
             ("/investor-relations/annual-report.html", "/investor-relations.html", "/en/investors", "/investors", "/")]
 
 
-def fetch_report(company: str, year: int, dest_dir: "Path | None" = None) -> dict:
+def _entry(fname, company, year, url, text, note=None, tags=("fetched",)):
+    low = text.lower()
+    return {"file": fname, "company": company, "fiscal_year": year,
+            "language": "sv" if low.count("årsredovisning") > low.count("annual report") else "en",
+            "source_url": url, "tags": list(tags), "note": note, "fetched_at": dt.date.today().isoformat()}
+
+
+def _write_index(dest_dir, index):
+    s = json.dumps(index, ensure_ascii=False, indent=2)
+    s = re.sub(r'\[\s+("[^\]]*?")\s+\]', lambda m: "[" + re.sub(r",\s+", ", ", m.group(1)) + "]", s)  # tags on one line
+    (dest_dir / "index.json").write_text(s + "\n", encoding="utf-8")
+
+
+def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, country: "str | None" = None, hint: "str | None" = None) -> dict:
+    """country/hint (v074) only feed the fourth source's prompt; levels 1-3 are name-driven already."""
     dest_dir = Path(dest_dir) if dest_dir is not None else paths.reports_dir()
     fname = f"{slugify(company)}_{year}.pdf"
     index = _load_index(dest_dir)
@@ -310,16 +382,37 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None) -> dic
         print(f"{url} -> ok ({doc.page_count} pages, {time.time() - t0:.0f}s)")
         dest_dir.mkdir(parents=True, exist_ok=True)
         (dest_dir / fname).write_bytes(data)
-        low = text.lower()
-        entry = {"file": fname, "company": company, "fiscal_year": year,
-                 "language": "sv" if low.count("årsredovisning") > low.count("annual report") else "en",
-                 "source_url": url, "tags": ["fetched"], "note": None, "fetched_at": dt.date.today().isoformat()}
+        entry = _entry(fname, company, year, url, text)
         index = [e for e in index if e["file"] != fname] + [entry]
-        s = json.dumps(index, ensure_ascii=False, indent=2)
-        s = re.sub(r'\[\s+("[^\]]*?")\s+\]', lambda m: "[" + re.sub(r",\s+", ", ", m.group(1)) + "]", s)  # tags on one line
-        (dest_dir / "index.json").write_text(s + "\n", encoding="utf-8")
+        _write_index(dest_dir, index)
         return {**entry, "tried": tried}
-    raise LookupError(tried)
+    # fourth source: only now, with every feed and web candidate exhausted, and only when the
+    # configured provider actually has a web-search tool (websearch_provider's codex/claude gate).
+    model_note = None
+    if p := websearch_provider():
+        urls, model_note = _model_candidates(company, year, country, hint)
+        for url in urls:
+            if url in tried:
+                continue
+            tried.append(url)
+            t0 = time.time()
+            try:
+                data = _unzip(_get(url))
+                doc, text = _validate(data, company, year)
+            except Exception as e:
+                print(f"{url} -> {e}")
+                continue
+            if not doc:  # no stub-page harvest here: the model was asked for direct PDF links only
+                print(f"{url} -> {text}")
+                continue
+            print(f"{url} -> ok ({doc.page_count} pages, {time.time() - t0:.0f}s)")
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            (dest_dir / fname).write_bytes(data)
+            entry = _entry(fname, company, year, url, text, note=f"model search ({p})", tags=["fetched", "foreign"])
+            index = [e for e in index if e["file"] != fname] + [entry]
+            _write_index(dest_dir, index)
+            return {**entry, "tried": tried}
+    raise LookupError(tried, model_note)
 
 
 if __name__ == "__main__":

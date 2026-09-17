@@ -22,6 +22,10 @@ Next for a teammate: codex_cli/claude_cli ignore `schema`/`name` -- `codex exec 
 or claude's `--json-schema` could constrain the reply the way response_format={"json_schema": ...} does
 for openai_compatible, but that's untried against the real CLIs and the prompt already asks for strict
 JSON, parsed the same way as today either way.
+
+web_lookup() (v074) is chat() with the provider's own web-search tool switched on -- fetch.py's fourth
+report source. Only the CLI providers have a search tool; an OpenAI-compatible endpoint has none, so
+web_lookup raises there instead of quietly answering from the model's memory.
 """
 import json
 import os
@@ -56,6 +60,25 @@ def chat(system: str, user: str, schema: dict, name: str = "response") -> str:
         content = _claude_chat(system, user)
     else:
         content = _openai_chat(system, user, schema, name)
+    content = re.sub(r"<think>.*?</think>", "", content, flags=re.S)  # qwen3 & co
+    return _FENCE.sub("", content)  # fenced anyway (codex/claude answer like a chat assistant, fences and all)? strip
+
+
+def web_lookup(system: str, user: str, schema: dict, name: str = "web_lookup") -> str:
+    """chat() with the provider's own web-search tool switched on: fetch.py's fourth report source
+    asks the model for official annual-report PDF links the feeds and the plain web search missed.
+    codex gets `--search` (the native Responses web_search tool, no per-call approval); claude gets
+    `--tools WebSearch` -- its default `--tools ""` disables every tool, so the allowlist is the
+    whole difference. openai_compatible (Ollama & co) has no search tool: raise rather than answer
+    from the model's memory -- fetch.py gates on provider() in ("codex", "claude") first anyway.
+    Reply post-processing is chat()'s, byte for byte."""
+    p = provider()
+    if p == "codex":
+        content = _codex_chat(system, user, search=True)
+    elif p == "claude":
+        content = _claude_chat(system, user, tools="WebSearch")
+    else:
+        raise ValueError(f"{p} has no web-search tool; web_lookup needs LLM_PROVIDER=codex or claude")
     content = re.sub(r"<think>.*?</think>", "", content, flags=re.S)  # qwen3 & co
     return _FENCE.sub("", content)  # fenced anyway (codex/claude answer like a chat assistant, fences and all)? strip
 
@@ -103,13 +126,16 @@ def _codex_executable() -> str:
     raise RuntimeError("codex executable not found (PATH, or the usual OpenAI Codex install dirs); set CODEX_BIN to override")
 
 
-def _codex_chat(system: str, user: str) -> str:
+def _codex_chat(system: str, user: str, search: bool = False) -> str:
     exe = _codex_executable()
     model, timeout = os.getenv("LLM_MODEL", "gpt-5.6-terra"), float(os.getenv("LLM_TIMEOUT", "120"))
     prompt = f"{system}\n\n{user}"
     with tempfile.TemporaryDirectory(prefix="vivicta-codex-") as cwd:
         out = Path(cwd) / "last-message.txt"  # -o: codex's own answer to "which part of the output is the reply", no event-stream parsing needed
-        cmd = [exe, "exec", "-m", model, "-s", "read-only", "-C", cwd, "--skip-git-repo-check", "--json", "-o", str(out), "-"]
+        # --search is a top-level codex flag (v074), not an exec one: `codex exec --search` is rejected,
+        # `codex --search exec ...` parses. It enables the native Responses web_search tool with no
+        # per-call approval, which is all web_lookup() needs.
+        cmd = [exe, *(["--search"] if search else []), "exec", "-m", model, "-s", "read-only", "-C", cwd, "--skip-git-repo-check", "--json", "-o", str(out), "-"]
         p = subprocess.run(cmd, input=prompt, cwd=cwd, capture_output=True, encoding="utf-8", errors="replace", timeout=timeout)
         if p.returncode != 0 or not out.exists():
             tail = ((p.stdout or "") + "\n" + (p.stderr or ""))[-2000:].strip()
@@ -173,7 +199,7 @@ def _claude_managed_candidate() -> str | None:
     return None
 
 
-def _claude_chat(system: str, user: str) -> str:
+def _claude_chat(system: str, user: str, tools: str = "") -> str:
     exe = _claude_executable()
     model, timeout = os.getenv("LLM_MODEL", "claude-sonnet-5"), float(os.getenv("LLM_TIMEOUT", "120"))
     prompt = f"{system}\n\n{user}"
@@ -181,10 +207,11 @@ def _claude_chat(system: str, user: str) -> str:
         # --tools "" (--help: 'Use "" to disable all tools') leaves the model nothing to call at all -- stronger
         # than --permission-mode plan, which still permits read-only tool calls and exists for an interactive
         # approval loop `-p` never runs. UAW's own CLAUDE_CATALOG_ARGUMENTS (process-transport.ts) reaches for
-        # the same "--tools", "" pair to take a headless CLI call down to plain text in, text out. --output-format
+        # the same "--tools", "" pair to take a headless CLI call down to plain text in, text out. web_lookup()
+        # passes "WebSearch" instead (v074): the same flag is the whole allowlist. --output-format
         # json is codex's `--json -o <file>` in one flag: a single JSON object on stdout, reply text in "result"
         # (verified against a real `claude -p` call, 2026-09-16).
-        cmd = [exe, "-p", "--output-format", "json", "--model", model, "--tools", "", "--no-session-persistence"]
+        cmd = [exe, "-p", "--output-format", "json", "--model", model, "--tools", tools, "--no-session-persistence"]
         p = subprocess.run(cmd, input=prompt, cwd=cwd, capture_output=True, encoding="utf-8", errors="replace", timeout=timeout)
         if p.returncode != 0:
             tail = ((p.stdout or "") + "\n" + (p.stderr or ""))[-2000:].strip()
