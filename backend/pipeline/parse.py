@@ -20,6 +20,18 @@ five under 1.28.2, same glyph boxes), so a fragment's block id is not something 
 _group_blocks re-derives which short blocks belong together from the same geometry _stack_cells
 already trusts, before either version's block boundary is looked at.
 
+A table header that prints as two physical lines but is matrix-transposed -- line 1 holds every
+column's first fragment, line 2 holds every column's second fragment, because a header cell that needs
+two lines and a neighbor that needs only one both set their single/first line at the same height (v060:
+Ework p.70, XANO p.84) -- comes out of both rebuilds above in that same scrambled, two-line order: it is
+neither a stacked cell (the fragments are never in one narrow column or block) nor two side-by-side
+tables (every column shares the row's own baseline). `_rebuild_transposed_headers` closes this
+specifically: a row with enough bare value-shaped fragments to be a table's own data row fixes that
+row's column x-positions, and the 1-3 short lines directly above it (v060's transposed header) are
+reread by which column's position their own words are closest to, right edge to right edge -- the same
+edge a wrapped header's printer already right-aligns to its column, whether or not that column also
+needed a second line. Only adopted when every word's column is unambiguous.
+
 Next for a teammate: scanned reports need an OCR fallback (pymupdf + tesseract via
 `page.get_textpage_ocr()`).
 """
@@ -32,7 +44,7 @@ _DIGIT_SPACE = re.compile(r" (?=\d)|(?<=\d) ")  # any space touching a digit
 _CHARMAP = str.maketrans({"\u00a0": " ", "\u202f": " ", "\u2013": "-", "\u2212": "-"})  # NBSP, narrow NBSP, en dash, minus
 
 
-PARSER_VERSION = 5  # bump when page_text changes so kb.save_report rewrites cached pages.jsonl -- v049b's _group_blocks changes output on 599/4572 corpus pages even under the pinned pymupdf
+PARSER_VERSION = 6  # bump when page_text changes so kb.save_report rewrites cached pages.jsonl -- v068's transposed-header rebuild changes output on the pages it fires on
 NUMERIC_RUN = 12  # consecutive letterless lines: a column-major text layer (Arion Bank prints every figure first, then every label, in no order)
 _LEADERS = re.compile(r"(?:\s*\.){3,}")
 _PURE_VALUE = re.compile(r"[\s\d.,()\-–—%*]+")  # a figures-only line ("164,155 164,155", " - "), as opposed to a label
@@ -41,6 +53,9 @@ _CHAIN_MAX = 3  # a wrapped header cell is 2-3 fragments deep; a chain growing p
 _ALIGNED = 0.8  # this fraction of either side's lines sharing a baseline with the other side = one table's columns, not two layout columns
 _ROW_GAP = 3.0  # two short blocks on one baseline join _group_blocks's pool when their x-gap is under this many times the narrower one's width
 _LINE_RATIO = 2.0  # _group_blocks never links two lines whose heights differ by more than this factor
+_PHRASE_GAP = 4.0  # word-to-word gap _phrases treats as ordinary spacing within one phrase, not a column boundary: intra-phrase gaps measured <=1.9pt (Ework's "< 1 month", XANO's space-grouped "51"+"075"); the tightest real inter-column gap measured is 5.5pt (Ework's "years"/"counted") -- 4.0 sits with margin on both sides
+_HEADER_TOL = 2.0  # a header phrase's own right edge must land within this many points of its column's right edge to be adopted: both companies' printers right-align a wrapped header phrase's last word to its column, the same edge the column's own figures right-align to; every real match measured here lands within 0.2pt
+_HEADER_MAX_LINES = 3  # a transposed header is at most this many physical lines above its anchor row (v060: Ework and XANO each wrap at most 2; a 4th line reaching this deep is a different shape, not this one)
 
 
 def page_texts(pdf_path) -> list[str]:
@@ -80,25 +95,28 @@ def _merge_baselines(page) -> str:
     Groups (see _group_blocks) keep their reading order, so a prose paragraph's lines (distinct
     baselines, and never regrouped -- it is always its own block's only group) come out as before.
     Before grouping, a cell's stacked fragments are chained back together (see _stack_cells)."""
-    out = []
     block_lines = [[(l["bbox"], "".join(s["text"] for s in l["spans"])) for l in block["lines"]
                      if "".join(s["text"] for s in l["spans"]).strip()]
                     for block in page.get_text("dict")["blocks"] if block["type"] == 0]
     page_w = page.rect.width
+    all_rows: list[tuple[float, list[tuple[float, float, str]]]] = []
     for idxs in _group_blocks(block_lines, page_w):
         lines = [ln for i in idxs for ln in block_lines[i]]
         if not lines:
             continue
         cluster_w = max(bbox[2] for bbox, _ in lines) - min(bbox[0] for bbox, _ in lines)
-        rows: list[list] = []  # [y-center, height, [(x0, text)]]
+        rows: list[list] = []  # [y-center, height, [(x0, x1, text)]]
         for bbox, txt in _stack_cells(lines, cluster_w, page_w):
             yc, h = (bbox[1] + bbox[3]) / 2, bbox[3] - bbox[1]
             row = next((r for r in rows if abs(r[0] - yc) <= max(h, r[1]) / 2), None)
             if row is None:
-                rows.append([yc, h, [(bbox[0], txt)]])
+                rows.append([yc, h, [(bbox[0], bbox[2], txt)]])
             else:
-                row[2].append((bbox[0], txt))
-        out += [_WS.sub(" ", " ".join(t for _, t in sorted(xs))).strip() for _, _, xs in sorted(rows)]
+                row[2].append((bbox[0], bbox[2], txt))
+        rows.sort(key=lambda r: (r[0], r[1], [(x0, t) for x0, _, t in r[2]]))
+        all_rows += [(yc, xs) for yc, _, xs in rows]
+    all_rows = _rebuild_transposed_headers(all_rows)
+    out = [_WS.sub(" ", " ".join(t for _, t in sorted((x0, t) for x0, _, t in xs))).strip() for _, xs in all_rows]
     return "\n".join(l for l in out if l)
 
 
@@ -262,10 +280,129 @@ def _words_to_lines(words) -> str:
         yc, tol = (y0 + y1) / 2, (y1 - y0) / 2
         line = next((l for l in lines if abs(l[0] - yc) <= tol), None)
         if line is None:
-            lines.append((yc, [(x0, word)]))
+            lines.append((yc, [(x0, x1, word)]))
         else:
-            line[1].append((x0, word))
-    return "\n".join(_WS.sub(" ", _LEADERS.sub(" ", " ".join(w for _, w in sorted(ws)))).strip() for _, ws in sorted(lines))
+            line[1].append((x0, x1, word))
+    lines.sort(key=lambda l: (l[0], [(x0, w) for x0, _, w in l[1]]))
+    lines = _rebuild_transposed_headers(lines)
+    return "\n".join(_WS.sub(" ", _LEADERS.sub(" ", " ".join(w for _, w in sorted((x0, w) for x0, _, w in ws)))).strip() for _, ws in lines)
+
+
+def _is_amount(text: str) -> bool:
+    """A bare value-shaped phrase: no letters at all (a figure, a lone '-'/'–' nil marker, a bare '%').
+    Never true of a header phrase (Ework's "< 1 month", XANO's "Mellan 1 och 3 år"): every header phrase
+    in both companies' tables keeps at least one letter alongside any digits it carries, because a range
+    or a unit word is always attached: a header line built entirely of these is a table's own data row,
+    not the column headers above it."""
+    return bool(text) and not any(c.isalpha() for c in text)
+
+
+def _phrases(frags: list[tuple[float, float, str]]) -> list[tuple[float, float, str]]:
+    """A line's (x0, x1, text) word fragments, grouped left to right into phrases: a tight gap is
+    ordinary word spacing within one phrase (this is also what reglues a space-grouped thousands split,
+    XANO's "51" + "075"); a wide gap is a real column boundary (see _PHRASE_GAP). Dot leaders (their own
+    word per '.') carry no content and are dropped first so they never bridge two real phrases into one
+    (a title row's dotted rule sitting one line above a table must not smuggle its own two label words
+    into the header-rebuild scan below)."""
+    out = []
+    for x0, x1, text in sorted(f for f in frags if not re.fullmatch(r"\.+", f[2])):
+        if out and x0 - out[-1][1] <= _PHRASE_GAP:
+            out[-1] = (out[-1][0], x1, out[-1][2] + " " + text)
+        else:
+            out.append((x0, x1, text))
+    return out
+
+
+def _assign_columns(groups: list, first_x0: float, col_x1: list[float]):
+    """None (some word's column is not unambiguous), or groups' phrases (top to bottom) reflowed into
+    one label bucket plus one bucket per column in col_x1, each stitched top-to-bottom into a single
+    phrase -- a trailing hyphen glues directly rather than spacing, so a line-wrapped word reassembles
+    ("Total undis-" + "counted value" -> "Total undiscounted value")."""
+    label, cols = [], [[] for _ in col_x1]
+    for phrases in groups:
+        claimed = set()
+        for x0, x1, text in phrases:
+            if x1 <= first_x0:
+                label.append(text)
+                continue
+            dists = sorted(abs(a - x1) for a in col_x1)
+            best = min(range(len(col_x1)), key=lambda i: abs(col_x1[i] - x1))
+            if dists[0] > _HEADER_TOL or (len(dists) > 1 and dists[1] - dists[0] < 0.5) or best in claimed:
+                return None  # a word sits too far from any column, tied between two, or repeats a column this line already claimed
+            claimed.add(best)
+            cols[best].append(text)
+
+    def stitch(parts: list[str]) -> str:
+        out = ""
+        for part in parts:
+            if not out:
+                out = part
+            elif out.endswith("-"):
+                out = out[:-1] + part
+            else:
+                out = out + " " + part
+        return out
+
+    return " ".join(stitch(parts) for parts in [label, *cols] if parts)
+
+
+def _header_fix(lines: list[tuple[float, list]], j: int):
+    """None, or (start, end, rebuilt) if lines[j] is a table row whose own column x-positions can be
+    read off (>=3 bare value-shaped phrases) and 1-3 short lines directly above it are that row's own
+    column headers, matrix-transposed across physical lines (v060: Ework p.70 and XANO p.84 each print a
+    table header as two lines -- one holding every column's first fragment, the next holding every
+    column's second -- because a two-line column and a one-line neighbor both set their first/only line
+    at the same height; plain reading order glues them in an order that matches no real column order).
+    Caller replaces lines[start:end] with one rebuilt line; lines[end:] (j itself, and any line the scan
+    skipped below the header) is untouched."""
+    amounts = [p for p in _phrases(lines[j][1]) if _is_amount(p[2])]
+    if len(amounts) < 3:
+        return None
+    first_x0 = amounts[0][0]
+    col_x1 = [p[1] for p in amounts]
+
+    end = j
+    if end > 0:
+        below = _phrases(lines[end - 1][1])
+        if any(_is_amount(p[2]) for p in below) and len(below) <= 2 and all(p[1] <= first_x0 for p in below):
+            end -= 1  # a bare sub-heading confined to the label column (e.g. a lone fiscal year): not part
+                      # of the transposed header, but no reason it should block the search above it
+
+    groups, start = [], end
+    while start > 0 and len(groups) < _HEADER_MAX_LINES:
+        phrases = _phrases(lines[start - 1][1])
+        if any(_is_amount(p[2]) for p in phrases) or not any(p[1] > first_x0 for p in phrases):
+            break  # a row of its own (the chain of header lines ends), or nothing here reaches the table's columns at all
+        groups.insert(0, phrases)
+        start -= 1
+
+    while groups:
+        rebuilt = _assign_columns(groups, first_x0, col_x1)
+        if rebuilt is not None:
+            return start, end, rebuilt
+        groups.pop(0)  # the farthest line up is the least certain match; drop it and try the closer lines alone
+        start += 1
+    return None
+
+
+def _rebuild_transposed_headers(lines: list[tuple[float, list]]) -> list[tuple[float, list]]:
+    """lines: (yc, [(x0, x1, text)]) rows in top-to-bottom order, however the caller built them (a
+    page's dict-block groups, or its raw words) -- _header_fix reads the pattern line to line and does
+    not care which. A page can hold the pattern more than once (XANO prints it once per fiscal year), so
+    this runs to a fixed point; every other line is returned exactly as it came in."""
+    lines = list(lines)
+    changed = True
+    while changed:
+        changed = False
+        for j in range(len(lines)):
+            fix = _header_fix(lines, j)
+            if fix is None:
+                continue
+            start, end, rebuilt = fix
+            lines[start:end] = [(lines[start][0], [(0.0, 0.0, rebuilt)])]
+            changed = True
+            break
+    return lines
 
 
 def _best_words(page) -> str:

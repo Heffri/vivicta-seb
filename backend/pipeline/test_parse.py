@@ -56,6 +56,12 @@ NAV = ["Introduction", "Governance", "Reports", "Notes", "Sustainability", "Risk
        "Board", "CEO", "Strategy", "Values", "Market", "Contact"]
 
 
+def _right(text, x1, fontsize=11):
+    """x0 so text's own right edge lands at x1 (helv, the insert_text default) -- lets a synthetic
+    header's wrapped fragments right-align to a data row's own column the way real printers do."""
+    return x1 - pymupdf.get_text_length(text, fontsize=fontsize)
+
+
 def _word_row(items, x, y, label, figure_x, figures):
     items.append(("text", (x, y), label))
     for j, fig in enumerate(figures.split()):
@@ -155,7 +161,65 @@ def stacking(mod=p):
     print("parse stacking self-check ok")
 
 
+def case_transposed_header(mod):
+    # (g) a table header matrix-transposed across two physical lines (v060/v068: Ework p.70, XANO p.84):
+    # every column's single/first line sits at one height, every column's second line (only the columns
+    # that need one) sits at another, so plain reading order glues "top halves, then everything else"
+    # into two lines matching no real column order. A data row with >=3 bare amounts fixes each column's
+    # own x-position (its right edge, the edge both companies' printers right-align a wrapped header
+    # phrase to); the header lines above are reread against those positions instead of print order.
+    col1, col2, col3 = 260, 330, 400
+    items = [
+        ("text", (60, 400), "Total"),
+        ("text", (_right("5", col1), 400), "5"),
+        ("text", (_right("6", col2), 400), "6"),
+        ("text", (_right("7", col3), 400), "7"),
+        ("text", (60, 386), "kSEK"),
+        ("text", (_right("One", col1), 386), "One"),
+        ("text", (_right("Two", col2), 386), "Two"),
+        ("text", (_right("fold", col3), 386), "fold"),
+        ("text", (_right("Three-", col3), 372), "Three-"),
+    ]
+    _driver(items, 500)  # twelve letterless lines: pushes the page onto the word-level rebuild path
+    text = mod.page_text(_page(items))
+    assert "kSEK One Two Threefold" in text, text  # one line, true column order, the wrapped word rejoined
+    assert "Three- fold" not in text and "fold Three-" not in text, text
+
+
+def case_header_conflict_declines(mod):
+    # a header word that cannot be matched to any column within tolerance (a stray label wandered into
+    # the table's own column region) must not be forced onto the nearest one -- the rebuild declines and
+    # both original lines survive untouched, the same restraint extract.py's own column-count safety
+    # valve uses (v036).
+    col1, col2, col3 = 260, 330, 400
+    items = [
+        ("text", (60, 400), "Total"),
+        ("text", (_right("5", col1), 400), "5"),
+        ("text", (_right("6", col2), 400), "6"),
+        ("text", (_right("7", col3), 400), "7"),
+        ("text", (60, 386), "kSEK"),
+        ("text", (_right("One", col1), 386), "One"),
+        ("text", (_right("Two", col2), 386), "Two"),
+        ("text", (col3 - 40, 386), "stray"),  # far from any column's own right edge
+    ]
+    _driver(items, 500)
+    text = mod.page_text(_page(items))
+    lines = text.splitlines()
+    assert any(l.strip().startswith("kSEK") for l in lines), lines  # header line kept, not consumed
+    assert any(l.strip().startswith("Total") for l in lines), lines  # data row kept, not consumed
+    assert not any("kSEK" in l and "Total" in l for l in lines), lines  # never merged into one line
+
+
+def headers(mod=p):
+    """v068: a two-line, matrix-transposed table header is rebuilt into true column order; a header
+    whose words don't unambiguously match the data row's own columns is left exactly as printed."""
+    case_transposed_header(mod)
+    case_header_conflict_declines(mod)
+    print("parse header self-check ok")
+
+
 if __name__ == "__main__":
     demo()
     columns()
     stacking()
+    headers()

@@ -1,0 +1,112 @@
+parse_check directed-pages run: PARSER_VERSION=5
+
+===== ework_2025 p.70 (3889 chars) =====
+NOTE 21 Financial risks and finance policies contd.
+The company’s financial liabilities at year-end amounted to kSEK
+2,833,059 (3,272,761).
+The liquidity reserve amounted to kSEK 454,206 (482,784). The
+maturity structure for accounts payable is 0–120 days and for the
+invoice­ credit 30–120 days.
+Currency risk
+Currency risk for the Group is the risk of fluctuations in currencies.
+The Company is exposed to translation risk due to assets in curren-
+cies other than SEK as at Dec. 31, 2025. A sensitivity analysis that 10%
+strengthening of the Swedish krona against other currencies as at 31
+December 2025 would result in a change in equity of kSEK
+7,432 (7,156) and in profit/loss for the year of kSEK 3,477 (4,254). The
+sensitivity analysis is based on all other factors (e.g. interest rates)
+remaining unchanged. The same conditions were applied for 2024.
+Translation exposure
+When translating the foreign Group companies’ net assets into Swed-
+ish kronor, a currency exposure arises that affects the Group’s other
+comprehensive income.
+Credit risks in accounts receivable
+The risk that the Group’s customers do not fulfil their obligations, i.e.
+that payment is not received from customers, constitutes customer
+credit risk. The Group’s customers are subject to credit checks
+whereby information on the customers’ financial position is obtained
+from various credit reference agencies.
+At the balance sheet date, there is no significant concentration of
+credit exposure. The maximum exposure to credit risk is reflected in
+the carrying amount in the statement of financial position for each
+financial asset.
+The Group has historically low confirmed credit losses. When
+assessing expected credit losses, the risks of accounts receivable
+have been divided based on the aging structure. Almost all outstand-
+ing accounts receivable consist of customers previously known to the
+Group with good credit worthiness. The Group has a number of cus-
+tomers that account for a large part of turnover, who are assessed as
+credit worthy; this, taken together with the above fact that the
+accounts receivable are mirrored in accounts payable, means that the
+risk is assessed as low.
+The receivable for the 6 largest customers was SEK 1,063 M
+(1,067), which represents 36 (32)% of the total balance for accounts
+receivable.
+This is Ework Sustainability Governance Financial statements Other
+Maturity structure financial liabilities – undiscounted cash flows
+The Group
+Total undis- Carrying
+kSEK Due < 1 month 1-3 months 3-12 months 1-5 years > 5 years counted value amount
+2025
+Lease liabilities – – 5,230 5,332 22,169 794 33,525 33,403
+Short-term interest-bearing
+liabilities* – 153,761 971 1,677 – – 156,410 156,410
+Accounts payable 91,284 1,472,001 992,513 120,851 – – 2,676,650 2,676,650
+Total 91,284 1,625,763 998,715 127,860 22,169 794 2,866,584 2,866,462
+2024
+Lease liabilities – – 3,000 193 7,518 19,973 30,684 27,918
+Short-term interest-bearing
+liabilities* – 30,971 152,377 11,319 – – 194,667 194,667
+Accounts payable 103,815 1,838,069 1,088,419 47,791 – – 3,078,094 3,078,094
+Total 103,815 1,869,039 1,243,796 59,303 7,518 19,973 3,303,445 3,300,679
+Parent Company
+Total undis- Carrying
+kSEK Due < 1 month 1-3 months 3-12 months 1-5 years > 5 years counted value amount
+2025
+Current interest-bearing liabilities* – 153,761 971 1,677 – – 156,410 156,410
+Accounts payable 83,932 1,143,870 732,716 94,503 – – 2,055,021 2,055,021
+Total 83,932 1,297,631 733,687 96,180 – – 2,211,431 2,211,431
+2024
+Current interest-bearing liabilities* – 30,971 152,377 11,319 – – 194,667 194,667
+Accounts payable 71,576 1,472,213 835,496 20,989 – – 2,400,273 2,400,273
+Total 71,576 1,503,183 987,873 32,308 – – 2,594,940 2,594,940
+* Interest expense on the invoice credit, which corresponds to current interest-bearing liabilities in the tables above, is paid monthly.
+Annual and Sustainability Report 2025 • 70
+
+===== xano_industri_2025 p.84 (2163 chars) =====
+FINANSIELLA SKULDER Förfallotid
+PER 2025-12-31 –30 dgr 31–90 dgr 91–360 dgr Summa Mellan 1 Mellan 3 Efter 5 år Totalt
+inom 1 år och 3 år och 5 år
+Lån och leasingskulder 4 090 8 680 38 305 51 075 735 261 33 784 50 778 870 898
+Konvertibellån – – – – 33 624 – – 33 624
+Checkräkningskredit – – – – – – – –
+Summa räntebärande skulder 4 090 8 680 38 305 51 075 768 885 33 784 50 778 904 522
+Leverantörsskulder 189 334 41 504 8 628 239 466 – – – 239 466
+Summa finansiella skulder 193 424 50 184 46 933 290 541 768 885 33 784 50 778 1 143 988
+Summa icke-diskonterade flöden 1) 193 871 51 077 50 960 295 908 774 909 36 483 54 436 1 164 736
+FINANSIELLA SKULDER Förfallotid
+PER 2024-12-31 –30 dgr 31–90 dgr 91–360 dgr Summa Mellan 1 Mellan 3 Efter 5 år Totalt
+inom 1 år och 3 år och 5 år
+Lån och leasingskulder 4 517 9 533 42 254 56 304 969 939 27 177 42 171 1 095 591
+Konvertibellån – – – – 32 838 – – 32 838
+Checkräkningskredit 17 874 – – 17 874 – – – 17 874
+Summa räntebärande skulder 22 391 9 533 42 254 74 178 1 002 777 27 177 42 171 1 146 303
+Leverantörsskulder 165 789 48 376 8 676 222 841 – – – 222 841
+Summa finansiella skulder 188 180 57 909 50 930 297 019 1 002 777 27 177 42 171 1 369 144
+Summa icke-diskonterade flöden 1) 188 180 57 909 56 746 302 835 1 098 519 27 669 52 977 1 482 000
+1) Innefattar bedömda framtida räntebetalningar.
+I juni 2022 ingicks nya kreditavtal med koncernens huvudbanker. Avtalen löpte över tre år med option på förlängning i ytterligare ett plus ett år. Samtliga avtal har förlängts att
+gälla till juni 2027.
+Beträffande räntebindning och ränterisker samt kreditrisker, se not 35.
+Finansiella skulder
+Finansiella tillgångar
+FÖRDELNING PER VALUTA Långfristiga Kortfristiga
+2025-12-31 1) 2024-12-31 1) 2025-12-31 2024-12-31 2025-12-31 2024-12-31
+DKK 26 498 29 981 227 378 287 934 17 933 16 490
+EUR 383 647 282 405 229 696 334 533 97 316 -198 316
+SEK 545 152 213 429 372 283 350 067 129 430 162 883
+USD -81 327 83 094 4 132 84 727 15 148 129 180
+Övriga valutor -45 722 84 900 19 958 14 864 30 714 186 782
+828 248 693 809 853 447 1 072 125 290 541 297 019
+1) Innefattar utnyttjade checkräkningskrediter med flervalutakonton.
+84 XANO 2025
