@@ -1,0 +1,95 @@
+{
+ "report_id": "storytel_2025",
+ "company": "Storytel",
+ "fiscal_year": 2025,
+ "currency": "MSEK",
+ "section": "debt_maturity",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 550,
+   "unit": "MSEK",
+   "period": "2025",
+   "raw_label": "Group’s total loan liabilities",
+   "source": {
+    "page": 114,
+    "quote": "Group’s total loan liabilities amounted to MSEK 550, with the entire loan classified as current."
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": 550,
+   "unit": "MSEK",
+   "period": "2025",
+   "raw_label": "the entire loan classified as current",
+   "source": {
+    "page": 114,
+    "quote": "Group’s total loan liabilities amounted to MSEK 550, with the entire loan classified as current."
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": null,
+   "unit": "MSEK",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": null,
+   "unit": "MSEK",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "detail": "missing: due_1_to_5_years"
+  }
+ ],
+ "warnings": [
+  "two_pass: page selection failed or illegal for candidates [114, 115, 120, 111]; fell back to the single-pass window"
+ ],
+ "_calls": [
+  "page_select",
+  "extraction"
+ ],
+ "_candidates": [
+  114,
+  115,
+  120,
+  111
+ ],
+ "_retry_prompt_fired": false,
+ "_seconds": 90.1
+}

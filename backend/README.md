@@ -20,11 +20,16 @@ python -m pipeline.kb build                                                     
 
 Knowledge base (`pipeline/kb.py`, layout in `docs/API.md`): every parsed report lands in `data/kb/<stem>/` as
 `meta.json` + `pages.jsonl` (committed), `/extract` adds `extractions/<section>.json` (committed), `/index` derives
-`embeddings.jsonl` (gitignored, `EMBED_MODEL`, default `bge-m3`) from ~800-char page windows plus one fact chunk per
-extracted field. `/ask` = cosine + keyword rerank over the selected reports, then `LLM_MODEL` answers with `[Company p.N]`
-citations whose quotes are verified against the page text (unverified ones are dropped with a warning). `/extract` shows
-the model up to `FEWSHOT` (default 2) checks-passed extractions of the same section from *other* reports, so the mapping
-"Skatt" -> `income_tax` improves as the KB grows; `FEWSHOT=0` turns that off.
+`embeddings.jsonl` (gitignored, `EMBED_MODEL`, default `bge-m3`, first line records which model built it -- a model
+switch rebuilds it wholesale) from ~800-char page windows plus one fact chunk per extracted field. `/ask` retrieval is
+three-state (`kb.retrieval_mode()`, surfaced on `/api/config` as `retrieval`): **hybrid** = min-max-normalised cosine +
+BM25 (0.6/0.4) when `LLM_BASE_URL` provides embeddings; **bm25** = pure Okapi BM25 (k1=1.5, b=0.75, in-memory index,
+no files written) under a codex/claude-only subscription, which has no embeddings endpoint -- Ask is real there too;
+**fixture** = no model at all. Both real states keep the ride-along of the 2 best label-matching extraction facts per
+report, and `LLM_MODEL` answers with `[Company p.N]` citations whose quotes are verified against the page text
+(unverified ones are dropped with a warning). `/extract` shows the model up to `FEWSHOT` (default 2) checks-passed
+extractions of the same section from *other* reports, so the mapping "Skatt" -> `income_tax` improves as the KB grows;
+`FEWSHOT=0` turns that off.
 
 Contract: [`docs/API.md`](../docs/API.md). Add a section = drop a file in `schemas/`, no code.
 
@@ -55,11 +60,10 @@ exit raises the same way an `openai.*` call failing already does, so `extract.py
 is untouched.
 
 **Embeddings never go through Codex.** `kb.embed()` always calls an OpenAI-compatible `/v1/embeddings`
-directly, so `/ask`'s retrieval still needs `LLM_BASE_URL` pointed at Ollama or a real OpenAI-compatible host
-even with `LLM_PROVIDER=codex` -- Codex then only serves `/extract` and `/ask`'s answer generation. Without
-`LLM_BASE_URL`, `POST /api/reports/{id}/extract` stays in fixture mode regardless of `LLM_PROVIDER` (its gate
-in `app.py` checks only `LLM_BASE_URL`), so a Codex-only setup today also needs some placeholder
-`LLM_BASE_URL` set just to clear that gate.
+directly. Since v034 that no longer blocks a Codex-only setup: with `LLM_PROVIDER=codex` and no `LLM_BASE_URL`,
+`/ask`'s retrieval runs pure BM25 (`kb.retrieval_mode()` -> `"bm25"`, nothing embedded, `embeddings.jsonl` never
+written) and `/extract`, `/ask`'s answer generation both run on Codex. Pointing `LLM_BASE_URL` at Ollama or a real
+OpenAI-compatible host additionally buys hybrid cosine+BM25 retrieval and `/index` embeddings.
 
 Test: `python -m pipeline.test_llm` -- a fake `codex.cmd` + Python script replays discovery, a fenced reply,
 a non-zero exit and a timeout, no network or real Codex install needed.
@@ -121,8 +125,9 @@ to know before relying on it:
   action needed.
 
 **Embeddings never go through Claude either**, for the same reason as Codex: `kb.embed()` always calls an
-OpenAI-compatible `/v1/embeddings` directly, so `/ask`'s retrieval still needs `LLM_BASE_URL` pointed at Ollama
-or a real OpenAI-compatible host even with `LLM_PROVIDER=claude`.
+OpenAI-compatible `/v1/embeddings` directly. As with Codex, a Claude-only setup still gets a real `/ask` -- its
+retrieval runs pure BM25 without `LLM_BASE_URL` (`kb.retrieval_mode()` -> `"bm25"`); a base URL upgrades retrieval to
+hybrid cosine+BM25.
 
 Test: `python -m pipeline.test_llm` -- a fake `claude.cmd` + Python script replays discovery, stdin,
 `--output-format json` parsing, fence stripping, `is_error: true`, a non-zero exit and a timeout, no network or
@@ -140,6 +145,24 @@ call, and specifically because it has never been run against a local Ollama mode
 The desktop Settings tab's Codex/Claude/API-endpoint cards carry a matching toggle (on by default)
 that writes this same env var on Save; there is no toggle for Local Ollama, which always runs with it
 off. See `pipeline/extract.py`'s own module docstring and `docs/acrylic/evidence/v043.md`/`v045.md`.
+
+## Quote retry (`EXTRACT_QUOTE_RETRY`)
+
+Opt-in, default **off**: `EXTRACT_QUOTE_RETRY=1` adds one follow-up call after the extraction call
+when the model's own answer cites a quote that is not printed verbatim on the page it names. The
+follow-up (`_quote_retry` in `pipeline/extract.py`) shows each such field's key, label and earlier
+value plus the cited page's own table rows (`_page_rows`, numbered; a page over
+`QUOTE_RETRY_MAX_ROWS` rows is filtered to the rows matching a field's value or one of its synonyms,
+±2 rows of context) and asks the model to copy the printed row character for character -- or answer
+null when no printed row states the figure. A field adopts the reply only when the new quote
+verifies on the page it names (`quote_on_page`), so a null, missing or still-unverifiable reply
+keeps the first answer: the retry can never leave a field worse than the single call. A 0 already
+proven by the report's own words (`_stated_zero`, v050) is not retried -- the sentence is the
+provenance, and a row list could only talk the model out of it. v054's 9-company Codex
+before/after (`docs/acrylic/evidence/v054.md`): 1 trigger in 9 (MEKO), no adoption (the true row is
+torn apart by a two-column layout in the text layer -- the `parse.py` defect HANDOFF's "Next" names),
+nothing worse, nothing improved, so it stays off pending a corpus where quote-shaped failures
+reproduce; the switch and its offline tests are ready either way.
 
 ## Checks
 

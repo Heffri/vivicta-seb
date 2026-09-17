@@ -5,7 +5,9 @@ statement, then extract from that page alone (less context, fewer hallucinations
 as an opt-in `EXTRACT_TWO_PASS=1` (default off, see `_select_pages`); see docs/acrylic/evidence/v043.md
 and docs/acrylic/evidence/v045.md for two rounds of 30-company before/after and the group's call on
 whether to flip the default;
-(2) on "quote not found" retry once with the warnings fed back into the prompt;
+(2) on "quote not found" retry once with the page's own rows shown back, so the model copies the
+    printed line it meant instead of paraphrasing one -- opt-in `EXTRACT_QUOTE_RETRY=1` (default off,
+    see `_quote_retry` and docs/acrylic/evidence/v054.md for the before/after that decides it);
 (3) pick the period column explicitly (current vs prior year) instead of trusting
 the model's "leftmost number" habit; (4) tune SYSTEM_PROMPT_TEMPLATE against eval/.
 """
@@ -118,6 +120,45 @@ Always name TWO pages: the primary page (the one with the table itself, must be 
 
 Return ONE JSON object {{"pages": [primary, companion]}}, primary first. Never invent a primary page number that is not listed above."""
 
+# EXTRACT_QUOTE_RETRY: the follow-up call's schema is the field structure's own subset -- the key, the
+# (possibly corrected) value, and the source line copied verbatim; everything else (label, unit, period,
+# raw_label) the first answer already carries, and validation re-derives what matters from the quote.
+_QUOTE_RETRY_FIELD = {
+    "type": "object",
+    "properties": {
+        "key": {"type": "string"},
+        "value": {"type": ["number", "string", "null"]},
+        "source": {
+            "type": ["object", "null"],
+            "properties": {"page": {"type": "integer"}, "quote": {"type": "string"}},
+            "required": ["page", "quote"],
+            "additionalProperties": False,
+        },
+    },
+    "required": ["key", "value", "source"],
+    "additionalProperties": False,
+}
+QUOTE_RETRY_SCHEMA = {
+    "type": "object",
+    "properties": {"fields": {"type": "array", "items": _QUOTE_RETRY_FIELD}},
+    "required": ["fields"],
+    "additionalProperties": False,
+}
+QUOTE_RETRY_MAX_ROWS = 50  # rows shown per page before the value/synonym filter (_retry_rows) kicks in
+QUOTE_RETRY_PROMPT = """Some of the source lines in your extraction are not printed on the page as you gave them. Below are the fields in question, and the table rows of the page each field cites, one row per numbered line.
+
+For each field: find the row that is this field's own row -- its label names the field and its figures hold the value you reported (thousands separators may differ). Copy that row character for character as quote: the whole row, every number on it, no reformatting, no words added or dropped. Set value to what that row prints for the fiscal year. If no printed row on the page states this field's figure, set source to null -- do not pick the nearest look-alike row instead.
+
+Fields to fix:
+{field_lines}
+
+{page_blocks}
+
+Return ONE JSON object {{"fields": [...]}} with exactly one entry per key above, in that order.
+Entry: key, value (number), source = {{"page": <n>, "quote": "<the row copied verbatim>"}}, or source = null when the page prints no such row.
+- Only rows that are printed. Never compute a value. Never invent numbers. Prefer null over a guess.
+- Compact JSON: no indentation, no line breaks."""
+
 
 def _page_snippet(text: str, keywords: list[str]) -> str:
     """Pass-1's view of one candidate page: the first PAGE_SELECT_SNIPPET chars of text (running headers/
@@ -175,6 +216,89 @@ def _select_pages(schema: dict, pages: list[int], texts: list[str]) -> list[int]
     return sorted([primary, companion])
 
 
+def _retry_rows(text: str, wants: list[tuple]) -> list[tuple[int, str]]:
+    """(number, row) for the retry prompt: every _page_rows row up to QUOTE_RETRY_MAX_ROWS, past that only
+    the rows matching one of the fields' values (any printed grouping, _num_pattern) or synonyms, plus two
+    rows of context either side -- a statement page can carry far more rows than the question is about, and
+    the numbers a whole page holds are what got the quote garbled in the first place."""
+    rows = _page_rows(text)
+    if len(rows) <= QUOTE_RETRY_MAX_ROWS:
+        return list(enumerate(rows, 1))
+    keep: set[int] = set()
+    for i, row in enumerate(rows, 1):
+        low = normalize_ws(row).lower()
+        for value, syns in wants:
+            pat = _num_pattern(value)
+            if (pat and re.search(pat, row)) or any((s := normalize_ws(x).lower()) and s in low for x in syns):
+                keep.update(range(max(1, i - 2), min(len(rows), i + 2) + 1))
+                break
+    return [(i, rows[i - 1]) for i in sorted(keep)]
+
+
+def _quote_retry(by_key: dict, system: str, schema: dict, texts: list[str], pages: list[int],
+                 fiscal_year, warnings: list[str]) -> dict:
+    """EXTRACT_QUOTE_RETRY (default off; default decided by docs/acrylic/evidence/v054.md): one follow-up
+    call after the model's first answer, before validation, for the fields that returned a value whose
+    quote quote_on_page cannot find on the page it cites -- rewritten, spliced, invented, the recurring
+    "quote not found" / "dropped as computed, not read" shape of every hardening round (Storytel, MEKO,
+    MedCap...). The user message lists each such field's key/label/earlier value plus the _page_rows of
+    its own cited page (the first candidate page when it cited none), and asks for the row copied verbatim,
+    or null when no printed row states the figure. A field adopts the reply only when the new quote
+    verifies on the page it names; null, missing or still-unverified replies keep the original answer, so
+    the retry can never leave a field worse than the first call alone. Fields v050's _stated_zero already
+    proves (a 0 the report states in words -- Creades) are not retried: the sentence is the provenance, and
+    a row list could only talk the model out of it. One call, never two; any failure keeps the originals."""
+    if os.getenv("EXTRACT_QUOTE_RETRY") != "1" or not texts or not pages:
+        return by_key
+    cands = []
+    for sf in schema["fields"]:
+        f = by_key.get(sf["key"])
+        if not isinstance(f, dict) or f.get("value") is None:
+            continue
+        src = f.get("source") or {}
+        if isinstance(src.get("page"), int) and 1 <= src["page"] <= len(texts):
+            if str(src.get("quote") or "") and quote_on_page(src["quote"], texts[src["page"] - 1]):
+                continue  # verbatim where it cites: nothing to fix
+            if _stated_zero(f, sf, schema, texts):
+                continue  # the report's own words already prove this 0; a row list has nothing to add
+        cands.append(sf)
+    if not cands:
+        return by_key
+    wants: dict[int, list] = {}
+    lines = []
+    for sf in cands:
+        f = by_key[sf["key"]]
+        src = f.get("source") or {}
+        page = src.get("page") if isinstance(src.get("page"), int) and 1 <= src.get("page") <= len(texts) else pages[0]
+        lines.append(f"- {sf['key']} | {sf.get('label', '')} | your value: {f.get('value')} | cited page: {page}")
+        wants.setdefault(page, []).append((f.get("value"), sf.get("synonyms", [])))
+    blocks = "\n\n".join(f"=== PAGE {p} (rows) ===\n" + "\n".join(f"{n}: {r}" for n, r in _retry_rows(texts[p - 1], wants[p]))
+                         for p in sorted(wants))
+    user = (f"Fiscal year to extract: {fiscal_year}\n\n" if fiscal_year else "") + \
+        QUOTE_RETRY_PROMPT.format(field_lines="\n".join(lines), page_blocks=blocks)
+    try:
+        got = call_llm(system, user, QUOTE_RETRY_SCHEMA, "quote_retry").get("fields", [])
+    except Exception as e:  # ponytail: teammates feed the error back to the model, same as the main call
+        warnings.append(f"quote_retry: {type(e).__name__}: {e}")
+        return by_key
+    fixed = {g.get("key"): g for g in got if isinstance(g, dict) and g.get("key")}
+    for sf in cands:
+        g = fixed.get(sf["key"])
+        if not isinstance(g, dict):
+            continue
+        src = g.get("source") or {}
+        page, quote = src.get("page"), str(src.get("quote") or "")
+        if not isinstance(page, int) or not 1 <= page <= len(texts) or not quote or not quote_on_page(quote, texts[page - 1]):
+            continue  # null, or still not the printed line: the first answer stands
+        old = by_key[sf["key"]]
+        value = _num(g.get("value"))
+        moved = "" if value == old.get("value") else f", value {old.get('value')} -> {value}"
+        warnings.append(f"quote_retry: {sf['key']}: quote replaced by page {page} row {quote!r}{moved}")
+        by_key[sf["key"]] = {**old, "value": value if value is not None else old.get("value"),
+                             "source": {"page": page, "quote": quote}}
+    return by_key
+
+
 def _num(v):
     """'152 340' / '-88,5' -> number; leave anything non-numeric alone."""
     if isinstance(v, bool) or v is None or isinstance(v, (int, float)):
@@ -188,7 +312,7 @@ def _num(v):
 
 
 def _check(check: dict, values: dict, texts: list[str] | None = None, pages: list[int] | None = None,
-           fields: list[dict] | None = None, schema: dict | None = None) -> dict:
+           fields: list[dict] | None = None, schema: dict | None = None, stated_zeros: set | None = None) -> dict:
     out = {"name": check["name"], "passed": False, "detail": ""}
     # "null_as_zero" operands (schema: Ericsson's note prints no >5y bucket — null there is a real 0, not an unanswered
     # field) count as 0 while null, but only while at least one of them is real: all buckets null would sum to 0 == total
@@ -211,7 +335,12 @@ def _check(check: dict, values: dict, texts: list[str] | None = None, pages: lis
         rows = [normalize_ws(r).lower() for p in search if 0 < p <= len(texts) for r in _page_rows(texts[p - 1])]
         zero = {k for k in naz if not any((cs := normalize_ws(s).lower()) and cs in r
                                            for s in sf_by_key.get(k, {}).get("synonyms", []) for r in rows)}
-    ns = {**values, **{k: 0 for k in zero}} if naz and len(naz) < len(listed) else values
+    # v050: all listed operands null, but the identity's remaining operand(s) are themselves stated zeros --
+    # the report said in words there is no interest-bearing debt (Creades), so the buckets ARE zeros and
+    # 0+0+0 == 0 is a real pass, not the "pass on nothing" the guard above exists for (nothing read at all).
+    others = set(re.findall(r"\b[A-Za-z_]\w*\b", check["expr"])) - set(_SAFE_BUILTINS) - set(listed)
+    all_stated = naz and len(naz) == len(listed) and bool(others) and others <= (stated_zeros or set())
+    ns = {**values, **{k: 0 for k in zero}} if naz and (len(naz) < len(listed) or all_stated) else values
     try:
         result = eval(check["expr"], {"__builtins__": {}, **_SAFE_BUILTINS}, ns)  # ponytail: our own schema files, not user input
     except NameError as e:
@@ -228,6 +357,7 @@ def _check(check: dict, values: dict, texts: list[str] | None = None, pages: lis
 WEIGHTS = {"quote_on_page": 0.35, "value_in_quote": 0.20, "arith_ok": 0.20, "label_known": 0.10,
            "period_ok": 0.05, "page_is_statement": 0.05, "unit_ok": 0.05,  # docs/CONFIDENCE.md; sums to 1.0
            "value_derived": 0.20,  # stands in for value_in_quote when the printed number is unreadable, never both
+           "stated_zero": 0.20,  # stands in for value_in_quote when the figure is never printed: the report says 0 in words (v050)
            "identity_all_columns": 0.0}  # a marker: an unknown label whose identity holds in every column earns label_known
 
 
@@ -265,6 +395,31 @@ def _year_run(text: str) -> list[str]:
         if len(run) >= 2:
             return run
     return []
+
+
+def _row_year_column(rows: list[str], i: int, fiscal_year) -> tuple[int, int] | None:
+    """The year header of the table the row rows[i] belongs to: the nearest year run ABOVE it (_year_run over the
+    rows[j:i] window, j walked upward from just above the row), not the page's first. A note page can stack a second
+    table above the statement's (MedCap p.101: a receivables-ageing table over the maturity table), and the page's
+    first header then names 2 columns for 4-amount rows, so every row derivation bails. The fiscal year once in that
+    run -> (pos, len(run)); twice and the run's row or the one above it names Group before Parent ("Koncernen
+    Moderbolaget" / "Group Parent Company") -> the first pair, Parent first -> the last; anything else -> None, the
+    shape _year_column declines (Volvo's four segment pairs stay unknowable here)."""
+    for j in range(i - 1, -1, -1):  # windows grow upward, so the nearest run wins: the row's own header is found before any higher table's
+        run = _year_run(" ".join(rows[j:i]))
+        if not run:
+            continue
+        if run.count(str(fiscal_year)) == 1:
+            return (run.index(str(fiscal_year)), len(run))
+        if run.count(str(fiscal_year)) == 2:  # Group | Parent pairs on one page
+            near = " ".join(rows[max(j - 1, 0):j + 1]).lower()  # the run's own row and the one above it
+            g, e = locate.GROUP.search(near), locate.ENTITY.search(near)
+            if g and e:
+                if g.start() < e.start():
+                    return (run.index(str(fiscal_year)), len(run))
+                return (len(run) - 1 - run[::-1].index(str(fiscal_year)), len(run))
+        return None  # the nearest run wins even when it names no usable column: climbing past it would cross into the table above
+    return None
 
 
 def _segment_column(text: str, fiscal_year, fields: list[dict]) -> tuple[int, int] | None:
@@ -447,16 +602,51 @@ def repair_value(value, quote: str):
     return None
 
 
+def _stated_zero(field: dict, sf: dict, schema: dict, texts: list[str]) -> bool:
+    """A 0 the model returned is proven by the report's own words, not by a printed figure. Every gate
+    must hold: the field's schema opted in ("zero_if_stated" -- the field-level analogue of a check's
+    null_as_zero); the value is exactly 0; the quote carries no digit at all (a numeric quote is the
+    existing provenance gates' job -- repair_value, the printed-zero checks -- not this one); the
+    sentence sits verbatim on the cited page, whitespace/NBSP-insensitive via normalize_ws (quote_on_page
+    itself requires a number token, which a prose negation structurally never has, Creades v048); the
+    sentence names the field's subject (a schema keyword or one of the field's own synonyms); and a
+    negation word from the schema's own list is present -- so a bare row label quoted alone ("Summa
+    räntebärande skulder" off a column-major table) stays a drop, never becomes a 0."""
+    if isinstance(field.get("value"), bool) or field.get("value") != 0 or not isinstance(sf.get("zero_if_stated"), dict):
+        return False
+    src = field.get("source") or {}
+    quote, page = src.get("quote") or "", src.get("page")
+    if not isinstance(page, int) or not 1 <= page <= len(texts) or not quote or any(c.isdigit() for c in quote):
+        return False
+    q = normalize_ws(quote).lower()
+    if q not in normalize_ws(texts[page - 1]).lower():
+        return False
+    vocab = [normalize_ws(v).lower() for v in schema.get("keywords", []) + sf.get("synonyms", [])]
+    if not any(v and v in q for v in vocab):  # the sentence must be about this field's subject
+        return False
+    return bool(set(q.split()) & {w.lower() for w in sf["zero_if_stated"].get("negations", [])})
+
+
 def _signed(amounts: list, col: int, value) -> list:
     """Swedbank prints expenses positive, the field carries them negative: the whole row flips with the fiscal-year figure."""
     return [-a for a in amounts] if col < len(amounts) and amounts[col] == -value and value else amounts
 
 
-def _column_values(field: dict, fields: list[dict], defaults: dict, texts: list[str], fiscal_year) -> list[dict] | None:
+def _column_values(field: dict, fields: list[dict], defaults: dict, texts: list[str], fiscal_year, anchor: str | None = None) -> list[dict] | None:
     """Per table column, the other fields' printed figures ({key: amount}), for fields whose verified quote is a full row
-    of the same table layout. Lets a check be evaluated in the comparative column too."""
+    of the same table layout. Lets a check be evaluated in the comparative column too. The header is the quoted row's own
+    table's (_row_year_column), not the page's first -- a note page can stack two tables -- and each other field is
+    admitted by the header of ITS OWN quoted row, so same-page rows of the other table are not mixed in; `anchor` stands
+    in for the quote when the caller derives for a rowless field (_between_rows), and a quote that is not a printed row
+    falls back to the page's own header, as before."""
     src = field.get("source") or {}
-    header = _year_column(texts[src["page"] - 1], fiscal_year) if src.get("page") else None
+    if not src.get("page"):
+        return None
+    text = texts[src["page"] - 1]
+    quote = src.get("quote") or anchor
+    rows = _page_rows(text)
+    i = rows.index(quote) if quote and quote in rows else None
+    header = _row_year_column(rows, i, fiscal_year) if i is not None else _year_column(text, fiscal_year)
     if not header:
         return None
     col, ncols = header
@@ -465,7 +655,10 @@ def _column_values(field: dict, fields: list[dict], defaults: dict, texts: list[
         gs = g.get("source") or {}
         if g is field or g["value"] is None or not gs.get("page") or "quote_on_page" not in g["evidence"]:
             continue
-        if _year_column(texts[gs["page"] - 1], fiscal_year) != header:
+        gtext, grows = texts[gs["page"] - 1], _page_rows(texts[gs["page"] - 1])
+        gi = grows.index(gs["quote"]) if gs.get("quote") and gs["quote"] in grows else None
+        gheader = _row_year_column(grows, gi, fiscal_year) if gi is not None else _year_column(gtext, fiscal_year)
+        if gheader != header:
             continue
         am = _signed(_row_amounts(gs["quote"], ncols), col, g["value"])
         if len(am) == ncols and am[col] == g["value"]:
@@ -488,11 +681,15 @@ def _derived_value(field: dict, texts: list[str], fiscal_year, check: dict | Non
     "Items affecting comparability (IAC) – cost of goods sold" closes gross profit; Sagax's "Deferred tax" never joins "Profit before tax"."""
     src = field.get("source") or {}
     text = texts[src["page"] - 1] if src.get("page") else ""
-    header, rows = _year_column(text, fiscal_year), _page_rows(text)
-    if not header or src.get("quote") not in rows:
+    rows = _page_rows(text)
+    if src.get("quote") not in rows:
+        return None
+    i = rows.index(src["quote"])
+    header = _row_year_column(rows, i, fiscal_year)  # row-anchored: this derivation proves the quoted row's own table, not whichever table printed first on the page
+    if not header:
         return None
     col, ncols = header
-    i, own = rows.index(src["quote"]), _row_amounts(src["quote"], ncols)
+    own = _row_amounts(src["quote"], ncols)
     for k in range(2, 7 if len(own) == ncols else 2):
         parts = [_row_amounts(r, ncols) for r in rows[max(i - k, 0):i]]
         if len(parts) < k or any(len(a) != ncols for a in parts):
@@ -523,33 +720,51 @@ def _derived_value(field: dict, texts: list[str], fiscal_year, check: dict | Non
 def _between_rows(sf: dict, fields: list[dict], sfs: list[dict], defaults: dict, texts: list[str], fiscal_year, check: dict, page: int):
     """A missing operand of an identity when the model answered nothing: the full rows printed strictly between the other
     operands' rows, when their sums close the identity in every column (Addnode: "Profit after financial items 514 536",
-    "Current tax -157 -154", "Deferred tax 27 20", "Profit for the year 384 402"; no total tax row exists), or the one row among them
-    printed with the field's label when it alone closes the identity (ABB's discontinued operations under the continuing-ops subtotal).
-    None of the rows may carry another field's label. (value, quote, label, number of rows) or None."""
+    "Current tax -157 -154", "Deferred tax 27 20", "Profit for the year 384 402"; no total tax row exists), the one row among them
+    printed with the field's label when it alone closes the identity (ABB's discontinued operations under the continuing-ops subtotal),
+    or -- when nothing sits between -- the k full rows printed directly above the uppermost operand's row, where a first-year
+    bucket split lives (MedCap prints "6 månader eller mindre" + "6 – 12 månader" directly above the "1 – 5 år" row, so no row is
+    strictly between the operands). None of the rows may carry another field's label. (value, quote, label, number of rows) or None."""
     text = texts[page - 1]
-    header, rows = _year_column(text, fiscal_year), _page_rows(text)
-    if not header or header[1] < 2:
-        return None
-    col, ncols = header
+    rows = _page_rows(text)
     idx = [rows.index(g["source"]["quote"]) for g in fields if g["value"] is not None and (g.get("source") or {}).get("page") == page
            and g["source"]["quote"] in rows and re.search(rf"\b{re.escape(g['key'])}\b", check["expr"])]
     if len(idx) < 2:
         return None
-    between = [r for i, r in enumerate(rows) if min(idx) < i < max(idx) and i not in idx and len(_row_amounts(r, ncols)) == ncols]  # ABB: the tax row sits between too
-    if not between or any(_label_known(_row_label(r), gs) for r in between for gs in sfs if gs is not sf):
+    top = min(idx)
+    header = _row_year_column(rows, top, fiscal_year)  # row-anchored at the uppermost operand row: the rows this derivation reads sit at or directly above it
+    if not header or header[1] < 2:
         return None
-    parts = [_row_amounts(r, ncols) for r in between]
-    sums = [round(sum(a[c] for a in parts), 2) for c in range(ncols)]
-    others, quote = _column_values({"source": {"page": page}}, fields, defaults, texts, fiscal_year), " ".join(between)
+    col, ncols = header
+    between = [r for i, r in enumerate(rows) if min(idx) < i < max(idx) and i not in idx and len(_row_amounts(r, ncols)) == ncols]  # ABB: the tax row sits between too
+    others = _column_values({"source": {"page": page}}, fields, defaults, texts, fiscal_year, anchor=rows[top])  # rowless caller: anchor at the operand row
     if not others:
         return None
-    known = [r for r in between if _label_known(_row_label(r), sf)]  # ABB: "Income from discontinued operations, net of tax 174 226" sits between the
-    if len(known) == 1 and quote_on_page(known[0], text):  # tax and net income rows under the "continuing operations, net of tax" subtotal; the one row with the field's label is it
-        am = _row_amounts(known[0], ncols)
-        if all(_check(check, {**others[c], sf["key"]: am[c]})["passed"] for c in range(ncols)):
-            return am[col], known[0], _row_label(known[0]), 1
-    if all(_check(check, {**others[c], sf["key"]: sums[c]})["passed"] for c in range(ncols)) and quote_on_page(quote, text):
-        return sums[col], quote, " + ".join(_row_label(r) for r in between), len(between)
+    if between and not any(_label_known(_row_label(r), gs) for r in between for gs in sfs if gs is not sf):
+        parts = [_row_amounts(r, ncols) for r in between]
+        sums = [round(sum(a[c] for a in parts), 2) for c in range(ncols)]
+        quote = " ".join(between)
+        known = [r for r in between if _label_known(_row_label(r), sf)]  # ABB: "Income from discontinued operations, net of tax 174 226" sits between the
+        if len(known) == 1 and quote_on_page(known[0], text):  # tax and net income rows under the "continuing operations, net of tax" subtotal; the one row with the field's label is it
+            am = _row_amounts(known[0], ncols)
+            if all(_check(check, {**others[c], sf["key"]: am[c]})["passed"] for c in range(ncols)):
+                return am[col], known[0], _row_label(known[0]), 1
+        if all(_check(check, {**others[c], sf["key"]: sums[c]})["passed"] for c in range(ncols)) and quote_on_page(quote, text):
+            return sums[col], quote, " + ".join(_row_label(r) for r in between), len(between)
+    for k in range(2, 9):  # the window above the uppermost operand row: 2..8 full rows, the same span the sum repair reads
+        start = top - k
+        if start < 0:
+            break
+        window = rows[start:top]
+        if any(len(_row_amounts(r, ncols)) != ncols for r in window):
+            continue
+        if any(_label_known(_row_label(r), gs) for r in window for gs in sfs if gs is not sf):
+            continue
+        parts = [_row_amounts(r, ncols) for r in window]
+        sums = [round(sum(a[c] for a in parts), 2) for c in range(ncols)]
+        quote = " ".join(window)
+        if all(_check(check, {**others[c], sf["key"]: sums[c]})["passed"] for c in range(ncols)) and quote_on_page(quote, text):
+            return sums[col], quote, " + ".join(_row_label(r) for r in window), k
     return None
 
 
@@ -808,8 +1023,9 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
         if 2 * nonnull(raw) < len(schema["fields"]) and len(attempt) == 2 and len(pages) > 2:
             windows = [tuple(pages[:4])]  # most fields came back empty: widen once
     by_key = {f.get("key"): f for f in raw if isinstance(f, dict)}
+    by_key = _quote_retry(by_key, system, schema, texts, pages, fiscal_year, warnings)
 
-    fields, filled, sfs = [], set(), []
+    fields, filled, sfs, stated_zeros = [], set(), [], set()
     for sf in schema["fields"]:
         if sf.get("fallback_synonyms") and pages and not any(_label_known(_row_label(r), sf) for r in _page_rows(texts[pages[0] - 1])):
             # a bank prints no "profit before tax" row: its "Operating profit" is the line before tax (NOBA); its top line is "Total operating income"
@@ -825,7 +1041,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             # Telia: the model answered null although "Income after financial items 7,300 6,234" is printed on the statement
             # page under a synonym label. Fill it from the page; everything below then verifies it like a model answer.
             first = texts[pages[0] - 1]
-            h = _year_column(first, fiscal_year)
+            h = _year_column(first, fiscal_year)  # page-level, not row-anchored: the statement spread's first header is the statement's own, and no quote exists yet to anchor to
             if h and (hit := _statement_row(_page_rows(first), sf, h[1])):  # SEB "Basic earnings per share, SEK"
                 am = _row_amounts(hit, h[1])
                 warnings.append(f"{sf['key']}: model returned null, filled from page {pages[0]} row {hit!r}")
@@ -856,12 +1072,18 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             if not verified:
                 nearby = sorted({page, *pages[:2]})
                 if not any(_value_in_quote(field["value"], texts[p - 1]) for p in nearby if 0 < p <= len(texts)):
-                    # Sectra: "Net sales" minus "Goods for resale" offered as gross profit with a quote that is not on the page. A number
-                    # printed nowhere on the cited page or the statement spread was computed or invented, and the rules say null then.
-                    warnings.append(f"{sf['key']}: {field['value']} is printed on none of pages {nearby}; dropped as computed, not read")
-                    field.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
-                    fields.append(field)
-                    continue
+                    if not _stated_zero(field, sf, schema, texts):
+                        # Sectra: "Net sales" minus "Goods for resale" offered as gross profit with a quote that is not on the page. A number
+                        # printed nowhere on the cited page or the statement spread was computed or invented, and the rules say null then.
+                        warnings.append(f"{sf['key']}: {field['value']} is printed on none of pages {nearby}; dropped as computed, not read")
+                        field.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
+                        fields.append(field)
+                        continue
+                    # Creades (v048): "Investmentföretaget har varken räntebärande skulder eller kundfordringar" -- a prose
+                    # no-debt statement never contains the digit _value_in_quote needs; the sentence itself is the provenance.
+                    warnings.append(f"{sf['key']}: 0 is printed on none of pages {nearby}; kept on the report's own words, page {page}: {src.get('quote')!r}")
+                    field["evidence"] += ["quote_on_page", "stated_zero"]
+                    stated_zeros.add(sf["key"])
                 warnings.append(f"{sf['key']}: quote not found on page {page}")
             else:
                 field["evidence"].append("quote_on_page")
@@ -870,7 +1092,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                 if fixed is not None:
                     warnings.append(f"{sf['key']}: value {field['value']} rescaled to {fixed} as printed in the quote")
                     field["value"] = fixed
-                header = _year_column(texts[page - 1], fiscal_year) if fiscal_year else None
+                header = _year_column(texts[page - 1], fiscal_year) if fiscal_year else None  # page-level, not row-anchored: this verifies the model's own read of the page's main statement, it does not derive across tables (left to _derived_value/_between_rows/_column_values)
                 ncols = header and header[1]
                 row = src["quote"] = next((r for r in rows if quote_on_page(verified, r)), verified)  # the full printed row, all columns
                 amounts = _row_amounts(row, ncols)
@@ -983,7 +1205,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             if len(am) == ncols and am[col] != f["value"]:
                 warnings.append(f"{f['key']}: {f['value']} is another segment's column; the page's rows are read from column {col + 1} of {ncols}, which prints {am[col]}")
                 f["value"], f["period"] = am[col], str(fiscal_year)
-    if pages and fiscal_year and (h := _year_column(texts[pages[0] - 1], fiscal_year) or segs.get(pages[0])):
+    if pages and fiscal_year and (h := _year_column(texts[pages[0] - 1], fiscal_year) or segs.get(pages[0])):  # page-level, not row-anchored: statement-spread fill, no quote to anchor to
         first = _page_rows(texts[pages[0] - 1])
         for sf, f in zip(sfs, fields):  # Volvo: profit before tax answered as "Income for the period * 34,707 50,576", a row the page does not print;
             if "quote_on_page" in f["evidence"] or not (hit := _statement_row(first, sf, h[1])):  # the statement's own "Income after financial items" row is the answer
@@ -1011,7 +1233,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
     units = Counter(f["unit"] for f in fields if f["unit"])
     periods = Counter(f["period"] for f in fields if re.fullmatch(r"\d{4}", str(f["period"])))
     defaults = {sf["key"]: sf["default"] for sf in schema["fields"] if "default" in sf}  # optional rows (discontinued ops) count as 0
-    checks = [_check(c, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema) for c in schema.get("checks", [])]
+    checks = [_check(c, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema, stated_zeros=stated_zeros) for c in schema.get("checks", [])]
     for c, sc in zip(checks, schema.get("checks", [])):  # NCC: "Result from sales of Group companies 20" offered as discontinued operations; the identity holds without it
         if c["passed"] or c["detail"].startswith("missing:") or not sc.get("identity"):
             continue
@@ -1022,7 +1244,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                 warnings.append(f"{k}: {f.get('raw_label')!r} {f['value']} dropped: not a known {sf['label'].lower()} label, and {c['name']} holds without it")
                 f.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
                 del values[k]
-                c.update(_check(sc, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema))
+                c.update(_check(sc, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema, stated_zeros=stated_zeros))
                 break
     for c, sc in zip(checks, schema.get("checks", [])):
         if c["passed"] or c["detail"].startswith("missing:") or not sc.get("identity"):
@@ -1032,7 +1254,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                     and "quote_on_page" in f["evidence"] and _check(sc, {**defaults, **values, f["key"]: -f["value"]})["passed"]:
                 warnings.append(f"{f['key']}: printed unsigned as {f['value']}; stored as {-f['value']} (an expense), which makes {c['name']} pass")
                 f["value"] = values[f["key"]] = -f["value"]
-                c.update(_check(sc, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema))
+                c.update(_check(sc, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema, stated_zeros=stated_zeros))
                 break
     for c, sc in zip(checks, schema.get("checks", [])):
         missing = c["detail"].split(": ", 1)[1] if c["detail"].startswith("missing: ") else next(  # ABB: discontinued operations answered null, defaulted
@@ -1047,7 +1269,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                          evidence=["quote_on_page", "value_derived" if fix[3] > 1 else "identity_all_columns"])
                 values[key] = fix[0]
                 filled.add(key)
-                c.update(_check(sc, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema))
+                c.update(_check(sc, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema, stated_zeros=stated_zeros))
         if c["detail"].startswith("missing:") or not sc.get("identity"):  # only an equality proves a sum of rows; margin_sanity would accept anything
             continue
         for f, sf in zip(fields, sfs):  # an operand whose figure is proven by the rows around its quote: Röko "1,01", Catena's two tax rows
@@ -1074,11 +1296,12 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                     warnings.append(f"{f['key']}: {f['value']} is not printed; it is the sum of {fix[1]!r}, and {c['name']} holds with those rows in every column")
                 f["value"], f["source"]["quote"], f["raw_label"], values[f["key"]] = fix[0], fix[1], fix[2], fix[0]
                 f["evidence"].append("value_derived")
-                c.update(_check(sc, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema))
+                c.update(_check(sc, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema, stated_zeros=stated_zeros))
                 break
     for f, sf in zip(fields, sfs):  # Sectra (by nature): net sales minus goods for resale offered as gross profit, quoting "Total income 3,689,793"
         src = f["source"] or {}
-        if f["value"] is None or "value_derived" in f["evidence"] or not src.get("page") or _value_in_quote(f["value"], src.get("quote", "")):
+        if f["value"] is None or "value_derived" in f["evidence"] or not src.get("page") or f["key"] in stated_zeros \
+                or _value_in_quote(f["value"], src.get("quote", "")):
             continue
         nearby = sorted({src["page"], *pages[:2]})
         if not any(_value_in_quote(f["value"], texts[q - 1]) for q in nearby if 0 < q <= len(texts)):  # nothing above could read or derive it
@@ -1092,7 +1315,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             f.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
             values.pop(sf["key"], None)
     _fill_bucket_columns(fields, sfs, schema, texts, pages, fiscal_year, warnings, values, filled)
-    checks = [_check(c, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema) for c in schema.get("checks", [])]
+    checks = [_check(c, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema, stated_zeros=stated_zeros) for c in schema.get("checks", [])]
     for c, sc in zip(checks, schema.get("checks", [])):
         if not c["passed"] or not sc.get("identity"):
             continue
@@ -1100,7 +1323,10 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             src = f["source"] or {}
             if f["value"] is None or _label_known(f.get("raw_label"), sf) or "quote_on_page" not in f["evidence"] or not re.search(rf"\b{re.escape(f['key'])}\b", sc["expr"]):
                 continue
-            header, others = _year_column(texts[src["page"] - 1], fiscal_year), _column_values(f, fields, defaults, texts, fiscal_year)
+            rws = _page_rows(texts[src["page"] - 1])
+            ri = rws.index(src["quote"]) if src.get("quote") and src["quote"] in rws else None
+            header = _row_year_column(rws, ri, fiscal_year) if ri is not None else _year_column(texts[src["page"] - 1], fiscal_year)  # row-anchored like _column_values below: both must name the field's own table
+            others = _column_values(f, fields, defaults, texts, fiscal_year)
             if not header or header[1] < 2 or others is None:
                 continue  # one column is one equation; two independent years name the row
             own = _signed(_row_amounts(src["quote"], header[1]), header[0], f["value"])

@@ -165,7 +165,7 @@ function SubscriptionCliFields({
       </Field>
       <TwoPassToggle checked={twoPass} onChange={onTwoPassChange} />
       <TextField caption="Base URL (optional)" value={baseUrl} onChange={(e) => onBaseUrlChange(e.target.value)} placeholder="http://127.0.0.1:11434/v1" />
-      <p className="text-xs text-muted-foreground">Without a base URL, Ask and re-indexing stay unavailable — Extract still works.</p>
+      <p className="text-xs text-muted-foreground">Without a base URL, Ask retrieves with keyword search (BM25) instead of embeddings — Extract still works.</p>
       {baseUrl.trim() && (
         <TextField caption="API key (optional, for the base URL above)" type="password" autoComplete="off" value={apiKey} onChange={(e) => onApiKeyChange(e.target.value)} />
       )}

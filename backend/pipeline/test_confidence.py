@@ -565,7 +565,9 @@ def demo():
     # (docs/acrylic/evidence/v041.md's own recorded outcome for MedCap). due_within_1_year's own bucket boundary
     # ("<1 år") is not on the carrying table but is on the contractual table two pages later (still a candidate
     # page, p.102/page 2 here) -- present, so the check now reads missing, not failed, and the two verified
-    # fields are no longer capped for a sibling bucket's gap.
+    # fields are no longer capped for a sibling bucket's gap. (v052 has since closed the gap itself: the same
+    # derivation that fills the model's fabricated-quote answer below now also fills this null one -- due_within_1_year
+    # comes back 102.3 and the check moves on to the one bucket the carrying table really does not print.)
     medcap101 = ("Förfallotidpunkt för upplåning Koncernen Moderbolaget\nMSEK 2025-12-31 2024-12-31 2025-12-31 2024-12-31\n"
                  "6 månader eller mindre 54,3 41,8 – –\n6 – 12 månader 48,0 19,0 – –\n1 – 5 år 616,5 316,7 – –\nTotalt 718,7 377,6 – –\n")
     medcap102 = ("Koncernen 2025-12-31\nMSEK <1 år 1 – 2 år 2 – 4 år 4 – 5 år >5år\nSkulder till kreditinstitut 59,3 97,5 59,1 – –\n"
@@ -577,7 +579,7 @@ def demo():
         {"key": "due_1_to_5_years", "value": 616.5, "unit": "MSEK", "period": "2025", "raw_label": "1 – 5 år", "source": {"page": 1, "quote": "1 – 5 år 616,5 316,7 – –"}},
         {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
     out = x.extract([medcap101, medcap102], [1, 2], dm, {"fiscal_year": 2025})
-    assert not out["checks"][0]["passed"] and out["checks"][0]["detail"] == "missing: due_within_1_year", out["checks"]  # was failed pre-v044
+    assert not out["checks"][0]["passed"] and out["checks"][0]["detail"] == "missing: due_after_5_years", out["checks"]  # was failed pre-v044, "missing: due_within_1_year" before v052 closed it
     total = next(f for f in out["fields"] if f["key"] == "total_debt")
     bucket15 = next(f for f in out["fields"] if f["key"] == "due_1_to_5_years")
     assert total["confidence"] == 0.9 and "arith_ok" in total["evidence"], total  # was capped at 0.5
@@ -600,6 +602,173 @@ def demo():
     assert not out["checks"][0]["passed"] and not out["checks"][0]["detail"].startswith("missing:"), out["checks"]
     within = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
     assert within["confidence"] == 0.5, within  # still capped: neither sibling bucket's label is anywhere on the page
+    qcalls = []
+    # v054: EXTRACT_QUOTE_RETRY (default off) -- one follow-up call for the fields whose answer cites a quote
+    # that is not printed on the page it names: the cited page's own _page_rows go out numbered, and the model
+    # copies the printed row verbatim (or answers null: no such row). A retried field is adopted only when its
+    # new quote verifies on the page it names -- null, missing or still-unverified replies keep the original
+    # answer, so the retry can never leave a field worse than the first call alone. "Current portion of loans"
+    # is deliberately not one of the schema's synonyms, so the label-repair inside the validation loop cannot
+    # fix this quote either -- exactly the 0.25 shape the hardening rounds kept hitting (Storytel, MEKO).
+    qret_page = ("Note 20 Borrowings\nMSEK\n2025 2024\nTotal borrowings 32 703 34 500\nCurrent portion of loans 3 538 4 100\n"
+                 "1-5 years 29 165 30 000\n")
+
+    def qret_answer():
+        return {"fields": [
+            {"key": "total_debt", "value": 32703, "unit": "MSEK", "period": "2025", "raw_label": "Total borrowings",
+             "source": {"page": 1, "quote": "Total borrowings 32 703 34 500"}},
+            {"key": "due_within_1_year", "value": 3538, "unit": "MSEK", "period": "2025", "raw_label": "Current portion of loans",
+             "source": {"page": 1, "quote": "Current portion of loans, 3,538"}},  # reformatted: not the printed line
+            {"key": "due_1_to_5_years", "value": 29165, "unit": "MSEK", "period": "2025", "raw_label": "1-5 years",
+             "source": {"page": 1, "quote": "1-5 years 29 165 30 000"}},
+            {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+
+    def qret_fix():
+        return {"fields": [{"key": "due_within_1_year", "value": 3538, "source": {"page": 1, "quote": "Current portion of loans 3 538 4 100"}}]}
+
+    qret_seen = {}
+
+    def qret_llm(system, user, schema=x.RESPONSE_SCHEMA, name="extraction"):
+        qcalls.append(name)
+        qret_seen[name] = (system, user)
+        return qret_answer() if name == "extraction" else qret_fix()
+
+    import os
+    os.environ["EXTRACT_QUOTE_RETRY"] = "1"
+    try:
+        x.call_llm = qret_llm
+        qcalls.clear()
+        out = x.extract([qret_page], [1], dm, {"fiscal_year": 2025})
+        assert qcalls == ["extraction", "quote_retry"], qcalls  # one follow-up, only because a quote failed
+        assert qret_seen["quote_retry"][0] == qret_seen["extraction"][0], "retry reuses the extraction system prompt"
+        assert "4: Current portion of loans 3 538 4 100" in qret_seen["quote_retry"][1], qret_seen["quote_retry"][1]  # the page's own rows, numbered
+        assert "your value: 3538" in qret_seen["quote_retry"][1], qret_seen["quote_retry"][1]  # the field's own earlier answer
+        w1y = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
+        assert (w1y["value"], w1y["confidence"], w1y["source"]["quote"]) == (3538, 0.9, "Current portion of loans 3 538 4 100"), (w1y, out["warnings"])
+        assert sum(w.startswith("quote_retry:") for w in out["warnings"]) == 1, out["warnings"]
+        assert next(f for f in out["fields"] if f["key"] == "total_debt")["confidence"] == 1.0, out["fields"]  # verified fields are not retried
+
+        # nothing to fix (every quote already verbatim): no follow-up call at all
+        def qret_good(system, user, schema=x.RESPONSE_SCHEMA, name="extraction"):
+            qcalls.append(name)
+            return {"fields": [{**f, "source": {"page": 1, "quote": "Current portion of loans 3 538 4 100"}} if f["key"] == "due_within_1_year" else f
+                               for f in qret_answer()["fields"]]}
+        x.call_llm = qret_good
+        qcalls.clear()
+        out = x.extract([qret_page], [1], dm, {"fiscal_year": 2025})
+        assert qcalls == ["extraction"], qcalls
+
+        # the retry answers null (no printed row states the figure): the field keeps the first answer's judgment
+        def qret_null(system, user, schema=x.RESPONSE_SCHEMA, name="extraction"):
+            qcalls.append(name)
+            return qret_answer() if name == "extraction" else {"fields": [{"key": "due_within_1_year", "value": None, "source": None}]}
+        x.call_llm = qret_null
+        qcalls.clear()
+        out = x.extract([qret_page], [1], dm, {"fiscal_year": 2025})
+        assert qcalls == ["extraction", "quote_retry"], qcalls
+        w1y = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
+        assert (w1y["value"], w1y["confidence"]) == (3538, 0.25) and not any(w.startswith("quote_retry:") for w in out["warnings"]), (w1y, out["warnings"])
+
+        # a retry quote that still does not verify keeps the original answer too
+        def qret_still_bad(system, user, schema=x.RESPONSE_SCHEMA, name="extraction"):
+            qcalls.append(name)
+            return qret_answer() if name == "extraction" else \
+                {"fields": [{"key": "due_within_1_year", "value": 3538, "source": {"page": 1, "quote": "Loans due soon 3538"}}]}
+        x.call_llm = qret_still_bad
+        qcalls.clear()
+        out = x.extract([qret_page], [1], dm, {"fiscal_year": 2025})
+        assert qcalls == ["extraction", "quote_retry"], qcalls
+        w1y = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
+        assert (w1y["value"], w1y["confidence"]) == (3538, 0.25) and not any(w.startswith("quote_retry:") for w in out["warnings"]), (w1y, out["warnings"])
+
+        # a stated zero (v050's prose-negation path) is already proven by the report's own words: not retried
+        prose = ("Not 18 Klassificering av finansiella instrument\n"
+                 "Investmentföretaget har varken räntebärande skulder eller kundfordringar.\n")
+
+        def qret_zero(system, user, schema=x.RESPONSE_SCHEMA, name="extraction"):
+            qcalls.append(name)
+            return {"fields": [
+                {"key": "total_debt", "value": 0, "unit": "SEK mn", "period": "2025",
+                 "raw_label": "Investmentföretaget har varken räntebärande skulder eller kundfordringar.",
+                 "source": {"page": 1, "quote": "Investmentföretaget har varken räntebärande skulder eller kundfordringar."}},
+                {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+                {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+                {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+        x.call_llm = qret_zero
+        qcalls.clear()
+        out = x.extract([prose], [1], dm, {"fiscal_year": 2025})
+        assert qcalls == ["extraction"], qcalls  # quote_on_page fails on the digit-free sentence; _stated_zero already proves it
+        td = next(f for f in out["fields"] if f["key"] == "total_debt")
+        assert td["value"] == 0 and td["confidence"] == 0.5 and "stated_zero" in td["evidence"], (td, out["warnings"])
+
+        # a value the model returned without any source: the retry may supply the printed row (page 1 = candidates[0])
+        def qret_nosrc(system, user, schema=x.RESPONSE_SCHEMA, name="extraction"):
+            qcalls.append(name)
+            if name == "extraction":
+                return {"fields": [{**qret_answer()["fields"][0], "source": None}, *qret_answer()["fields"][1:]]}
+            return {"fields": [{"key": "total_debt", "value": 32703, "source": {"page": 1, "quote": "Total borrowings 32 703 34 500"}}]}
+        x.call_llm = qret_nosrc
+        qcalls.clear()
+        out = x.extract([qret_page], [1], dm, {"fiscal_year": 2025})
+        assert qcalls == ["extraction", "quote_retry"], qcalls
+        td = next(f for f in out["fields"] if f["key"] == "total_debt")
+        assert (td["value"], td["confidence"]) == (32703, 1.0), (td, out["warnings"])  # was "value without source dropped"
+    finally:
+        del os.environ["EXTRACT_QUOTE_RETRY"]
+
+    # switch off (the default): no follow-up call, the first answer's judgment stands
+    x.call_llm = qret_llm
+    qcalls.clear()
+    out = x.extract([qret_page], [1], dm, {"fiscal_year": 2025})
+    assert qcalls == ["extraction"], qcalls
+    w1y = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
+    assert (w1y["value"], w1y["confidence"]) == (3538, 0.25) and not any(w.startswith("quote_retry:") for w in out["warnings"]), (w1y, out["warnings"])
+    # v052: a note page can stack a second table above the one the field's row sits in (MedCap p.101: a
+    # receivables-ageing table over the maturity table), and the maturity header itself repeats the year across
+    # Koncernen | Moderbolaget pairs. Row derivations now anchor the year header to the quoted row -- the nearest
+    # year run above it (_row_year_column) -- and, when the fiscal year appears twice in that run, take the Group
+    # side when Group is named before Parent on the run's row or the one above it, the last pair when reversed.
+    # The page-level _year_column default is untouched: still the page's first run, still None on repeats.
+    assert x._year_column(medcap101, 2025) is None  # the page-level default still declines a repeated year, as before
+    age101 = ("MSEK 2025-12-31 2024-12-31\nEj förfallet 241,6 180,5\nMindre än 3 månader 25,0 29,1\n"
+              "Äldre än 3 månader 1,8 1,8\nAvsättningar -1,1 -0,8\nTotalt 267,3 210,6\n")  # the receivables-ageing table printed above the maturity one on the real p.101
+    full101 = age101 + medcap101
+    assert x._year_column(full101, 2025) == (0, 2)  # unchanged page-level default: the page's FIRST header, the ageing table's
+    rows101 = x._page_rows(full101)
+    assert x._row_year_column(rows101, rows101.index("Totalt 718,7 377,6 – –"), 2025) == (0, 4)  # the maturity table's own header, Group side first
+    assert x._row_year_column(rows101, rows101.index("Totalt 267,3 210,6"), 2025) == (0, 2)  # the ageing row anchors to its own table
+    norows101 = x._page_rows(full101.replace(" Koncernen Moderbolaget", ""))
+    assert x._row_year_column(norows101, norows101.index("Totalt 718,7 377,6 – –"), 2025) is None  # repeated year, no Group/Parent words: unknowable, declines as before
+    catrows = x._page_rows(cat)
+    assert x._row_year_column(catrows, catrows.index("Profit before tax 2,067 1,344"), 2025) == (0, 2)  # single-table page: the anchored header is the page's
+    # ... end to end: the model computes due_within_1_year = 54,3 + 48,0 = 102,3 correctly but fabricates its quote,
+    # so the value is dropped as computed, not read -- yet both rows are printed, and with the maturity table's own
+    # 4-column header the rows printed directly above the "1 – 5 år" operand row close the identity in every column
+    # (102.3+616.5+0 vs 718.7, 60.8+316.7+0 vs 377.6, the Moderbolaget columns nil throughout)
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 718.7, "unit": "MSEK", "period": "2025", "raw_label": "Totalt", "source": {"page": 1, "quote": "Totalt 718,7 377,6 – –"}},
+        {"key": "due_1_to_5_years", "value": 616.5, "unit": "MSEK", "period": "2025", "raw_label": "1 – 5 år", "source": {"page": 1, "quote": "1 – 5 år 616,5 316,7 – –"}},
+        {"key": "due_within_1_year", "value": 102.3, "unit": "MSEK", "period": "2025", "raw_label": "6 månader eller mindre", "source": {"page": 1, "quote": "6 månader eller mindre 54,3 + 6 – 12 månader 48,0 = 102,3"}},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([full101, medcap102], [1, 2], dm, {"fiscal_year": 2025})
+    within = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
+    assert within["value"] == 102.3 and "value_derived" in within["evidence"] and within["source"]["quote"] \
+        == "6 månader eller mindre 54,3 41,8 – – 6 – 12 månader 48,0 19,0 – –", (within, out["warnings"])
+    assert within["confidence"] == 1.0 and within["raw_label"] == "6 månader eller mindre + 6 – 12 månader", within
+    # the identity itself closes in every column (54.3+48.0+616.5 = 718.8 vs 718.7, 41.8+19.0+316.7 = 377.5 vs 377.6,
+    # the Moderbolaget columns nil throughout) -- what keeps the reported check open is due_after_5_years: its ">5år"
+    # header sits on the contractual table one page over, so v044's present-label rule refuses the false 0, and the
+    # carrying table genuinely prints no >5y row. Passing would mean relaxing that rule, not this lane's territory.
+    assert not out["checks"][0]["passed"] and out["checks"][0]["detail"] == "missing: due_after_5_years", out["checks"]
+    total = next(f for f in out["fields"] if f["key"] == "total_debt")
+    bucket15 = next(f for f in out["fields"] if f["key"] == "due_1_to_5_years")
+    assert (total["value"], total["confidence"]) == (718.7, 0.9) and (bucket15["value"], bucket15["confidence"]) == (616.5, 1.0), (total, bucket15)
+    # ... and a repeated year with no Group/Parent named above the rows must not fire: Volvo-style segment
+    # repetition stays unknowable, the field stays null exactly as before the anchoring existed
+    out = x.extract([full101.replace(" Koncernen Moderbolaget", ""), medcap102], [1, 2], dm, {"fiscal_year": 2025})
+    within = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
+    assert within["value"] is None and within["confidence"] == 0.0 and not within["evidence"], (within, out["warnings"])
+    assert not out["checks"][0]["passed"], out["checks"]
     # v043: EXTRACT_TWO_PASS (default off) -- pass 1 is a small "which candidate page" question over a
     # head-of-page snippet of *every* candidate (not just the top-2 the single-pass window shows), pass 2
     # is the existing extraction prompt fed only the page(s) pass 1 picks. Candidate 3 (never reached by
@@ -688,6 +857,109 @@ def demo():
     assert "7" not in user.splitlines(), user  # bare page-number line stripped (not just "differs per page", see locate's own comment)
     assert "\n...\n" in user  # the head/keyword-hits separator only appears once something was found beyond the head
     assert any(l.endswith(": Note 20 Borrowings") for l in user.splitlines()), user  # the heading, past the head cutoff, surfaces numbered
+    # v050: a prose no-debt statement has no digit for _value_in_quote, so both provenance gates dropped the
+    # model's 0 as "computed, not read" (v048's recorded warning for Creades, seed 4, p.61 real text). The
+    # total_debt schema field now opts in with "zero_if_stated" (the field-level analogue of a check's
+    # null_as_zero): a digit-free quote that sits verbatim on the cited page (whitespace/NBSP-insensitive;
+    # quote_on_page itself requires a number token, which prose never has), names the field's subject (a
+    # schema keyword or one of the field's synonyms) and carries a negation word from the schema's own list,
+    # proves a 0 the report stated in words. The buckets get no opt-in (their descriptions forbid a 0 for an
+    # unprinted bucket), so they stay null -- and _check lifts its all-null guard only when the identity's
+    # remaining operand is itself such a stated zero, making 0+0+0 == 0 a real pass.
+    creades61 = ("Noter 59\nCreades årsredovisning 2025\n"
+                 "Not 18 Klassificering av finansiella instrument värderade till verkligt värde\n"
+                 "Enligt IFRS 9 ska ett företag klassificera sina finansiella tillgångar och skulder. Creades klassificering av sina finansiella tillgångar och skulder\n"
+                 "framgår av följande matris.\n"
+                 "Likvida medel, kundfordringar och leverantörsskulder har kort löptid och bedöms ha ett upplupet anskaffningsvärde som inte avviker\n"
+                 "väsentligt från verkligt värde. Investmentföretaget har varken räntebärande skulder eller kundfordringar.\n"
+                 "Finansiella tillgångar 251231, per värderingskategori enligt IFRS 9\nSEK mn\nTillgångar\n"
+                 "Andelar i portföljbolag 10 879 – 10 879 10 879\nLångfristig fordran 72 – 72 72\nLikvida medel – 287 287 287\n"
+                 "Summa tillgångar 10 951 287 11 237 11 237\n"
+                 "Indelning i hierarkiska nivåer\nTillgångar och skulder värderade till verkligt värde via resultatet\n"
+                 "Creades har inga finansiella tillgångar eller skulder hänförliga\ntill Nivå 2.\n")
+    creades62 = "60 Noter\nCreades årsredovisning 2025\nVärderingen görs vanligen genom principen ”Multipelvärdering”,\n"
+    creades_sentence = "Investmentföretaget har varken räntebärande skulder eller kundfordringar."
+
+    def zero_answer():
+        return {"fields": [
+            {"key": "total_debt", "value": 0, "unit": "SEK mn", "period": "2025",
+             "raw_label": creades_sentence, "source": {"page": 1, "quote": creades_sentence}},
+            {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+            {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+            {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+
+    x.call_llm = lambda *a, **k: zero_answer()
+    out = x.extract([creades61, creades62], [1, 2], dm, {"fiscal_year": 2025})
+    td = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert td["value"] == 0 and td["confidence"] == 0.5 and "stated_zero" in td["evidence"] \
+        and td["source"]["quote"] == creades_sentence, (td, out["warnings"])  # 0.50: the sentence is on the page, the figure never is
+    assert out["checks"][0]["passed"] and "null" in out["checks"][0]["detail"], out["checks"]  # 0+0+0 == 0, every operand named
+    assert all(next(f for f in out["fields"] if f["key"] == k)["value"] is None for k in dmf if k != "total_debt"), out["fields"]  # buckets stay null
+    # off-page quote: the negation sentence not printed on the cited page -> still "computed, not read"
+    off = zero_answer()
+    off["fields"][0]["source"]["quote"] = "Bolaget har absolut inga räntebärande skulder."
+    x.call_llm = lambda *a, **k: off
+    out = x.extract([creades61, creades62], [1, 2], dm, {"fiscal_year": 2025})
+    td = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert td["value"] is None and any("dropped as computed, not read" in w for w in out["warnings"]), (td, out["warnings"])
+    # on-page quote about something else: "Creades klassificering ..." says skulder but holds no total_debt vocabulary word
+    off = zero_answer()
+    off["fields"][0]["source"]["quote"] = "Creades klassificering av sina finansiella tillgångar och skulder"
+    x.call_llm = lambda *a, **k: off
+    out = x.extract([creades61, creades62], [1, 2], dm, {"fiscal_year": 2025})
+    td = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert td["value"] is None and any("dropped as computed, not read" in w for w in out["warnings"]), (td, out["warnings"])
+    # the buckets have no opt-in: 0 + the very same sentence still drops, the buckets' own "null if the table
+    # has no such row" rule stands, and the identity reads missing, never 0 == nothing
+    bucket = zero_answer()
+    bucket["fields"][0] = {"key": "total_debt", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}
+    bucket["fields"][1] = {"key": "due_within_1_year", "value": 0, "unit": "SEK mn", "period": "2025",
+                           "raw_label": creades_sentence, "source": {"page": 1, "quote": creades_sentence}}
+    x.call_llm = lambda *a, **k: bucket
+    out = x.extract([creades61, creades62], [1, 2], dm, {"fiscal_year": 2025})
+    w1y = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
+    assert w1y["value"] is None and any(w.startswith("due_within_1_year: 0 is printed on none of pages") for w in out["warnings"]), (w1y, out["warnings"])
+    assert not out["checks"][0]["passed"] and out["checks"][0]["detail"].startswith("missing:"), out["checks"]
+    # the negation list lives in the schema, and it is what separates a stated zero from a bare row label:
+    # "Summa räntebärande skulder" quoted alone off a column-major table (XANO's 8-column row) has the
+    # vocabulary and sits verbatim on the page, but no negation word -- it must stay a drop, never become a 0
+    assert not x._stated_zero({"value": 0, "source": {"page": 1, "quote": "Summa räntebärande skulder"}},
+                              dmf["total_debt"], dm, ["Summa räntebärande skulder 4 090 8 680 38 305 51 075 768 885 33 784 50 778 904 522"])
+    # a digit-bearing quote is the original gates' business, unchanged (Svolder, seed 4, real p.18 sentence +
+    # p.19's printed axis 0): the quote verifies through quote_on_page, the 0 lands at 0.5 with no stated_zero
+    svol18 = ("Riskhantering\nMSEK\ntillgångarnas värde och har en kreditfacilitet på upp \n"
+              "till 500 MSEK hos en nordisk affärsbank, med aktier \n"
+              "som säkerhet. Vid balansdagen den 31 augusti 2025 \nvar krediten oanvänd.\n")
+    svol19 = "Not 19 Rörelsen\nMSEK\n−200 −100 0 100 200 300 400 500\n"
+    svol = {"fields": [
+        {"key": "total_debt", "value": 0, "unit": "MSEK", "period": "2025", "raw_label": "krediten oanvänd",
+         "source": {"page": 1, "quote": "Vid balansdagen den 31 augusti 2025 var krediten oanvänd."}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    x.call_llm = lambda *a, **k: json.loads(json.dumps(svol))
+    out = x.extract([svol18, svol19], [1, 2], dm, {"fiscal_year": 2025})
+    td = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert td["value"] == 0 and td["confidence"] == 0.5 and "stated_zero" not in td["evidence"] \
+        and "quote_on_page" in td["evidence"], (td, out["warnings"])  # Svolder's own stored read, byte-identical
+    assert not out["checks"][0]["passed"] and out["checks"][0]["detail"].startswith("missing:"), out["checks"]
+    # Flat Capital (v035, seed 1, real p.18): the no-debt sentence sits on p.33, never a locator candidate
+    # ([18, 19] were) -- a p.33 sentence cited against a candidate page is not printed there, so the new rule
+    # must not fire; p.18's own printed "interest-bearing liabilities ... 0 TSEK (0)" keeps the value on the
+    # old printed-zero path, at the no-provenance 0.25 cap, whichever round of code ran
+    fc18 = ("of 34,522 KSEK (0). See also Note 3 regarding changes in \n"
+            "to 144,075 KSEK (158,832), of which interest-bearing liabili-\nties amounted to 0 TSEK (0).\n")
+    fc = {"fields": [
+        {"key": "total_debt", "value": 0, "unit": "KSEK", "period": "2025", "raw_label": "interest-bearing liabilities",
+         "source": {"page": 1, "quote": "the investment company has neither interest-bearing liabilities nor accounts receivable."}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    x.call_llm = lambda *a, **k: json.loads(json.dumps(fc))
+    out = x.extract([fc18], [1], dm, {"fiscal_year": 2025})
+    td = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert td["value"] == 0 and td["confidence"] == 0.25 and "stated_zero" not in td["evidence"], (td, out["warnings"])
+    assert any("quote not found on page 1" in w for w in out["warnings"]), out["warnings"]
     print("confidence self-check ok")
 
 
