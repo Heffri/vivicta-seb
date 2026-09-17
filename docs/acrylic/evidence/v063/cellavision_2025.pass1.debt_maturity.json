@@ -1,0 +1,116 @@
+{
+ "report_id": "lib-cellavision_2025",
+ "company": "CellaVision",
+ "fiscal_year": 2025,
+ "currency": "SEK thousands",
+ "section": "debt_maturity",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 23300,
+   "unit": "SEK thousands",
+   "period": "2025",
+   "raw_label": "Total",
+   "source": {
+    "page": 84,
+    "quote": "Total 23,300 27,522"
+   },
+   "confidence": 1.0,
+   "evidence": [
+    "quote_on_page",
+    "identity_all_columns",
+    "value_in_quote",
+    "arith_ok",
+    "label_known",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": 12213,
+   "unit": "SEK thousands",
+   "period": "2025",
+   "raw_label": "- Within one year",
+   "source": {
+    "page": 84,
+    "quote": "- Within one year 12,213 18,646"
+   },
+   "confidence": 1.0,
+   "evidence": [
+    "quote_on_page",
+    "identity_all_columns",
+    "value_in_quote",
+    "arith_ok",
+    "label_known",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": 8109,
+   "unit": "SEK thousands",
+   "period": "2025",
+   "raw_label": "- Later than one but within five years",
+   "source": {
+    "page": 84,
+    "quote": "- Later than one but within five years 8,109 8,876"
+   },
+   "confidence": 1.0,
+   "evidence": [
+    "quote_on_page",
+    "identity_all_columns",
+    "value_in_quote",
+    "arith_ok",
+    "label_known",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": 2978,
+   "unit": "SEK thousands",
+   "period": "2025",
+   "raw_label": "- Later than within five years",
+   "source": {
+    "page": 84,
+    "quote": "- Later than within five years 2,978 -"
+   },
+   "confidence": 1.0,
+   "evidence": [
+    "quote_on_page",
+    "identity_all_columns",
+    "value_in_quote",
+    "arith_ok",
+    "label_known",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": true,
+   "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((12213 + 8109 + 2978) - 23300) <= 2"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [84, 85] selected from candidates [77, 78, 84]",
+  "total_debt: column reading of 'Total 990 703 1,165 760' rejected -- due_within_1_year 990703, due_1_to_5_years 1165 exceed its own total 760; model's own values kept",
+  "total_debt: 'Total' is not a known total borrowings label, but maturity_sums_to_total holds with that row in every column",
+  "due_within_1_year: '- Within one year' is not a known due within 1 year label, but maturity_sums_to_total holds with that row in every column",
+  "due_1_to_5_years: '- Later than one but within five years' is not a known due 1–5 years label, but maturity_sums_to_total holds with that row in every column",
+  "due_after_5_years: '- Later than within five years' is not a known due after 5 years label, but maturity_sums_to_total holds with that row in every column"
+ ]
+}
