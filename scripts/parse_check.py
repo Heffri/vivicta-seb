@@ -76,7 +76,7 @@ def run_splits(out) -> None:
 
 def run_quotes(out, kb: pathlib.Path, sections: list[str]) -> None:
     pdfs = sorted((ROOT / "data" / "reports").glob("*.pdf"))
-    where = kb if kb.is_absolute() else kb.relative_to(ROOT)
+    where = kb.name if kb.is_absolute() else kb.relative_to(ROOT)  # name only: an absolute path carries the machine's user name into committed evidence dumps
     print(f"parse_check quote-regression run: PARSER_VERSION={parse.PARSER_VERSION}, {len(pdfs)} PDFs,"
           f" kb={where}, sections={sections}", file=out)
     tot = {"old": [0, 0], "new": [0, 0]}  # [found, total]
