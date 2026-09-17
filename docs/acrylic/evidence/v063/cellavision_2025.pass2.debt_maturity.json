@@ -1,0 +1,91 @@
+{
+ "report_id": "lib-cellavision_2025",
+ "company": "CellaVision",
+ "fiscal_year": 2025,
+ "currency": "SEK thousands",
+ "section": "debt_maturity",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 3821,
+   "unit": "SEK thousands",
+   "period": "2025",
+   "raw_label": "Liabilities to credit institutions",
+   "source": {
+    "page": 78,
+    "quote": "Liabilities to credit institutions - 3,821 3,821 3,821"
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": 1659,
+   "unit": "SEK thousands",
+   "period": "2025",
+   "raw_label": "Liabilities to credit institutions",
+   "source": {
+    "page": 77,
+    "quote": "Liabilities to credit institutions 1,659 1,705 1,937 4,050"
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": 1659,
+   "unit": "SEK thousands",
+   "period": "2025",
+   "raw_label": "Liabilities to credit institutions",
+   "source": {
+    "page": 77,
+    "quote": "Liabilities to credit institutions 1,659 1,705 1,937 4,050"
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": null,
+   "unit": "SEK thousands",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((1659 + 1659 + 0 (due_after_5_years null)) - 3821) <= 2"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [77, 78] selected from candidates [77, 78, 84]",
+  "due_1_to_5_years: 1937 is another segment's column; the page's rows are read from column 1 of 4, which prints 1659"
+ ]
+}

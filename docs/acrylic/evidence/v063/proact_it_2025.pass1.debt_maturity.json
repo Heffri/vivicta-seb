@@ -1,0 +1,91 @@
+{
+ "report_id": "lib-proact_it_2025",
+ "company": "Proact IT Group",
+ "fiscal_year": 2025,
+ "currency": "SEK thousand",
+ "section": "debt_maturity",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 478611,
+   "unit": "SEK thousand",
+   "period": "2025",
+   "raw_label": "Total interest-bearing liabilities",
+   "source": {
+    "page": 103,
+    "quote": "Total interest-bearing liabilities 478,611"
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "label_known",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": 0,
+   "unit": "SEK thousand",
+   "period": "2025",
+   "raw_label": "Bank loan, Svensk Exportkredit 2); Lease liability 3)",
+   "source": {
+    "page": 103,
+    "quote": "Lease liability 3) 3.86% - 5.59% 2026 96,098"
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": 166153,
+   "unit": "SEK thousand",
+   "period": "2025",
+   "raw_label": "Lease liability 3)",
+   "source": {
+    "page": 103,
+    "quote": "Lease liability 3) 4.06% - 5.59% 2027-2030 166,153"
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": null,
+   "unit": "SEK thousand",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((0 + 166153 + 0 (due_after_5_years null)) - 478611) <= 2"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [103, 104] selected from candidates [104, 105, 103]",
+  "due_within_1_year: 312458 is another segment's column; the page's rows are read from column 1 of 3, which prints 0"
+ ]
+}
