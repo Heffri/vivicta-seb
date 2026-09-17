@@ -635,13 +635,20 @@ def demo():
     # _page_rows' own rows ("Maturity within" / "3 months", a bare word-wrap, not the header-transposition XANO/
     # Ework hit below) that header_synonyms now reads correctly -- both this row and the page's own bare "Total"
     # rows (whole-table sums, wrong scope regardless) read a 6-column header matching their own column count.
-    # due_within_1_year (=26+78, not printed) still stays null: a pre-existing _row_amounts limit outside this
-    # lane's territory reads the row's own adjacent 2- and 3-digit columns ("78 273") as the single Swedish-
-    # grouped number 78273 (the same ambiguity as "6, 10 155" elsewhere in this file), so no candidate row's
-    # column count ever matches its header's after all, and the safety valve declines every one rather than
-    # guess -- named for whoever next touches _row_amounts, out of reach here. due_1_to_5_years/due_after_5_years/
-    # total_debt were already correct (same row, the model's own read) and stay that way: v060 neither improves
-    # nor corrupts them, and produces no warning either (nothing was attempted and rejected, nothing to report).
+    # v064: due_within_1_year (=26+78, not printed) used to stay null here -- _row_amounts read the row's own
+    # adjacent 2- and 3-digit columns ("78 273") as the single Swedish-grouped number 78273 (the same ambiguity
+    # as "6, 10 155" elsewhere in this file), one column short of the header's six, so the safety valve declined
+    # rather than guess. Fixed in _row_amounts itself (ncols known, exactly one column short, exactly one
+    # "NN NNN" token that splits to land exactly on ncols -- see its docstring). The page's own bare "Total 2,358
+    # 1,928 92 273 63 0" row has the identical shape ("92 273" is just as splittable) but must NOT also start
+    # reading as a candidate: it sums every instrument on the page (accounts payables and other liabilities
+    # included, not just the lease), so a naive fix here would have _fill_bucket_columns's own hits-before-
+    # candidates row order (out of this lane's six-function territory, untouched) prefer it over the correct
+    # row and corrupt total_debt to 2358. _row_amounts's extra guard -- only split when the ordinary reading
+    # already has a nil in it -- is what keeps this row declined: Boozt's own liability-type rows print "-" for
+    # a bucket they have nothing in (sparse, one instrument each), but a whole-table Total is a computed sum
+    # across every instrument and is essentially never nil anywhere, so it stays a column short and gets
+    # skipped, exactly as before.
     boozt = ("Total borrowing\nMaturity within\n3 months\nMaturity within three to twelve months\n"
              "Maturity within one to five years\nMaturity within five to nie years\nMaturity after nine years\n"
              "Maturity structure of borrowing Dec 31,2024\n"
@@ -656,7 +663,8 @@ def demo():
     boozt_rows = x._page_rows(boozt)
     assert x._bucket_header(boozt_rows, 15, bucket_sfs, 2025) == \
         ["total", "due_within_1_year", "due_within_1_year", "due_1_to_5_years", "due_after_5_years", "due_after_5_years"]  # the header itself now reads right
-    assert x._row_amounts(boozt_rows[15], 6, nil=None) != [441, 26, 78, 273, 63, None]  # ... but _row_amounts (out of this lane's territory) still merges "78 273" into 78273
+    assert x._row_amounts(boozt_rows[15], 6, nil=None) == [441, 26, 78, 273, 63, None]  # v064: ncols pins the split of "78 273" into 78 + 273
+    assert boozt_rows[18] == "Total 2,358 1,928 92 273 63 0" and len(x._row_amounts(boozt_rows[18], 6, nil=None)) != 6  # v064: same "NN NNN" shape ("92 273"), stays declined -- no nil in its own ordinary reading
     x.call_llm = lambda *a, **k: {"fields": [
         {"key": "total_debt", "value": 441, "unit": "SEK million", "period": "2025", "raw_label": "Lease liabilities", "source": {"page": 1, "quote": "Lease liabilities 441 26 78 273 63 -"}},
         {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
@@ -664,8 +672,12 @@ def demo():
         {"key": "due_after_5_years", "value": 63, "unit": "SEK million", "period": "2025", "raw_label": "Lease liabilities", "source": {"page": 1, "quote": "Lease liabilities 441 26 78 273 63 -"}}]}
     out = x.extract([boozt], [1], dm, {"fiscal_year": 2025})
     got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
-    assert got == {"total_debt": (441, 0.5), "due_within_1_year": (None, 0.0), "due_1_to_5_years": (273, 0.5), "due_after_5_years": (63, 0.5)}, (got, out["warnings"])
-    assert not out["warnings"], out["warnings"]
+    # v064: due_within_1_year now fills to 26+78=104 (the bucket-columns cross-column sum, _row_amounts's own
+    # limit fixed) -- and, closing the loop, maturity_sums_to_total now passes (104+273+63-441 = -1, within the
+    # check's own +-2), which lifts total_debt/due_1_to_5_years/due_after_5_years off the 0.50 "contradicts its
+    # neighbours" cap they were pinned to while due_within_1_year was null (score_field, untouched by this lane).
+    assert got == {"total_debt": (441, 0.9), "due_within_1_year": (104, 1.0), "due_1_to_5_years": (273, 0.9), "due_after_5_years": (63, 0.9)}, (got, out["warnings"])
+    assert out["warnings"] == ["due_within_1_year: model returned null; 104 read from 'Lease liabilities 441 26 78 273 63 -' by its column order"], out["warnings"]
     # v066 (a): Proact IT Group -- real Note 24 text (seed6-kb/proact_it_2025, p.103, trimmed to the two tables
     # that matter). The note's own per-instrument date breakdown lets the model correctly sum 216,360 (16 Jul
     # 2026) + 96,098 (2026) = 312,458 for due_within_1_year, closing the identity with the already-read
