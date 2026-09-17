@@ -635,13 +635,20 @@ def demo():
     # _page_rows' own rows ("Maturity within" / "3 months", a bare word-wrap, not the header-transposition XANO/
     # Ework hit below) that header_synonyms now reads correctly -- both this row and the page's own bare "Total"
     # rows (whole-table sums, wrong scope regardless) read a 6-column header matching their own column count.
-    # due_within_1_year (=26+78, not printed) still stays null: a pre-existing _row_amounts limit outside this
-    # lane's territory reads the row's own adjacent 2- and 3-digit columns ("78 273") as the single Swedish-
-    # grouped number 78273 (the same ambiguity as "6, 10 155" elsewhere in this file), so no candidate row's
-    # column count ever matches its header's after all, and the safety valve declines every one rather than
-    # guess -- named for whoever next touches _row_amounts, out of reach here. due_1_to_5_years/due_after_5_years/
-    # total_debt were already correct (same row, the model's own read) and stay that way: v060 neither improves
-    # nor corrupts them, and produces no warning either (nothing was attempted and rejected, nothing to report).
+    # v064: due_within_1_year (=26+78, not printed) used to stay null here -- _row_amounts read the row's own
+    # adjacent 2- and 3-digit columns ("78 273") as the single Swedish-grouped number 78273 (the same ambiguity
+    # as "6, 10 155" elsewhere in this file), one column short of the header's six, so the safety valve declined
+    # rather than guess. Fixed in _row_amounts itself (ncols known, exactly one column short, exactly one
+    # "NN NNN" token that splits to land exactly on ncols -- see its docstring). The page's own bare "Total 2,358
+    # 1,928 92 273 63 0" row has the identical shape ("92 273" is just as splittable) but must NOT also start
+    # reading as a candidate: it sums every instrument on the page (accounts payables and other liabilities
+    # included, not just the lease), so a naive fix here would have _fill_bucket_columns's own hits-before-
+    # candidates row order (out of this lane's six-function territory, untouched) prefer it over the correct
+    # row and corrupt total_debt to 2358. _row_amounts's extra guard -- only split when the ordinary reading
+    # already has a nil in it -- is what keeps this row declined: Boozt's own liability-type rows print "-" for
+    # a bucket they have nothing in (sparse, one instrument each), but a whole-table Total is a computed sum
+    # across every instrument and is essentially never nil anywhere, so it stays a column short and gets
+    # skipped, exactly as before.
     boozt = ("Total borrowing\nMaturity within\n3 months\nMaturity within three to twelve months\n"
              "Maturity within one to five years\nMaturity within five to nie years\nMaturity after nine years\n"
              "Maturity structure of borrowing Dec 31,2024\n"
@@ -656,7 +663,8 @@ def demo():
     boozt_rows = x._page_rows(boozt)
     assert x._bucket_header(boozt_rows, 15, bucket_sfs, 2025) == \
         ["total", "due_within_1_year", "due_within_1_year", "due_1_to_5_years", "due_after_5_years", "due_after_5_years"]  # the header itself now reads right
-    assert x._row_amounts(boozt_rows[15], 6, nil=None) != [441, 26, 78, 273, 63, None]  # ... but _row_amounts (out of this lane's territory) still merges "78 273" into 78273
+    assert x._row_amounts(boozt_rows[15], 6, nil=None) == [441, 26, 78, 273, 63, None]  # v064: ncols pins the split of "78 273" into 78 + 273
+    assert boozt_rows[18] == "Total 2,358 1,928 92 273 63 0" and len(x._row_amounts(boozt_rows[18], 6, nil=None)) != 6  # v064: same "NN NNN" shape ("92 273"), stays declined -- no nil in its own ordinary reading
     x.call_llm = lambda *a, **k: {"fields": [
         {"key": "total_debt", "value": 441, "unit": "SEK million", "period": "2025", "raw_label": "Lease liabilities", "source": {"page": 1, "quote": "Lease liabilities 441 26 78 273 63 -"}},
         {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
@@ -664,8 +672,107 @@ def demo():
         {"key": "due_after_5_years", "value": 63, "unit": "SEK million", "period": "2025", "raw_label": "Lease liabilities", "source": {"page": 1, "quote": "Lease liabilities 441 26 78 273 63 -"}}]}
     out = x.extract([boozt], [1], dm, {"fiscal_year": 2025})
     got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
-    assert got == {"total_debt": (441, 0.5), "due_within_1_year": (None, 0.0), "due_1_to_5_years": (273, 0.5), "due_after_5_years": (63, 0.5)}, (got, out["warnings"])
-    assert not out["warnings"], out["warnings"]
+    # v064: due_within_1_year now fills to 26+78=104 (the bucket-columns cross-column sum, _row_amounts's own
+    # limit fixed) -- and, closing the loop, maturity_sums_to_total now passes (104+273+63-441 = -1, within the
+    # check's own +-2), which lifts total_debt/due_1_to_5_years/due_after_5_years off the 0.50 "contradicts its
+    # neighbours" cap they were pinned to while due_within_1_year was null (score_field, untouched by this lane).
+    assert got == {"total_debt": (441, 0.9), "due_within_1_year": (104, 1.0), "due_1_to_5_years": (273, 0.9), "due_after_5_years": (63, 0.9)}, (got, out["warnings"])
+    assert out["warnings"] == ["due_within_1_year: model returned null; 104 read from 'Lease liabilities 441 26 78 273 63 -' by its column order"], out["warnings"]
+    # v066 (a): Proact IT Group -- real Note 24 text (seed6-kb/proact_it_2025, p.103, trimmed to the two tables
+    # that matter). The note's own per-instrument date breakdown lets the model correctly sum 216,360 (16 Jul
+    # 2026) + 96,098 (2026) = 312,458 for due_within_1_year, closing the identity with the already-read
+    # total_debt (478,611) and due_1_to_5_years (166,153) exactly -- but the page also prints "Group | Parent
+    # company" (the note's other, unrelated sub-table), so _segment_column's own Group/Parent branch picks
+    # column 1 of the page's 3-column year run; the single-instrument row that is due_within_1_year's own quote
+    # reads as 0 in that column, and the pre-v066 guard threw the correct 312,458 away for it (docs/acrylic/
+    # evidence/v063.md gap 2).
+    proact103 = (
+        "Notes\nNote 24 CONT.\nOther financial Group Parent company\nliabilities measured\nat accrued\n"
+        "acquisition value 31 Dec 2025 31 Dec 2024 31 Dec 2025 31 Dec 2024\nNon-interest-bearing\n"
+        "Liabilities on acquisi-\ntions 1) 139,365 - - -\nCurrency derivatives 1,146 408 29 -\n"
+        "Other liabilities 1) 57,666 59,607 2,617 6,918\nAccounts payable 470,637 561,880 2,904 3,173\n"
+        "Total\nnon-interest-bearing 668,814 621,895 5,550 10,091\nInterest-bearing\nBank loans, of which\n"
+        "short-term portion 216,360 - 216,360 -\nBank loans, of which\nlong-term portion - 229,730 - 229,730\n"
+        "Lease liabilities 2) 262,251 253,735 - -\nTotal interest-bearing 478,611 483,465 216,360 229,730\n"
+        "Total other financial 1,147,425 1,105,360 221,910 239,821\nliabilities measured at\naccrued acquisition\n"
+        "value\nProact Proact Proact Annual Annual Annual and and and Sustainability Sustainability Sustainability "
+        "Report Report Report 2025 2025 2025\nInterest-bearing\nliabilities, Group, Reported\n"
+        "31 Dec 2025 Interest Maturity value\nUtilised overdraft\nfacility, Nordea 1) 2) Base rate +2.0% 31 Dec 2025 -\n"
+        "Bank loan, Nordea 2) STIBOR 3M +1.25% 16 Jul 2026 -\nBank loan, Nordea 2) EURIBOR 3M +1.25% 16 Jul 2026 -\n"
+        "Bank loan, Svensk\nExportkredit 2) EURIBOR 3M + 1.8% 16 Jul 2026 216,360\n"
+        "Lease liability 3) 3.86% - 5.59% 2026 96,098\nLease liability 3) 4.06% - 5.59% 2027-2030 166,153\n"
+        "Total interest-bearing\nliabilities 478,611\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 478611, "unit": "SEK thousand", "period": "2025", "raw_label": "Total interest-bearing liabilities",
+         "source": {"page": 1, "quote": "Total interest-bearing liabilities 478,611"}},
+        {"key": "due_within_1_year", "value": 312458, "unit": "SEK thousand", "period": "2025",
+         "raw_label": "Bank loan, Svensk Exportkredit 2); Lease liability 3)",
+         "source": {"page": 1, "quote": "Lease liability 3) 3.86% - 5.59% 2026 96,098"}},
+        {"key": "due_1_to_5_years", "value": 166153, "unit": "SEK thousand", "period": "2025", "raw_label": "Lease liability 3)",
+         "source": {"page": 1, "quote": "Lease liability 3) 4.06% - 5.59% 2027-2030 166,153"}},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([proact103], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
+    assert got == {"total_debt": (478611, 1.0), "due_within_1_year": (312458, 1.0), "due_1_to_5_years": (166153, 0.9),
+                    "due_after_5_years": (None, 0.0)} and out["checks"][0]["passed"], (got, out["checks"], out["warnings"])
+    within = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
+    assert "identity_kept" in within["evidence"] and "value_derived" in within["evidence"] \
+        and any("kept: closes the identity exactly" in w for w in out["warnings"]), (within, out["warnings"])
+    # the guard is an admission condition on that one correction, not a blanket exemption for the page: closing
+    # the identity requires at least two OTHER real operands, so a lone total "closing" only against itself
+    # (everything else null) must not count -- the supervisor's own named failure mode for this guard
+    assert x._identity_closes("due_within_1_year", 312458,
+        {"due_within_1_year": 312458, "due_1_to_5_years": 166153, "total_debt": 478611}, {}, dm)
+    assert not x._identity_closes("due_within_1_year", 312458, {"due_within_1_year": 312458, "total_debt": 312458}, {}, dm)
+
+    # v066 (b): Net Insight -- real Note 21 text (seed6-kb/net_insight_2025, p.101, trimmed). The model correctly
+    # reads due_within_1_year=50,379 and due_after_5_years=0 off the note's own "<1 year"/">5 years" bucket rows,
+    # but _fill_bucket_columns also finds the maturity table's own two-year "Total 81,489 57,647" row (2025's
+    # total then 2024's, side by side) a plausible bucket-column candidate: its own header (the "<1 year"/"1-5
+    # yeas"/">5 years" rows above it) has no recognised "total" column of its own (only two bucket keys, the
+    # report's own "1-5 yeas" typo keeps the third out), so the pre-v066 over-valve has no total to compare the
+    # row against and lets it overwrite both fields by column order -- 2025's own total (81,489) into
+    # due_within_1_year, 2024's total (57,647) into due_after_5_years.
+    net_insight101 = (
+        "Note 21. Financial Assets and Liabilities\n"
+        "Group's financial instruments by category\nAmounts in SEK thousands\nValue- tier\n"
+        "Liabilities measured at amortized cost\nLiabilities measured at fair value trough profit and loss\n"
+        "Value- tier\nLiabilities measured at amortized cost\nLiabilities measured at fair value trough profit and loss\n"
+        "Liabilities in Balance Sheet\nDerivative instruments 2 - 2 3,790\n"
+        "Accounts payable and other liabilities, excluding non-financial liabilities 42,074 44,354\n"
+        "Lease liabilities 39,415 13,293\nTotal 81,489 - 57,647 3,790\n"
+        "31 Dec 2025 31 Dec 2024\n31 Dec 2025 31 Dec 2024\n31 Dec 2025 31 Dec 2024\n"
+        "<1 year 50,379 56,092\n1-5 yeas 31,110 1,555\n>5 years - -\nTotal 81,489 57,647\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 81489, "unit": "SEK thousands", "period": "2025", "raw_label": "Total",
+         "source": {"page": 1, "quote": "Total 81,489 - 57,647 3,790"}},
+        {"key": "due_within_1_year", "value": 50379, "unit": "SEK thousands", "period": "2025", "raw_label": "<1 year",
+         "source": {"page": 1, "quote": "<1 year 50,379 56,092"}},
+        {"key": "due_1_to_5_years", "value": 31110, "unit": "SEK thousands", "period": "2025", "raw_label": "1-5 yeas",
+         "source": {"page": 1, "quote": "1-5 yeas 31,110 1,555"}},
+        {"key": "due_after_5_years", "value": 0, "unit": "SEK thousands", "period": "2025", "raw_label": ">5 years",
+         "source": {"page": 1, "quote": ">5 years - -"}}]}
+    out = x.extract([net_insight101], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    # due_after_5_years lands null, not a stored 0: the model's own 0 is not literally printed anywhere else on
+    # the page either (a separate, pre-existing guard, out of this lane's territory) -- null_as_zero still closes
+    # the identity with it, same as the report's own dash meaning no debt is due in that window
+    assert got == {"total_debt": 81489, "due_within_1_year": 50379, "due_1_to_5_years": 31110, "due_after_5_years": None} \
+        and out["checks"][0]["passed"], (got, out["checks"], out["warnings"])
+    assert any("is a Total*/Summa* row with no total column" in w for w in out["warnings"]), out["warnings"]
+    assert not any("read from 'Total 81,489 57,647' by its column order" in w for w in out["warnings"]), out["warnings"]
+
+    # v066 (b), second valve: a bucket-column row whose own year is the fiscal year's predecessor must not lend
+    # its figures to this year's buckets even when the row has its own recognised total column (so the first
+    # valve above would not have caught it) -- synthetic, no seed6 company happened to hit this exact shape.
+    assert x._bucket_row_prior_year(["Note 9 Borrowings 2024 2023", "Within 1 year 1-5 years Total", "Total 3,300 4,400 7,700"], 2, 2025)
+    assert not x._bucket_row_prior_year(["Note 9 Borrowings 2025 2024", "Within 1 year 1-5 years Total", "Total 3,300 4,400 7,700"], 2, 2025)
+    prior_year_bucket = "Note 9 Borrowings\n2024 2023\nWithin 1 year 1-5 years Total\nTotal 3,300 4,400 7,700\n"
+    x.call_llm = lambda *a, **k: {"fields": [{"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None} for k in dmf]}
+    out = x.extract([prior_year_bucket], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": None, "due_within_1_year": None, "due_1_to_5_years": None, "due_after_5_years": None}, (got, out["warnings"])
+    assert any("names fiscal year 2024, not 2025" in w for w in out["warnings"]), out["warnings"]
     qcalls = []
     # v054: EXTRACT_QUOTE_RETRY (default off) -- one follow-up call for the fields whose answer cites a quote
     # that is not printed on the page it names: the cited page's own _page_rows go out numbered, and the model

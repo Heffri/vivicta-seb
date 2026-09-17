@@ -386,7 +386,8 @@ WEIGHTS = {"quote_on_page": 0.35, "value_in_quote": 0.20, "arith_ok": 0.20, "lab
            "period_ok": 0.05, "page_is_statement": 0.05, "unit_ok": 0.05,  # docs/CONFIDENCE.md; sums to 1.0
            "value_derived": 0.20,  # stands in for value_in_quote when the printed number is unreadable, never both
            "stated_zero": 0.20,  # stands in for value_in_quote when the figure is never printed: the report says 0 in words (v050)
-           "identity_all_columns": 0.0}  # a marker: an unknown label whose identity holds in every column earns label_known
+           "identity_all_columns": 0.0,  # a marker: an unknown label whose identity holds in every column earns label_known
+           "identity_kept": 0.0}  # a marker: a column guard's own re-read lost to a value that closes the identity exactly (v066)
 
 
 _DASHES = str.maketrans({"–": "-", "−": "-", " ": " "})
@@ -513,7 +514,18 @@ def _row_amounts(quote: str, ncols: int | None = None, nil=0) -> list:
     default), so columns stay aligned. With the column count known, Swedish space-grouped rows are split by it:
     "Total sales 6, 10 155 113 161 921" is a note reference plus two 6-digit amounts, which no regex can tell
     from five small numbers. nil=None for callers that must tell "not printed" apart from a printed 0 (a
-    maturity-bucket column, where "-" means no debt is due in that window, not a literal zero)."""
+    maturity-bucket column, where "-" means no debt is due in that window, not a literal zero).
+
+    The same space-grouping can over-merge two adjacent bucket columns that happen to look like one Swedish-
+    grouped number: Boozt's "Lease liabilities 441 26 78 273 63 -" (ncols=6) reads "78 273" as one 78273, a
+    column short. Undone only on the narrowest evidence ncols gives: the ordinary reading is exactly one
+    column short, that reading already has a nil in it (a bare "-" printed elsewhere in the same row -- one
+    instrument's own row, sparse by nature; a table's own whole-table Total row sums every instrument and is
+    almost never nil anywhere, so this must not start reading a coincidentally same-shaped Total row too, e.g.
+    Boozt's own "Total 2,358 1,928 92 273 63 0"), and exactly one "NN NNN" token in the row could be the glue
+    (two or more is a guess between candidates, so none is split) -- and even then only kept if splitting that
+    one token lands on exactly ncols amounts; landing anywhere else is not trusted either, and the ordinary
+    (short) reading stands."""
     q = _FOOTNOTE.sub("", quote.translate(_DASHES))
     toks = q.split()
     last_alpha = max((i for i, t in enumerate(toks) if re.search(r"[^\W\d_]", t)), default=-1)
@@ -524,37 +536,51 @@ def _row_amounts(quote: str, ncols: int | None = None, nil=0) -> list:
             chunks = [body[i * k:(i + 1) * k] for i in range(ncols)]
             if all(len(t) <= 2 for t in lead) and all(re.fullmatch(r"\d{3}", g) for ch in chunks for g in ch[1:]):
                 return [int("".join(ch)) for ch in chunks]
-    q = _SPACE_GROUPS.sub(lambda m: m.group(0).replace(" ", "").replace(" ", ""), q)  # "79 146" -> 79146 before splitting
-    toks = q.split()
-    if re.search(r"\d\.\d{1,2}\b|\d,\d{3}\b", q):  # "." is the decimal here, so "6,12" is a note reference, not 6.12
-        toks = [t for t in toks if not re.fullmatch(r"\d{1,2},\d{1,2}", t)]
-    last_alpha = max((i for i, t in enumerate(toks) if re.search(r"[^\W\d_]", t)), default=-1)
-    out, noteish, small = [], [], []  # noteish: a bare one- or two-digit token; "6" / "12" is a note reference, "(19)" / "-19" (Arion) is an amount
-    for t in toks[last_alpha + 1:]:
-        t = t.rstrip(",;")
-        if t == "-":  # Volvo "Income taxes 10 -11,669 -15,542 -1,016 -1,092 – – -12,685 -16,634": the eliminations columns are nil
-            out.append(nil)
-            noteish.append(False)
-            small.append(False)  # Cloetta "Accrued interest 0 - - - 0": a run of nil dashes must not desync small from out/noteish, or small[0] below runs off the end
-            continue
-        m = _AMOUNT.fullmatch(t)
-        if not m:
-            continue
-        if re.fullmatch(r"0[.,]\d{3}", m.group(1)) and not m.group(3):
-            v = float("0." + m.group(1)[2:])  # Fenix Outdoor "0.039" / "0.693": a lone zero is never a thousands group
-        else:
-            v = int(re.sub(r"\D", "", m.group(1))) + (float(f"0.{m.group(3)}") if m.group(3) else 0)  # ponytail: "1,234" is read as a thousand, not a Swedish decimal
-        v = -v if t[0] in "-(" else v
-        out.append(int(v) if float(v).is_integer() else round(v, 4))
-        noteish.append(len(re.sub(r"\D", "", t)) < 3 and not m.group(3) and t[0].isdigit())
-        small.append(len(re.sub(r"\D", "", t)) < 3 and t[0].isdigit())
-    if ncols:  # note references sit between the label and the amounts; after an amount a small number is a column
-        while out and noteish[0]:  # Vitrolife "Net sales 4, 5 3,440 3,609 15 25": the parent company's 15 and 25 are amounts
-            out, noteish, small = out[1:], noteish[1:], small[1:]
-        while len(out) > ncols and small[0]:  # Clas Ohlson "Nettoomsättning 2,3 12 513,9 11 626,7": "2,3" is notes 2 and 3 once the columns are full
-            out, small = out[1:], small[1:]
-        return out
-    return [v for v, n in zip(out, noteish) if not n]
+
+    def _degroup(m: re.Match) -> str:
+        return m.group(0).replace(" ", "").replace("\u00a0", "")
+
+    def _amounts(qc: str) -> list:
+        toks = qc.split()
+        if re.search(r"\d\.\d{1,2}\b|\d,\d{3}\b", qc):  # "." is the decimal here, so "6,12" is a note reference, not 6.12
+            toks = [t for t in toks if not re.fullmatch(r"\d{1,2},\d{1,2}", t)]
+        last_alpha = max((i for i, t in enumerate(toks) if re.search(r"[^\W\d_]", t)), default=-1)
+        out, noteish, small = [], [], []  # noteish: a bare one- or two-digit token; "6" / "12" is a note reference, "(19)" / "-19" (Arion) is an amount
+        for t in toks[last_alpha + 1:]:
+            t = t.rstrip(",;")
+            if t == "-":  # Volvo "Income taxes 10 -11,669 -15,542 -1,016 -1,092 – – -12,685 -16,634": the eliminations columns are nil
+                out.append(nil)
+                noteish.append(False)
+                small.append(False)  # Cloetta "Accrued interest 0 - - - 0": a run of nil dashes must not desync small from out/noteish, or small[0] below runs off the end
+                continue
+            m = _AMOUNT.fullmatch(t)
+            if not m:
+                continue
+            if re.fullmatch(r"0[.,]\d{3}", m.group(1)) and not m.group(3):
+                v = float("0." + m.group(1)[2:])  # Fenix Outdoor "0.039" / "0.693": a lone zero is never a thousands group
+            else:
+                v = int(re.sub(r"\D", "", m.group(1))) + (float(f"0.{m.group(3)}") if m.group(3) else 0)  # ponytail: "1,234" is read as a thousand, not a Swedish decimal
+            v = -v if t[0] in "-(" else v
+            out.append(int(v) if float(v).is_integer() else round(v, 4))
+            noteish.append(len(re.sub(r"\D", "", t)) < 3 and not m.group(3) and t[0].isdigit())
+            small.append(len(re.sub(r"\D", "", t)) < 3 and t[0].isdigit())
+        if ncols:  # note references sit between the label and the amounts; after an amount a small number is a column
+            while out and noteish[0]:  # Vitrolife "Net sales 4, 5 3,440 3,609 15 25": the parent company's 15 and 25 are amounts
+                out, noteish, small = out[1:], noteish[1:], small[1:]
+            while len(out) > ncols and small[0]:  # Clas Ohlson "Nettoomsättning 2,3 12 513,9 11 626,7": "2,3" is notes 2 and 3 once the columns are full
+                out, small = out[1:], small[1:]
+            return out
+        return [v for v, n in zip(out, noteish) if not n]
+
+    result = _amounts(_SPACE_GROUPS.sub(_degroup, q))  # "79 146" -> 79146 before splitting
+    if ncols and len(result) == ncols - 1 and nil in result:  # nil in result: see the docstring's Total-row caveat
+        glued = [gm for gm in _SPACE_GROUPS.finditer(q) if len(gm.group(0).split()) == 2]  # "NN NNN": one grouped number, or two adjacent bucket columns
+        if len(glued) == 1:  # two or more candidates is a guess which one -- don't
+            keep = glued[0]
+            split = _amounts(_SPACE_GROUPS.sub(lambda m: m.group(0) if (m.start(), m.end()) == (keep.start(), keep.end()) else _degroup(m), q))
+            if len(split) == ncols:  # only trust it when the split lands exactly on the header's own column count
+                return split
+    return result
 
 
 _NOTE_REFS = re.compile(r"(?:[A-Z]{1,3}\.?\d{1,2}(?:[-–]\d{1,2})?[,\s]*)+")  # "IE.3", "IE.4-7", "T.1–2", "A.1 IE.8", "B1, B2"
@@ -876,6 +902,24 @@ def _identity_parts(schema: dict) -> tuple[str, list[str]] | None:
     return None
 
 
+def _identity_closes(key: str, value, values: dict, defaults: dict, schema: dict) -> bool:
+    """True when `key`'s current `value` -- about to be overwritten by a column-position guess -- already closes
+    one of the schema's own identity checks exactly (_check's own tolerance), against at least two OTHER
+    operands that are themselves already-read, real values: a lone total (everything else null_as_zero) would
+    make a sum identity trivially true and prove nothing about `value` (Proact, v066: 312,458 for
+    due_within_1_year is column 1 of 3, but 312,458 + due_1_to_5_years' own 166,153 closes
+    maturity_sums_to_total against total_debt's own 478,611 exactly -- a date-per-instrument sum no column
+    re-read can reproduce, docs/acrylic/evidence/v063.md gap 2)."""
+    for sc in schema.get("checks", []):
+        if not sc.get("identity") or not re.search(rf"\b{re.escape(key)}\b", sc["expr"]):
+            continue
+        operands = set(re.findall(r"\b[A-Za-z_]\w*\b", sc["expr"])) - set(_SAFE_BUILTINS) - {key}
+        real = [k for k in operands if isinstance(values.get(k), (int, float)) and not isinstance(values.get(k), bool)]
+        if len(real) >= 2 and _check(sc, {**defaults, **values, key: value})["passed"]:
+            return True
+    return False
+
+
 def _bucket_synonym_hits(text: str, bucket_sfs: dict) -> list[tuple[int, str]]:
     """[(position, key)] for every maturity-bucket synonym of every field in bucket_sfs found in text, dash-
     normalised (so "1–2 years" matches the schema's "1-2 years"), plus _BUCKET_BOUNDARY's English-symbol patch.
@@ -1008,6 +1052,19 @@ def _bucket_assign(amounts: list, col_keys: list[str]) -> dict[str, float | None
     return out
 
 
+def _bucket_row_prior_year(rows: list[str], idx: int, fiscal_year) -> bool:
+    """True when the candidate row's own year -- named inline, or by the nearest header run above it (_year_run,
+    the same nearest-run-wins upward walk _row_year_column uses) -- is the fiscal year's predecessor and not the
+    fiscal year itself. A maturity table whose header stacks both years' own totals must not lend its prior-year
+    row to this year's buckets, even when one of its columns also happens to print this year's total (Net
+    Insight's prior-year 'Total 81,489 57,647' row, v066)."""
+    if not fiscal_year:
+        return False
+    fy, prior = str(fiscal_year), str(int(fiscal_year) - 1)
+    run = _year_run(rows[idx]) or next((r for j in range(idx - 1, -1, -1) if (r := _year_run(" ".join(rows[j:idx])))), None)
+    return bool(run) and prior in run and fy not in run
+
+
 def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, texts: list[str], pages: list[int],
                           fiscal_year, warnings: list[str], values: dict, filled: set) -> None:
     """A maturity-bucket note that prints on one row, columns = buckets, instead of one row per bucket (Cloetta's
@@ -1058,6 +1115,18 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
                 # answer rather than have one column "fixed" out of a header that was never really aligned to begin with.
                 warnings.append(f"{total_key}: column reading of {rows[idx]!r} rejected -- {', '.join(f'{k} {v}' for k, v in over.items())} "
                                  f"exceed{'s' if len(over) == 1 else ''} its own total {total_val}; model's own values kept")
+                continue
+            row_label = _row_label(rows[idx])
+            if "total" not in col_keys and (_label_known(row_label, total_sf) or _clean_label(row_label) in ("total", "totalt", "summa")):
+                # Net Insight (v066): a Total*/Summa* row with no total column among its own header's keys can
+                # never be checked against its own stated total -- the `over` valve above has nothing to compare
+                # to (derived has no total_key entry at all), so it stays blind to a wrong column-order read
+                # instead of catching it. Left for another path rather than trusted ungated.
+                warnings.append(f"{total_key}: {rows[idx]!r} is a Total*/Summa* row with no total column in its "
+                                 f"own header ({', '.join(col_keys)}); its own total cannot be checked, left for another path")
+                continue
+            if _bucket_row_prior_year(rows, idx, fiscal_year):
+                warnings.append(f"{total_key}: {rows[idx]!r} names fiscal year {int(fiscal_year) - 1}, not {fiscal_year}; not this year's bucket row")
                 continue
             acted = False
             for key in (total_key, *part_keys):
@@ -1328,15 +1397,25 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
         fields.append(field)
 
     segs = {}
+    seg_defaults = {sf["key"]: sf["default"] for sf in schema["fields"] if "default" in sf}
     for page in sorted({f["source"]["page"] for f in fields if f["source"] and "quote_on_page" in f["evidence"]}):
         on_page = [f for f in fields if f["value"] is not None and f["source"] and f["source"].get("page") == page]
         seg = _segment_column(texts[page - 1], fiscal_year, on_page) if fiscal_year else None
         if not seg:
             continue
         col, ncols = segs[page] = seg
+        snapshot = {g["key"]: g["value"] for g in fields if isinstance(g["value"], (int, float)) and not isinstance(g["value"], bool)}
         for f in on_page:  # Volvo: income tax read from the Industrial Operations pair, the other rows from Volvo Group
             am = _row_amounts(f["source"]["quote"], ncols)
             if len(am) == ncols and am[col] != f["value"]:
+                if _identity_closes(f["key"], f["value"], snapshot, seg_defaults, schema):
+                    # value_derived (not just a marker): the later "printed on none of pages, dropped as
+                    # computed" guard (Sectra) drops any non-null value that is not literally printed nearby
+                    # unless it is already explained -- an identity-proven value needs the same standing a
+                    # row-sum derivation gets, or keeping it here would be undone a few steps later (v066).
+                    f["evidence"] += ["identity_kept", "value_derived"]
+                    warnings.append(f"{f['key']}: {f['value']} kept: closes the identity exactly, even though column {col + 1} of {ncols} prints {am[col]}")
+                    continue
                 warnings.append(f"{f['key']}: {f['value']} is another segment's column; the page's rows are read from column {col + 1} of {ncols}, which prints {am[col]}")
                 f["value"], f["period"] = am[col], str(fiscal_year)
     if pages and fiscal_year and (h := _year_column(texts[pages[0] - 1], fiscal_year) or segs.get(pages[0])):  # page-level, not row-anchored: statement-spread fill, no quote to anchor to
