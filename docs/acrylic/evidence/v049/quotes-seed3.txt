@@ -1,4 +1,4 @@
-parse_check quote-regression run: PARSER_VERSION=4, 35 PDFs, kb=C:\Users\xingyi chen\Documents\GitHub\uaw-lanes\vivicta-shared\seed3-kb, sections=['debt_maturity']
+parse_check quote-regression run: PARSER_VERSION=4, 35 PDFs, kb=seed3-kb, sections=['debt_maturity']
 
 == academedia_2025: no stored extraction/pages, skipped ==
 
