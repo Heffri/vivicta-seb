@@ -202,6 +202,41 @@ torn apart by a two-column layout in the text layer -- the `parse.py` defect HAN
 nothing worse, nothing improved, so it stays off pending a corpus where quote-shaped failures
 reproduce; the switch and its offline tests are ready either way.
 
+## debt_maturity's four synonym-shaped schema keys (v083)
+
+`schemas/debt_maturity.json` carries four differently-scoped word lists; picking the wrong one silently
+does nothing (a v046/v060 split, deliberate, not an oversight) or, worse, loosens the wrong match. Which
+`extract.py` code path reads each one, per field or per schema:
+
+- **`fields[].synonyms`** -- row-*label* matching, read everywhere a printed row is checked against a field
+  (`_label_known`, used by scoring, the "own row" fill, `_stated_zero`'s subject check, ...). This is the one
+  list that can match a field's *direct* statement row. A month/day-range header fragment ("within 12 months")
+  never belongs here -- see `header_synonyms`.
+- **`fields[].header_synonyms`** -- *column-header* wording for a bucket-as-columns table (one row, several
+  maturity buckets side by side, e.g. Cloetta's "Total 197 22 1,377 9 1,605" under "< 1 year / 1-2 years / 2-5
+  years / > 5 years / Total"), read only by `_bucket_synonym_hits`/`_bucket_header`, never by `_label_known`.
+  Lets a header say "within 12 months" without that phrase ever being allowed to match a *row label* (which
+  would wrongly claim a "within 12 months ..." prose sentence as a field's own row). `total_debt`'s own
+  `header_synonyms` are carrying-amount wording ("carrying amount", "redovisat värde") that mark which header
+  column is the table's real total when a bare Total/Summa word competes with it on the same line (v076).
+- **`total_debt.row_synonyms`** (v083; formerly a private `_DEBT_ROW_SYNONYMS` list inside `extract.py`) --
+  `_bucket_total_row`'s own fallback for picking a bucket-as-columns table's *grand-total row* when no row is a
+  `total_debt` synonym and no row is a bare Total/Totalt/Summa either (Ependion's bucket row is labelled just
+  "Borrowing", Boozt's just "Lease liabilities"). Never used for direct field-row matching -- a row still needs
+  its own real bucket header above it, with a column count matching its own printed amounts, before it is
+  trusted. Keep additions direction-safe and phrase-exact: bare `"loan"`/`"loans"`/`"lån"` are deliberately
+  excluded (v060 Finding 2 -- a bank's own *asset*-side "Loans to credit institutions" prefix-matched bare
+  "loan" and outranked the real debt row); `"bank loans"` and v083's `"lån kreditinstitut"` stay because they
+  are exact phrases that do not also prefix a lending-direction row like "Lån till kreditinstitut" ("till" =
+  "to" breaks the prefix). Only `total_debt` has this key -- the three bucket fields don't need their own,
+  since they are never the table's total row.
+- **`ignore_header_synonyms`** (schema top-level, not per-field; v076) -- header wording that is a real,
+  counted table column but must never be assigned to a bucket or the total (a liquidity-risk note's
+  undiscounted contractual-cash-flow total printed beside the carrying-amount column, e.g. "Total contractual
+  cash flows", "total undiscounted"). Read by `_bucket_synonym_hits`/`_bucket_header` only, tagged `_ignore`,
+  dropped by `_bucket_assign` -- present in the column count so the real columns still line up, absent from
+  every field's own value.
+
 ## Checks
 
 - `python ../scripts/smoke_api.py` — every endpoint in `docs/API.md` against a running backend (`--llm` adds extract/index/ask,
