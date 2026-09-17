@@ -528,13 +528,19 @@ def demo():
     assert not out["warnings"], out["warnings"]  # no repair fires at all: the model's own, correctly-labelled row stands unmolested
     # v040: a maturity table's own Total row is not immune to the report's usual "-" nil convention either --
     # a dash inside the bucket columns (not just in the instrument rows above the total, which Cloetta's own
-    # test above already covers) must not desync col_keys from amounts, trailing or mid-row, and must read as
-    # "no debt due in that window" (None), never a fabricated 0.
+    # test above already covers) must not desync col_keys from amounts, trailing or mid-row. v078 refines the
+    # reading: a dash in the selected row's OWN column for a bucket is the report's explicit 0 for that window
+    # (evidence printed_nil) once the row's own arithmetic closes -- still never a fabricated number, and a
+    # bucket the table prints no column for at all stays null.
     header = "Note 21 Borrowings\n31 Dec 2025\nSEKm\nRemaining term\n< 1 year\nRemaining term\nRemaining term\n1–2 years\nRemaining term\n2–5 years\n> 5 years Total\n"
     x.call_llm = lambda *a, **k: {"fields": [{"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None} for k in dmf]}
-    out = x.extract([header + "Total 197 22 1,377 - 1,596\n"], [1], dm, {"fiscal_year": 2025})  # trailing dash: no >5y bucket
+    out = x.extract([header + "Total 197 22 1,377 - 1,596\n"], [1], dm, {"fiscal_year": 2025})  # trailing dash: the >5y column prints nil
     got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
-    assert got == {"total_debt": (1596, 0.9), "due_within_1_year": (197, 0.9), "due_1_to_5_years": (1399, 1.0), "due_after_5_years": (None, 0.0)}, (got, out["warnings"])
+    a5 = next(f for f in out["fields"] if f["key"] == "due_after_5_years")
+    # v078: the dash column is the report's explicit 0 (printed_nil @0.5), not a null the check must guess around
+    assert got == {"total_debt": (1596, 0.9), "due_within_1_year": (197, 0.9), "due_1_to_5_years": (1399, 1.0), "due_after_5_years": (0, 0.5)}, (got, out["warnings"])
+    assert a5["evidence"] == ["quote_on_page", "printed_nil", "arith_ok", "period_ok", "page_is_statement", "unit_ok"] \
+        and a5["source"]["quote"] == "Total 197 22 1,377 - 1,596", a5
     assert out["checks"][0]["passed"], out["checks"]
     out = x.extract([header + "Total 197 - 1,377 9 1,583\n"], [1], dm, {"fiscal_year": 2025})  # mid-row dash: no 1-2y bucket, 2-5y and >5y still line up
     got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
@@ -871,19 +877,26 @@ def demo():
         ["due_within_1_year", "due_within_1_year", "due_within_1_year", "due_within_1_year", "due_1_to_5_years", "due_after_5_years", "total"]
     # end to end, the row read by column even with no model answer at all: the single debt-row candidate fills
     # total_debt (156,410, the Carrying amount column) and due_within_1_year (156,409 = 153,761 + 971 + 1,677,
-    # the Due column nil); the dash columns stay null and the check honestly reads missing, not a fabricated 0
-    # (the buckets' own column headers ARE printed in this table, so the null bucket guard refuses the zero-fill)
+    # the Due column nil). v078: the row's own 1-5 years and > 5 years cells print dashes -- the report saying
+    # "no debt is due in those windows" -- so those buckets are the report's explicit 0 (printed_nil @0.5), and
+    # the identity closes for real instead of stalling on the v044/v058 printed-bucket-label guard's "missing".
     x.call_llm = lambda *a, **k: {"fields": [{"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None} for k in dmf]}
     out = x.extract([ework_real], [1], dm, {"fiscal_year": 2025})
     got = {f["key"]: f["value"] for f in out["fields"]}
-    assert got == {"total_debt": 156410, "due_within_1_year": 156409, "due_1_to_5_years": None, "due_after_5_years": None} \
-        and out["checks"][0]["detail"] == "missing: due_1_to_5_years", (got, out["checks"], out["warnings"])
+    assert got == {"total_debt": 156410, "due_within_1_year": 156409, "due_1_to_5_years": 0, "due_after_5_years": 0} \
+        and out["checks"][0]["passed"], (got, out["checks"], out["warnings"])
+    for k in ("due_1_to_5_years", "due_after_5_years"):
+        f = next(f for f in out["fields"] if f["key"] == k)
+        assert (f["confidence"], f["raw_label"], f["source"]["quote"]) == \
+            (0.5, "Short-term interest-bearing liabilities* –",
+             "Short-term interest-bearing liabilities* – 153,761 971 1,677 – – 156,410 156,410"), f
+        assert f["evidence"] == ["quote_on_page", "printed_nil", "arith_ok", "period_ok", "page_is_statement", "unit_ok"], f
+    assert any("a dash is printed in the row's own column for it" in w for w in out["warnings"]), out["warnings"]
     # end to end with the model's own answer restored (docs/acrylic/evidence/v051/ework_2025.partB.debt_maturity.json,
     # the real pass's stored shape): total_debt already reads 156,410 (the Carrying amount column's own figure, so
     # the column read agrees and the model's own evidence stands), and the column read fills due_within_1_year --
-    # 0 (Due) + 153,761 + 971 + 1,677 = 156,409; both dash columns stay null (unprinted, not fabricated zeros), and
-    # 156,409 + 0 + 0 sits within +-2 of 156,410 -- the identity closes, though the check's own detail stays
-    # "missing" (above) rather than passing the zero-fill past the printed bucket columns.
+    # 0 (Due) + 153,761 + 971 + 1,677 = 156,409; the two dash columns are the report's explicit 0s (v078), and
+    # 156,409 + 0 + 0 sits within +-2 of 156,410: maturity_sums_to_total passes.
     ework_answer = [
         {"key": "total_debt", "value": 156410, "unit": "kSEK", "period": "2025", "raw_label": "Short-term interest-bearing liabilities*",
          "source": {"page": 1, "quote": "Short-term interest-bearing liabilities* – 153,761 971 1,677 – – 156,410 156,410"}},
@@ -893,12 +906,14 @@ def demo():
     x.call_llm = lambda *a, **k: {"fields": json.loads(json.dumps(ework_answer))}
     out = x.extract([ework_real], [1], dm, {"fiscal_year": 2025})
     got = {f["key"]: f["value"] for f in out["fields"]}
-    assert got == {"total_debt": 156410, "due_within_1_year": 156409, "due_1_to_5_years": None, "due_after_5_years": None} \
-        and out["checks"][0]["detail"] == "missing: due_1_to_5_years", (got, out["checks"], out["warnings"])
+    assert got == {"total_debt": 156410, "due_within_1_year": 156409, "due_1_to_5_years": 0, "due_after_5_years": 0} \
+        and out["checks"][0]["passed"], (got, out["checks"], out["warnings"])
     w1y = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
     assert "value_derived" in w1y["evidence"] and w1y["source"]["quote"] == \
         "Short-term interest-bearing liabilities* – 153,761 971 1,677 – – 156,410 156,410", (w1y, out["warnings"])
     assert any("156409 read from" in w for w in out["warnings"]), out["warnings"]
+    d15 = next(f for f in out["fields"] if f["key"] == "due_1_to_5_years")
+    assert "printed_nil" in d15["evidence"] and d15["confidence"] == 0.5, d15  # the report's own dash, not a fabricated number
 
     qcalls = []
     # v054: EXTRACT_QUOTE_RETRY (default off) -- one follow-up call for the fields whose answer cites a quote
