@@ -713,19 +713,47 @@ def demo():
     assert out["checks"][0]["passed"], out["checks"]  # 141734 + (137898+251081) + 57486 == 588199, exactly
     total = next(f for f in out["fields"] if f["key"] == "total_debt")
     assert total["raw_label"] == "Lån Kreditinstitut", total  # not "Leverantörsskulder..." (not a debt synonym), not "Leasingskulder" (not in row_synonyms, not this report's total)
-    # Finding 1's own real page (both fiscal years' tables, same row label each): a *closeable* table still
-    # correctly declines end to end, for a separate, pre-existing reason v083's own territory does not touch --
-    # _bucket_total_row's known_total narrowing reads a candidate row's amounts via the un-hinted _row_amounts
-    # (no ncols), which merges this table's tightly space-grouped Swedish thousands into unrecognisable blobs
-    # ("57486588199", not 588199) even when known_total is the model's own correctly-read 588199, so two same-
-    # labelled rows (2025's and 2024's own "Lån Kreditinstitut") stay ambiguous and neither is used -- proven
-    # empirically (docs/acrylic/evidence/v083.md), not assumed from the isolated single-year case above.
+    # v084: Finding 1's own real page prints BOTH fiscal years' tables, same row label each ("Lån
+    # Kreditinstitut" under "31 december 2025", and again under "31 december 2024") -- v083 left this
+    # ambiguous and unfilled (docs/acrylic/evidence/v083.md), since a bare index count can't tell which
+    # candidate is the fiscal year's own row. _bucket_total_row now reuses _bucket_row_prior_year (v066's
+    # own "this row names last year's header" test, already trusted at the write gate in
+    # _fill_bucket_columns) to drop the 2024 row from contention first: it is the sole survivor, so it
+    # wins outright, before known_total narrowing is even tried (which -- unrelated, still-open gap named
+    # in v083 -- can't help here anyway: the un-hinted _row_amounts merges this table's Swedish thousands
+    # into unrecognisable blobs). This is a real fix, not a special case for Tången: the rule is "one
+    # candidate is provably last year's, drop it", which just happens to leave one row standing here.
     tangen62_full = tangen62_2025 + (
         "31 december 2024 (KSEK)\nMindre än 12 månader\nMellan 1 och 2 år Mellan 3 och 5 år Senare än 5 år Summa\n"
         "Leverantörsskulder och övriga skulder (exklusive icke finansiella skulder) 163 517 - - - 163 517\n"
         "Lån Kreditinstitut 90 970 68 704 188 828 4 520 353 022\n")
+    tangen_rows = x._page_rows(tangen62_full)
     warnings: list = []
-    assert x._bucket_total_row(x._page_rows(tangen62_full), dmf["total_debt"], bucket_sfs, 2025, 588199, warnings) == []
+    assert x._bucket_total_row(tangen_rows, dmf["total_debt"], bucket_sfs, 2025, 588199, warnings) == [tangen_rows.index("Lån Kreditinstitut 141 734 137 898 251 081 57 486 588 199")]
+    assert warnings == [], warnings  # resolved outright -- no "ambiguous" warning, nothing left for known_total to narrow
+    # End to end (not just the row picker in isolation): the model returns all-null, same as v083's isolated
+    # case above, but this time on the real two-table page -- extract() must still land on the fiscal year's
+    # own four figures and close the identity, exactly like the single-year replay in docs/acrylic/evidence/v083.md.
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([tangen62_full], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 588199, "due_within_1_year": 141734, "due_1_to_5_years": 388979, "due_after_5_years": 57486}, (got, out["warnings"])
+    assert out["checks"][0]["passed"], out["checks"]  # 141734 + (137898+251081) + 57486 == 588199, exactly -- the 2024 table (353022) never enters the sum
+    # Counter-example (v084): two same-labelled candidate rows that are NOT resolvable by year -- both name
+    # the SAME fiscal year (a report accidentally or genuinely repeats a table; Byggmax Group's real p.88 is
+    # structurally the same shape, two same-labelled "Borrowing" rows, docs/acrylic/evidence/v084.md) --
+    # _bucket_row_prior_year is false for both, so the new narrowing step drops neither, and the table must
+    # stay exactly as ambiguous as pre-v084, not silently pick one.
+    tangen62_sameyear = tangen62_2025 + (
+        "31 december 2025 (KSEK)\nMindre än 12 månader\nMellan 1 och 2 år Mellan 3 och 5 år Senare än 5 år Summa\n"
+        "Leverantörsskulder och övriga skulder (exklusive icke finansiella skulder) 163 517 - - - 163 517\n"
+        "Lån Kreditinstitut 90 970 68 704 188 828 4 520 353 022\n")
+    warnings = []
+    assert x._bucket_total_row(x._page_rows(tangen62_sameyear), dmf["total_debt"], bucket_sfs, 2025, None, warnings) == []
     assert warnings == ["total_debt: 2 candidate debt rows for the bucket table ('Lån Kreditinstitut', 'Lån Kreditinstitut') -- ambiguous, none used"], warnings
     # v066 (a): Proact IT Group -- real Note 24 text (seed6-kb/proact_it_2025, p.103, trimmed to the two tables
     # that matter). The note's own per-instrument date breakdown lets the model correctly sum 216,360 (16 Jul

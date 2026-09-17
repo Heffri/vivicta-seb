@@ -1186,11 +1186,18 @@ def _bucket_total_row(rows: list[str], total_sf: dict, bucket_sfs: dict | None =
     out): rows whose label is a debt synonym (total_sf's own schema-level row_synonyms, Ependion's bucket row is
     labelled "Borrowing", Boozt's "Lease liabilities") *and* that read a real bucket header above them with a column count matching
     their own printed amounts -- so Ependion's four unrelated "Bank loans" per-currency rows (no bucket header
-    over them at all) are never candidates to begin with. Multiple survivors narrow by known_total (the model's
-    own already-sourced total_debt, if any) -- the row that itself prints that figure wins (Ework p.70: only the
-    short-term interest-bearing liabilities row prints 156,410; the page's own "Lease liabilities" row and the
-    prior-year block's rows don't). Still ambiguous after that is not a guess this function will make -- dropped,
-    with a warning, not a pick."""
+    over them at all) are never candidates to begin with. Multiple survivors first narrow by year (v084):
+    Swedish reports often stack two whole maturity tables on one page, this year's and last year's, each under
+    its own "31 december <year>" header but printing the identical row label -- a same-labelled row that
+    _bucket_row_prior_year proves belongs to the fiscal year's predecessor is dropped from contention, and if
+    that leaves exactly one survivor it wins outright (Tången p.62: "Lån Kreditinstitut" printed once under
+    "31 december 2025" and once under "31 december 2024", identical label, four bucket amounts each -- excluding
+    the 2024 row leaves the 2025 one alone). Two same-labelled rows that are *not* distinguishable this way (both
+    name the same year, or neither names one at all) are untouched by this step and fall through unresolved, on
+    purpose -- only known_total (the model's own already-sourced total_debt, if any) narrows next -- the row that
+    itself prints that figure wins (Ework p.70: only the short-term interest-bearing liabilities row prints
+    156,410; the page's own "Lease liabilities" row and the prior-year block's rows don't). Still ambiguous after
+    both is not a guess this function will make -- dropped, with a warning, not a pick."""
     hits = [i for i, r in enumerate(rows) if len(_row_amounts(r)) >= 2
             and (_label_known(_row_label(r), total_sf) or _clean_label(_row_label(r)) in ("total", "totalt", "summa"))]
     if not bucket_sfs:
@@ -1203,6 +1210,10 @@ def _bucket_total_row(rows: list[str], total_sf: dict, bucket_sfs: dict | None =
         col_keys = _bucket_header(rows, i, bucket_sfs, fiscal_year, total_sf=total_sf, ignore_syns=ignore_syns)
         if col_keys and len(_row_amounts(r, len(col_keys), nil=None)) == len(col_keys):
             candidates.append(i)
+    if len(candidates) > 1:
+        not_prior = [i for i in candidates if not _bucket_row_prior_year(rows, i, fiscal_year)]
+        if len(not_prior) == 1:
+            candidates = not_prior
     if len(candidates) > 1 and isinstance(known_total, (int, float)):
         narrowed = [i for i in candidates if any(a is not None and abs(a - known_total) <= 2 for a in _row_amounts(rows[i]))]
         if narrowed:
