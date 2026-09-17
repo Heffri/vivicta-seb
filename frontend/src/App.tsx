@@ -84,7 +84,10 @@ export default function App() {
             )}
             {tab === 'ask' && <AskView reports={reports} />}
             {tab === 'kb' && <KbView onOpen={done} />}
-            {tab === 'settings' && <SettingsView />}
+            {/* v065: a Save restarts the backend, leaving this mount-time `config` stale until
+                relaunch (v061 §6-5) -- SettingsView hands the post-restart config back so StatusBar
+                follows the save without one. */}
+            {tab === 'settings' && <SettingsView onConfigChange={setConfig} />}
           </div>
         </main>
       </div>
