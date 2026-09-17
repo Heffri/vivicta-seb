@@ -1,0 +1,33 @@
+v081 red -- two parts: (1) test_fetch.py's 4 new assertion groups (16-19) against the pre-v081
+fetch.py, to prove they exercise genuinely new code, not something already true; (2) the live
+failure shapes this lane targets, both already on record from v080's own evidence (re-quoted here,
+not re-fetched live, since neither has changed: Shell's token is still expired, Nestle's search
+still has no reason to have moved).
+
+== (1) test_fetch.py against the pre-v081 fetch.py (git show HEAD:backend/pipeline/fetch.py at
+   dispatch, d0a2d64) -- swapped in temporarily, reverted immediately after ==
+
+  Traceback (most recent call last):
+    ...
+    File ".../pipeline/fetch.py", line 565, in fetch_report
+      raise LookupError(tried, model_note)
+  LookupError: ([], "model search (codex) failed: module 'pipeline.fetch' has no attribute
+    'IR_PAGE_SYSTEM'")
+
+  Fails immediately at test 2 (the pre-v081 fake harness's own _FakeWebLookup references
+  fetch.IR_PAGE_SYSTEM to pick which scripted reply to serve) -- proof the test file's new
+  machinery, and by extension groups 16-19 built on it, requires v081's code and does not pass
+  vacuously. (Separately, by inspection: group 19 calls fetch._is_full_report/_best_model_candidate/
+  _ir_page_candidates directly, none of which exist before this lane -- AttributeError either way.)
+
+== (2) live failure shapes, on record from v080 (docs/acrylic/evidence/v080.md, v080/green-results.txt)
+   -- quoted, not re-fetched, since re-fetching would only re-confirm unchanged facts and cost real
+   calls this lane's own budget is needed for ==
+
+  Shell 2025 (pre-v081): the model's direct-link candidate is shell.com's real annual-report PDF but
+  behind an expired AEM token -- HTTP 404 on download, unrelated to BAD_URL (already fixed in v080's
+  own follow-up). No second ask existed to fall back to a page.
+
+  Nestle 2025 (pre-v081): the model's only candidate is a direct, downloadable link to the 67-page
+  Annual Review -- validates immediately, registers with note "model search (codex)" and NO summary
+  marking (the field did not exist).

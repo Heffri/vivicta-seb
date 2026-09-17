@@ -1,0 +1,44 @@
+v081 regression -- Swedish/directory path (zero model, real network, live) plus a by-inspection check
+(no live calls) that the new ranking does not change any of v074/v080's own recorded model-level
+outcomes.
+
+== Atlas Copco 2025, live, zero model (LLM_PROVIDER unset) ==
+  ddg failed: WinError 10054 (pre-existing, unrelated to this lane)
+  https://mb.cision.com/Main/90/4323954/3993642.pdf -> ok (174 pages, 0s)
+  elapsed 10.6s
+  source_url unchanged, tags ["fetched"] (no "foreign"), note null, tried has 1 URL.
+  Matches v074's and v080's own control runs (174 pages, level 1, no model session created for it).
+  websearch_provider() returns None with no LLM_PROVIDER set, so neither the fourth source, the
+  ranking change, nor the v081 second ask can run at all for this path -- confirmed by the code
+  structure (both live here) and unchanged by inspection (levels 1-3 and the Swedish path are not in
+  this lane's touched surface).
+
+== by-inspection: v074/v080's recorded model-level (fourth-source) hits, checked against the new
+   _best_model_candidate/_is_full_report ranking without a live re-call ==
+
+  Novo Nordisk 2025 (137p) and Kone 2025 (183p): both resolved at levels 1-2 (Nasdaq/MFN feeds), never
+  reached the model-candidate loop at all -- _best_model_candidate never runs for either. Unaffected,
+  trivially.
+
+  TotalEnergies 2025: https://totalenergies.com/system/files/documents/
+    totalenergies_universal-registration-document-2025_2026_en.pdf -- the model's only candidate that
+    round (a single URL, no BAD_URL/percent-encoding complications), 666 pages. hits has exactly one
+    element; max() of a 1-element list returns that element -- ranking is a no-op. 666 >= 80 and the
+    filename contains no summary/highlights/at-a-glance/short/in-brief term -> _is_full_report is
+    True -> note stays exactly "model search (codex)", byte-identical to before.
+
+  Nokia 2025: https://www.nokia.com/system/files/2026-03/nokia-form-20-f-2025.pdf -- likewise the
+  model's only candidate, 204 pages. Same reasoning: one-element hits, ranking a no-op, 204 >= 80,
+  filename clean ("nokia-form-20-f-2025.pdf") -> note unchanged.
+
+  Siemens 2025 (v074's decoded-twin case): the model's raw candidate (uuid%3A...) 400s -- an
+  exception, so it never reaches _validate and never becomes a `hits` entry; only its decoded twin
+  (uuid:...) succeeds, 335 pages. Again exactly one `hits` entry -- the decoded-twin mechanism (v074)
+  and the new ranking (v081) are independent and compose without interaction here. 335 >= 80, filename
+  "Siemens-Annual-Report-2025.pdf" clean -> note unchanged.
+
+  Conclusion: every historical model-level hit on record was a single validating candidate, so
+  _best_model_candidate's max() is a no-op in every one of them -- v081's ranking only changes
+  behaviour when a company's search turns up *more than one* validating candidate in the same call,
+  which none of the five recorded companies above ever did. That scenario is instead exercised
+  deterministically in test_fetch.py's new groups 17-18.

@@ -5,7 +5,11 @@ those fail and a CLI model provider is configured: the model's own web search, a
 links for foreign companies the Swedish feeds never carry (Nestlé, Siemens, Shell ...). Fifth (v080), only after all
 of those fail too: crawl any page-shaped leftover from the earlier attempts -- a model reply that names the issuer's
 IR page instead of a direct PDF, a DDG hit that served a page, or the guessed investor-relations path for the domain
-of a direct link that 404d (Shell's stale asset-store URL) -- one hop deep, for the report PDF itself.
+of a direct link that 404d (Shell's stale asset-store URL) -- one hop deep, for the report PDF itself. If that still
+finds nothing, one more model call (v081) asks only for the IR/annual-report-archive page itself (never a PDF link),
+fed into the same crawl -- at most two model calls total. The fourth source also downloads every one of its own
+candidates rather than stopping at the first that validates, and keeps the most complete one, since the model is
+now asked to prefer the full report over a summary/highlights volume.
 CLI: python -m pipeline.fetch "Boliden" 2025"""
 import datetime as dt
 import io
@@ -46,9 +50,24 @@ SEARCH_SYSTEM = (
     "Rules: at most 3 candidates, best first; every URL must be a direct link to the annual report PDF itself for "
     "the stated fiscal year, hosted on the company's own investor-relations site or an official regulatory filing "
     "repository; exclude ESEF/xBRL zip packages, interim or quarterly reports, sustainability, remuneration, "
-    "governance or capital-markets reports, and press releases. If you cannot find a direct PDF link, a URL for "
-    "the company's investor-relations or annual-report page is also acceptable."
+    "governance or capital-markets reports, and press releases. Prefer the complete annual report (the full "
+    "document), not a summary, highlights, at-a-glance, or annual review excerpt. If you cannot find a direct PDF "
+    "link, a URL for the company's investor-relations or annual-report page is also acceptable."
 )
+# ---- second ask (v081): only after every fourth-source candidate and the fifth source's generic IR-path
+# guesses have both failed -- ask once more, this time only for the IR/annual-report-archive page itself ----
+MAX_IR_PAGE_CANDIDATES = 2
+IR_PAGE_SYSTEM = (
+    "A direct link to the company's official annual report PDF could not be found or downloaded. Reply with JSON "
+    'only, no prose: {"candidates": [{"url": "https://...", "title": "...", "reason": "..."}]}. '
+    "Rules: at most 2 candidates, best first; every URL must be an HTML page, never a PDF, on the company's own "
+    "site -- its investor-relations page or its annual-report archive/library page -- from which the official "
+    "annual report PDF for the stated fiscal year can be reached."
+)
+# the complete-report preference (v081): Nestle's real Annual Review is 67p, well under this floor; a summary/
+# highlights/at-a-glance/short/in-brief excerpt is accepted only when nothing among the candidates clears it
+FULL_REPORT_MIN_PAGES = 80
+SUMMARY_WORDS = re.compile(r"\bsummary\b|highlights|at[-_ ]a[-_ ]glance|\bshort\b|in[-_ ]brief", re.I)
 
 
 def websearch_provider() -> "str | None":
@@ -102,6 +121,54 @@ def _model_candidates(company, year, country=None, hint=None):
         if (dec := urllib.parse.unquote(u)) != u and _filename_clear(dec, BAD_URL):
             urls.append(dec)
     return urls, None
+
+
+def _ir_page_candidates(company, year, country=None, hint=None):
+    """The second model ask (v081): (urls, note) like _model_candidates, but only ever called once
+    every fourth-source candidate and the fifth source's own generic IR-path guesses have already
+    failed, asking this time only for the company's IR/annual-report-archive page -- never a PDF --
+    so v080's crawl (_ir_page_report) has a page the model actually named instead of only a guessed
+    generic path. At most MAX_IR_PAGE_CANDIDATES URLs; a candidate that is itself a PDF is dropped,
+    since that is exactly what the first ask already tried and failed at."""
+    user = f"Company: {company}\nFiscal year: {year}"
+    if country:
+        user += f"\nCountry: {country}"
+    if hint:
+        user += f"\nHint: {hint}"
+    try:
+        data = json.loads(llm.web_lookup(IR_PAGE_SYSTEM, user, SEARCH_SCHEMA))
+    except Exception as e:
+        print(f"model IR-page search failed: {e}")
+        return [], f"IR-page search ({llm.provider()}) failed: {str(e)[:200]}"
+    urls = []
+    for c in (data.get("candidates") or [])[:MAX_IR_PAGE_CANDIDATES]:
+        u = str(c.get("url", "")).strip() if isinstance(c, dict) else ""
+        if not u.startswith(("http://", "https://")) or u.lower().split("?", 1)[0].endswith(".pdf"):
+            print(f"model IR-page candidate dropped: {u!r}")  # not a link, or a PDF instead of a page
+            continue
+        urls.append(u)
+    return urls, None
+
+
+def _label_clean(url):
+    """True unless the URL's own filename reads like a summary/highlights/at-a-glance/short/in-brief
+    excerpt (v081) -- the model's title isn't kept past this call, so the filename is what's left to
+    check once every candidate has already downloaded and validated as a real annual report."""
+    fname = url.rsplit("/", 1)[-1].split("?", 1)[0]
+    return not SUMMARY_WORDS.search(fname)
+
+
+def _is_full_report(url, pages):
+    """The complete-report bar itself (v081): both the page-count floor and a clean filename."""
+    return pages >= FULL_REPORT_MIN_PAGES and _label_clean(url)
+
+
+def _best_model_candidate(hits):
+    """hits: (url, data, text, pages) for every model candidate that downloaded and validated.
+    Rank by (clears the full-report bar, a clean filename, page count) and take the first -- a
+    summary volume is only kept when nothing in `hits` clears the bar (Nestle's real Annual Review,
+    67p with an otherwise clean filename, is exactly that case)."""
+    return max(hits, key=lambda h: (h[3] >= FULL_REPORT_MIN_PAGES, _label_clean(h[0]), h[3]))
 
 
 def _get(url, timeout=60):
@@ -527,6 +594,7 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
     model_note = None
     if p := websearch_provider():
         urls, model_note = _model_candidates(company, year, country, hint)
+        hits = []  # (url, data, text, pages) for every candidate that downloads + validates (v081: rank, don't stop at the first)
         for url in urls:
             if url in tried:
                 continue
@@ -545,9 +613,15 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
                     page_seeds.append(url)
                 continue
             print(f"{url} -> ok ({doc.page_count} pages, {time.time() - t0:.0f}s)")
+            hits.append((url, data, text, doc.page_count))
+        if hits:
+            # v081: prefer the complete report over a summary volume when more than one candidate
+            # validated; accept a summary only when nothing among them clears the full-report bar
+            url, data, text, pages = _best_model_candidate(hits)
+            note = f"model search ({p})" if _is_full_report(url, pages) else f"model search ({p}); summary volume"
             dest_dir.mkdir(parents=True, exist_ok=True)
             (dest_dir / fname).write_bytes(data)
-            entry = _entry(fname, company, year, url, text, note=f"model search ({p})", tags=["fetched", "foreign"])
+            entry = _entry(fname, company, year, url, text, note=note, tags=["fetched", "foreign"])
             index = [e for e in index if e["file"] != fname] + [entry]
             _write_index(dest_dir, index)
             return {**entry, "tried": tried}
@@ -562,6 +636,22 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
         index = [e for e in index if e["file"] != fname] + [entry]
         _write_index(dest_dir, index)
         return {**entry, "tried": tried}
+    # second ask (v081): only now, with the fourth source's direct links AND the fifth source's own
+    # generic IR-path guesses both exhausted, ask the model once more -- this time only for the IR/
+    # annual-report-archive page itself -- and crawl it the same way (at most 2 model calls total).
+    if p:
+        ir_urls, ir_note = _ir_page_candidates(company, year, country, hint)
+        new_seeds = [u for u in ir_urls if u not in page_seeds]
+        if new_seeds and (found := _ir_page_report(new_seeds, company, year, tried)):
+            url, data, text = found
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            (dest_dir / fname).write_bytes(data)
+            entry = _entry(fname, company, year, url, text, note="IR page crawl", tags=["fetched", "foreign"])
+            index = [e for e in index if e["file"] != fname] + [entry]
+            _write_index(dest_dir, index)
+            return {**entry, "tried": tried}
+        if ir_note:
+            model_note = f"{model_note}; {ir_note}" if model_note else ir_note
     raise LookupError(tried, model_note)
 
 

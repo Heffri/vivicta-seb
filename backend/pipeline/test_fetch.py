@@ -1,9 +1,10 @@
 """Self-check for fetch.py's fourth (v074) and fifth (v080) sources: the model's own web search, asked
 only when the feeds and the plain web search produced nothing, and the IR-page crawl that follows when
-a model candidate turns out to be a page instead of a direct PDF. `llm.web_lookup` is faked (a scripted
-function, no CLI, no network beyond a loopback http.server that serves a handful of generated PDFs and
-static HTML pages), and `_candidates` is patched out for the same reason -- this needs no
-MFN/Nasdaq/DuckDuckGo access and no model call.
+a model candidate turns out to be a page instead of a direct PDF. Also v081: the second model ask (only
+after the fourth source and the first IR-page crawl both fail) and the complete-report-over-summary
+ranking. `llm.web_lookup` is faked (a scripted function, no CLI, no network beyond a loopback
+http.server that serves a handful of generated PDFs and static HTML pages), and `_candidates` is
+patched out for the same reason -- this needs no MFN/Nasdaq/DuckDuckGo access and no model call.
 Run: python -m pipeline.test_fetch"""
 import json
 import os
@@ -31,9 +32,15 @@ REVIEW_PATH, FULL_PATH = "/nestle-annual-review-2025.pdf", "/nestle-annual-repor
 # Shell's own shape: BAD_URL's "sustainab" term sits in an *earlier* path segment, not the filename
 SHELL_SHAPE_PATH = "/sustainability/reporting-centre/nestle-annual-report-2025.pdf"
 COUNTER_EXAMPLE_URL = "https://ir.example.com/annual-report/interim-q3.pdf"  # bad filename still wins
+# v081: a page with nothing useful on it (the first IR crawl attempt must genuinely run and fail before
+# the second ask fires), and two shapes of summary volume -- one flagged by its own filename, one only
+# by its page count (Nestle's real Annual Review: a clean name, just short)
+EMPTY_IR_PAGE_PATH = "/ir/empty.html"
+SUMMARY_PATH = "/nestle-annual-report-highlights-2025.pdf"
+REVIEW_SHAPE_PATH = "/nestle-annual-review-2025-en.pdf"
 
 
-def _write_pdf(path: Path, pages: int = 45):
+def _write_pdf(path: Path, pages: int = 90):
     """A `pages`-page PDF that passes _validate for (Nestle, 2025): text layer > 5000 chars in the first
     20 pages (insert_text clips long lines at the page edge, so several short ones), the issuer
     token and the year in there, "Annual Report" on the cover."""
@@ -61,14 +68,18 @@ def _http_server(directory: Path):
 
 
 class _FakeWebLookup:
-    """Stands in for llm.web_lookup: records its arguments, replays a scripted behaviour."""
+    """Stands in for llm.web_lookup: records its arguments, replays a scripted behaviour. v081's
+    second ask uses its own system prompt (IR_PAGE_SYSTEM), so it can be scripted separately via
+    FAKE_WEB_REPLY_IR_PAGE when set; falls back to the same FAKE_WEB_REPLY otherwise, which is what
+    every pre-v081 test still does (it never sets the new env var)."""
 
     def __init__(self):
         self.calls = []
 
     def __call__(self, system, user, schema, name="web_lookup"):
         self.calls.append({"system": system, "user": user, "schema": schema})
-        reply = os.environ["FAKE_WEB_REPLY"]
+        key = "FAKE_WEB_REPLY_IR_PAGE" if system == fetch.IR_PAGE_SYSTEM and "FAKE_WEB_REPLY_IR_PAGE" in os.environ else "FAKE_WEB_REPLY"
+        reply = os.environ[key]
         if reply == "raise":
             raise RuntimeError("codex exec exited 1: 429 Too Many Requests")
         return reply
@@ -83,7 +94,7 @@ def _url(base, path):
 
 
 def demo():
-    env_keys = ("LLM_PROVIDER", "FAKE_WEB_REPLY")
+    env_keys = ("LLM_PROVIDER", "FAKE_WEB_REPLY", "FAKE_WEB_REPLY_IR_PAGE")
     saved = {k: os.environ.get(k) for k in env_keys}
     patched = {}
     server = None
@@ -97,6 +108,10 @@ def demo():
             _write_pdf(tmp / "public" / REVIEW_PATH.lstrip("/"), pages=45)
             _write_pdf(tmp / "public" / FULL_PATH.lstrip("/"), pages=60)
             _write_pdf(tmp / "public" / SHELL_SHAPE_PATH.lstrip("/"))
+            _write_pdf(tmp / "public" / SUMMARY_PATH.lstrip("/"), pages=45)
+            _write_pdf(tmp / "public" / REVIEW_SHAPE_PATH.lstrip("/"), pages=45)
+            (tmp / "public" / EMPTY_IR_PAGE_PATH.lstrip("/")).write_text(
+                "<p>Investor relations. No reports listed here.</p>\n", encoding="utf-8")
             (tmp / "public" / IR_PAGE_PATH.lstrip("/")).write_text(
                 f'<a href="/{COMPANY.lower()}-q4-interim-2025.pdf">Q4 interim report</a>\n'
                 f'<a href="{GOOD_PATH}">Annual Report 2025</a>\n', encoding="utf-8")
@@ -271,6 +286,67 @@ def demo():
             # unit-level check of the carve-out itself, both directions
             assert fetch._filename_clear(shell_shape_url, fetch.BAD_URL) is True, "clean filename clears a bad rest-of-path"
             assert fetch._filename_clear(COUNTER_EXAMPLE_URL, fetch.BAD_URL) is False, "a bad filename still rejects"
+
+            # 16. v081: the second model ask fires only after every fourth-source candidate AND the
+            #     first IR-page crawl attempt have both failed -- here the model's only "direct link"
+            #     candidate is itself an IR page with nothing on it, so the first crawl genuinely runs
+            #     and finds nothing; the second, more targeted ask then names the real reports page,
+            #     and exactly two model calls happen in total (never a third)
+            dest9 = tmp / "reports9"
+            calls_before_16 = len(fake.calls)
+            empty_ir_url = _url(base, EMPTY_IR_PAGE_PATH)
+            os.environ["FAKE_WEB_REPLY"] = _reply([{"url": empty_ir_url, "title": "IR", "reason": "no direct pdf found"}])
+            os.environ["FAKE_WEB_REPLY_IR_PAGE"] = _reply([{"url": hop_index_url, "title": "Investor relations", "reason": "archive page"}])
+            entry9 = fetch.fetch_report(COMPANY, YEAR, dest9)
+            assert entry9["source_url"] == good_url and entry9["note"] == "IR page crawl", entry9
+            assert entry9["tried"] == [empty_ir_url, good_url], entry9["tried"]
+            assert len(fake.calls) == calls_before_16 + 2, "exactly two model calls: the direct-link ask and the IR-page ask"
+            assert fake.calls[-2]["system"] == fetch.SEARCH_SYSTEM, fake.calls[-2]
+            assert fake.calls[-1]["system"] == fetch.IR_PAGE_SYSTEM, fake.calls[-1]
+            os.environ.pop("FAKE_WEB_REPLY_IR_PAGE", None)
+
+            # 17. v081: when more than one model candidate downloads and validates, the complete
+            #     report wins even when a summary-shaped one is listed first -- proves ranking
+            #     replaced "first success wins", not just "reject the summary outright"
+            dest10 = tmp / "reports10"
+            summary_url = _url(base, SUMMARY_PATH)
+            os.environ["FAKE_WEB_REPLY"] = _reply([
+                {"url": summary_url, "title": "Annual Report Highlights 2025", "reason": "short version"},
+                {"url": good_url, "title": "Annual Report 2025", "reason": "official IR pdf"},
+            ])
+            entry10 = fetch.fetch_report(COMPANY, YEAR, dest10)
+            assert entry10["source_url"] == good_url, entry10
+            assert entry10["note"] == "model search (codex)", entry10
+
+            # 18. v081: a lone model candidate that validates but stays under the 80-page floor is
+            #     still accepted (better than nothing) but flagged as a summary volume -- Nestle's
+            #     real Annual Review is exactly this shape: a clean filename ("review", not any of
+            #     summary/highlights/at-a-glance/short/in-brief), just short
+            dest11 = tmp / "reports11"
+            review_shape_url = _url(base, REVIEW_SHAPE_PATH)
+            os.environ["FAKE_WEB_REPLY"] = _reply([{"url": review_shape_url, "title": "Annual Review 2025", "reason": "only option"}])
+            entry11 = fetch.fetch_report(COMPANY, YEAR, dest11)
+            assert entry11["source_url"] == review_shape_url, entry11
+            assert entry11["note"] == "model search (codex); summary volume", entry11
+            assert entry11["tags"] == ["fetched", "foreign"], entry11
+
+            # 19. unit-level checks of the ranking helpers and the second ask's own candidate filter
+            assert fetch._is_full_report("https://x/annual-report-2025.pdf", 90) is True
+            assert fetch._is_full_report("https://x/annual-report-2025.pdf", 79) is False, "just under the floor"
+            assert fetch._is_full_report("https://x/annual-report-highlights-2025.pdf", 200) is False, "long but summary-named"
+            hits = [("https://x/short-clean.pdf", b"", "", 60),
+                    ("https://x/long-highlights.pdf", b"", "", 200),
+                    ("https://x/long-clean.pdf", b"", "", 90)]
+            assert fetch._best_model_candidate(hits)[0] == "https://x/long-clean.pdf", \
+                "only the candidate that is both long enough and cleanly named wins"
+            os.environ["FAKE_WEB_REPLY_IR_PAGE"] = _reply([{"url": _url(base, "/a.pdf"), "title": "actually a pdf"}])
+            ir_urls, ir_note = fetch._ir_page_candidates(COMPANY, YEAR)
+            assert ir_urls == [] and ir_note is None, (ir_urls, ir_note)  # a PDF-shaped URL is dropped: this ask is for a page
+            os.environ["FAKE_WEB_REPLY_IR_PAGE"] = _reply([{"url": _url(base, "/ir/page1.html")}, {"url": _url(base, "/ir/page2.html")},
+                                                            {"url": _url(base, "/ir/page3.html")}])
+            ir_urls, ir_note = fetch._ir_page_candidates(COMPANY, YEAR)
+            assert ir_urls == [_url(base, "/ir/page1.html"), _url(base, "/ir/page2.html")], ir_urls  # capped at MAX_IR_PAGE_CANDIDATES
+            os.environ.pop("FAKE_WEB_REPLY_IR_PAGE", None)
     finally:
         for k, v in saved.items():
             if v is None:
