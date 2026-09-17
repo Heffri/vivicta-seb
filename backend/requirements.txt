@@ -1,7 +1,7 @@
 fastapi
 uvicorn[standard]
 python-multipart
-pymupdf
+pymupdf==1.27.2.3  # parse.py _stack_cells (v049) validated on this text layer; 1.28.x groups header cells differently and the Ependion-style stacked header stays split
 openai
 python-dotenv
 python-pptx

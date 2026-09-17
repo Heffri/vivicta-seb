@@ -313,6 +313,12 @@ def search(stems: list[str], query: str, k=8) -> list[dict]:
             cand.append((cos, part.get(i, 0.0), (hits.get(i, 0) / len(qt)) if qt else 0.0, s, r))
     if not cand:
         return []
+    if mode == "bm25" and not any(x[1] for x in cand):
+        # v059: no query term matched any chunk (Swedish question against an English report, a topic the
+        # report does not cover) -- ranking would just hand back cover-page order and ask() would spend a
+        # 10-40 s model call to answer "the excerpts don't say". Empty means empty. Hybrid keeps going:
+        # cosine still has a signal when the words differ.
+        return []
     if mode == "hybrid":
         finals = (0.6 * c + 0.4 * b for c, b in zip(_minmax([x[0] for x in cand]), _minmax([x[1] for x in cand])))
     else:
@@ -338,6 +344,12 @@ def ask(stems: list[str], question: str, k=8, ids: dict[str, str] | None = None)
     metas = {s: _meta(s) for s in stems}
     label = {s: f"{m.get('company') or s} FY{m.get('fiscal_year') or '?'}" for s, m in metas.items()}
     hits = search(stems, question, k)
+    if not hits:  # v059: bm25 all-zero (or no chunks at all) -- answer directly, save the 10-40 s call
+        return {"question": question,
+                "answer": "No passage in the selected report(s) matches the question's terms — try the report's own wording or another language.",
+                "citations": [],
+                "warnings": ["retrieval: no matching excerpt (bm25 all-zero); model not called"],
+                "model": os.getenv("LLM_MODEL", "")}
     user = (f"Question: {question}\n\nQuotes must be copied character for character from one excerpt (a line break may become a "
             f"space; keep note numbers and every token between label and figure).\n\nExcerpts:\n"
             + "\n\n".join(f"[{label[h['stem']]} p.{h['page']}]\n{h['text']}" for h in hits))

@@ -1,0 +1,78 @@
+parse_check quote-regression run: PARSER_VERSION=4, 35 PDFs, kb=seed2-kb, sections=['debt_maturity']
+
+== academedia_2025: no stored extraction/pages, skipped ==
+
+== acast_2025: quotes=3 old_found=3 new_found=3
+
+== alligo_2025: quotes=2 old_found=2 new_found=2
+
+== apotea_2025: quotes=2 old_found=2 new_found=2
+
+== arjo_2025: quotes=1 old_found=1 new_found=1
+
+== atlas_copco_2025: no stored extraction/pages, skipped ==
+
+== bergman_beving_2025: no stored extraction/pages, skipped ==
+
+== better_collective_2025: no stored extraction/pages, skipped ==
+
+== bico_2025: no stored extraction/pages, skipped ==
+
+== boozt_2025: quotes=3 old_found=3 new_found=3
+
+== catella_2025: no stored extraction/pages, skipped ==
+
+== cloetta_2025: no stored extraction/pages, skipped ==
+
+== coor_service_management_hold_2025: quotes=1 old_found=1 new_found=1
+
+== creades_2025: no stored extraction/pages, skipped ==
+
+== ependion_2025: no stored extraction/pages, skipped ==
+
+== ework_2025: no stored extraction/pages, skipped ==
+
+== flat_capital_2025: no stored extraction/pages, skipped ==
+
+== flerie_2025: no stored extraction/pages, skipped ==
+
+== gentoo_media_2025: no stored extraction/pages, skipped ==
+
+== hansa_biopharma_2025: no stored extraction/pages, skipped ==
+
+== humana_2025: quotes=2 old_found=2 new_found=1
+    LOST(new) debt_maturity.due_within_1_year p.149: 'current liabilities of SEK 543m (594) and non-current liabilities of SEK Total 1,295 1,636 hedge bec'
+
+== intrum_2025: no stored extraction/pages, skipped ==
+
+== knowit_2025: no stored extraction/pages, skipped ==
+
+== medcap_2025: no stored extraction/pages, skipped ==
+
+== meko_2025: no stored extraction/pages, skipped ==
+
+== morrow_bank_2025: no stored extraction/pages, skipped ==
+
+== ncab_2025: quotes=1 old_found=1 new_found=1
+
+== nelly_2025: quotes=2 old_found=2 new_found=2
+
+== norion_bank_2025: no stored extraction/pages, skipped ==
+
+== ovzon_2025: no stored extraction/pages, skipped ==
+
+== ratos_2025: no stored extraction/pages, skipped ==
+
+== storytel_2025: quotes=2 old_found=1 new_found=1
+    LOST(old) debt_maturity.due_within_1_year p.114: 'with the entire loan classified as current.'
+    LOST(new) debt_maturity.due_within_1_year p.114: 'with the entire loan classified as current.'
+
+== svolder_2025: no stored extraction/pages, skipped ==
+
+== vef_2025: no stored extraction/pages, skipped ==
+
+== xano_industri_2025: no stored extraction/pages, skipped ==
+
+== totals ==
+   old: 18/19 found, 1 lost
+   new: 17/19 found, 2 lost

@@ -602,6 +602,127 @@ def demo():
     assert not out["checks"][0]["passed"] and not out["checks"][0]["detail"].startswith("missing:"), out["checks"]
     within = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
     assert within["confidence"] == 0.5, within  # still capped: neither sibling bucket's label is anywhere on the page
+    qcalls = []
+    # v054: EXTRACT_QUOTE_RETRY (default off) -- one follow-up call for the fields whose answer cites a quote
+    # that is not printed on the page it names: the cited page's own _page_rows go out numbered, and the model
+    # copies the printed row verbatim (or answers null: no such row). A retried field is adopted only when its
+    # new quote verifies on the page it names -- null, missing or still-unverified replies keep the original
+    # answer, so the retry can never leave a field worse than the first call alone. "Current portion of loans"
+    # is deliberately not one of the schema's synonyms, so the label-repair inside the validation loop cannot
+    # fix this quote either -- exactly the 0.25 shape the hardening rounds kept hitting (Storytel, MEKO).
+    qret_page = ("Note 20 Borrowings\nMSEK\n2025 2024\nTotal borrowings 32 703 34 500\nCurrent portion of loans 3 538 4 100\n"
+                 "1-5 years 29 165 30 000\n")
+
+    def qret_answer():
+        return {"fields": [
+            {"key": "total_debt", "value": 32703, "unit": "MSEK", "period": "2025", "raw_label": "Total borrowings",
+             "source": {"page": 1, "quote": "Total borrowings 32 703 34 500"}},
+            {"key": "due_within_1_year", "value": 3538, "unit": "MSEK", "period": "2025", "raw_label": "Current portion of loans",
+             "source": {"page": 1, "quote": "Current portion of loans, 3,538"}},  # reformatted: not the printed line
+            {"key": "due_1_to_5_years", "value": 29165, "unit": "MSEK", "period": "2025", "raw_label": "1-5 years",
+             "source": {"page": 1, "quote": "1-5 years 29 165 30 000"}},
+            {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+
+    def qret_fix():
+        return {"fields": [{"key": "due_within_1_year", "value": 3538, "source": {"page": 1, "quote": "Current portion of loans 3 538 4 100"}}]}
+
+    qret_seen = {}
+
+    def qret_llm(system, user, schema=x.RESPONSE_SCHEMA, name="extraction"):
+        qcalls.append(name)
+        qret_seen[name] = (system, user)
+        return qret_answer() if name == "extraction" else qret_fix()
+
+    import os
+    os.environ["EXTRACT_QUOTE_RETRY"] = "1"
+    try:
+        x.call_llm = qret_llm
+        qcalls.clear()
+        out = x.extract([qret_page], [1], dm, {"fiscal_year": 2025})
+        assert qcalls == ["extraction", "quote_retry"], qcalls  # one follow-up, only because a quote failed
+        assert qret_seen["quote_retry"][0] == qret_seen["extraction"][0], "retry reuses the extraction system prompt"
+        assert "4: Current portion of loans 3 538 4 100" in qret_seen["quote_retry"][1], qret_seen["quote_retry"][1]  # the page's own rows, numbered
+        assert "your value: 3538" in qret_seen["quote_retry"][1], qret_seen["quote_retry"][1]  # the field's own earlier answer
+        w1y = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
+        assert (w1y["value"], w1y["confidence"], w1y["source"]["quote"]) == (3538, 0.9, "Current portion of loans 3 538 4 100"), (w1y, out["warnings"])
+        assert sum(w.startswith("quote_retry:") for w in out["warnings"]) == 1, out["warnings"]
+        assert next(f for f in out["fields"] if f["key"] == "total_debt")["confidence"] == 1.0, out["fields"]  # verified fields are not retried
+
+        # nothing to fix (every quote already verbatim): no follow-up call at all
+        def qret_good(system, user, schema=x.RESPONSE_SCHEMA, name="extraction"):
+            qcalls.append(name)
+            return {"fields": [{**f, "source": {"page": 1, "quote": "Current portion of loans 3 538 4 100"}} if f["key"] == "due_within_1_year" else f
+                               for f in qret_answer()["fields"]]}
+        x.call_llm = qret_good
+        qcalls.clear()
+        out = x.extract([qret_page], [1], dm, {"fiscal_year": 2025})
+        assert qcalls == ["extraction"], qcalls
+
+        # the retry answers null (no printed row states the figure): the field keeps the first answer's judgment
+        def qret_null(system, user, schema=x.RESPONSE_SCHEMA, name="extraction"):
+            qcalls.append(name)
+            return qret_answer() if name == "extraction" else {"fields": [{"key": "due_within_1_year", "value": None, "source": None}]}
+        x.call_llm = qret_null
+        qcalls.clear()
+        out = x.extract([qret_page], [1], dm, {"fiscal_year": 2025})
+        assert qcalls == ["extraction", "quote_retry"], qcalls
+        w1y = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
+        assert (w1y["value"], w1y["confidence"]) == (3538, 0.25) and not any(w.startswith("quote_retry:") for w in out["warnings"]), (w1y, out["warnings"])
+
+        # a retry quote that still does not verify keeps the original answer too
+        def qret_still_bad(system, user, schema=x.RESPONSE_SCHEMA, name="extraction"):
+            qcalls.append(name)
+            return qret_answer() if name == "extraction" else \
+                {"fields": [{"key": "due_within_1_year", "value": 3538, "source": {"page": 1, "quote": "Loans due soon 3538"}}]}
+        x.call_llm = qret_still_bad
+        qcalls.clear()
+        out = x.extract([qret_page], [1], dm, {"fiscal_year": 2025})
+        assert qcalls == ["extraction", "quote_retry"], qcalls
+        w1y = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
+        assert (w1y["value"], w1y["confidence"]) == (3538, 0.25) and not any(w.startswith("quote_retry:") for w in out["warnings"]), (w1y, out["warnings"])
+
+        # a stated zero (v050's prose-negation path) is already proven by the report's own words: not retried
+        prose = ("Not 18 Klassificering av finansiella instrument\n"
+                 "Investmentföretaget har varken räntebärande skulder eller kundfordringar.\n")
+
+        def qret_zero(system, user, schema=x.RESPONSE_SCHEMA, name="extraction"):
+            qcalls.append(name)
+            return {"fields": [
+                {"key": "total_debt", "value": 0, "unit": "SEK mn", "period": "2025",
+                 "raw_label": "Investmentföretaget har varken räntebärande skulder eller kundfordringar.",
+                 "source": {"page": 1, "quote": "Investmentföretaget har varken räntebärande skulder eller kundfordringar."}},
+                {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+                {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+                {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+        x.call_llm = qret_zero
+        qcalls.clear()
+        out = x.extract([prose], [1], dm, {"fiscal_year": 2025})
+        assert qcalls == ["extraction"], qcalls  # quote_on_page fails on the digit-free sentence; _stated_zero already proves it
+        td = next(f for f in out["fields"] if f["key"] == "total_debt")
+        assert td["value"] == 0 and td["confidence"] == 0.5 and "stated_zero" in td["evidence"], (td, out["warnings"])
+
+        # a value the model returned without any source: the retry may supply the printed row (page 1 = candidates[0])
+        def qret_nosrc(system, user, schema=x.RESPONSE_SCHEMA, name="extraction"):
+            qcalls.append(name)
+            if name == "extraction":
+                return {"fields": [{**qret_answer()["fields"][0], "source": None}, *qret_answer()["fields"][1:]]}
+            return {"fields": [{"key": "total_debt", "value": 32703, "source": {"page": 1, "quote": "Total borrowings 32 703 34 500"}}]}
+        x.call_llm = qret_nosrc
+        qcalls.clear()
+        out = x.extract([qret_page], [1], dm, {"fiscal_year": 2025})
+        assert qcalls == ["extraction", "quote_retry"], qcalls
+        td = next(f for f in out["fields"] if f["key"] == "total_debt")
+        assert (td["value"], td["confidence"]) == (32703, 1.0), (td, out["warnings"])  # was "value without source dropped"
+    finally:
+        del os.environ["EXTRACT_QUOTE_RETRY"]
+
+    # switch off (the default): no follow-up call, the first answer's judgment stands
+    x.call_llm = qret_llm
+    qcalls.clear()
+    out = x.extract([qret_page], [1], dm, {"fiscal_year": 2025})
+    assert qcalls == ["extraction"], qcalls
+    w1y = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
+    assert (w1y["value"], w1y["confidence"]) == (3538, 0.25) and not any(w.startswith("quote_retry:") for w in out["warnings"]), (w1y, out["warnings"])
     # v052: a note page can stack a second table above the one the field's row sits in (MedCap p.101: a
     # receivables-ageing table over the maturity table), and the maturity header itself repeats the year across
     # Koncernen | Moderbolaget pairs. Row derivations now anchor the year header to the quoted row -- the nearest
