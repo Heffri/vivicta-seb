@@ -609,9 +609,11 @@ def _stated_zero(field: dict, sf: dict, schema: dict, texts: list[str]) -> bool:
     existing provenance gates' job -- repair_value, the printed-zero checks -- not this one); the
     sentence sits verbatim on the cited page, whitespace/NBSP-insensitive via normalize_ws (quote_on_page
     itself requires a number token, which a prose negation structurally never has, Creades v048); the
-    sentence names the field's subject (a schema keyword or one of the field's own synonyms); and a
-    negation word from the schema's own list is present -- so a bare row label quoted alone ("Summa
-    räntebärande skulder" off a column-major table) stays a drop, never becomes a 0."""
+    sentence names the field's subject (a schema keyword, one of the field's own synonyms, or one of
+    zero_if_stated's own subject_terms -- bare words like "loan(s)" that real no-debt prose is written in
+    but the label vocabulary must never list, Vicore Pharma / BioGaia v062); and a negation word from the
+    schema's own list is present -- so a bare row label quoted alone ("Summa räntebärande skulder" off a
+    column-major table) stays a drop, never becomes a 0."""
     if isinstance(field.get("value"), bool) or field.get("value") != 0 or not isinstance(sf.get("zero_if_stated"), dict):
         return False
     src = field.get("source") or {}
@@ -621,7 +623,8 @@ def _stated_zero(field: dict, sf: dict, schema: dict, texts: list[str]) -> bool:
     q = normalize_ws(quote).lower()
     if q not in normalize_ws(texts[page - 1]).lower():
         return False
-    vocab = [normalize_ws(v).lower() for v in schema.get("keywords", []) + sf.get("synonyms", [])]
+    vocab = [normalize_ws(v).lower() for v in schema.get("keywords", []) + sf.get("synonyms", [])
+             + sf["zero_if_stated"].get("subject_terms", [])]
     if not any(v and v in q for v in vocab):  # the sentence must be about this field's subject
         return False
     return bool(set(q.split()) & {w.lower() for w in sf["zero_if_stated"].get("negations", [])})
