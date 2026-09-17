@@ -29,7 +29,7 @@ Backend (terminal 1):
 cd backend
 python -m venv .venv
 # Windows: .venv\Scripts\activate    mac/linux: source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.txt    # pymupdf pinned to 1.27.2.3 — why: docs/acrylic/evidence/v049.md
 cp .env.example .env               # leave LLM_BASE_URL unset → returns the fixture (UI dev mode)
 uvicorn app:app --reload --port 8000
 ```
@@ -74,7 +74,9 @@ Or with the Claude Code CLI, same idea, for a Claude subscription (a Claude *API
 #   LLM_MODEL=claude-sonnet-5   # --model passed to `claude -p`; the CLI must be installed and already logged in
 ```
 
-Extraction and Ask's answers then run on Codex/Claude; Ask's retrieval still needs `LLM_BASE_URL` (Ollama/OpenAI-compatible) — see `backend/README.md`.
+Extraction and Ask's answers then run on Codex/Claude — no base URL needed; without one, Ask's retrieval
+falls back to keyword search (BM25), and an `LLM_BASE_URL` (Ollama/OpenAI-compatible) upgrades it to hybrid
+embeddings+BM25 — see `backend/README.md`.
 
 Accuracy:
 
