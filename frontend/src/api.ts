@@ -34,11 +34,13 @@ export const registerLibraryReport = (file: string) =>
 
 export const getCompanies = (q: string) => request<Company[]>(`/api/companies?q=${encodeURIComponent(q)}`)
 
-export const fetchReport = (company: string, year: number) =>
+// v074: country/hint are optional context for the backend's model search (its fourth fetch source,
+// used when the directory has no hit); they are ignored by the feed levels.
+export const fetchReport = (company: string, year: number, opts?: { country?: string; hint?: string }) =>
   request<Report>('/api/reports/fetch', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ company, year }),
+    body: JSON.stringify({ company, year, ...opts }),
   })
 
 export const extractSection = (reportId: string, section: string) =>
