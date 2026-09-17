@@ -106,8 +106,8 @@ second `_between_rows` rescue site (v051), the table-scoped present-label guard 
 bucket synonyms (v058), the bucket-columns reader's `header_synonyms`/debt-row
 fallback/within-1y subtotal (v060), stated-zero `subject_terms` (v062), and Ask's
 BM25-empty short-circuit with its UI (v059) + the retrieval-mode status strip (v056)):
-`Annual Report Parser-0.3.1-portable.exe` and `Annual Report Parser-Setup-0.3.1.exe` (NSIS).
-[v061](evidence/v061.md) The data
+`Annual Report Parser-0.3.1-portable.exe` (~141.4 MB) and
+`Annual Report Parser-Setup-0.3.1.exe` (NSIS, ~141.6 MB). [v061](evidence/v061.md) The data
 directory (reports, KB, uploads, `backend.log`)
 lives under the user's own `app.getPath('userData')/data`, seeded once from the bundled repo data
 on first launch and left alone on later launches/upgrades; first launch has no model provider
