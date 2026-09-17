@@ -386,7 +386,8 @@ WEIGHTS = {"quote_on_page": 0.35, "value_in_quote": 0.20, "arith_ok": 0.20, "lab
            "period_ok": 0.05, "page_is_statement": 0.05, "unit_ok": 0.05,  # docs/CONFIDENCE.md; sums to 1.0
            "value_derived": 0.20,  # stands in for value_in_quote when the printed number is unreadable, never both
            "stated_zero": 0.20,  # stands in for value_in_quote when the figure is never printed: the report says 0 in words (v050)
-           "identity_all_columns": 0.0}  # a marker: an unknown label whose identity holds in every column earns label_known
+           "identity_all_columns": 0.0,  # a marker: an unknown label whose identity holds in every column earns label_known
+           "identity_kept": 0.0}  # a marker: a column guard's own re-read lost to a value that closes the identity exactly (v066)
 
 
 _DASHES = str.maketrans({"–": "-", "−": "-", " ": " "})
@@ -876,6 +877,24 @@ def _identity_parts(schema: dict) -> tuple[str, list[str]] | None:
     return None
 
 
+def _identity_closes(key: str, value, values: dict, defaults: dict, schema: dict) -> bool:
+    """True when `key`'s current `value` -- about to be overwritten by a column-position guess -- already closes
+    one of the schema's own identity checks exactly (_check's own tolerance), against at least two OTHER
+    operands that are themselves already-read, real values: a lone total (everything else null_as_zero) would
+    make a sum identity trivially true and prove nothing about `value` (Proact, v066: 312,458 for
+    due_within_1_year is column 1 of 3, but 312,458 + due_1_to_5_years' own 166,153 closes
+    maturity_sums_to_total against total_debt's own 478,611 exactly -- a date-per-instrument sum no column
+    re-read can reproduce, docs/acrylic/evidence/v063.md gap 2)."""
+    for sc in schema.get("checks", []):
+        if not sc.get("identity") or not re.search(rf"\b{re.escape(key)}\b", sc["expr"]):
+            continue
+        operands = set(re.findall(r"\b[A-Za-z_]\w*\b", sc["expr"])) - set(_SAFE_BUILTINS) - {key}
+        real = [k for k in operands if isinstance(values.get(k), (int, float)) and not isinstance(values.get(k), bool)]
+        if len(real) >= 2 and _check(sc, {**defaults, **values, key: value})["passed"]:
+            return True
+    return False
+
+
 def _bucket_synonym_hits(text: str, bucket_sfs: dict) -> list[tuple[int, str]]:
     """[(position, key)] for every maturity-bucket synonym of every field in bucket_sfs found in text, dash-
     normalised (so "1–2 years" matches the schema's "1-2 years"), plus _BUCKET_BOUNDARY's English-symbol patch.
@@ -1008,6 +1027,19 @@ def _bucket_assign(amounts: list, col_keys: list[str]) -> dict[str, float | None
     return out
 
 
+def _bucket_row_prior_year(rows: list[str], idx: int, fiscal_year) -> bool:
+    """True when the candidate row's own year -- named inline, or by the nearest header run above it (_year_run,
+    the same nearest-run-wins upward walk _row_year_column uses) -- is the fiscal year's predecessor and not the
+    fiscal year itself. A maturity table whose header stacks both years' own totals must not lend its prior-year
+    row to this year's buckets, even when one of its columns also happens to print this year's total (Net
+    Insight's prior-year 'Total 81,489 57,647' row, v066)."""
+    if not fiscal_year:
+        return False
+    fy, prior = str(fiscal_year), str(int(fiscal_year) - 1)
+    run = _year_run(rows[idx]) or next((r for j in range(idx - 1, -1, -1) if (r := _year_run(" ".join(rows[j:idx])))), None)
+    return bool(run) and prior in run and fy not in run
+
+
 def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, texts: list[str], pages: list[int],
                           fiscal_year, warnings: list[str], values: dict, filled: set) -> None:
     """A maturity-bucket note that prints on one row, columns = buckets, instead of one row per bucket (Cloetta's
@@ -1058,6 +1090,18 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
                 # answer rather than have one column "fixed" out of a header that was never really aligned to begin with.
                 warnings.append(f"{total_key}: column reading of {rows[idx]!r} rejected -- {', '.join(f'{k} {v}' for k, v in over.items())} "
                                  f"exceed{'s' if len(over) == 1 else ''} its own total {total_val}; model's own values kept")
+                continue
+            row_label = _row_label(rows[idx])
+            if "total" not in col_keys and (_label_known(row_label, total_sf) or _clean_label(row_label) in ("total", "totalt", "summa")):
+                # Net Insight (v066): a Total*/Summa* row with no total column among its own header's keys can
+                # never be checked against its own stated total -- the `over` valve above has nothing to compare
+                # to (derived has no total_key entry at all), so it stays blind to a wrong column-order read
+                # instead of catching it. Left for another path rather than trusted ungated.
+                warnings.append(f"{total_key}: {rows[idx]!r} is a Total*/Summa* row with no total column in its "
+                                 f"own header ({', '.join(col_keys)}); its own total cannot be checked, left for another path")
+                continue
+            if _bucket_row_prior_year(rows, idx, fiscal_year):
+                warnings.append(f"{total_key}: {rows[idx]!r} names fiscal year {int(fiscal_year) - 1}, not {fiscal_year}; not this year's bucket row")
                 continue
             acted = False
             for key in (total_key, *part_keys):
@@ -1328,15 +1372,25 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
         fields.append(field)
 
     segs = {}
+    seg_defaults = {sf["key"]: sf["default"] for sf in schema["fields"] if "default" in sf}
     for page in sorted({f["source"]["page"] for f in fields if f["source"] and "quote_on_page" in f["evidence"]}):
         on_page = [f for f in fields if f["value"] is not None and f["source"] and f["source"].get("page") == page]
         seg = _segment_column(texts[page - 1], fiscal_year, on_page) if fiscal_year else None
         if not seg:
             continue
         col, ncols = segs[page] = seg
+        snapshot = {g["key"]: g["value"] for g in fields if isinstance(g["value"], (int, float)) and not isinstance(g["value"], bool)}
         for f in on_page:  # Volvo: income tax read from the Industrial Operations pair, the other rows from Volvo Group
             am = _row_amounts(f["source"]["quote"], ncols)
             if len(am) == ncols and am[col] != f["value"]:
+                if _identity_closes(f["key"], f["value"], snapshot, seg_defaults, schema):
+                    # value_derived (not just a marker): the later "printed on none of pages, dropped as
+                    # computed" guard (Sectra) drops any non-null value that is not literally printed nearby
+                    # unless it is already explained -- an identity-proven value needs the same standing a
+                    # row-sum derivation gets, or keeping it here would be undone a few steps later (v066).
+                    f["evidence"] += ["identity_kept", "value_derived"]
+                    warnings.append(f"{f['key']}: {f['value']} kept: closes the identity exactly, even though column {col + 1} of {ncols} prints {am[col]}")
+                    continue
                 warnings.append(f"{f['key']}: {f['value']} is another segment's column; the page's rows are read from column {col + 1} of {ncols}, which prints {am[col]}")
                 f["value"], f["period"] = am[col], str(fiscal_year)
     if pages and fiscal_year and (h := _year_column(texts[pages[0] - 1], fiscal_year) or segs.get(pages[0])):  # page-level, not row-anchored: statement-spread fill, no quote to anchor to
