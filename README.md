@@ -4,6 +4,19 @@ PDF annual report in → structured, **source-linked** data out → JSON/CSV for
 
 Challenge owner: Kimberly Lejonö, Co-Head CIB Data & AI Hub, SEB. Full brief + meeting notes: [`docs/CHALLENGE.md`](docs/CHALLENGE.md).
 
+## Quick start
+
+- **Windows** — double-click `run.bat` (or run it from a terminal).
+- **macOS/Linux** — `./run.sh`
+
+First run sets up a Python venv, installs dependencies, builds the frontend, and opens the app in
+your browser on one port — about 2-4 minutes. Later runs take a few seconds. No model is configured
+by default, so it runs on fixture (demo) data; see "Run it" below to point it at a real one. Ctrl+C
+stops it and closes the backend it started (on Windows, `run.bat` may ask `Terminate batch job
+(Y/N)?` first — that is `cmd.exe`'s own prompt for any batch file, not specific to this script;
+answer `Y`). Prefer a double-click app with no terminal at all? Grab the packaged Windows build from
+Releases instead — [`desktop/README.md`](desktop/README.md).
+
 ## The one idea to keep
 
 Every extracted number carries `source.page` + `source.quote`, and the backend checks the quote really exists on that page.
@@ -22,6 +35,9 @@ data/reports/  bundled annual reports: index.json committed, PDFs gitignored -> 
 The handshake between frontend and backend is [`docs/API.md`](docs/API.md). Change it there first.
 
 ## Run it
+
+`run.bat` / `run.sh` (see "Quick start" above) does all of this in one step and serves frontend +
+backend on a single port. To run each piece by hand instead (e.g. to use `--reload` while editing):
 
 Backend (terminal 1):
 
@@ -45,7 +61,8 @@ npm install
 npm run dev                        # http://localhost:5173, proxies /api → :8000
 ```
 
-Real extraction with a local model:
+Real extraction with a local model (using `run.bat`/`run.sh`? put the same lines in a `.env` file in
+the repo root instead of `backend/.env` — either is picked up; `backend/.env` wins if both exist):
 
 ```bash
 ollama pull qwen3:8b               # or qwen2.5:14b / qwen3:14b if you have ≥12 GB VRAM
