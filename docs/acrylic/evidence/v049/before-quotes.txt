@@ -1,0 +1,75 @@
+parse_check quote-regression run: PARSER_VERSION=3, 35 PDFs, kb=data\kb, sections=['income_statement']
+
+== academedia_2025: no stored extraction/pages, skipped ==
+
+== acast_2025: no stored extraction/pages, skipped ==
+
+== alligo_2025: no stored extraction/pages, skipped ==
+
+== apotea_2025: no stored extraction/pages, skipped ==
+
+== arjo_2025: no stored extraction/pages, skipped ==
+
+== atlas_copco_2025: quotes=8 old_found=8 new_found=8
+
+== bergman_beving_2025: no stored extraction/pages, skipped ==
+
+== better_collective_2025: no stored extraction/pages, skipped ==
+
+== bico_2025: no stored extraction/pages, skipped ==
+
+== boozt_2025: no stored extraction/pages, skipped ==
+
+== catella_2025: no stored extraction/pages, skipped ==
+
+== cloetta_2025: no stored extraction/pages, skipped ==
+
+== coor_service_management_hold_2025: no stored extraction/pages, skipped ==
+
+== creades_2025: no stored extraction/pages, skipped ==
+
+== ependion_2025: no stored extraction/pages, skipped ==
+
+== ework_2025: no stored extraction/pages, skipped ==
+
+== flat_capital_2025: no stored extraction/pages, skipped ==
+
+== flerie_2025: no stored extraction/pages, skipped ==
+
+== gentoo_media_2025: no stored extraction/pages, skipped ==
+
+== hansa_biopharma_2025: no stored extraction/pages, skipped ==
+
+== humana_2025: no stored extraction/pages, skipped ==
+
+== intrum_2025: no stored extraction/pages, skipped ==
+
+== knowit_2025: no stored extraction/pages, skipped ==
+
+== medcap_2025: no stored extraction/pages, skipped ==
+
+== meko_2025: no stored extraction/pages, skipped ==
+
+== morrow_bank_2025: no stored extraction/pages, skipped ==
+
+== ncab_2025: no stored extraction/pages, skipped ==
+
+== nelly_2025: no stored extraction/pages, skipped ==
+
+== norion_bank_2025: no stored extraction/pages, skipped ==
+
+== ovzon_2025: no stored extraction/pages, skipped ==
+
+== ratos_2025: no stored extraction/pages, skipped ==
+
+== storytel_2025: no stored extraction/pages, skipped ==
+
+== svolder_2025: no stored extraction/pages, skipped ==
+
+== vef_2025: no stored extraction/pages, skipped ==
+
+== xano_industri_2025: no stored extraction/pages, skipped ==
+
+== totals ==
+   old: 8/8 found, 0 lost
+   new: 8/8 found, 0 lost

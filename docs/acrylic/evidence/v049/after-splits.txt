@@ -1,0 +1,468 @@
+parse_check split-rate run: PARSER_VERSION=4, 35 PDFs
+
+== academedia_2025 (112p) ==
+  [debt_maturity] candidates [97, 98, 109]
+    p.97   lines=74  splits=0   rate=  0.0%
+    p.98   lines=23  splits=0   rate=  0.0%
+    p.109  lines=55  splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=152 rate=0.00%
+  [income_statement] candidates [68, 69]
+    p.68   lines=102 splits=0   rate=  0.0%
+    p.69   lines=56  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=158 rate=0.00%
+
+== acast_2025 (91p) ==
+  [debt_maturity] candidates [65, 66]
+    p.65   lines=29  splits=0   rate=  0.0%
+    p.66   lines=30  splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=59 rate=0.00%
+  [income_statement] candidates [41, 42, 44]
+    p.41   lines=35  splits=0   rate=  0.0%
+    p.42   lines=42  splits=0   rate=  0.0%
+    p.44   lines=35  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=112 rate=0.00%
+
+== alligo_2025 (162p) ==
+  [debt_maturity] candidates [142, 143, 141]
+    p.142  lines=83  splits=0   rate=  0.0%
+    p.143  lines=71  splits=1   rate=  1.4%
+        | 'Inledning Strategisk riktning Verksamheten Förva'
+        | '2025-12-31 2024-12-31'
+    p.141  lines=92  splits=0   rate=  0.0%
+    [debt_maturity] splits=1 lines=246 rate=0.41%
+  [income_statement] candidates [114, 115, 132]
+    p.114  lines=42  splits=0   rate=  0.0%
+    p.115  lines=49  splits=0   rate=  0.0%
+    p.132  lines=58  splits=1   rate=  1.7%
+        | 'Uppskjutna skattefordringar och -skulder i balan'
+        | '2025-12-31 2024-12-31'
+    [income_statement] splits=1 lines=149 rate=0.67%
+
+== apotea_2025 (136p) ==
+  [debt_maturity] candidates [113, 114, 133]
+    p.113  lines=43  splits=0   rate=  0.0%
+    p.114  lines=77  splits=0   rate=  0.0%
+    p.133  lines=81  splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=201 rate=0.00%
+  [income_statement] candidates [29, 30]
+    p.29   lines=124 splits=0   rate=  0.0%
+    p.30   lines=100 splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=224 rate=0.00%
+
+== arjo_2025 (144p) ==
+  [debt_maturity] candidates [109, 110]
+    p.109  lines=65  splits=0   rate=  0.0%
+    p.110  lines=83  splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=148 rate=0.00%
+  [income_statement] candidates [94, 95, 93]
+    p.94   lines=43  splits=0   rate=  0.0%
+    p.95   lines=56  splits=0   rate=  0.0%
+    p.93   lines=91  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=190 rate=0.00%
+
+== atlas_copco_2025 (174p) ==
+  [debt_maturity] candidates [146, 147]
+    p.146  lines=70  splits=0   rate=  0.0%
+    p.147  lines=127 splits=1   rate=  0.8%
+        | 'MSEK MSEK'
+        | '25 000 25 000'
+    [debt_maturity] splits=1 lines=197 rate=0.51%
+  [income_statement] candidates [106, 107, 16]
+    p.106  lines=59  splits=0   rate=  0.0%
+    p.107  lines=64  splits=0   rate=  0.0%
+    p.16   lines=70  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=193 rate=0.00%
+
+== bergman_beving_2025 (140p) ==
+  [debt_maturity] candidates [119, 120, 123]
+    p.119  lines=107 splits=0   rate=  0.0%
+    p.120  lines=65  splits=0   rate=  0.0%
+    p.123  lines=67  splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=239 rate=0.00%
+  [income_statement] candidates [89, 90, 108]
+    p.89   lines=59  splits=0   rate=  0.0%
+    p.90   lines=64  splits=0   rate=  0.0%
+    p.108  lines=56  splits=2   rate=  3.6%
+        | 'Group Parent Company Group Parent Company'
+        | '2025/2026 2024/2025 2025/2026 2024/2025 2025/202'
+        | 'average tax rate and recognised taxes for the Gr'
+        | '2025/2026 % 2024/2025 % 2025/2026 % 2024/2025 %'
+    [income_statement] splits=2 lines=179 rate=1.12%
+
+== better_collective_2025 (202p) ==
+  [debt_maturity] candidates [129, 130, 171]
+    p.129  lines=27  splits=0   rate=  0.0%
+    p.130  lines=34  splits=0   rate=  0.0%
+    p.171  lines=30  splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=91 rate=0.00%
+  [income_statement] candidates [129, 130, 171]
+    p.129  lines=27  splits=0   rate=  0.0%
+    p.130  lines=34  splits=0   rate=  0.0%
+    p.171  lines=30  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=91 rate=0.00%
+
+== bico_2025 (146p) ==
+  [debt_maturity] candidates [86, 87, 114]
+    p.86   lines=62  splits=0   rate=  0.0%
+    p.87   lines=121 splits=0   rate=  0.0%
+    p.114  lines=57  splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=240 rate=0.00%
+  [income_statement] candidates [74, 75, 31]
+    p.74   lines=48  splits=0   rate=  0.0%
+    p.75   lines=20  splits=0   rate=  0.0%
+    p.31   lines=90  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=158 rate=0.00%
+
+== boozt_2025 (141p) ==
+  [debt_maturity] candidates [121, 122, 108]
+    p.121  lines=66  splits=0   rate=  0.0%
+    p.122  lines=54  splits=0   rate=  0.0%
+    p.108  lines=40  splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=160 rate=0.00%
+  [income_statement] candidates [97, 98, 129]
+    p.97   lines=35  splits=0   rate=  0.0%
+    p.98   lines=55  splits=0   rate=  0.0%
+    p.129  lines=59  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=149 rate=0.00%
+
+== catella_2025 (151p) ==
+  [debt_maturity] candidates [107, 108, 99]
+    p.107  lines=93  splits=0   rate=  0.0%
+    p.108  lines=50  splits=0   rate=  0.0%
+    p.99   lines=59  splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=202 rate=0.00%
+  [income_statement] candidates [98, 99, 139]
+    p.98   lines=45  splits=0   rate=  0.0%
+    p.99   lines=59  splits=0   rate=  0.0%
+    p.139  lines=26  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=130 rate=0.00%
+
+== cloetta_2025 (208p) ==
+  [debt_maturity] candidates [169, 170, 179]
+    p.169  lines=86  splits=1   rate=  1.2%
+        | 'the weighted-average number of shares outstandin'
+        | '2025 2024'
+    p.170  lines=64  splits=0   rate=  0.0%
+    p.179  lines=46  splits=0   rate=  0.0%
+    [debt_maturity] splits=1 lines=196 rate=0.51%
+  [income_statement] candidates [145, 146, 35]
+    p.145  lines=42  splits=0   rate=  0.0%
+    p.146  lines=32  splits=0   rate=  0.0%
+    p.35   lines=82  splits=1   rate=  1.2%
+        | '% SEKm SEKm'
+        | '4%'
+    [income_statement] splits=1 lines=156 rate=0.64%
+
+== coor_service_management_hold_2025 (180p) ==
+  [debt_maturity] candidates [157, 158, 159]
+    p.157  lines=84  splits=0   rate=  0.0%
+    p.158  lines=70  splits=0   rate=  0.0%
+    p.159  lines=73  splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=227 rate=0.00%
+  [income_statement] candidates [135, 136, 9]
+    p.135  lines=43  splits=0   rate=  0.0%
+    p.136  lines=74  splits=0   rate=  0.0%
+    p.9    lines=55  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=172 rate=0.00%
+
+== creades_2025 (80p) ==
+  [debt_maturity] candidates [61, 62]
+    p.61   lines=68  splits=0   rate=  0.0%
+    p.62   lines=77  splits=1   rate=  1.3%
+        | 'Innehav i portföljbolag Långfristig fordran'
+        | '2025-01-01– 2024-01-01– 2025-01-01– 2024-01-01–'
+    [debt_maturity] splits=1 lines=145 rate=0.69%
+  [income_statement] candidates [46, 47, 57]
+    p.46   lines=26  splits=0   rate=  0.0%
+    p.47   lines=35  splits=0   rate=  0.0%
+    p.57   lines=39  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=100 rate=0.00%
+
+== ependion_2025 (183p) ==
+  [debt_maturity] candidates [155, 156, 122]
+    p.155  lines=110 splits=0   rate=  0.0%
+    p.156  lines=97  splits=0   rate=  0.0%
+    p.122  lines=67  splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=274 rate=0.00%
+  [income_statement] candidates [118, 119, 123]
+    p.118  lines=67  splits=0   rate=  0.0%
+    p.119  lines=79  splits=0   rate=  0.0%
+    p.123  lines=45  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=191 rate=0.00%
+
+== ework_2025 (84p) ==
+  [debt_maturity] candidates [70, 71, 66]
+    p.70   lines=71  splits=1   rate=  1.4%
+        | 'The company’s financial liabilities at year-end '
+        | '2,833,059 (3,272,761).'
+    p.71   lines=38  splits=0   rate=  0.0%
+    p.66   lines=67  splits=0   rate=  0.0%
+    [debt_maturity] splits=1 lines=176 rate=0.57%
+  [income_statement] candidates [48, 49, 52]
+    p.48   lines=38  splits=0   rate=  0.0%
+    p.49   lines=42  splits=0   rate=  0.0%
+    p.52   lines=25  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=105 rate=0.00%
+
+== flat_capital_2025 (42p) ==
+  [debt_maturity] candidates [18, 19]
+    p.18   lines=123 splits=0   rate=  0.0%
+    p.19   lines=58  splits=1   rate=  1.7%
+        | 'Personnel Results after'
+        | '-2 290 441 107 950 -83 358 -71 332 74 424'
+    [debt_maturity] splits=1 lines=181 rate=0.55%
+  [income_statement] candidates [20, 21, 18]
+    p.20   lines=31  splits=1   rate=  3.2%
+        | 'KSEK Note'
+        | '2025 2024'
+    p.21   lines=42  splits=1   rate=  2.4%
+        | 'KSEK Note'
+        | '2025 2024'
+    p.18   lines=123 splits=0   rate=  0.0%
+    [income_statement] splits=2 lines=196 rate=1.02%
+
+== flerie_2025 (102p) ==
+  [debt_maturity] candidates [86, 87, 66]
+    p.86   lines=39  splits=0   rate=  0.0%
+    p.87   lines=40  splits=0   rate=  0.0%
+    p.66   lines=48  splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=127 rate=0.00%
+  [income_statement] candidates [56, 57, 72]
+    p.56   lines=27  splits=0   rate=  0.0%
+    p.57   lines=51  splits=0   rate=  0.0%
+    p.72   lines=32  splits=3   rate=  9.4%
+        | 'EY EY EY EY'
+        | '2025 2024 2025 2024'
+        | 'Koncernen Moderbolaget'
+        | '2025 2024 2025 2024'
+        | 'resekostnader.'
+        | '72'
+    [income_statement] splits=3 lines=110 rate=2.73%
+
+== gentoo_media_2025 (125p) ==
+  [debt_maturity] candidates [92, 93, 89]
+    p.92   lines=57  splits=1   rate=  1.8%
+        | 'Details about the Group’s borrowings are provide'
+        | '5.2.'
+    p.93   lines=35  splits=0   rate=  0.0%
+    p.89   lines=60  splits=0   rate=  0.0%
+    [debt_maturity] splits=1 lines=152 rate=0.66%
+  [income_statement] candidates [44, 45, 58]
+    p.44   lines=31  splits=0   rate=  0.0%
+    p.45   lines=16  splits=0   rate=  0.0%
+    p.58   lines=46  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=93 rate=0.00%
+
+== hansa_biopharma_2025 (115p) ==
+  [debt_maturity] candidates [65, 66]
+    p.65   lines=79  splits=0   rate=  0.0%
+    p.66   lines=66  splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=145 rate=0.00%
+  [income_statement] candidates [41, 42, 33]
+    p.41   lines=36  splits=0   rate=  0.0%
+    p.42   lines=43  splits=0   rate=  0.0%
+    p.33   lines=80  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=159 rate=0.00%
+
+== humana_2025 (168p) ==
+  [debt_maturity] candidates [148, 149, 64]
+    p.148  lines=158 splits=0   rate=  0.0%
+    p.149  lines=123 splits=0   rate=  0.0%
+    p.64   lines=60  splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=341 rate=0.00%
+  [income_statement] candidates [128, 129, 145]
+    p.128  lines=61  splits=0   rate=  0.0%
+    p.129  lines=66  splits=0   rate=  0.0%
+    p.145  lines=123 splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=250 rate=0.00%
+
+== intrum_2025 (153p) ==
+  [debt_maturity] candidates [123, 124, 132]
+    p.123  lines=83  splits=0   rate=  0.0%
+    p.124  lines=51  splits=0   rate=  0.0%
+    p.132  lines=112 splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=246 rate=0.00%
+  [income_statement] candidates [91, 92, 96]
+    p.91   lines=34  splits=0   rate=  0.0%
+    p.92   lines=31  splits=0   rate=  0.0%
+    p.96   lines=21  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=86 rate=0.00%
+
+== knowit_2025 (171p) ==
+  [debt_maturity] candidates [152, 153, 135]
+    p.152  lines=58  splits=0   rate=  0.0%
+    p.153  lines=83  splits=0   rate=  0.0%
+    p.135  lines=130 splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=271 rate=0.00%
+  [income_statement] candidates [122, 123, 126]
+    p.122  lines=48  splits=0   rate=  0.0%
+    p.123  lines=68  splits=0   rate=  0.0%
+    p.126  lines=35  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=151 rate=0.00%
+
+== medcap_2025 (121p) ==
+  [debt_maturity] candidates [101, 102, 82]
+    p.101  lines=70  splits=0   rate=  0.0%
+    p.102  lines=44  splits=0   rate=  0.0%
+    p.82   lines=63  splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=177 rate=0.00%
+  [income_statement] candidates [63, 64, 93]
+    p.63   lines=29  splits=0   rate=  0.0%
+    p.64   lines=13  splits=0   rate=  0.0%
+    p.93   lines=24  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=66 rate=0.00%
+
+== meko_2025 (123p) ==
+  [debt_maturity] candidates [101, 102]
+    p.101  lines=106 splits=0   rate=  0.0%
+    p.102  lines=162 splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=268 rate=0.00%
+  [income_statement] candidates [81, 82, 92]
+    p.81   lines=66  splits=0   rate=  0.0%
+    p.82   lines=70  splits=0   rate=  0.0%
+    p.92   lines=69  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=205 rate=0.00%
+
+== morrow_bank_2025 (92p) ==
+  [debt_maturity] candidates [74, 75, 66]
+    p.74   lines=49  splits=0   rate=  0.0%
+    p.75   lines=26  splits=0   rate=  0.0%
+    p.66   lines=15  splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=90 rate=0.00%
+  [income_statement] candidates [42, 43, 52]
+    p.42   lines=31  splits=0   rate=  0.0%
+    p.43   lines=33  splits=0   rate=  0.0%
+    p.52   lines=84  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=148 rate=0.00%
+
+== ncab_2025 (127p) ==
+  [debt_maturity] candidates [93, 94]
+    p.93   lines=56  splits=1   rate=  1.8%
+        | 'ble are used as a basis for trade receivables.'
+        | '2025.'
+    p.94   lines=56  splits=0   rate=  0.0%
+    [debt_maturity] splits=1 lines=112 rate=0.89%
+  [income_statement] candidates [86, 87, 108]
+    p.86   lines=43  splits=0   rate=  0.0%
+    p.87   lines=58  splits=0   rate=  0.0%
+    p.108  lines=54  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=155 rate=0.00%
+
+== nelly_2025 (107p) ==
+  [debt_maturity] candidates [88, 89, 57]
+    p.88   lines=61  splits=0   rate=  0.0%
+    p.89   lines=55  splits=2   rate=  3.6%
+        | 'N E L LY G R O U P'
+        | '8 9'
+        | 'Nyttjanderättstillgång'
+        | '2025'
+    p.57   lines=45  splits=0   rate=  0.0%
+    [debt_maturity] splits=2 lines=161 rate=1.24%
+  [income_statement] candidates [54, 55, 9]
+    p.54   lines=42  splits=0   rate=  0.0%
+    p.55   lines=15  splits=1   rate=  6.7%
+        | 'N E L LY G R O U P'
+        | '5 5'
+    p.9    lines=41  splits=0   rate=  0.0%
+    [income_statement] splits=1 lines=98 rate=1.02%
+
+== norion_bank_2025 (132p) ==
+  [debt_maturity] candidates [70, 71, 66]
+    p.70   lines=44  splits=0   rate=  0.0%
+    p.71   lines=98  splits=0   rate=  0.0%
+    p.66   lines=102 splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=244 rate=0.00%
+  [income_statement] candidates [82, 83, 48]
+    p.82   lines=36  splits=1   rate=  2.8%
+        | 'Group'
+        | '2025 2024'
+    p.83   lines=36  splits=0   rate=  0.0%
+    p.48   lines=31  splits=0   rate=  0.0%
+    [income_statement] splits=1 lines=103 rate=0.97%
+
+== ovzon_2025 (75p) ==
+  [debt_maturity] candidates [62, 63]
+    p.62   lines=57  splits=0   rate=  0.0%
+    p.63   lines=55  splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=112 rate=0.00%
+  [income_statement] candidates [52, 53, 72]
+    p.52   lines=66  splits=0   rate=  0.0%
+    p.53   lines=91  splits=0   rate=  0.0%
+    p.72   lines=60  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=217 rate=0.00%
+
+== ratos_2025 (156p) ==
+  [debt_maturity] candidates [131, 132]
+    p.131  lines=89  splits=0   rate=  0.0%
+    p.132  lines=101 splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=190 rate=0.00%
+  [income_statement] candidates [82, 83, 9]
+    p.82   lines=75  splits=0   rate=  0.0%
+    p.83   lines=76  splits=0   rate=  0.0%
+    p.9    lines=126 splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=277 rate=0.00%
+
+== storytel_2025 (134p) ==
+  [debt_maturity] candidates [114, 115, 127]
+    p.114  lines=55  splits=0   rate=  0.0%
+    p.115  lines=24  splits=0   rate=  0.0%
+    p.127  lines=63  splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=142 rate=0.00%
+  [income_statement] candidates [74, 75, 121]
+    p.74   lines=41  splits=0   rate=  0.0%
+    p.75   lines=50  splits=0   rate=  0.0%
+    p.121  lines=22  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=113 rate=0.00%
+
+== svolder_2025 (88p) ==
+  [debt_maturity] candidates [18, 19]
+    p.18   lines=99  splits=0   rate=  0.0%
+    p.19   lines=57  splits=1   rate=  1.8%
+        | 'MilDef'
+        | '−200 −100 0 100 200 300 400 500'
+    [debt_maturity] splits=1 lines=156 rate=0.64%
+  [income_statement] candidates [66, 67, 63]
+    p.66   lines=28  splits=2   rate=  7.1%
+        | '(MSEK) Not KONCERNEN MODERBOLAGET'
+        | '2025-08-31 2024-08-31 2025-08-31 2024-08-31'
+        | '(MSEK) KONCERNEN MODERBOLAGET'
+        | '2025-08-31 2024-08-31 2025-08-31 2024-08-31'
+    p.67   lines=35  splits=0   rate=  0.0%
+    p.63   lines=95  splits=0   rate=  0.0%
+    [income_statement] splits=2 lines=158 rate=1.27%
+
+== vef_2025 (43p) ==
+  [debt_maturity] candidates [20, 21]
+    p.20   lines=225 splits=0   rate=  0.0%
+    p.21   lines=87  splits=1   rate=  1.1%
+        | 'mainly related to accounting and compliance matt'
+        | '40 41'
+    [debt_maturity] splits=1 lines=312 rate=0.32%
+  [income_statement] candidates [16, 17, 23]
+    p.16   lines=85  splits=0   rate=  0.0%
+    p.17   lines=54  splits=0   rate=  0.0%
+    p.23   lines=116 splits=1   rate=  0.9%
+        | 'conditions of the respective programs are fulfil'
+        | '45'
+    [income_statement] splits=1 lines=255 rate=0.39%
+
+== xano_industri_2025 (164p) ==
+  [debt_maturity] candidates [84, 85]
+    p.84   lines=36  splits=1   rate=  2.8%
+        | 'FÖRDELNING PER VALUTA Långfristiga Kortfristiga'
+        | '2025-12-31 1) 2024-12-31 1) 2025-12-31 2024-12-3'
+    p.85   lines=68  splits=0   rate=  0.0%
+    [debt_maturity] splits=1 lines=104 rate=0.96%
+  [income_statement] candidates [69, 70, 79]
+    p.69   lines=30  splits=0   rate=  0.0%
+    p.70   lines=33  splits=0   rate=  0.0%
+    p.79   lines=84  splits=2   rate=  2.4%
+        | 'När legal kvittningsrätt föreligger, sker nettor'
+        | '2025 2024'
+        | 'uppkommer på följande sätt:'
+        | '2025 2024'
+    [income_statement] splits=2 lines=147 rate=1.36%
+
+== overall (all candidate pages, splits per 100 non-empty lines) ==
+  debt_maturity    13 splits / 6484 lines = 0.20%
+  income_statement 16 splits / 5444 lines = 0.29%

@@ -1,0 +1,437 @@
+parse_check directed-pages run: PARSER_VERSION=3
+
+===== ependion_2025 p.155 (4875 chars) =====
+155
+EPENDION ANNUAL AND SU STAINABILITY REPORT 2025
+Contents
+Operations
+Our business entities
+Our sustainability work
+Financial information
+Directors’ Report
+Consolidated Income Statement
+Statement of Comprehensive Income
+Consolidated Balance Sheet
+Consolidated Statement of Changes in
+Equity
+Consolidated Cash Flow Statement
+Parent Company Income Statement
+Parent Company Balance Sheet
+Parent Company Statement of Changes
+in Equity
+Parent Company Cash Flow Statement
+Notes
+Corporate Governance Report
+Board of Directors’ certification
+Board of Directors and Auditor
+Audit Report
+Assurance Report on the Statutory
+Sustainability Report
+Senior executives
+Investor and shareholder information
+N OT ES
+Financial assets and financial liabilities
+The group holds the following financial instruments:
+Financial assets
+SEK 000 31 Dec. 2025 31 Dec. 2024
+Financial assets measured at
+amortized cost
+- Accounts receivable 376,800 381,599
+- Cash and cash equivalents 159,563 178,053
+536,363 559,652
+Accounts receivable are amounts relating to customers for goods
+sold or services rendered in operating activities.
+Generally, accounts receivable become due for payment within
+30-90 days, and accordingly, all accounts receivable are classified as
+current assets. The fair value of accounts receivable corresponds to
+carrying amounts, because the discounting effect is not considered
+material.
+3% (5) of the group’s accounts receivable on the reporting date
+were more than 61 days overdue, and 41% (35) of these are provi-
+sioned. Additionally, 22% (17) are between 1 and 60 days overdue.
+The above table illustrates a reconciliation between opening and
+closing balances of liabilities in tier 3.
+Fair value measurement is conducted by discounting future cash
+flows with a discount rate based on comparable required returns on
+comparable companies and financial instruments.
+Financial liabilities
+SEK 000 31 Dec. 2025 31 Dec. 2024
+Financial liabilities measured at
+amortized cost
+- Borrowing 583,531 557,173
+- Accounts payable–trade 164,155 154,411
+747,686 711,584
+The fair value of borrowing corresponds to carrying amount
+because interest on this borrowing is on a par with current market
+interest rates or due to borrowing being short term.
+Accounts payable are unsecured and normally paid within 30
+days. The fair value of accounts payable are considered to corre-
+spond to carrying amount, because they are inherently short term.
+The following table states the contracted maturities of financial
+liabilities.
+Contracted terms
+Within 12
+SEK 000 months
+Between
+1 and
+2 years
+Between
+2 and
+3 years Total
+Borrowing 167,546 35,636 380,348 583,531
+Accounts
+payable–trade 164,155 164,155
+331,701 35,636 380,348 747,686
+The contracted terms of lease liabilities are stated in Note 13.
+Loan, interest and maturity structure
+The following table illustrates the maturity structure of borrowing by original currency, and the maturity structure and renegotiation dates
+on the reporting date.
+Fixed-interest Remaining duration, Nominal amount, Nominal amount,
+SEK 000 Interest rate, % period fixed-interest period Currency original currency presentation currency
+Bank loans:
+Bank loans 3.35 92 days 90 days SEK 160,000 160,000
+Bank loans 3.52 92 days 90 days EUR 24,286 262,726
+Bank loans 1.50 92 days 90 days CHF 3,000 34,923
+Bank loans 2.14 30 days 30 days TWD 111,000 32,523
+SEK/EUR/USD/NOK/DKK/
+Overdraft facility 2.85 92 days 90 days GBP/SGD/CHF/AUD 94,340
+584,512
+The final maturity of the bank loans is 22 October 2027. The agreement was extended after the end of the financial year, implying that finance was
+extended by one year and also includes an option of a further one-year extension.
+The revolving credit facility carries a contractual interest rate of 35% on the applicable margin on unutilized credit and amounts to 0.525% for the
+current fixed-interest period.
+The group’s customer base mainly consists of large corporations,
+with Beijer Electronics and Westermo products often embedded in
+customers’ product specifications. This implies that customers need
+to make repeat purchases of products, and the risk of non-payment
+of accounts receivable reduces. Historically, the group has incurred
+insignificant bad debt. There is also a credit policy with credit checks
+regularly conducted. Customers that do not pass credit checks or
+where no credit check is conducted pay in advance. For more infor-
+mation, see Credit risks below.
+Financial assets measured at fair value through other
+comprehensive income
+SEK 000 31 Dec. 2025 31 Dec. 2024
+Opening balance 46,389
+Investments 38,182 49,380
+Recognized i other comprehensive -9,751 -2,991
+income
+Closing balance 74,820 46,389
+The group’s financial assets, in the form of long-term securities
+holdings of unlisted shares, are recognized at fair value in level 3, i.e.
+measured based on input data that is not observable on the market.
+
+===== ratos_2025 p.131 (5439 chars) =====
+Reports Financial statements and notes 129
+The Group’s currency risk exposure at the close of the reporting period, expressed in SEK, is presented in the table below: Introduction
+EUR NOK DKK GBP USD SEK Contents
+SEKm 2025 2024 2025 2024 2025 2024 2025 2024 2025 2024 2025 2024
+Trade receivables 275 209 36 23 43 194 139 127 197 170 64 61
+Other receivables 422 440 2,582 3,535 185 202 208 310 120 130 About Ratos
+Other liabilities –18 –33 –2 –1,654 –5 –105 –142 –63 –130 –44 –23
+Trade payables –218 –150 –33 –9 –24 –150 –87 –67 –160 –236 –65 –110 Reports
+Currency exposure financial assets and liabilities 460 466 2,583 1,895 204 241 155 228 94 –66 –45 –73 Directors’ Report
+Forward contracts –432 –517 –2,247 –1,861 –200 –212 –44 –34 –236 –253 Sustainability statements
+Exposure, net 28 –51 336 35 4 29 111 194 –142 –319 –45 –73 General disclosures
+Environmental information
+Social information
+Interest rate risks At the end of the year, the Group’s interest-bearing liabilities to credit institutions amounted to SEK 4,126m Governance information
+Interest rate risk is the risk that changes in interest rates will affect the Group’s financial result and cash flow. (4,506). Total unutilised credit facilities amounted to SEK 3,189m (3,194), with predetermined interest margins. Corporate governance
+Interest rate risks mainly relate to the Group’s interest-bearing net debt, which amounted to SEK 6,819m (6,820) The majority of the Group’s credit facilities have certain covenants, including that the leverage needs to be
+on 31 December 2025. The borrowing rate is linked to the market rate. below a certain threshold level. All criteria were fulfilled throughout the year. Chairman’s letter
+According to the financial policy, the interest rate duration for the Group shall take into consideration the Corporate Governance Report
+forecasted cash flow from the Group companies, matching between internal and external assets and liabilities, Maturity structure for financial liabilities Board of Directors and CEO
+and remain stable to temporary market rate fluctuations. The following maturity structure is shown for the Group’s financial liabilities at 31 December 2025, comprising
+The fixed-interest term for the individual Group company is to match its structure and the risk management undiscounted cash flows relating to amortisation and estimated interest payments based on forward contracts Management group
+strategy adopted for the Group company. The interest rate duration may be managed by means of interest rate alternatively actual interest as well as estimated margins. Amounts in foreign currency are translated to SEK at
+swaps. At 31 December 2025, the Group had no interest rate swaps. the rate on the closing date. Financial statements and notes
+If interest rates change by 1 percentage point in all countries where the Ratos Group has loans or invest- The maturity analysis does not include liabilities relating to synthetic options. Synthetic options have Consolidated financial statements
+ments, the effect on net financial items, based on liabilities to credit institutions at year-end which are not ­established maturity dates, but depending on terms or conditions, such as the divestment of companies,
+hedged, will total approximately SEK 41m (45). This sensitivity analysis is based on all other factors (such as the date of maturity may vary. At 31 December 2025, the Group’s liabilities for synthetic options amounted Parent company financial statements
+exchange rates) remaining unchanged. to SEK 31m (190). Index to the notes
+As of 31 December 2025, all of the Group’s loans carry variable interest.
+Notes
+31 Dec 2025 5 years or
+Liquidity risks SEKm Within 1 year Within 2 years Within 3 years Within 4 years more Total Auditor’s report
+Liquidity risk refers to the risk that a company may experience difficulties in meeting its obligations to third Review
+­parties, mainly associated with financial liabilities, but also due to other obligations in its operating activities. Liabilities to credit institutions 133 4,198 1 1 4 4,337
+The parent company shall have committed loan facilities from banks with a maturity of at least 12 months. Financial lease liabilities 838 695 593 480 1,128 3,735 Other
+In total, the combination of available credit facilities and available cash is to exceed the forecast obligations for Other interest-bearing liabilities 75 40 45 34 194
+the next 12 months. Pledging shares or other assets as collateral for own commitments or for commitments of
+Trade payables 1,348 1,348
+the holding’s or a third party may be performed following a Board decision. The parent company shall not issue
+general guaranteed in favour of any lender for the commitments of a group company or a third party. Guarantees Call and put options 259 90 439
+relating to provision of equity capital may be provided following a Board decision. Contingent considerations 4 3 7
+At 31 December 2025, the parent company had a credit facility of SEK 3 billion and bank overdraft facilities of Forward contracts
+SEK 150m. The facility is used for general corporate purposes. At 31 December 2025, the credit facility and the – outflow 1 1
+bank overdraft facility were unutilised. In addition, the parent company has an authorisation from the Annual
+– inflow –2 –2
+General Meeting to issue shares in conjunction with agreements on acquisitions; see also Note 18 Equity
+­management. Total 2,398 5,196 639 515 1,221 10,060
+
+===== flerie_2025 p.86 (1449 chars) =====
+FINANSIELL INFORMATION
+NOT 28 – FINANSIELLA TILLGÅNGAR OCH SKULDER
+Verkligt värde Bokfört värde Koncernens finansiella Nominellt < 1 1 – 3 3 – 12 1 – 5 >5
+skulder och förfallostruktur* belopp mån mån mån år år Summa
+31 dec 2025 31 dec 2024 31 dec 2025 31 dec 2024
+Övriga långfristiga skulder 1,5 – – – 1,5 – 1,5
+Finansiella tillgångar
+Leasingskuld 2,1 0,0 0,1 0,5 1,4 – 2,1
+Finansiella tillgångar värderade till
+verkligt värde via resultaträkningen Leverantörsskulder 1,4 1,4 – – – – 1,4
+Aktier och andelar i portföljbolag 2 619,7 3 071,7 2 619,7 3 071,7 Övriga skulder 7,0 7,0 – – – – 7,0
+Konvertibellån 104,8 57,1 104,8 57,1 12,0 8,4 0,1 0,3 2,0 – 12,0
+Finansiella tillgångar värderade till * Odiskonterade kassaflöden
+upplupet anskaffningsvärde
+Lånefordringar portföljbolag 108,2 214,0 108,2 214,0 Koncernen har inga finansiella skulder som förfaller senare än 5 år från balansdagen.
+Övriga finansiella tillgångar 0,1 0,1 0,1 0,1
+Ej kassaflödes-
+Kundfordringar 0,6 0,8 0,6 0,8 påverkande
+Likvida medel 540,2 865,1 540,2 865,1 Räntor och
+Förändring räntebärande skulder 2025-01-01 Kassaflöde avgifter Omvärdering 2025-12-31
+Summa 3 373,6 4 208,8 3 373,6 4 208,8
+Leasingskuld 0,8 -0,5 0,1 1,4 0,4
+Finansiella skulder
+Finansiella skulder värderade till
+upplupet anskaffningsvärde
+Övriga långfristiga skulder 1,5 1,5 1,5 1,5
+Leasingskuld 2,1 0,9 2,1 0,9
+Leverantörsskulder 1,4 0,6 1,4 0,6
+Övriga skulder 7,0 11,8 7,0 11,8
+Summa 12,0 14,8 12,0 14,8
+86
+
+===== gentoo_media_2025 p.92 (2871 chars) =====
+Gentoo Media | Annual Report 2025 | Section 5
+92
+Financial statements | Back to FS content
+EUR’000 Less than 1 year Between 1 and 2 years Between 2 and 5 years More than 5 years cash flows Total Carrying amount
+2024
+Trade and other payables* 13,397 - - - 13,397 13,397
+Borrowings 16,732 99,129 - - 115,861 96,627
+Lease liabilities 1,644 1,583 2,774 - 6,001 3,202
+Deferred consideration 34,195 1,025 - - 35,220 34,108
+Contingent consideration 769 - - - 769 741
+Total 66,737 101,737 2,774 - 171,248 148,075
+EUR’000 Less than 1 year Between 1 and 2 years Between 2 and 5 years More than 5 years cash flows Total Carrying amount
+2025
+Trade and other payables* 10,810 - - - 10,810 10,810
+Borrowings, current 119,218 - - - 119,218 111,798
+Lease liabilities, current and non-current 1,513 1,182 2,487 1,001 6,183 4,938
+Deferred consideration, current and non-current 4,251 - - - 4,251 4,251
+Total 135,792 1,182 2,487 1,001 140,462 131,797
+The table below analyses the maturity profile of the financial liabilities of the Group based on contractual undiscounted cash
+flows.
+Liquidity risk
+The Group is exposed to liquidity risk in relation to meeting
+future obligations associated with its financial liabilities, which
+comprise principally trade and other payables, borrowings as
+well as lease payments.
+Prudent liquidity risk management includes maintaining
+sufficient cash to ensure the availability of an adequate
+amount of funding to meet the Group’s obligations as they
+fall due. Management monitors liquidity risk by reviewing
+expected cash flows and assesses whether additional
+credit facilities are expected to be required over the coming
+year. The Group’s liquidity risk is actively managed taking
+cognisance of the matching of cash inflows and outflows
+arising from expected maturities of financial instruments.
+Details about the Group’s borrowings are provided in note
+5.2.
+* The maturity analysis excludes non-financial instruments such as public
+debt, staff payables etc.
+The maturity analysis is based on the following
+assumptions:
+/ The amounts disclosed in the table are the contractual
+undiscounted cash flows (including interest payments).
+Balances due within 12 months equal their carrying
+amounts as the impact of discounting is not significant.
+/ Interest payments on borrowings with variable interest
+rates are based on current interest rates.
+/ Payments for lease liabilities include only lease
+agreements which have commenced before the end of
+the reporting period. The amounts disclosed for the lease
+liabilities include cash flows relating to extension options if
+they have been included in the lease term, and therefore in
+the measurement of the lease liability
+The Group’s bonds and credit facility matures in
+2026. Further information regarding refinancing and
+Management’s going concern assessment is provided in
+note 1.3.
+Note 5.4 | Financial risks
+
+===== xano_industri_2025 p.84 (2163 chars) =====
+FINANSIELLA SKULDER Förfallotid
+PER 2025-12-31 –30 dgr 31–90 dgr 91–360 dgr Summa Mellan 1 Mellan 3 Efter 5 år Totalt
+inom 1 år och 3 år och 5 år
+Lån och leasingskulder 4 090 8 680 38 305 51 075 735 261 33 784 50 778 870 898
+Konvertibellån – – – – 33 624 – – 33 624
+Checkräkningskredit – – – – – – – –
+Summa räntebärande skulder 4 090 8 680 38 305 51 075 768 885 33 784 50 778 904 522
+Leverantörsskulder 189 334 41 504 8 628 239 466 – – – 239 466
+Summa finansiella skulder 193 424 50 184 46 933 290 541 768 885 33 784 50 778 1 143 988
+Summa icke-diskonterade flöden 1) 193 871 51 077 50 960 295 908 774 909 36 483 54 436 1 164 736
+FINANSIELLA SKULDER Förfallotid
+PER 2024-12-31 –30 dgr 31–90 dgr 91–360 dgr Summa Mellan 1 Mellan 3 Efter 5 år Totalt
+inom 1 år och 3 år och 5 år
+Lån och leasingskulder 4 517 9 533 42 254 56 304 969 939 27 177 42 171 1 095 591
+Konvertibellån – – – – 32 838 – – 32 838
+Checkräkningskredit 17 874 – – 17 874 – – – 17 874
+Summa räntebärande skulder 22 391 9 533 42 254 74 178 1 002 777 27 177 42 171 1 146 303
+Leverantörsskulder 165 789 48 376 8 676 222 841 – – – 222 841
+Summa finansiella skulder 188 180 57 909 50 930 297 019 1 002 777 27 177 42 171 1 369 144
+Summa icke-diskonterade flöden 1) 188 180 57 909 56 746 302 835 1 098 519 27 669 52 977 1 482 000
+1) Innefattar bedömda framtida räntebetalningar.
+I juni 2022 ingicks nya kreditavtal med koncernens huvudbanker. Avtalen löpte över tre år med option på förlängning i ytterligare ett plus ett år. Samtliga avtal har förlängts att
+gälla till juni 2027.
+Beträffande räntebindning och ränterisker samt kreditrisker, se not 35.
+Finansiella skulder
+Finansiella tillgångar
+FÖRDELNING PER VALUTA Långfristiga Kortfristiga
+2025-12-31 1) 2024-12-31 1) 2025-12-31 2024-12-31 2025-12-31 2024-12-31
+DKK 26 498 29 981 227 378 287 934 17 933 16 490
+EUR 383 647 282 405 229 696 334 533 97 316 -198 316
+SEK 545 152 213 429 372 283 350 067 129 430 162 883
+USD -81 327 83 094 4 132 84 727 15 148 129 180
+Övriga valutor -45 722 84 900 19 958 14 864 30 714 186 782
+828 248 693 809 853 447 1 072 125 290 541 297 019
+1) Innefattar utnyttjade checkräkningskrediter med flervalutakonton.
+84 XANO 2025
+
+===== ework_2025 p.70 (3889 chars) =====
+Annual and Sustainability Report 2025 • 70
+This is Ework Sustainability Governance Financial statements Other
+The company’s financial liabilities at year-end amounted to kSEK
+2,833,059 (3,272,761).
+The liquidity reserve amounted to kSEK 454,206 (482,784). The
+maturity structure for accounts payable is 0–120 days and for the
+invoice­ credit 30–120 days.
+Currency risk
+Currency risk for the Group is the risk of fluctuations in currencies.
+The Company is exposed to translation risk due to assets in curren-
+cies other than SEK as at Dec. 31, 2025. A sensitivity analysis that 10%
+strengthening of the Swedish krona against other currencies as at 31
+December 2025 would result in a change in equity of kSEK
+7,432 (7,156) and in profit/loss for the year of kSEK 3,477 (4,254). The
+sensitivity analysis is based on all other factors (e.g. interest rates)
+remaining unchanged. The same conditions were applied for 2024.
+Translation exposure
+When translating the foreign Group companies’ net assets into Swed-
+ish kronor, a currency exposure arises that affects the Group’s other
+comprehensive income.
+Credit risks in accounts receivable
+The risk that the Group’s customers do not fulfil their obligations, i.e.
+that payment is not received from customers, constitutes customer
+credit risk. The Group’s customers are subject to credit checks
+whereby information on the customers’ financial position is obtained
+from various credit reference agencies.
+At the balance sheet date, there is no significant concentration of
+credit exposure. The maximum exposure to credit risk is reflected in
+the carrying amount in the statement of financial position for each
+financial asset.
+The Group has historically low confirmed credit losses. When
+assessing expected credit losses, the risks of accounts receivable
+have been divided based on the aging structure. Almost all outstand-
+ing accounts receivable consist of customers previously known to the
+Group with good credit worthiness. The Group has a number of cus-
+tomers that account for a large part of turnover, who are assessed as
+credit worthy; this, taken together with the above fact that the
+accounts receivable are mirrored in accounts payable, means that the
+risk is assessed as low.
+The receivable for the 6 largest customers was SEK 1,063 M
+(1,067), which represents 36 (32)% of the total balance for accounts
+receivable.
+Maturity structure financial liabilities – undiscounted cash flows
+The Group
+Total undis- Carrying
+kSEK Due < 1 month 1-3 months 3-12 months 1-5 years > 5 years counted value amount
+2025
+Lease liabilities – – 5,230 5,332 22,169 794 33,525 33,403
+Short-term interest-bearing
+liabilities* – 153,761 971 1,677 – – 156,410 156,410
+Accounts payable 91,284 1,472,001 992,513 120,851 – – 2,676,650 2,676,650
+Total 91,284 1,625,763 998,715 127,860 22,169 794 2,866,584 2,866,462
+2024
+Lease liabilities – – 3,000 193 7,518 19,973 30,684 27,918
+Short-term interest-bearing
+liabilities* – 30,971 152,377 11,319 – – 194,667 194,667
+Accounts payable 103,815 1,838,069 1,088,419 47,791 – – 3,078,094 3,078,094
+Total 103,815 1,869,039 1,243,796 59,303 7,518 19,973 3,303,445 3,300,679
+Parent Company
+Total undis- Carrying
+kSEK Due < 1 month 1-3 months 3-12 months 1-5 years > 5 years counted value amount
+2025
+Current interest-bearing liabilities* – 153,761 971 1,677 – – 156,410 156,410
+Accounts payable 83,932 1,143,870 732,716 94,503 – – 2,055,021 2,055,021
+Total 83,932 1,297,631 733,687 96,180 – – 2,211,431 2,211,431
+2024
+Current interest-bearing liabilities* – 30,971 152,377 11,319 – – 194,667 194,667
+Accounts payable 71,576 1,472,213 835,496 20,989 – – 2,400,273 2,400,273
+Total 71,576 1,503,183 987,873 32,308 – – 2,594,940 2,594,940
+* Interest expense on the invoice credit, which corresponds to current interest-bearing liabilities in the tables above, is paid monthly.
+NOTE 21 Financial risks and finance policies contd.
+
+===== acast_2025 p.65 (2084 chars) =====
+Group Notes
+Liquidity risk Carrying amount and fair value, financial instruments
+A consolidated cash flow model is used to identify liquidity needs and benefits that can be achieved by utilizing available funds. Financial assets and financial liabilities are initially
+As shown in note 19 , the Group's cash and cash equivalents consisted almost entirely of bank balances as of December 31, 2025. recognized at amortized cost.
+The table below shows the remaining maturity of the Group's financial liabilities. The financial lease asset relating to the sublease of office
+premises is considered to be a reasonable approximation
+The table below shows undiscounted values. of its fair value. The carrying amount of the current
+financial assets is considered to be a reasonable
+approximation of their fair value. This also applies to
+2025 accounts payable, other liabilities and accrued expenses
+which are also short-term.
+SEK thousand Carrying amount 2026 2027 2028 2029 After 2029 The carrying amounts of the Group's finance lease
+Deferred consideration WMN 6,901 6,901 — — — — liabilities are also considered to be reasonable
+Lease liabilitiies 135,382 36,710 34,980 33,467 21,826 19,250 approximations of their fair values as there has been no
+change in the comparable lease rate since initial
+Trade payables 261,334 261,334 — — — — recognition that would have a material impact on the fair
+Other liabilities 48,323 48,323 — — — — value of the lease liabilities. The deferred payment of the
+purchase price for Wonder Media Network is due in
+Accrued costs 238,846 238,846 — — — — January 2026, and is considered to be a reasonable
+Total 690,785 592,113 34,980 33,467 21,826 19,250 approximation of fair value.
+2024
+SEK thousand Carrying amount 2025 2026 2027 2028 After 2028
+Deferred consideration Podchaser 10,929 11,189 — — — —
+Lease liabilities 141,152 32,511 32,692 32,404 32,404 45,414
+Trade payables 174,727 174,727 — — — —
+Other liabilities 34,568 34,568 — — — —
+Accrued costs 193,995 193,995 — — — —
+Total 555,370 446,990 32,692 32,404 32,404 45,414
+ACAST ANNUAL REPORT 2025 65
+
+===== acast_2025 p.66 (1097 chars) =====
+The table below shows the carrying amount of financial assets and liabilities.
+Financial assets measured at Financial liabilities
+SEK thousand amortized cost measured at amortized cost Total carrying amount Dec 31
+Financial assets
+Financial assets 10,195 — 10,195
+Trade receivables 694,983 — 694,983
+Other receivables 35,728 — 35,728
+Accrued income 53,651 — 53,651
+Cash and cash equivalents 589,334 — 589,334
+Total 2025 1,383,890 — 1,383,890
+Financial liabilities
+Deferred consideration WMN — 6,901 6,901
+Trade payables — 261,334 261,334
+Other liabilities — 48,323 48,323
+Accrued costs — 238,846 238,846
+Total 2025 — 555,404 555,404
+Financial assets
+Financial assets 3,021 — 3,021
+Trade receivables 555,575 — 555,575
+Other receivables 11,267 — 11,267
+Accrued income 22,572 — 22,572
+Cash and cash equivalents 713,704 — 713,704
+Total 2024 1,306,139 — 1,306,139
+Financial liabilities
+Deferred consideration Podchaser — 10,929 10,929
+Trade payables — 174,727 174,727
+Other liabilities — 34,568 34,568
+Accrued costs — 193,995 193,995
+Total 2024 — 414,218 414,218
+Group Notes
+ACAST ANNUAL REPORT 2025 66
