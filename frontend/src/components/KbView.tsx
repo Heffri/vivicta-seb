@@ -1,6 +1,6 @@
 import { Database, Loader2, Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { type ApiError, getKb, getLibrary, getSchemas, openKbExtraction } from '@/api'
+import { type ApiError, getConfig, getKb, getLibrary, getSchemas, openKbExtraction, type Config } from '@/api'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -17,6 +17,7 @@ const NO_PDF_TITLE = 'PDF not cached — fetch it from the Extract tab first'
 export function KbView({ onOpen }: Props) {
   const [entries, setEntries] = useState<KbEntry[] | null>(null)
   const [schemas, setSchemas] = useState<Schema[]>([])
+  const [config, setConfig] = useState<Config | null>(null) // retrieval mode decides what the Embeddings column says
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set()) // stems
   const [busy, setBusy] = useState<string | null>(null)
@@ -30,6 +31,7 @@ export function KbView({ onOpen }: Props) {
   useEffect(() => {
     getKb().then(setEntries).catch((e: Error) => setError(e.message))
     getSchemas().then(setSchemas).catch(() => {})
+    getConfig().then(setConfig).catch(() => {}) // v034-era backend without `retrieval` -> null, column unchanged
     getLibrary()
       .then((lib) => setPdfFiles(new Set(lib.map((l) => l.file))))
       .catch(() => {}) // fixture-era backend or a blip: stay null, every row stays openable
@@ -220,9 +222,17 @@ export function KbView({ onOpen }: Props) {
                       </span>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={e.indexed ? 'success' : 'outline'} className={e.indexed ? undefined : 'text-muted-foreground'}>
-                        {e.indexed ? 'indexed' : 'not yet'}
-                      </Badge>
+                      {config?.retrieval === 'bm25' ? (
+                        // Keyword-only retrieval uses no embeddings file: "not yet" on every row read like
+                        // breakage (v034), so name the index that actually serves /ask here instead.
+                        <Badge variant="outline" className="text-muted-foreground">
+                          BM25
+                        </Badge>
+                      ) : (
+                        <Badge variant={e.indexed ? 'success' : 'outline'} className={e.indexed ? undefined : 'text-muted-foreground'}>
+                          {e.indexed ? 'indexed' : 'not yet'}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       {e.sections.map((s) => (

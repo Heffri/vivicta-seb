@@ -1,5 +1,5 @@
 """Self-check for the KB: save idempotency (v024) + BM25 retrieval, the retrieval three-state and
-EMBED_MODEL invalidation (v034). Run: python -m pipeline.test_kb"""
+EMBED_MODEL invalidation (v034), empty-retrieval short-circuit (v059). Run: python -m pipeline.test_kb"""
 import json
 import os
 import tempfile
@@ -226,6 +226,60 @@ def test_ask_citation_verification():
     print("kb ask citation verification ok")
 
 
+# ---- v059: empty retrieval -----------------------------------------------------------------
+
+def test_bm25_all_zero_returns_no_hits():
+    """A query none of whose terms appear in the corpus (Swedish question, English report) leaves every
+    raw BM25 score at 0 -> bm25-mode search returns [] instead of cover-page order. Hybrid mode is
+    unchanged: cosine still has a signal there (identical fake vectors -> cosine 1.0 for every chunk)."""
+    from . import kb
+    with tempfile.TemporaryDirectory() as tmp:
+        stem = _seed(kb, tmp)
+        with _env(LLM_BASE_URL=None, LLM_PROVIDER="codex"):
+            assert kb.search([stem], "hur mycket kostade kaffet", k=8) == [], "all-zero BM25 still returned hits"
+        orig = kb.embed
+
+        def _same(texts):  # every vector identical -> query/chunk cosine 1.0 in hybrid mode
+            return [[1.0] + [0.0] * 63 for _ in texts]
+
+        kb.embed = _same
+        try:
+            with _env(LLM_BASE_URL="http://x/v1"):  # hybrid mode: the empty gate must not fire
+                assert kb.search([stem], "hur mycket kostade kaffet", k=8), "hybrid mode lost cosine-only hits"
+        finally:
+            kb.embed = orig
+    print("kb bm25 all-zero -> no hits ok")
+
+
+def test_ask_empty_retrieval_skips_model():
+    """v059: zero hits -> a fixed answer, no llm.chat call, empty citations, one retrieval warning; a
+    question that does match still calls the model exactly once (unchanged path)."""
+    from . import kb
+    with tempfile.TemporaryDirectory() as tmp:
+        with _env(LLM_BASE_URL=None, LLM_PROVIDER="codex"):
+            stem = _seed(kb, tmp)
+            calls: list = []
+            orig = kb.llm.chat
+
+            def _spy(*a, **k):
+                calls.append(1)
+                return json.dumps({"answer": "model was reached", "citations": []})
+
+            kb.llm.chat = _spy
+            try:
+                out = kb.ask([stem], "hur mycket kostade kaffet")
+                assert calls == [], "model called despite zero retrieval hits"
+                assert out["citations"] == [] and "No passage" in out["answer"], out
+                assert any("model not called" in w for w in out["warnings"]), out["warnings"]
+                assert out["model"] == os.getenv("LLM_MODEL", "")
+                hit_out = kb.ask([stem], "what was net sales in 2025")
+                assert len(calls) == 1, "matching question did not call the model exactly once"
+                assert hit_out["answer"] == "model was reached", hit_out["answer"]
+            finally:
+                kb.llm.chat = orig
+    print("kb ask empty-retrieval skips model ok")
+
+
 # ---- v034: EMBED_MODEL invalidation --------------------------------------------------------
 
 def _fake_embed(kb, calls):
@@ -340,6 +394,8 @@ if __name__ == "__main__":
     test_swedish_prefix_stem()
     test_bm25_mode_never_embeds()
     test_ask_citation_verification()
+    test_bm25_all_zero_returns_no_hits()
+    test_ask_empty_retrieval_skips_model()
     test_embed_model_invalidation()
     test_app_gates()
     print("kb self-check ok")
