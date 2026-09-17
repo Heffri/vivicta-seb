@@ -14,7 +14,7 @@ verify — locator, parser, label matching. `main` hasn't moved; nothing here ha
 **How a teammate gets it** — three ways, cheapest first:
 
 - **Double-click the Release exe**: download the portable (or Setup) exe from the
-  [`desktop-0.3.3` prerelease](https://github.com/Heffri/vivicta-seb/releases) — no Python or Node
+  [`desktop-0.3.4` prerelease](https://github.com/Heffri/vivicta-seb/releases) — no Python or Node
   needed (unsigned, so SmartScreen asks: "More info" → "Run anyway"). It starts on fixture/demo data.
 - **Clone the repo's `demo` branch and run `run.bat`** (macOS/Linux: `./run.sh`): the first run sets
   up the venv, installs dependencies, builds the frontend and opens the app in your browser — about
@@ -111,15 +111,21 @@ opaque window — implemented, not testable on this branch's machines). The cust
 native chrome) is draggable and supports double-click-to-maximize/restore, verified at the Windows
 message level (`WM_NCHITTEST`/`WM_NCLBUTTONDBLCLK` against the real window). `npm run dist`
 produces two unsigned packages, portable and NSIS — unsigned means Windows SmartScreen warns on
-first run ("More info" → "Run anyway"). The current packaged release is **0.3.3**, built from
-`0f2e2bc` (the acrylic tip at package time — it ships everything 0.3.2 did plus v074's
-foreign-company annual-report web search (a no-hit directory query offers "Search the web for
-'…' FY 2025" under a Codex/Claude provider; the located PDF then registers like any other) and
-v076's bucket-column carrying-amount slot):
-`Annual Report Parser-0.3.3-portable.exe` (~141.4 MB) and
-`Annual Report Parser-Setup-0.3.3.exe` (NSIS, ~141.6 MB) — both attached to the **`desktop-0.3.3`
+first run ("More info" → "Run anyway"). The current packaged release is **0.3.4**, built from
+`86ffdd3` (the acrylic tip at package time — it ships everything 0.3.3 did plus a printed dash in
+a bucket column reading as that bucket's explicit zero once the row's own arithmetic closes
+(v078), a fifth report source that crawls an investor-relations page one hop deep when a model
+reply or a dead link only yields a page instead of a PDF, plus a `BAD_URL` filename-only fix
+(v080), a second, narrower model ask for the IR page when direct links fail and a
+complete-report-over-summary preference (v081), the debt-row synonym list moving from private
+code into the schema plus new Swedish/English row and header phrases (v083), the bucket-column
+reader picking the correct fiscal-year table when a note prints the same debt row under two years
+(v084), and a second wrapped header tier for carrying/undiscounted columns with no bucket word of
+its own (v085)):
+`Annual Report Parser-0.3.4-portable.exe` (~141.4 MB) and
+`Annual Report Parser-Setup-0.3.4.exe` (NSIS, ~141.6 MB) — both attached to the **`desktop-0.3.4`
 prerelease** on GitHub Releases, so a teammate can download and double-click without building
-anything. [v077](evidence/v077.md) The data
+anything. [v087](evidence/v087.md) The data
 directory (reports, KB, uploads, `backend.log`)
 lives under the user's own `app.getPath('userData')/data`, seeded once from the bundled repo data
 on first launch and left alone on later launches/upgrades; first launch has no model provider
