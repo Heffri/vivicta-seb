@@ -981,6 +981,53 @@ def demo():
     td = next(f for f in out["fields"] if f["key"] == "total_debt")
     assert td["value"] == 0 and td["confidence"] == 0.25 and "stated_zero" not in td["evidence"], (td, out["warnings"])
     assert any("quote not found on page 1" in w for w in out["warnings"]), out["warnings"]
+    # v062: the subject gate (e) also reads zero_if_stated.subject_terms -- bare, generic debt words real
+    # no-debt prose uses but the label vocabulary must not (v051: Vicore Pharma and BioGaia, seed 5, both
+    # declined because their sentences carry only bare "loan(s)"; widening the field's own synonyms would
+    # loosen _label_known's row matching). Real seed5 page text, the exact sentences v051 recorded,
+    # constructed model answers -- the other four gates untouched, so this only opens sentences that are
+    # verbatim on the cited page AND carry a negation word, at the same 0.5 tier as Creades.
+    vicore46 = ("Refinancing risk refers to the risk that cash and cash equivalents are unavailable and that financing can\n"
+                "only be obtained partially, not at all or at an elevated cost. Currently, the group is financed by shareholders’\n"
+                "equity and is therefore not exposed to risks related to external loan financing. The main risks therefore\n"
+                "entail the inability to obtain further equity investments from Vicore’s shareholders.\n")
+    biogaia153 = "The group has no external loans. Excess liquidity is invested mainly in banks.\n"
+    vicore_sentence = "Currently, the group is financed by shareholders’ equity and is therefore not exposed to risks related to external loan financing."
+    biogaia_sentence = "The group has no external loans."
+
+    def zero_loan_answer(sentence):
+        return {"fields": [
+            {"key": "total_debt", "value": 0, "unit": "SEK mn", "period": "2025",
+             "raw_label": sentence, "source": {"page": 1, "quote": sentence}},
+            {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+            {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+            {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+
+    x.call_llm = lambda *a, **k: zero_loan_answer(vicore_sentence)
+    out = x.extract([vicore46], [1], dm, {"fiscal_year": 2025})
+    td = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert td["value"] == 0 and td["confidence"] == 0.5 and "stated_zero" in td["evidence"], (td, out["warnings"])
+    assert out["checks"][0]["passed"] and "null" in out["checks"][0]["detail"], out["checks"]  # 0+0+0 == 0, buckets stay null
+    x.call_llm = lambda *a, **k: zero_loan_answer(biogaia_sentence)
+    out = x.extract([biogaia153], [1], dm, {"fiscal_year": 2025})
+    td = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert td["value"] == 0 and td["confidence"] == 0.5 and "stated_zero" in td["evidence"], (td, out["warnings"])
+    # the subject terms buy no licence beyond the page: a bare-loan negation sentence that is NOT printed
+    # on the cited page still drops (v050's off-page counter-example, now through the widened vocabulary)
+    x.call_llm = lambda *a, **k: zero_loan_answer("The group has no bank loans whatsoever.")
+    out = x.extract([vicore46], [1], dm, {"fiscal_year": 2025})
+    td = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert td["value"] is None and any("dropped as computed, not read" in w for w in out["warnings"]), (td, out["warnings"])
+    # known boundary, pinned on purpose: the bare subject word cannot tell borrowing from lending --
+    # loans to associates are an ASSET, so this sentence says nothing about borrowings, yet it passes
+    # every gate (loan vocabulary, digit-free, verbatim on the page, negation). Reported honestly per
+    # the work order, not forced away: word-level subject matching cannot see the "to associates"
+    # complement; blocking it would need phrase-level context, a different mechanism.
+    associates = "At year end the group had no loans to associates."
+    x.call_llm = lambda *a, **k: zero_loan_answer(associates)
+    out = x.extract([associates + "\nOther financial information follows here.\n"], [1], dm, {"fiscal_year": 2025})
+    td = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert td["value"] == 0 and td["confidence"] == 0.5 and "stated_zero" in td["evidence"], (td, out["warnings"])
     print("confidence self-check ok")
 
 
