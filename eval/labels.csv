@@ -7,7 +7,7 @@ atlas_copco_2025.pdf,income_statement,cost_of_sales,-96131,106,
 atlas_copco_2025.pdf,income_statement,gross_profit,72212,106,
 atlas_copco_2025.pdf,income_statement,operating_profit,34114,106,
 atlas_copco_2025.pdf,income_statement,profit_before_tax,33671,106,
-atlas_copco_2025.pdf,income_statement,income_tax,-7246,106,printed as 'Income tax expense'
+atlas_copco_2025.pdf,income_statement,income_tax,-7246,106,"printed as 'Income tax expense'"
 atlas_copco_2025.pdf,income_statement,net_profit,26425,106,
 atlas_copco_2025.pdf,income_statement,eps_basic,5.43,106,SEK per share
 saab_2025_sv.pdf,income_statement,revenue,79146,151,Swedish; group statement (p158 is parent company — wrong entity)
@@ -17,7 +17,7 @@ saab_2025_sv.pdf,income_statement,operating_profit,8066,151,
 saab_2025_sv.pdf,income_statement,profit_before_tax,8019,151,
 saab_2025_sv.pdf,income_statement,income_tax,-1663,151,printed as 'Skatt'
 saab_2025_sv.pdf,income_statement,net_profit,6356,151,
-saab_2025_sv.pdf,income_statement,eps_basic,11.77,151,'före utspädning' = basic; model returned diluted 11.70 once — label split over two lines
+saab_2025_sv.pdf,income_statement,eps_basic,11.77,151,"'före utspädning' = basic; model returned diluted 11.70 once — label split over two lines"
 hexagon_2025.pdf,income_statement,revenue,5424.6,177,Net sales; MEUR
 hexagon_2025.pdf,income_statement,cost_of_sales,-1827.9,177,Cost of goods sold
 hexagon_2025.pdf,income_statement,gross_profit,3596.7,177,Gross earnings
