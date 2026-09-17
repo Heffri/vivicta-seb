@@ -28,6 +28,9 @@ IR_HOP_INDEX_PATH = "/ir/index.html"               # no PDF link itself, links o
 IR_HOP_PATH = "/ir/reports-2025.html"
 IR_MULTI_PATH = "/ir/all-reports.html"             # links both a shorter and a longer valid PDF
 REVIEW_PATH, FULL_PATH = "/nestle-annual-review-2025.pdf", "/nestle-annual-report-2025-full.pdf"
+# Shell's own shape: BAD_URL's "sustainab" term sits in an *earlier* path segment, not the filename
+SHELL_SHAPE_PATH = "/sustainability/reporting-centre/nestle-annual-report-2025.pdf"
+COUNTER_EXAMPLE_URL = "https://ir.example.com/annual-report/interim-q3.pdf"  # bad filename still wins
 
 
 def _write_pdf(path: Path, pages: int = 45):
@@ -89,9 +92,11 @@ def demo():
             tmp = Path(tmpdir)
             (tmp / "public").mkdir()
             (tmp / "public" / "ir").mkdir()
+            (tmp / "public" / SHELL_SHAPE_PATH.lstrip("/")).parent.mkdir(parents=True)
             _write_pdf(tmp / "public" / GOOD_PATH.lstrip("/"))
             _write_pdf(tmp / "public" / REVIEW_PATH.lstrip("/"), pages=45)
             _write_pdf(tmp / "public" / FULL_PATH.lstrip("/"), pages=60)
+            _write_pdf(tmp / "public" / SHELL_SHAPE_PATH.lstrip("/"))
             (tmp / "public" / IR_PAGE_PATH.lstrip("/")).write_text(
                 f'<a href="/{COMPANY.lower()}-q4-interim-2025.pdf">Q4 interim report</a>\n'
                 f'<a href="{GOOD_PATH}">Annual Report 2025</a>\n', encoding="utf-8")
@@ -244,6 +249,28 @@ def demo():
             guesses = fetch._host_guesses("https://www.nestle.com/assets/stale-token/annual-report-2025.pdf", toks)
             assert guesses == [f"https://www.nestle.com{p}" for p in fetch._IR_PATHS], guesses
             assert fetch._host_guesses("https://cdn.example.com/report.pdf", toks) == [], "unrelated domain must not be guessed"
+
+            # 14. v080 follow-up: BAD_URL's "sustainab" term sitting in an *earlier* path segment (Shell's
+            #     real shape: /sustainability/reporting-centre/.../shell-annual-report-2025.pdf) must not
+            #     drop a model candidate whose filename plainly names the report -- end to end, the model
+            #     candidate now survives _model_candidates and the direct download succeeds (no crawl needed)
+            dest8 = tmp / "reports8"
+            shell_shape_url = _url(base, SHELL_SHAPE_PATH)
+            os.environ["FAKE_WEB_REPLY"] = _reply([{"url": shell_shape_url, "title": "Annual Report 2025", "reason": "shell shape"}])
+            entry8 = fetch.fetch_report(COMPANY, YEAR, dest8)
+            assert entry8["source_url"] == shell_shape_url, entry8
+            assert entry8["note"] == "model search (codex)" and entry8["tags"] == ["fetched", "foreign"], entry8
+            assert entry8["tried"] == [shell_shape_url], entry8["tried"]
+
+            # 15. counter-example: the filename itself is still bad (interim-q3.pdf) even though an
+            #     earlier path segment happens to read "annual-report" -- still dropped pre-fetch
+            os.environ["FAKE_WEB_REPLY"] = _reply([{"url": COUNTER_EXAMPLE_URL, "title": "Q3", "reason": "counter-example"}])
+            urls, note = fetch._model_candidates(COMPANY, YEAR)
+            assert urls == [], urls
+
+            # unit-level check of the carve-out itself, both directions
+            assert fetch._filename_clear(shell_shape_url, fetch.BAD_URL) is True, "clean filename clears a bad rest-of-path"
+            assert fetch._filename_clear(COUNTER_EXAMPLE_URL, fetch.BAD_URL) is False, "a bad filename still rejects"
     finally:
         for k, v in saved.items():
             if v is None:

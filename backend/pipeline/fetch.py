@@ -61,6 +61,21 @@ def websearch_provider() -> "str | None":
     return p if p in ("codex", "claude") else None
 
 
+def _filename_clear(label, *patterns):
+    """True if none of `patterns` (BAD_URL, NOT_REPORT) should reject `label`, once a hit in its last
+    path segment -- the actual filename -- is treated as decisive: a hit *earlier* in the path is
+    ignored when the filename itself names an annual report (IS_AR) and is not itself flagged (Shell's
+    real annual-report PDF sits under a "sustainability/reporting-centre" IR section; BAD_URL's
+    "sustainab" term matches that section name, not the file, which is plainly shell-annual-report-
+    2025.pdf). A hit *in* the filename itself (interim-q3.pdf) still rejects outright, wherever it sits."""
+    fname = label.rsplit("/", 1)[-1].split("?", 1)[0]
+    if any(p.search(fname) for p in patterns):
+        return False
+    if IS_AR.search(fname):
+        return True
+    return not any(p.search(label) for p in patterns)
+
+
 def _model_candidates(company, year, country=None, hint=None):
     """Ask the model for official annual-report PDF links. (urls, note): at most MAX_MODEL_CANDIDATES
     cleaned URLs, best first, plus a short note for the eventual 404 detail -- the model being
@@ -78,13 +93,13 @@ def _model_candidates(company, year, country=None, hint=None):
     urls = []
     for c in (data.get("candidates") or [])[:MAX_MODEL_CANDIDATES]:
         u = str(c.get("url", "")).strip() if isinstance(c, dict) else ""
-        if not u.startswith(("http://", "https://")) or BAD_URL.search(u):
+        if not u.startswith(("http://", "https://")) or not _filename_clear(u, BAD_URL):
             print(f"model candidate dropped: {u!r}")  # not a direct link, or an interim/risk/AGM URL by name
             continue
         urls.append(u)
         # models hand back percent-encoded paths (Siemens' asset API: uuid%3A... -> 400s); the decoded
         # twin is a free second try for servers that only accept the raw characters
-        if (dec := urllib.parse.unquote(u)) != u and not BAD_URL.search(dec):
+        if (dec := urllib.parse.unquote(u)) != u and _filename_clear(dec, BAD_URL):
             urls.append(dec)
     return urls, None
 
@@ -373,7 +388,7 @@ def _ir_links(page_url, html, year):
             continue
         u = urllib.parse.urljoin(page_url, href)
         label = (u + " " + re.sub(r"<[^>]+>", " ", text)).lower()
-        if not IS_AR.search(label) or BAD_URL.search(label) or NOT_REPORT.search(label):
+        if not IS_AR.search(label) or not _filename_clear(label, BAD_URL, NOT_REPORT):
             continue
         out[u] = 2 * (str(year) in label) + bool(re.search(r"annual report|annual review|rsredovisning", label)) \
             + (urllib.parse.urlparse(u).netloc == domain)

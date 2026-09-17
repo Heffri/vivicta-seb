@@ -52,3 +52,24 @@ linking both a shorter and a longer valid report resolves to the longer one (11)
 from a bare IR landing page to its own reports sub-page still finds the PDF (12); and a direct link's
 own domain gets the same IR-path guesses the pre-existing stub-notice fallback already makes,
 gated on the domain actually naming the company (13).
+
+== follow-up (BAD_URL filename carve-out), call 5/5 total: Shell re-test ==
+  https://www.shell.com/investors/results-and-reporting/annual-report/_jcr_content/root/main/section/
+    promo/links/item0.stream/1773292272508/5e49e127579b77081f032b6088b348694aac0d14/
+    shell-annual-report-2025.pdf -> HTTP Error 404: Not Found
+  IR page crawl https://www.shell.com/investor-relations/annual-report.html -> HTTP Error 404: Not Found
+  IR page crawl https://www.shell.com/investor-relations.html -> HTTP Error 404: Not Found
+  IR page crawl https://www.shell.com/en/investors -> HTTP Error 404: Not Found
+  RESULT: 404, tried: [1 url -- the model's candidate; the 4 IR-guess attempts above are console-only,
+    see "Not done" in v080.md for why they aren't in the structured tried list] (20s)
+
+  This time the model returned v074's *exact original* expired-token URL (byte-identical, no
+  "sustainab" anywhere in it) rather than the "sustainability/reporting-centre" variant call 1/4 got --
+  proof the search itself is non-deterministic across calls, not proof the BAD_URL fix regressed:
+  this URL was never dropped pre-fetch (no "model candidate dropped" line above, unlike call 1/4), so
+  it reached the download stage and failed for the pre-existing, unrelated reason v074 already
+  documented (the token has expired). The fifth source correctly took over from there: _host_guesses
+  derived shell.com's 4 guessed IR paths and all 4 were fetched and 404d -- Shell's real site structure
+  evidently doesn't match the generic _IR_PATHS guess list. Net: the BAD_URL false positive is
+  confirmed fixed (it simply wasn't this call's obstacle); Shell's live 404 persists for two other,
+  independent reasons documented in v080.md's follow-up section.
