@@ -1,7 +1,9 @@
-"""Self-check for fetch.py's fourth source (v074): the model's own web search, asked only when the
-feeds and the plain web search produced nothing. `llm.web_lookup` is faked (a scripted function, no
-CLI, no network beyond a loopback http.server that serves one generated PDF), and `_candidates` is
-patched out for the same reason -- this needs no MFN/Nasdaq/DuckDuckGo access and no model call.
+"""Self-check for fetch.py's fourth (v074) and fifth (v080) sources: the model's own web search, asked
+only when the feeds and the plain web search produced nothing, and the IR-page crawl that follows when
+a model candidate turns out to be a page instead of a direct PDF. `llm.web_lookup` is faked (a scripted
+function, no CLI, no network beyond a loopback http.server that serves a handful of generated PDFs and
+static HTML pages), and `_candidates` is patched out for the same reason -- this needs no
+MFN/Nasdaq/DuckDuckGo access and no model call.
 Run: python -m pipeline.test_fetch"""
 import json
 import os
@@ -20,14 +22,23 @@ GOOD_PATH, GONE_PATH = "/nestle-annual-report-2025.pdf", "/deleted.pdf"
 # a name-filtered candidate: BAD_URL drops it before any download, mirroring what the real flow does
 # with the interim/quarterly links a model sometimes proposes alongside the real report
 INTERIM_URL = f"https://ir.example.com/{COMPANY.lower()}-q4-interim-report.pdf"
+# v080: pages the model may hand back instead of a direct PDF link, and the report's own IR-page trail
+IR_PAGE_PATH = "/ir/reports.html"                 # a direct PDF link among an interim one -- filtered
+IR_HOP_INDEX_PATH = "/ir/index.html"               # no PDF link itself, links one hop to IR_HOP_PATH
+IR_HOP_PATH = "/ir/reports-2025.html"
+IR_MULTI_PATH = "/ir/all-reports.html"             # links both a shorter and a longer valid PDF
+REVIEW_PATH, FULL_PATH = "/nestle-annual-review-2025.pdf", "/nestle-annual-report-2025-full.pdf"
+# Shell's own shape: BAD_URL's "sustainab" term sits in an *earlier* path segment, not the filename
+SHELL_SHAPE_PATH = "/sustainability/reporting-centre/nestle-annual-report-2025.pdf"
+COUNTER_EXAMPLE_URL = "https://ir.example.com/annual-report/interim-q3.pdf"  # bad filename still wins
 
 
-def _write_pdf(path: Path):
-    """A 45-page PDF that passes _validate for (Nestle, 2025): text layer > 5000 chars in the first
+def _write_pdf(path: Path, pages: int = 45):
+    """A `pages`-page PDF that passes _validate for (Nestle, 2025): text layer > 5000 chars in the first
     20 pages (insert_text clips long lines at the page edge, so several short ones), the issuer
     token and the year in there, "Annual Report" on the cover."""
     doc = fitz.open()
-    for _ in range(45):
+    for _ in range(pages):
         page = doc.new_page()
         page.insert_text((72, 72), f"{COMPANY} Annual Report {YEAR}")
         for i in range(8):
@@ -80,7 +91,22 @@ def demo():
         with tempfile.TemporaryDirectory(prefix="test-fetch-") as tmpdir:
             tmp = Path(tmpdir)
             (tmp / "public").mkdir()
+            (tmp / "public" / "ir").mkdir()
+            (tmp / "public" / SHELL_SHAPE_PATH.lstrip("/")).parent.mkdir(parents=True)
             _write_pdf(tmp / "public" / GOOD_PATH.lstrip("/"))
+            _write_pdf(tmp / "public" / REVIEW_PATH.lstrip("/"), pages=45)
+            _write_pdf(tmp / "public" / FULL_PATH.lstrip("/"), pages=60)
+            _write_pdf(tmp / "public" / SHELL_SHAPE_PATH.lstrip("/"))
+            (tmp / "public" / IR_PAGE_PATH.lstrip("/")).write_text(
+                f'<a href="/{COMPANY.lower()}-q4-interim-2025.pdf">Q4 interim report</a>\n'
+                f'<a href="{GOOD_PATH}">Annual Report 2025</a>\n', encoding="utf-8")
+            (tmp / "public" / IR_HOP_INDEX_PATH.lstrip("/")).write_text(
+                f'<a href="{IR_HOP_PATH}">Annual reports</a>\n', encoding="utf-8")
+            (tmp / "public" / IR_HOP_PATH.lstrip("/")).write_text(
+                f'<a href="{GOOD_PATH}">Annual Report 2025</a>\n', encoding="utf-8")
+            (tmp / "public" / IR_MULTI_PATH.lstrip("/")).write_text(
+                f'<a href="{REVIEW_PATH}">Annual Review 2025</a>\n'
+                f'<a href="{FULL_PATH}">Annual Report 2025</a>\n', encoding="utf-8")
             server, base = _http_server(tmp / "public")
             good_url, gone_url = _url(base, GOOD_PATH), _url(base, GONE_PATH)
 
@@ -186,6 +212,65 @@ def demo():
             entry3 = fetch.fetch_report(COMPANY, YEAR, dest3)
             assert entry3["source_url"] == good_url and entry3["tags"] == ["fetched"] and entry3["note"] is None, entry3
             assert len(fake.calls) == calls_before, "a feed-level hit must not trigger a model search"
+            fetch._candidates = lambda company, year: []  # back to "nothing above the model layer" for 10-12
+
+            # 10. v080 fifth source: the model names the issuer's IR page instead of a direct PDF --
+            #     fetch_report crawls it, drops the interim link (no IS_AR match) and registers the
+            #     real report link found next to it, with a source-specific note/tag pair
+            dest4 = tmp / "reports4"
+            ir_page_url = _url(base, IR_PAGE_PATH)
+            os.environ["FAKE_WEB_REPLY"] = _reply([{"url": ir_page_url, "title": "Investor relations", "reason": "no direct pdf found"}])
+            entry4 = fetch.fetch_report(COMPANY, YEAR, dest4)
+            assert entry4["source_url"] == good_url, entry4
+            assert entry4["note"] == "IR page crawl" and entry4["tags"] == ["fetched", "foreign"], entry4
+            assert entry4["tried"] == [ir_page_url, good_url], entry4["tried"]
+
+            # 11. v080: the crawled page links both a shorter and a longer valid report (Nestlé's
+            #     Annual Review next to its actual Annual Report) -- the fifth source downloads both
+            #     within budget and keeps the one with more pages, not just the first one found
+            dest5 = tmp / "reports5"
+            multi_url = _url(base, IR_MULTI_PATH)
+            os.environ["FAKE_WEB_REPLY"] = _reply([{"url": multi_url, "title": "Reports", "reason": "ir page"}])
+            entry5 = fetch.fetch_report(COMPANY, YEAR, dest5)
+            assert entry5["source_url"] == _url(base, FULL_PATH), entry5
+
+            # 12. v080: the IR page itself carries no PDF link but points one hop to a same-domain
+            #     reports page that does -- the crawl follows that single hop and finds it there
+            dest6 = tmp / "reports6"
+            hop_index_url = _url(base, IR_HOP_INDEX_PATH)
+            os.environ["FAKE_WEB_REPLY"] = _reply([{"url": hop_index_url, "title": "Investors", "reason": "ir landing page"}])
+            entry6 = fetch.fetch_report(COMPANY, YEAR, dest6)
+            assert entry6["source_url"] == good_url and entry6["note"] == "IR page crawl", entry6
+
+            # 13. v080: a direct link that 404s outright (Shell's expired asset-store URL) leaves no
+            #     page to crawl -- _host_guesses derives the same IR-path guesses _stub_pages makes,
+            #     seeded from the dead URL's own domain, gated on that domain actually naming the company
+            toks = fetch._toks(COMPANY)
+            guesses = fetch._host_guesses("https://www.nestle.com/assets/stale-token/annual-report-2025.pdf", toks)
+            assert guesses == [f"https://www.nestle.com{p}" for p in fetch._IR_PATHS], guesses
+            assert fetch._host_guesses("https://cdn.example.com/report.pdf", toks) == [], "unrelated domain must not be guessed"
+
+            # 14. v080 follow-up: BAD_URL's "sustainab" term sitting in an *earlier* path segment (Shell's
+            #     real shape: /sustainability/reporting-centre/.../shell-annual-report-2025.pdf) must not
+            #     drop a model candidate whose filename plainly names the report -- end to end, the model
+            #     candidate now survives _model_candidates and the direct download succeeds (no crawl needed)
+            dest8 = tmp / "reports8"
+            shell_shape_url = _url(base, SHELL_SHAPE_PATH)
+            os.environ["FAKE_WEB_REPLY"] = _reply([{"url": shell_shape_url, "title": "Annual Report 2025", "reason": "shell shape"}])
+            entry8 = fetch.fetch_report(COMPANY, YEAR, dest8)
+            assert entry8["source_url"] == shell_shape_url, entry8
+            assert entry8["note"] == "model search (codex)" and entry8["tags"] == ["fetched", "foreign"], entry8
+            assert entry8["tried"] == [shell_shape_url], entry8["tried"]
+
+            # 15. counter-example: the filename itself is still bad (interim-q3.pdf) even though an
+            #     earlier path segment happens to read "annual-report" -- still dropped pre-fetch
+            os.environ["FAKE_WEB_REPLY"] = _reply([{"url": COUNTER_EXAMPLE_URL, "title": "Q3", "reason": "counter-example"}])
+            urls, note = fetch._model_candidates(COMPANY, YEAR)
+            assert urls == [], urls
+
+            # unit-level check of the carve-out itself, both directions
+            assert fetch._filename_clear(shell_shape_url, fetch.BAD_URL) is True, "clean filename clears a bad rest-of-path"
+            assert fetch._filename_clear(COUNTER_EXAMPLE_URL, fetch.BAD_URL) is False, "a bad filename still rejects"
     finally:
         for k, v in saved.items():
             if v is None:

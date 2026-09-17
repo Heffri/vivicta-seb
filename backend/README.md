@@ -147,16 +147,29 @@ and the provider is `LLM_PROVIDER=codex` or `claude`, `llm.web_lookup()` makes t
   is the whole difference.
 
 The model is asked for at most 3 direct URLs to the official annual-report PDF on the issuer's investor-relations
-site or a regulatory repository (no ESEF zips, quarterly, sustainability or governance reports). Every candidate
-then runs fetch's regular validation -- real PDF, text layer, > 40 pages, issuer token + fiscal year in the first
-20 pages -- and the first survivor is registered with `note: "model search (<provider>)"` and
-`tags: ["fetched", "foreign"]`. An OpenAI-compatible provider has no search tool: `web_lookup()` raises rather
-than answer from memory, `fetch.websearch_provider()` keeps such a backend on the three plain sources, and a
-model search that errors (CLI unavailable, unparseable reply) is reported in `/api/reports/fetch`'s usual 404
-`detail`. The endpoint takes optional `country`/`hint` fields that only feed this search's prompt.
+site or a regulatory repository (no ESEF zips, quarterly, sustainability or governance reports) -- or, failing a
+direct link, the issuer's IR/annual-report page URL itself. Every candidate then runs fetch's regular validation
+-- real PDF, text layer, > 40 pages, issuer token + fiscal year in the first 20 pages -- and the first survivor is
+registered with `note: "model search (<provider>)"` and `tags: ["fetched", "foreign"]`. An OpenAI-compatible
+provider has no search tool: `web_lookup()` raises rather than answer from memory, `fetch.websearch_provider()`
+keeps such a backend on the three plain sources, and a model search that errors (CLI unavailable, unparseable
+reply) is reported in `/api/reports/fetch`'s usual 404 `detail`. The endpoint takes optional `country`/`hint`
+fields that only feed this search's prompt.
 
-Test: `python -m pipeline.test_fetch` -- a scripted `web_lookup` stand-in and a loopback http server serving one
-generated PDF; no CLI, no model call, no external network.
+**Fifth source (v080): crawling a page-shaped leftover.** When every direct candidate from all four sources above
+still fails -- because a model reply names the issuer's IR page instead of a PDF, a web-search hit served a page,
+or a direct link 404s outright (Shell's own asset-store URLs expire) -- `fetch.py` crawls whatever page-shaped
+candidates those attempts left behind: the page itself (or, for a dead direct link, the guessed IR path for its
+own domain, the same guesses the stub-notice fallback above already makes), plus one hop into a same-domain
+reports/investor-relations sub-page when the page itself carries no PDF link. Every `.pdf` link found still passes
+the same IS_AR/BAD_URL/NOT_REPORT gate and the same download+validate chain as every other source, and -- unlike
+every earlier source (first validated survivor wins) -- this one downloads every harvested candidate within a
+90-second budget (at most 8, 20 s each) and keeps the one with the most pages, since the page linking a summary
+volume often links the full report right next to it (Nestlé's Annual Review vs. its actual Annual Report). The
+winner is registered with `note: "IR page crawl"` and `tags: ["fetched", "foreign"]`.
+
+Test: `python -m pipeline.test_fetch` -- a scripted `web_lookup` stand-in and a loopback http server serving a
+handful of generated PDFs and static HTML pages; no CLI, no model call, no external network.
 
 ## Two-pass page selection (`EXTRACT_TWO_PASS`)
 

@@ -1,0 +1,31 @@
+v080 red baseline -- zero model (LLM_PROVIDER unset), real network, no Codex/model call.
+Paths below are redacted to <lane-tmp>/... (a local scratch dir outside the repo).
+
+== 1. the exact stale Shell URL recorded in v074's evidence, fed straight to fetch._get ==
+STALE_SHELL_URL = https://www.shell.com/investors/results-and-reporting/annual-report/_jcr_content/
+  root/main/section/promo/links/item0.stream/1773292272508/5e49e127579b77081f032b6088b348694aac0d14/
+  shell-annual-report-2025.pdf
+fetch._get(STALE_SHELL_URL) -> HTTPError: HTTP Error 404: Not Found (0s)
+Confirms the token has indeed expired, exactly as v074 recorded.
+
+== 2. fixture-mode (zero model) fetch_report('Shell', 2025), run twice ==
+run A:
+  mfn feed failed: HTTP Error 500: Internal Server Error
+  ddg failed: <urlopen error [WinError 10054] ...> (x2, DDG connection reset)
+  https://www.shell.com/investors/results-and-reporting/annual-report/_jcr_content/root/main/
+    section_2113846431/link_list/links/item0.stream/1774544186011/.../shell-annual-report-2025-interactive.pdf
+    -> ok (462 pages, 1s)
+  RESULT: 200 (unexpected relative to v074 -- see note below)
+
+run B (fresh dest dir, ~1 minute later):
+  RESULT: LookupError args=([], None)  (4s) -- i.e. HTTP 404, tried: []
+
+Note: DDG's html endpoint is intermittently bot-blocked from this network (WinError 10054 / a
+challenge page), not deterministically -- v074 recorded it blocked every time at dispatch; today it
+let one of two zero-model attempts through to a *different*, currently-live Shell AEM asset URL
+(different resource hash/timestamp than the one v074 saw expire). This is pre-existing level-3
+(_crawl/_ddg) behavior, unrelated to this lane's change -- v080 only adds bookkeeping inside the
+existing except/not-doc branches (no new network calls on the success path), and neither _crawl nor
+_ddg was touched. Run B reproduces v074's original red shape (404, tried: []); run A shows the
+existing DDG fallback intermittently already solving Shell today, independent of the model or the
+new fifth source. Both are reported since both are real, honest outcomes on this network.

@@ -172,11 +172,20 @@ tags: ["fetched"], fetched_at`). `data/reports/` is therefore a cache: gitignore
 when all three found nothing usable *and* the backend runs on a CLI provider (`LLM_PROVIDER=codex|claude`), asks
 the model itself for links, via its own web-search tool (`codex --search exec`, `claude -p --tools WebSearch`):
 at most 3 direct URLs to the official annual-report PDF on the issuer's investor-relations site or a regulatory
-repository (no ESEF zips, quarterly or sustainability reports). Every candidate from every source passes the same
-validation; the first survivor registers with `note: "model search (<provider>)"` and `tags: ["fetched", "foreign"]`.
+repository (no ESEF zips, quarterly or sustainability reports), or — failing a direct link — the issuer's IR/
+annual-report page URL itself. Every candidate from every source passes the same validation; the first survivor
+registers with `note: "model search (<provider>)"` and `tags: ["fetched", "foreign"]`.
 With an OpenAI-compatible or no provider the fourth level never runs and the 404 keeps its usual shape (a model
 search that errored — unavailable CLI, unparseable reply — says so in `detail`). `country`/`hint` in the request
 body only feed that search's prompt.
+
+**Fifth source (v080).** Only once all four sources above fail: `fetch.py` crawls whatever page-shaped leftovers
+those attempts produced (a model reply naming an IR page instead of a PDF, a web-search hit that served a page, or
+the guessed IR path for the domain of a direct link that 404d), one hop deep, harvesting `.pdf` links that pass
+the same validation gate. Unlike the other four sources, this one downloads every harvested candidate (budget:
+90 s total, ≤8 candidates, 20 s each) and keeps the one with the most pages rather than the first that validates,
+so a page linking both a summary volume and the full report resolves to the full report. The survivor registers
+with `note: "IR page crawl"` and `tags: ["fetched", "foreign"]`.
 
 ## Knowledge base — `data/kb/` (RAG + memory)
 
