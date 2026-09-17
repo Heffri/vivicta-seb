@@ -776,6 +776,16 @@ _BUCKET_BOUNDARY = {  # the schema's own synonyms cover most of this (dash-norma
 }
 _BARE_TOTAL = re.compile(r"(?i)\btotalt?\b|\bsumma\b")
 _YEAR_TAIL = re.compile(r"(?i)\b(?:later|thereafter|senare|övriga år)\b")
+_SUBTOTAL_PHRASES = {"summa inom 1 år", "total within 1 year"}  # a printed within-1-year subtotal column
+# (XANO p.84's "Summa inom 1 år"): its own finer day/month sub-columns to its left must not also be summed in
+_DEBT_ROW_SYNONYMS = [  # _bucket_total_row's fallback when no row carries a total_debt synonym or a bare
+    # total/summa (Ependion's bucket row is labelled "Borrowing", Boozt's "Lease liabilities") -- never used
+    # for direct field-row matching (that stays on the schema's own synonyms), so a private word list here
+    "borrowing", "borrowings", "loan", "loans", "bank loans", "bank loan",
+    "interest-bearing liabilities", "interest bearing liabilities", "short-term interest-bearing liabilities",
+    "lease liabilities", "lease liability",
+    "upplåning", "räntebärande skulder",
+]
 
 
 def _identity_parts(schema: dict) -> tuple[str, list[str]] | None:
@@ -797,12 +807,16 @@ def _bucket_synonym_hits(text: str, bucket_sfs: dict) -> list[tuple[int, str]]:
     """[(position, key)] for every maturity-bucket synonym of every field in bucket_sfs found in text, dash-
     normalised (so "1–2 years" matches the schema's "1-2 years"), plus _BUCKET_BOUNDARY's English-symbol patch.
     A finer split that maps to the same key twice (Cloetta: "1–2 years" and "2–5 years" are both due_1_to_5_years)
-    keeps both hits -- each is its own table column, later summed by _bucket_assign."""
+    keeps both hits -- each is its own table column, later summed by _bucket_assign. Also reads each field's own
+    header_synonyms -- month-span/day-range header wording _label_known (row-label matching) never sees, v046's
+    deliberate gap between the two lists. A hit whose synonym is one of _SUBTOTAL_PHRASES is tagged "key:subtotal"
+    so _bucket_header can make it override, not add to, its own finer columns already seen to its left."""
     htext = text.translate(_DASHES)
     hits = []
     for key, sf in bucket_sfs.items():
-        for syn in sf.get("synonyms", []):
-            hits.extend((m.start(), key) for m in re.finditer(re.escape(syn.translate(_DASHES)), htext, re.I))
+        for syn in sf.get("synonyms", []) + sf.get("header_synonyms", []):
+            tag = f"{key}:subtotal" if syn.lower() in _SUBTOTAL_PHRASES else key
+            hits.extend((m.start(), tag) for m in re.finditer(re.escape(syn.translate(_DASHES)), htext, re.I))
         if key in _BUCKET_BOUNDARY:
             hits.extend((m.start(), key) for m in _BUCKET_BOUNDARY[key].finditer(htext))
     return hits
@@ -832,18 +846,24 @@ def _bucket_year_hits(text: str, fiscal_year) -> list[tuple[int, str]]:
 
 def _bucket_header(rows: list[str], idx: int, bucket_sfs: dict, fiscal_year, max_back: int = 25) -> list[str] | None:
     """The ordered column keys of the maturity-bucket table whose grand-total sits on rows[idx]: each bucket hit
-    above it, in print order, plus a "total" slot wherever a bare Total/Summa/Totalt column header is seen.
-    Read from a generous window of the rows above idx, not just the one right above it: pymupdf sometimes wraps
-    a two-line column header (Summa / inom 1 år) into two of _page_rows' rows, and the note's own heading and
-    instrument rows sit between the header and the total row. None without >=2 distinct bucket keys -- a page
-    that merely mentions one bucket word in passing prose is not a bucket-column table. Falls back to a literal
-    calendar-year header (_bucket_year_hits) when no named bucket reaches that bar."""
+    above it, in print order, plus a "total" slot wherever a bare Total/Summa/Totalt column header is seen. A
+    due_within_1_year subtotal column (_SUBTOTAL_PHRASES, e.g. XANO's "Summa inom 1 år") overrides, not adds to,
+    its own finer day/month columns already seen to its left in this same header. Read from a generous window of
+    the rows above idx, not just the one right above it: pymupdf sometimes wraps a two-line column header (Summa
+    / inom 1 år) into two of _page_rows' rows, and the note's own heading and instrument rows sit between the
+    header and the total row. None without >=2 distinct bucket keys -- a page that merely mentions one bucket
+    word in passing prose is not a bucket-column table. Falls back to a literal calendar-year header
+    (_bucket_year_hits) when no named bucket reaches that bar."""
     window = rows[max(0, idx - max_back):idx]
     hits = []
     for row in window:
-        row_hits = _bucket_synonym_hits(row, bucket_sfs) + [(m.start(), "total") for m in _BARE_TOTAL.finditer(row.translate(_DASHES))]
+        bare_total = [(m.start(), "total") for m in _BARE_TOTAL.finditer(row.translate(_DASHES))] if not _row_amounts(row) else []
+        # a bare Total/Summa only marks a header column when its own row carries no amounts -- a row that
+        # prints "Total 96 173" is another table's own data row (Boozt p.121's earlier receivables-ageing
+        # note, still inside the 25-row window), not a column header wrapped above idx (v060)
+        row_hits = _bucket_synonym_hits(row, bucket_sfs) + bare_total
         hits.extend(key for _, key in sorted(row_hits))
-    if len({k for k in hits if k != "total"}) < 2:
+    if len({k.split(":")[0] for k in hits if k != "total"}) < 2:
         year_hits = None
         for row in window:
             yh = _bucket_year_hits(row, fiscal_year)
@@ -853,17 +873,54 @@ def _bucket_header(rows: list[str], idx: int, bucket_sfs: dict, fiscal_year, max
         if not year_hits:
             return None
         hits = [key for _, key in year_hits] + (["total"] if any(_BARE_TOTAL.search(r) for r in window) else [])
+    original = hits
+    for j, k in enumerate(original):  # a subtotal column wins over its own finer columns already counted to its left
+        if k.endswith(":subtotal"):
+            real = k[:-len(":subtotal")]
+            hits = ["_excluded" if h == real and i < j else h for i, h in enumerate(hits)]
+            hits[j] = real
     return hits
 
 
-def _bucket_total_row(rows: list[str], total_sf: dict) -> list[int]:
+def _bucket_total_row(rows: list[str], total_sf: dict, bucket_sfs: dict | None = None, fiscal_year=None,
+                       known_total=None, warnings: list[str] | None = None) -> list[int]:
     """Indices of rows that could be a maturity table's grand-total row: the total field's own synonym ("Summa
     räntebärande skulder"), or a bare Total/Totalt/Summa -- a schema's total-field synonyms are themselves
     phrased as row labels ("total borrowings"), but plenty of reports print just the bare word on the total row
     of a table that is already, by construction, about borrowings (the page only got here as a debt_maturity
-    candidate), e.g. Cloetta's and Ework's own maturity notes."""
-    return [i for i, r in enumerate(rows) if len(_row_amounts(r)) >= 2
+    candidate), e.g. Cloetta's and Ework's own maturity notes. Appended (not substituted -- a page can have both
+    a bare-Total row that turns out to be the wrong scope, Ework's own all-liabilities "Total" row, and the real
+    debt row further down; the caller already tries each candidate in order and moves on when one doesn't pan
+    out): rows whose label is a debt synonym (_DEBT_ROW_SYNONYMS, Ependion's bucket row is labelled "Borrowing",
+    Boozt's "Lease liabilities") *and* that read a real bucket header above them with a column count matching
+    their own printed amounts -- so Ependion's four unrelated "Bank loans" per-currency rows (no bucket header
+    over them at all) are never candidates to begin with. Multiple survivors narrow by known_total (the model's
+    own already-sourced total_debt, if any) -- the row that itself prints that figure wins (Ework p.70: only the
+    short-term interest-bearing liabilities row prints 156,410; the page's own "Lease liabilities" row and the
+    prior-year block's rows don't). Still ambiguous after that is not a guess this function will make -- dropped,
+    with a warning, not a pick."""
+    hits = [i for i, r in enumerate(rows) if len(_row_amounts(r)) >= 2
             and (_label_known(_row_label(r), total_sf) or _clean_label(_row_label(r)) in ("total", "totalt", "summa"))]
+    if not bucket_sfs:
+        return hits
+    debt_sf = {"synonyms": _DEBT_ROW_SYNONYMS}
+    candidates = []
+    for i, r in enumerate(rows):
+        if i in hits or len(_row_amounts(r)) < 2 or not _label_known(_row_label(r), debt_sf):
+            continue
+        col_keys = _bucket_header(rows, i, bucket_sfs, fiscal_year)
+        if col_keys and len(_row_amounts(r, len(col_keys), nil=None)) == len(col_keys):
+            candidates.append(i)
+    if len(candidates) > 1 and isinstance(known_total, (int, float)):
+        narrowed = [i for i in candidates if any(a is not None and abs(a - known_total) <= 2 for a in _row_amounts(rows[i]))]
+        if narrowed:
+            candidates = narrowed
+    if len(candidates) > 1:
+        if warnings is not None:
+            warnings.append(f"{total_sf['key']}: {len(candidates)} candidate debt rows for the bucket table "
+                             f"({', '.join(repr(_row_label(rows[i])) for i in candidates)}) -- ambiguous, none used")
+        candidates = []
+    return hits + candidates
 
 
 def _bucket_assign(amounts: list, col_keys: list[str]) -> dict[str, float | None]:
@@ -903,7 +960,7 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
         if not (0 < page <= len(texts)):
             continue
         rows = _page_rows(texts[page - 1])
-        candidates = _bucket_total_row(rows, total_sf)
+        candidates = _bucket_total_row(rows, total_sf, bucket_sfs, fiscal_year, by_key[total_key]["value"], warnings)
         if not candidates:
             continue
         matched = [i for i in candidates if fiscal_year and str(fiscal_year) in " ".join(rows[max(0, i - 25):i])]
