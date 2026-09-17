@@ -1307,6 +1307,100 @@ def demo():
     out = x.extract([associates + "\nOther financial information follows here.\n"], [1], dm, {"fiscal_year": 2025})
     td = next(f for f in out["fields"] if f["key"] == "total_debt")
     assert td["value"] == 0 and td["confidence"] == 0.5 and "stated_zero" in td["evidence"], (td, out["warnings"])
+    # v073: a third maturity shape besides bucket-rows and bucket-columns -- a note that gives each loan/lease
+    # its own printed due date, year or year-range instead of a bucket label (Proact, docs/acrylic/evidence/v063.md
+    # gap 2). _maturity_bucket buckets a single point directly; a range or bare year only counts when its start
+    # and end land in the SAME bucket, else "straddle" -- and a straddle must abort the whole read, not just
+    # that one row, since it proves nothing about which side of a boundary the debt sits on.
+    from datetime import date as _date
+    fye = _date(2025, 12, 31)
+    assert x._maturity_bucket("Bank loan 16 Jul 2026 216,360", fye) == "due_within_1_year"
+    assert x._maturity_bucket("Lease liability 2026 96,098", fye) == "due_within_1_year"  # bare year: its own Jan-1..Dec-31 span
+    assert x._maturity_bucket("Lease liability 2027-2030 166,153", fye) == "due_1_to_5_years"  # inclusive at exactly 5 years
+    assert x._maturity_bucket("Lease liability 2031-2032 100", fye) == "due_after_5_years"
+    assert x._maturity_bucket("Loan 2026-2027 500", fye) == "straddle"  # start within 1y, end in 1-5y: no safe read
+    # calendar-exact, not a fixed day count: a fixed 366-day cutoff would tip "2027" itself (exactly 366 days
+    # after a 2025-12-31 fye) into due_within_1_year and manufacture a false straddle on "2027-2030" above
+    assert x._bucket_for_date(_date(2027, 1, 1), fye) == "due_1_to_5_years"
+    # a row naming its own maturity three times or more is a running header/watermark glued into one row by
+    # _page_rows, never a printed instrument (Proact's own page carries exactly this artifact, v073)
+    assert x._maturity_bucket("Proact Annual Report 2025 2025 2025", fye) is None
+    assert x._maturity_bucket("liabilities measured 31 Dec 2025 31 Dec 2024 31 Dec 2025 31 Dec 2024", fye) is None
+    # the balance sheet date defaults to 31 Dec of the fiscal year, or the day/month a caption states instead --
+    # but only a caption with nothing _row_amounts would call an amount after its date, never an instrument's
+    # own due-date row (a nil "-" included), which would otherwise be mistaken for the table's own caption
+    assert x._balance_sheet_date(["Group maturity analysis as of 31 Mar 2026", "Loan Y 15 Jun 2027 900"], 2026) == _date(2026, 3, 31)
+    assert x._balance_sheet_date(["Loan Z 31 Dec 2025 -"], 2025) == _date(2025, 12, 31)  # default: this is an instrument row, not a caption
+    # end to end, Proact's own page 103 (real text, trimmed to the note's per-instrument list): the model
+    # reads total_debt correctly (it is printed twice on the page; this is the carrying-note's own close) but
+    # answers null on every bucket. No bucket-row or bucket-column mechanism reaches this shape -- there is no
+    # bucket label anywhere and no single row prints all three buckets as columns -- so before this lane the
+    # check stayed "missing: due_within_1_year" forever. The date-per-instrument read closes it exactly:
+    # 216,360 (16 Jul 2026) + 96,098 (2026) = 312,458 due within 1 year; 166,153 (2027-2030) due 1-5 years;
+    # 312,458 + 166,153 == 478,611 to the cent, and due_after_5_years is honestly left null (no row for it).
+    proact103 = ("Notes\nNote 24 CONT.\nInterest-bearing\nliabilities, Group, Reported\n31 Dec 2025 Interest Maturity value\n"
+                 "Utilised overdraft\nfacility, Nordea 1) 2) Base rate +2.0% 31 Dec 2025 -\n"
+                 "Bank loan, Nordea 2) STIBOR 3M +1.25% 16 Jul 2026 -\n"
+                 "Bank loan, Nordea 2) EURIBOR 3M +1.25% 16 Jul 2026 -\n"
+                 "Bank loan, Svensk\nExportkredit 2) EURIBOR 3M + 1.8% 16 Jul 2026 216,360\n"
+                 "Lease liability 3) 3.86% - 5.59% 2026 96,098\n"
+                 "Lease liability 3) 4.06% - 5.59% 2027-2030 166,153\n"
+                 "Total interest-bearing\nliabilities 478,611\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 478611, "unit": "TSEK", "period": "2025", "raw_label": "Total interest-bearing liabilities",
+         "source": {"page": 1, "quote": "Total interest-bearing\nliabilities 478,611"}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([proact103], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f for f in out["fields"]}
+    assert got["due_within_1_year"]["value"] == 312458 and got["due_within_1_year"]["confidence"] == 1.0, (got, out["warnings"])
+    assert got["due_1_to_5_years"]["value"] == 166153 and got["due_1_to_5_years"]["confidence"] == 0.9, (got, out["warnings"])
+    assert got["due_after_5_years"]["value"] is None  # no row for it -- null_as_zero, not a fabricated 0
+    assert out["checks"][0]["passed"], out["checks"]
+    assert "value_derived" in got["due_within_1_year"]["evidence"] and "value_in_quote" not in got["due_within_1_year"]["evidence"]  # a sum of several rows has no literal quote
+    assert "value_in_quote" in got["due_1_to_5_years"]["evidence"] and "value_derived" not in got["due_1_to_5_years"]["evidence"]  # one row's own printed figure -- never both (WEIGHTS)
+    assert "16 Jul 2026" in got["due_within_1_year"]["source"]["quote"] and "2027-2030" in got["due_1_to_5_years"]["source"]["quote"]
+    assert any("closing maturity_sums_to_total exactly" in w for w in out["warnings"]), out["warnings"]
+    # must not misfire: three real seed7 shapes where the model also answers every bucket null, none of them
+    # date-per-instrument (docs/acrylic/evidence/v072.md). HANZA's own row is bucket-COLUMN shaped (no date
+    # anywhere near its total); Stillfront's rows are component/duration-labelled ("Repayment within 2-5 yr."),
+    # not dated; Nederman's total is read off a sentence far ABOVE its own per-instrument due-date table, with
+    # nothing date-shaped in the bounded window above it -- so the derivation correctly finds nothing in all
+    # three, and the check stays exactly as honestly unresolved as it was before this lane.
+    hanza132 = ("Förfallotidpunkt\nMellan\n2025-12-31 Redovisat Mindre än 6 månader Mellan 1 Senare än\n"
+                "Typ av upplåning Valutor värde 6 månader och 1 år och 5 år\nBanklån SEK, EUR,\n"
+                "CNY, CZK, PLN 1 332 15 9 1 306 2\nAvbetalnings-\nkontrakt 112 18 18 76 -\nSumma 1 444 33 27 1 382 2\n")
+    stillfront109 = ("Notes\nNote 21\nInterest-bearing liabilities\nGroup\nMSEK 31 Dec 2025 31 Dec 2024\n"
+                     "Contingent considerations for shares 1,294 2,032 Contingent considerations\n"
+                     "Bond loans 2,835 2,829 Repayment within 2–5 yr. 620 1,170\n"
+                     "Liabilities to credit institutions 984 1,376 Repayment after more than 5 yr. – –\n"
+                     "Term loan 649 688 Non-current liability 620 1,170\n"
+                     "Leasing liabilities 103 105 Current liability 675 862\n"
+                     "Other interest-bearing liabilities 22 22 Total Contingent considerations 1,294 2,032\n"
+                     "Total 5,887 7,053\n")
+    nederman150 = ("150 CONSOLIDATED FINANCIAL STATEMENTS\nNote 21. Interest-bearing liabilities\n"
+                   "As of 31 December 2025, the group had pension provisions of SEK 37.5m (42.3) Total interest-bearing liabilities 2,475.3 2,479.7\n"
+                   "as recognised in note 24.\nLong-term liabilities, SEKm 2025 2024\nBank loans 1,915.8 1,859.8\nLease liabilities 442.2 483.7\nTotal 2,358.0 2,343.5\n"
+                   "Short-term liabilities, SEKm 2025 2024\nCurrent part of bank loans 20.8 32.4\nCurrent part of lease liabilities 96.5 103.8\nTotal 117.3 136.2\n"
+                   "Terms and repayment due dates\n2025, SEKm Currency Due date\nNominal interest rate Nominal amount in original currency Carrying amount\n"
+                   "Bank loan* (revolving) SEK 24 Mar 2027 2.65%-3.86% 881.5 880.1\nBank loan* (revolving) EUR 24 Mar 2027 2.81%-2.95% 8.0 86.4\n"
+                   "Bank loan* (revolving) USD 24 Mar 2027 5.05%-5.97% 49.0 450.1\nBank loan* (term loan) SEK 20 Dec 2027 3.05%-4.13% 500.0 499.2\n"
+                   "Current bank loan CNY 5 Dec 2028 3.85%-3.95% 15.8 20.8\nLease liabilities 538.7\nTotal interest-bearing liabilities 2,475.3\n")
+    for name, text, total_value, total_quote, unit in [
+        ("HANZA", hanza132, 1444, "Summa 1 444 33 27 1 382 2", "MSEK"),
+        ("Stillfront", stillfront109, 5887, "Total 5,887 7,053", "MSEK"),
+        ("Nederman", nederman150, 2475.3,
+         "As of 31 December 2025, the group had pension provisions of SEK 37.5m (42.3) Total interest-bearing liabilities 2,475.3 2,479.7", "SEKm"),
+    ]:
+        x.call_llm = lambda *a, tv=total_value, tq=total_quote, u=unit, **k: {"fields": [
+            {"key": "total_debt", "value": tv, "unit": u, "period": "2025", "raw_label": "Total", "source": {"page": 1, "quote": tq}},
+            {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+            {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+            {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+        out = x.extract([text], [1], dm, {"fiscal_year": 2025})
+        assert all(f["value"] is None for f in out["fields"] if f["key"] != "total_debt"), (name, out["fields"])
+        assert out["checks"][0]["detail"] == "missing: due_within_1_year", (name, out["checks"])
     print("confidence self-check ok")
 
 
