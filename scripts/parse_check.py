@@ -22,6 +22,11 @@ text vs (b) the re-parsed text; prints both rankings so a changed top page is vi
 --pages mode (directed page dump): print the current page_text() of named pages, e.g.
 --pages ependion_2025:155,ratos_2025:131 --out .../pages-before.txt. Run before and after a parse.py
 change so the two dumps line up page for page.
+
+--dump-all mode (full-corpus page dump): one JSON line per page of every PDF in data/reports/,
+{"stem", "page", "text"}. Meant to be diffed page-for-page against another run of the same mode --
+under a different pymupdf (v049b: 1.27.2.3 vs 1.28.2) or before/after a parse.py change -- without
+re-parsing every PDF twice in one process.
 """
 import argparse
 import json
@@ -138,6 +143,16 @@ def run_pages(out, spec: str) -> None:
         print(text, file=out)
 
 
+def run_dump_all(out) -> None:
+    """One JSON line per page of every PDF: {"stem", "page", "text"}. Diff two runs of this mode page for
+    page (e.g. jq -c '[.stem,.page,.text]' both files then diff) to count and locate every page a pymupdf
+    version (or a parse.py change) actually touches, corpus-wide -- not just the directed pages."""
+    pdfs = sorted((ROOT / "data" / "reports").glob("*.pdf"))
+    for pdf in pdfs:
+        for i, text in enumerate(parse.page_texts(pdf), start=1):
+            print(json.dumps({"stem": pdf.stem, "page": i, "text": text}), file=out)
+
+
 def run_locate(out) -> None:
     kb = ROOT / "data" / "kb"
     pdfs = sorted((ROOT / "data" / "reports").glob("*.pdf"))
@@ -167,6 +182,7 @@ def main():
     mode.add_argument("--quotes", action="store_true", help="quote regression instead of split-rate measurement")
     mode.add_argument("--locate", action="store_true", help="locator non-regression instead of split-rate measurement")
     mode.add_argument("--pages", metavar="STEM:PAGE[,STEM:PAGE...]", help="directed dump of the current page_text() of these pages")
+    mode.add_argument("--dump-all", action="store_true", help="full-corpus page dump (JSONL), meant to be diffed against another run of the same mode")
     ap.add_argument("--kb", default="data/kb", help="knowledge base to read stored extractions/pages from (quote mode)")
     ap.add_argument("--section", default="income_statement", help="extraction section(s) for quote mode: a name or 'both'")
     ap.add_argument("--out", default="-", help="write the report here ('-' = stdout)")
@@ -175,7 +191,7 @@ def main():
     out = open(ROOT / a.out, "w", encoding="utf-8", newline="\n") if a.out != "-" else sys.stdout
     with out:
         run_quotes(out, ROOT / a.kb, sections) if a.quotes else run_locate(out) if a.locate \
-            else run_pages(out, a.pages) if a.pages else run_splits(out)
+            else run_pages(out, a.pages) if a.pages else run_dump_all(out) if a.dump_all else run_splits(out)
 
 
 if __name__ == "__main__":

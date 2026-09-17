@@ -12,7 +12,13 @@ the page is first cut into column regions at vertical gutters and each column is
 A cut is refused when the two sides share a row grid -- those are one table's label and figure
 columns, and cutting a table is far worse than not cutting. Block-local merging chains a wrapped
 cell's stacked fragments (a header printed "Between" / "1 and" / "2 years" on three lines becomes one
-line again) without touching prose, whose leading is wider than the chaining tolerance.
+line again) without touching prose, whose leading is wider than the chaining tolerance. The grouping
+this chaining runs within is geometric, not pymupdf's own block partition (v049b): pymupdf's block
+split for a short table region -- a stacked cell, a row's label split from its figures -- changes
+between its own releases (Ependion p.155's maturity header is one block under PyMuPDF 1.27.2.3 and
+five under 1.28.2, same glyph boxes), so a fragment's block id is not something the chain can rely on.
+_group_blocks re-derives which short blocks belong together from the same geometry _stack_cells
+already trusts, before either version's block boundary is looked at.
 
 Next for a teammate: scanned reports need an OCR fallback (pymupdf + tesseract via
 `page.get_textpage_ocr()`).
@@ -26,13 +32,15 @@ _DIGIT_SPACE = re.compile(r" (?=\d)|(?<=\d) ")  # any space touching a digit
 _CHARMAP = str.maketrans({"\u00a0": " ", "\u202f": " ", "\u2013": "-", "\u2212": "-"})  # NBSP, narrow NBSP, en dash, minus
 
 
-PARSER_VERSION = 4  # bump when page_text changes so kb.save_report rewrites cached pages.jsonl
+PARSER_VERSION = 5  # bump when page_text changes so kb.save_report rewrites cached pages.jsonl -- v049b's _group_blocks changes output on 599/4572 corpus pages even under the pinned pymupdf
 NUMERIC_RUN = 12  # consecutive letterless lines: a column-major text layer (Arion Bank prints every figure first, then every label, in no order)
 _LEADERS = re.compile(r"(?:\s*\.){3,}")
 _PURE_VALUE = re.compile(r"[\s\d.,()\-–—%*]+")  # a figures-only line ("164,155 164,155", " - "), as opposed to a label
 _CHAIN_GAP = 0.1  # a stacked cell fragment's box sits this much of a line height (or less) below the one above
 _CHAIN_MAX = 3  # a wrapped header cell is 2-3 fragments deep; a chain growing past that is a paragraph, not a cell
 _ALIGNED = 0.8  # this fraction of either side's lines sharing a baseline with the other side = one table's columns, not two layout columns
+_ROW_GAP = 3.0  # two short blocks on one baseline join _group_blocks's pool when their x-gap is under this many times the narrower one's width
+_LINE_RATIO = 2.0  # _group_blocks never links two lines whose heights differ by more than this factor
 
 
 def page_texts(pdf_path) -> list[str]:
@@ -68,16 +76,22 @@ def _split_rows(text: str) -> int:
 
 
 def _merge_baselines(page) -> str:
-    """Lines of a block that share a baseline (within half the taller line's height) become one line, left to right.
-    Blocks keep their reading order, so a prose paragraph's lines (distinct baselines) come out as before.
+    """Lines that share a baseline (within half the taller line's height) become one line, left to right.
+    Groups (see _group_blocks) keep their reading order, so a prose paragraph's lines (distinct
+    baselines, and never regrouped -- it is always its own block's only group) come out as before.
     Before grouping, a cell's stacked fragments are chained back together (see _stack_cells)."""
     out = []
-    for block in page.get_text("dict")["blocks"]:
-        if block["type"] != 0:
+    block_lines = [[(l["bbox"], "".join(s["text"] for s in l["spans"])) for l in block["lines"]
+                     if "".join(s["text"] for s in l["spans"]).strip()]
+                    for block in page.get_text("dict")["blocks"] if block["type"] == 0]
+    page_w = page.rect.width
+    for idxs in _group_blocks(block_lines, page_w):
+        lines = [ln for i in idxs for ln in block_lines[i]]
+        if not lines:
             continue
-        lines = [(l["bbox"], "".join(s["text"] for s in l["spans"])) for l in block["lines"] if "".join(s["text"] for s in l["spans"]).strip()]
+        cluster_w = max(bbox[2] for bbox, _ in lines) - min(bbox[0] for bbox, _ in lines)
         rows: list[list] = []  # [y-center, height, [(x0, text)]]
-        for bbox, txt in _stack_cells(lines, block["bbox"][2] - block["bbox"][0], page.rect.width):
+        for bbox, txt in _stack_cells(lines, cluster_w, page_w):
             yc, h = (bbox[1] + bbox[3]) / 2, bbox[3] - bbox[1]
             row = next((r for r in rows if abs(r[0] - yc) <= max(h, r[1]) / 2), None)
             if row is None:
@@ -88,19 +102,101 @@ def _merge_baselines(page) -> str:
     return "\n".join(l for l in out if l)
 
 
-def _stack_cells(lines: list[tuple[tuple, str]], block_w: float, page_w: float) -> list[tuple[tuple, str]]:
-    """A wrapped cell printed as stacked fragments (Ependion's maturity header: 'Between' over '1 and' over
-    '2 years', each its own line) becomes one line again -- but only in a block that already looks like a
-    table or a single stacked cell: some baseline holds two x-disjoint lines, or the whole block is a
-    narrow column. A prose paragraph has one fragment per baseline and fills its column's width, and its
-    lines can touch just as tightly as stacked fragments do (Atlas Copco sets them with zero leading), so
-    leading alone cannot tell the two apart -- shape must. Within a chainable block a fragment joins the
-    chain above when their x-ranges overlap by half the narrower's width, its box sits within _CHAIN_GAP
-    of a line height below the chain's box (stacked fragments touch or overlap), it is no wider than 1.5x
-    the chain (a continuation never much exceeds the cell it wraps in, Nelly's next row label under a
-    short one), the chain is under _CHAIN_MAX deep, and its own baseline carries no pure-figures line
-    elsewhere in the block (those are its row's figures -- Morrow Bank packs label rows 11pt apart with
-    each row's figures on its own label's baseline). Chains keep top-to-bottom text order."""
+def _group_blocks(block_lines: list[list[tuple[tuple, str]]], page_w: float) -> list[list[int]]:
+    """Which blocks (by index into block_lines) to pool into _stack_cells together, groups in first-seen
+    order. Pymupdf's own block split is exactly as version-fragile as its line split within one block
+    (see _stack_cells): a stacked header cell or a row split into a label piece and a figures piece can
+    land in a single block on one pymupdf release and in several on another (Ependion p.155's maturity
+    header, v049b). Two blocks join the same group when a line in one sits where _stack_cells would
+    chain it onto a line in the other, or the two lines share a baseline (a row's label-and-figures split
+    the same way a stacked cell's fragments are) -- both geometric, so the join does not depend on which
+    block pymupdf put either line in. Only blocks of _CHAIN_MAX lines or fewer are eligible: a paragraph
+    runs to many more lines than a wrapped cell or a split row ever does, and must never be pulled into
+    another block's group -- prose stays exactly as block-scoped as before this function existed.
+
+    A candidate join is only committed when the two groups' *combined* lines still pass _tabular (the
+    same table-or-single-cell shape test _stack_cells itself gates on): four consecutive, unrelated
+    two-line bio fields in a resume-style sidebar (Academedia p.33) each pass _tabular on their own (each
+    is its own narrow column) and each is _blocks_link-adjacent to the next (same tight interline gap a
+    genuine wrapped cell has), but pooling all four is neither narrow nor side-by-side -- it is prose that
+    happens to sit close together, not a table. Rejecting that join leaves each field its own group, exactly
+    as when this function did not exist. A join that does not yet look tabular can still complete once a
+    third block supplies the missing side-by-side evidence (as Ependion's own two-fragment column groups
+    do once merged with their neighbor column), so this is checked at every step, not just the end."""
+    n = len(block_lines)
+    parent = list(range(n))
+    pooled = {i: block_lines[i] for i in range(n)}  # current root -> its group's pooled lines
+
+    def find(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    short = [i for i, lines in enumerate(block_lines) if 0 < len(lines) <= _CHAIN_MAX]
+    for a in range(len(short)):
+        for b in range(a + 1, len(short)):
+            i, j = short[a], short[b]
+            ri, rj = find(i), find(j)
+            if ri == rj or not _blocks_link(block_lines[i], block_lines[j]):
+                continue
+            merged = pooled[ri] + pooled[rj]
+            width = max(bbox[2] for bbox, _ in merged) - min(bbox[0] for bbox, _ in merged)
+            if not _tabular(merged, width, page_w):
+                continue
+            parent[ri] = rj
+            pooled[rj] = merged
+            del pooled[ri]
+    groups: dict[int, list[int]] = {}
+    for i in range(n):
+        groups.setdefault(find(i), []).append(i)
+    return list(groups.values())
+
+
+def _blocks_link(lines_a, lines_b) -> bool:
+    """True if a line in a and a line in b are the same stacked cell or the same row split across the
+    block boundary: either pair passes _stack_cells's own vertical-chain test (x-overlap, tight vertical
+    gap -- width ratio is not: that check is against a chain's accumulated width and has no pairwise
+    reading, and the _CHAIN_MAX-line cap already bounds how far off two chainable fragments' widths can
+    be), or one is a bare label and the other its bare figures (exactly one side _PURE_VALUE) sharing a
+    baseline within _ROW_GAP times the narrower one's width (Ependion's "Recognized .../-9,751" split
+    measures 2.3x). The value/label asymmetry, not just the gap, matters: two adjacent header cells of one
+    table (Ependion's "Between"/"Between" columns, gap 0.2x) share a baseline just as tightly as a split
+    row does -- they are neither of them a value, so this test leaves them alone and _stack_cells's own
+    column-shape gate is what decides whether either chains at all. Neither test fires across two lines
+    whose heights differ by more than _LINE_RATIO: the vertical-chain gap tolerance scales with a line's
+    own height (_CHAIN_GAP times the taller of the two), so a big decorative glyph (Acast's "460" stat,
+    53pt tall next to normal 10pt body text) can reach far enough down the page to graze an unrelated
+    paragraph's first line -- a block boundary always used to end that reach by accident; this test must
+    end it on purpose."""
+    for bbox_a, txt_a in lines_a:
+        wa, ha = bbox_a[2] - bbox_a[0], bbox_a[3] - bbox_a[1]
+        yc_a = (bbox_a[1] + bbox_a[3]) / 2
+        value_a = bool(_PURE_VALUE.fullmatch(txt_a.strip()))
+        for bbox_b, txt_b in lines_b:
+            wb, hb = bbox_b[2] - bbox_b[0], bbox_b[3] - bbox_b[1]
+            if max(ha, hb) > _LINE_RATIO * min(ha, hb):
+                continue
+            value_b = bool(_PURE_VALUE.fullmatch(txt_b.strip()))
+            x_gap = max(bbox_a[0], bbox_b[0]) - min(bbox_a[2], bbox_b[2])
+            if (value_a != value_b and abs(yc_a - (bbox_b[1] + bbox_b[3]) / 2) <= 2.5
+                    and x_gap <= _ROW_GAP * min(wa, wb)):
+                return True
+            overlap = min(bbox_a[2], bbox_b[2]) - max(bbox_a[0], bbox_b[0])
+            gap = max(bbox_a[1], bbox_b[1]) - min(bbox_a[3], bbox_b[3])
+            span = max(ha, hb)
+            if overlap >= 0.5 * min(wa, wb) and -0.5 * span <= gap <= _CHAIN_GAP * span:
+                return True
+    return False
+
+
+def _tabular(lines: list[tuple[tuple, str]], width: float, page_w: float) -> bool:
+    """A block or a candidate _group_blocks pool already looks like a table or a single stacked cell:
+    some baseline holds two x-disjoint lines (side by side -- a table row's columns, or two stacked
+    cells' matching fragments), or the whole thing is a narrow column (a single wrapped cell, isolated by
+    a wide gutter from its neighbors). A prose paragraph has one fragment per baseline and fills its
+    column's width, and its lines can touch just as tightly as stacked fragments do (Atlas Copco sets
+    them with zero leading), so leading alone cannot tell the two apart -- shape must."""
     bands: list[list] = []  # [yc, [bbs]]
     for bb, _ in lines:
         band = next((b for b in bands if abs(b[0] - (bb[1] + bb[3]) / 2) <= 2.5), None)
@@ -109,7 +205,20 @@ def _stack_cells(lines: list[tuple[tuple, str]], block_w: float, page_w: float) 
         else:
             band[1].append(bb)
     side_by_side = any(any(b[2] <= o[0] for b in bbs for o in bbs if b is not o) for _, bbs in bands)
-    if not (side_by_side or block_w <= 0.15 * page_w):
+    return side_by_side or width <= 0.15 * page_w
+
+
+def _stack_cells(lines: list[tuple[tuple, str]], block_w: float, page_w: float) -> list[tuple[tuple, str]]:
+    """A wrapped cell printed as stacked fragments (Ependion's maturity header: 'Between' over '1 and' over
+    '2 years', each its own line) becomes one line again -- but only within a _tabular block or pool.
+    Within a chainable one a fragment joins the chain above when their x-ranges overlap by half the
+    narrower's width, its box sits within _CHAIN_GAP of a line height below the chain's box (stacked
+    fragments touch or overlap), it is no wider than 1.5x the chain (a continuation never much exceeds the
+    cell it wraps in, Nelly's next row label under a short one), the chain is under _CHAIN_MAX deep, and
+    its own baseline carries no pure-figures line elsewhere in the pool (those are its row's figures --
+    Morrow Bank packs label rows 11pt apart with each row's figures on its own label's baseline). Chains
+    keep top-to-bottom text order."""
+    if not _tabular(lines, block_w, page_w):
         return lines
     value_ycs = [(bb[1] + bb[3]) / 2 for bb, txt in lines if _PURE_VALUE.fullmatch(txt.strip())]
     chains: list[list] = []  # [x0, y0, x1, y1, [texts]]
