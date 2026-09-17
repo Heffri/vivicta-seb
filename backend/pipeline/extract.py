@@ -16,6 +16,7 @@ import os
 import re
 import unicodedata
 from collections import Counter
+from datetime import date
 
 from . import kb, llm, locate
 from .parse import normalize_ws, quote_on_page
@@ -862,6 +863,123 @@ def _between_rows(sf: dict, fields: list[dict], sfs: list[dict], defaults: dict,
     return None
 
 
+_MONTHS = {m: i for i, m in enumerate(("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"), 1)}
+_MATURITY_DATE = re.compile(rf"(?i)\b(\d{{1,2}})\s+({'|'.join(_MONTHS)})[a-z]*\.?\s+(20\d\d)\b")  # "16 Jul 2026"
+_MATURITY_RANGE = re.compile(r"\b(20\d\d)\s*[-–−]\s*(20\d\d)\b")  # "2027-2030"
+_MATURITY_YEAR = re.compile(r"\b(20\d\d)\b")
+_DATE_BUCKET_KEYS = {"due_within_1_year", "due_1_to_5_years", "due_after_5_years"}
+_DATE_BUCKET_WINDOW = 15  # rows looked back from total_debt's own row; Proact's own instrument list (v073) is 7 rows deep
+
+
+def _bucket_for_date(d: date, fye: date) -> str:
+    """Calendar-exact, not a fixed day-count: "within 1 year" is on or before the date exactly one year
+    after fye, so a bare next-calendar-year value lands here whether or not a leap day falls in between --
+    a fixed 366-day cutoff instead would tip a range's own start (e.g. "2027" against a 2025-12-31 fye is
+    exactly 366 days out) into the wrong bucket and manufacture a false straddle (v073)."""
+    return ("due_within_1_year" if d <= fye.replace(year=fye.year + 1) else
+            "due_1_to_5_years" if d <= fye.replace(year=fye.year + 5) else "due_after_5_years")
+
+
+def _maturity_bucket(row: str, fye: date) -> str | None:
+    """Which debt_maturity bucket a row's own printed maturity falls into, relative to the balance sheet
+    date `fye`: a day-month-year date ("16 Jul 2026") is a point, bucketed directly; a year range
+    ("2027-2030") is bucketed by its own start, but only when its end lands in the SAME bucket -- a range
+    straddling a boundary proves nothing about which side the debt sits on, so it returns "straddle" rather
+    than guess; a bare year ("2026") is its own Jan-1..Dec-31 span, checked the same way. A row naming its
+    own maturity three times or more is never a candidate -- a loan's own line names it once (a range
+    twice); three-plus is a running header or a repeated watermark that _page_rows glued into one row
+    (Proact's own page prints one such line, v073), not a printed instrument."""
+    if len(_MATURITY_YEAR.findall(row)) > 2:
+        return None
+    m = _MATURITY_DATE.search(row)
+    if m:
+        d = date(int(m.group(3)), _MONTHS[m.group(2)[:3].lower()], int(m.group(1)))
+        return _bucket_for_date(d, fye)
+    m = _MATURITY_RANGE.search(row)
+    if m:
+        start, end = int(m.group(1)), int(m.group(2))
+    else:
+        m = _MATURITY_YEAR.search(row)
+        if not m:
+            return None
+        start = end = int(m.group(1))
+    lo, hi = _bucket_for_date(date(start, 1, 1), fye), _bucket_for_date(date(end, 12, 31), fye)
+    return lo if lo == hi else "straddle"
+
+
+def _balance_sheet_date(window: list[str], fiscal_year) -> date:
+    """The date maturities are measured from: 31 Dec of fiscal_year by default, or the day/month a
+    caption in the table's own window states for that year (Proact and Nederman both print "31 Dec
+    2025" anyway; a fiscal year ending on another date would print its own day/month here instead). A
+    candidate date only counts when nothing _row_amounts recognises as an amount follows it on the same
+    row -- an instrument's OWN due-date row states its own maturity, immediately followed by its own
+    carrying amount (or a nil "-"), and must never be mistaken for the table's caption."""
+    for r in window:
+        m = _MATURITY_DATE.search(r)
+        if m and int(m.group(3)) == int(fiscal_year) and not _row_amounts(r[m.end():]):
+            return date(int(fiscal_year), _MONTHS[m.group(2)[:3].lower()], int(m.group(1)))
+    return date(int(fiscal_year), 12, 31)
+
+
+def _date_bucket_derive(schema: dict, fields: list[dict], texts: list[str], fiscal_year) -> dict[str, tuple] | None:
+    """{key: (value, quote, page, raw_label)} for however many of debt_maturity's three buckets a date-
+    per-instrument note proves, when the model answered null on some or all of them: Proact prints one row
+    per loan/lease -- label, then its own due date/year/year-range, then its carrying amount -- instead of
+    bucket rows or bucket columns (docs/acrylic/evidence/v063.md gap 2, v073). A third maturity shape
+    besides those two, so it gets its own function alongside _between_rows, tried at the same "missing
+    operand" trigger point in extract().
+
+    Scoped to total_debt's own table the way _operand_table_rows anchors elsewhere (v058): a bounded
+    window of rows immediately above total_debt's own verified row, not a page-wide search. Reusing
+    _operand_table_rows itself does not fit this shape -- its year-header boundary test (_year_run) fires
+    on a bare year-RANGE value ("2027-2030") as if it were a 2-column table header, cutting the window
+    down to one row before it ever reaches the instruments above. Amounts come from each row's own last
+    printed number: a single-column list like this has no year header for _row_year_column to key a
+    column off. Buckets the model already filled are left alone -- this only ever proposes values, never
+    overwrites one -- and the caller adopts them only when they close maturity_sums_to_total exactly.
+    None here means no qualifying row was found near the total, not that none exists elsewhere on the page."""
+    ident = _identity_parts(schema)
+    if not ident or not fiscal_year:
+        return None
+    total_key, part_keys = ident
+    if set(part_keys) != _DATE_BUCKET_KEYS:
+        return None  # the day/year/range bucketing below is this schema's own three durations, not a generic split
+    by_key = {f["key"]: f for f in fields}
+    total = by_key.get(total_key) or {}
+    src = total.get("source") or {}
+    page = src.get("page")
+    if not isinstance(total.get("value"), (int, float)) or isinstance(total["value"], bool) \
+            or not isinstance(page, int) or not (0 < page <= len(texts)) or not src.get("quote"):
+        return None
+    text = texts[page - 1]
+    rows = _page_rows(text)
+    if src["quote"] not in rows:
+        return None
+    ti = rows.index(src["quote"])
+    window = rows[max(0, ti - _DATE_BUCKET_WINDOW):ti]
+    fye = _balance_sheet_date(window, fiscal_year)
+    sums: dict[str, float] = {}
+    contrib: dict[str, list[tuple[int, str]]] = {}
+    for i, r in enumerate(window):
+        bucket = _maturity_bucket(r, fye)
+        if bucket == "straddle":
+            return None  # a year range this table prints straddles a bucket boundary -- no safe read of ANY row here
+        if bucket is None:
+            continue
+        amounts = _row_amounts(r)
+        if not amounts:
+            continue
+        sums[bucket] = round(sums.get(bucket, 0) + amounts[-1], 2)
+        contrib.setdefault(bucket, []).append((i, r))
+    if not sums:
+        return None
+    first = min(i for rs in contrib.values() for i, _ in rs)
+    quote = " ".join(window[first:])
+    if not quote_on_page(quote, text):
+        return None
+    return {k: (v, quote, page, " + ".join(_row_label(r) for _, r in contrib[k])) for k, v in sums.items()}
+
+
 _BUCKET_BOUNDARY = {  # the schema's own synonyms cover most of this (dash-normalised below, so "1–2 years" matches
     # the schema's "1-2 years"); these patch gaps a plain header_synonyms literal-substring entry (case-
     # insensitive, no word boundary, scanned over the whole 25-row window _bucket_header searches, not just the
@@ -1506,6 +1624,22 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                 values[key] = fix[0]
                 filled.add(key)
                 c.update(_check(sc, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema, stated_zeros=stated_zeros))
+            elif (dated := _date_bucket_derive(schema, fields, texts, fiscal_year)):
+                # a date-per-instrument note (Proact, v073): _between_rows just found fewer than two other real
+                # operands to sit between, but a date-shaped note can prove every null bucket at once, so this
+                # is tried independently rather than only for the one key `missing` happened to name
+                fillable = {k: v for k, v in dated.items() if by_key[k]["value"] is None}
+                candidate = {**values, **{k: v[0] for k, v in fillable.items()}}
+                if fillable and _check(sc, {**defaults, **candidate})["passed"]:
+                    for k, (value, quote, dpage, label) in fillable.items():
+                        warnings.append(f"{k}: model returned null; instrument rows on page {dpage} sum by maturity date to {value}, closing {c['name']} exactly: {quote!r}")
+                        # value_derived stands in for value_in_quote (WEIGHTS, never both): a single-row bucket's own
+                        # amount is a literal printed number like any other verified quote, only a multi-row sum is "derived"
+                        by_key[k].update(value=value, period=str(fiscal_year), raw_label=label, source={"page": dpage, "quote": quote},
+                                         evidence=["quote_on_page"] if _value_in_quote(value, quote) else ["quote_on_page", "value_derived"])
+                        values[k] = value
+                        filled.add(k)
+                    c.update(_check(sc, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema, stated_zeros=stated_zeros))
         if c["detail"].startswith("missing:") or not sc.get("identity"):  # only an equality proves a sum of rows; margin_sanity would accept anything
             continue
         for f, sf in zip(fields, sfs):  # an operand whose figure is proven by the rows around its quote: Röko "1,01", Catena's two tax rows
