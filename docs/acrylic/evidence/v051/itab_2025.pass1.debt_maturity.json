@@ -1,0 +1,63 @@
+{
+  "report_id": "lib-itab_2025",
+  "company": "ITAB Group",
+  "fiscal_year": 2025,
+  "currency": "SEK",
+  "section": "debt_maturity",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_within_1_year"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [125, 126] selected from candidates [125, 126]"
+  ]
+}
