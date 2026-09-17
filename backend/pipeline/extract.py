@@ -388,7 +388,8 @@ WEIGHTS = {"quote_on_page": 0.35, "value_in_quote": 0.20, "arith_ok": 0.20, "lab
            "value_derived": 0.20,  # stands in for value_in_quote when the printed number is unreadable, never both
            "stated_zero": 0.20,  # stands in for value_in_quote when the figure is never printed: the report says 0 in words (v050)
            "identity_all_columns": 0.0,  # a marker: an unknown label whose identity holds in every column earns label_known
-           "identity_kept": 0.0}  # a marker: a column guard's own re-read lost to a value that closes the identity exactly (v066)
+           "identity_kept": 0.0,  # a marker: a column guard's own re-read lost to a value that closes the identity exactly (v066)
+           "printed_nil": 0.0}  # a marker: the bucket's own cell prints a dash -- the report's explicit 0 for that window (v078)
 
 
 _DASHES = str.maketrans({"–": "-", "−": "-", " ": " "})
@@ -1230,8 +1231,10 @@ def _bucket_total_row(rows: list[str], total_sf: dict, bucket_sfs: dict | None =
 def _bucket_assign(amounts: list, col_keys: list[str]) -> dict[str, float | None]:
     """{key: value} from a row's amounts by column key: a key spanning more than one column (a finer split,
     "1-2 years" + "2-5 years" both due_1_to_5_years) is their sum; a key whose every column is nil (None, not a
-    printed 0) is None overall, not a fabricated 0 -- "-" in a maturity table means no debt is due in that
-    window, same principle as the bucket fields' own "null if the table has no such row" rule, one level down."""
+    printed 0) is None overall -- "-" in a maturity table means no debt is due in that window. Keeping None here
+    (not a 0) leaves "nothing to sum" distinguishable from a column the table does not print at all; v078's
+    write site (_fill_bucket_columns) is the one place that None is translated into the report's explicit 0,
+    and only when the selected row's own arithmetic proves it."""
     out: dict[str, float | None] = {}
     for key in dict.fromkeys(col_keys):
         if key == "_ignore":  # v076: a counted-but-unassigned total-shaped column (undiscounted beside carrying).
@@ -1327,19 +1330,42 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
             if _bucket_row_prior_year(rows, idx, fiscal_year):
                 warnings.append(f"{total_key}: {rows[idx]!r} names fiscal year {int(fiscal_year) - 1}, not {fiscal_year}; not this year's bucket row")
                 continue
+            # v078: a bucket whose every column on this row prints a dash is not unprinted -- the report is
+            # saying "no debt is due in this window" (v036's own nil convention, one level down), which is a
+            # 0, not the null this path carried until now. Two gates before a dash says 0: the row must print
+            # a total for its buckets to close against, and the real buckets must sum to it within the
+            # check's own ±2 with the dashes read as 0 -- the row's own arithmetic is the proof. A total
+            # sitting alone over dash columns is a misparsed row, not a zero-debt report; zeros written there
+            # would turn an honest "missing" into a manufactured failure. The translation lives only here, at
+            # the write: _row_amounts keeps nil=None for its other callers, _bucket_assign keeps None for
+            # "nothing to sum", and _check's null-bucket guards never see a translated value. A bucket this
+            # table prints no column for at all (key absent from derived) is not a dash: stays null.
+            nil_keys = [k for k in part_keys if k in derived and derived[k] is None]
+            if nil_keys and not (isinstance(total_val, (int, float))
+                                 and abs(round(sum(v for k, v in derived.items() if k != total_key and v is not None), 2) - total_val) <= 2):
+                nil_keys = []
             acted = False
             for key in (total_key, *part_keys):
                 value = derived.get(key)
+                nil = value is None and key in nil_keys  # all-dash bucket on a row whose own arithmetic closes
+                if nil:
+                    value = 0
                 current = by_key[key]["value"]
                 if value is None or (isinstance(current, (int, float)) and abs(current - value) <= 2):
                     continue  # nothing to add, or agrees with the model's own answer -- its evidence already covers it
-                warnings.append(f"{key}: {'model returned null' if current is None else f'{current} disagrees with the maturity table'}; "
-                                 f"{value} read from {rows[idx]!r} by its column order")
+                prefix = "model returned null" if current is None else f"{current} disagrees with the maturity table"
+                if nil:
+                    warnings.append(f"{key}: {prefix}; a dash is printed in the row's own column for it ({rows[idx]!r}) -- "
+                                    f"no debt due in that window, the report's explicit 0")
+                else:
+                    warnings.append(f"{key}: {prefix}; {value} read from {rows[idx]!r} by its column order")
                 # score_field derives value_in_quote itself from quote_on_page; only value_derived (a sum with no
                 # literal quote, e.g. two finer bucket columns) needs to be pre-seeded, or it would double-count
                 by_key[key].update(value=value, period=str(fiscal_year) if fiscal_year else by_key[key]["period"],
                                     raw_label=_row_label(rows[idx]), source={"page": page, "quote": rows[idx]},
-                                    evidence=["quote_on_page"] if _value_in_quote(value, rows[idx]) else ["quote_on_page", "value_derived"])
+                                    evidence=(["quote_on_page", "printed_nil"] if nil else
+                                              ["quote_on_page"] if _value_in_quote(value, rows[idx]) else
+                                              ["quote_on_page", "value_derived"]))
                 values[key] = value
                 filled.add(key)
                 acted = True
