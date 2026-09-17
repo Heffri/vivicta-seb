@@ -208,7 +208,17 @@ def _check(check: dict, values: dict, texts: list[str] | None = None, pages: lis
         sf_by_key = {sf["key"]: sf for sf in schema.get("fields", [])}
         field_pages = {f["key"]: f["source"]["page"] for f in (fields or []) if f.get("source")}
         search = sorted({field_pages[k] for k in listed if k not in naz and k in field_pages} | set(pages or ()))
-        rows = [normalize_ws(r).lower() for p in search if 0 < p <= len(texts) for r in _page_rows(texts[p - 1])]
+        # anchor on every real operand of the identity (total_debt included), not just the listed buckets:
+        # the span must reach the total row, or it could stop short of the table's own bottom boundary
+        operands = [k for k in re.findall(r"\b[A-Za-z_]\w*\b", check["expr"]) if k not in _SAFE_BUILTINS]
+        span = _operand_table_rows(texts, fields or [], operands, naz)
+        if span is not None:
+            # v058: only the operands' own table -- a bucket word printed by another table on a candidate page
+            # (MedCap's contractual cash-flow ">5år" header) must not block a 0 the operands' table really implies
+            rows = [normalize_ws(r).lower() for r in span]
+        else:
+            # v058: no printable operand row to anchor a table boundary to -> v044's whole-page search, unweakened
+            rows = [normalize_ws(r).lower() for p in search if 0 < p <= len(texts) for r in _page_rows(texts[p - 1])]
         zero = {k for k in naz if not any((cs := normalize_ws(s).lower()) and cs in r
                                            for s in sf_by_key.get(k, {}).get("synonyms", []) for r in rows)}
     # v050: all listed operands null, but the identity's remaining operand(s) are themselves stated zeros --
@@ -296,6 +306,39 @@ def _row_year_column(rows: list[str], i: int, fiscal_year) -> tuple[int, int] | 
                 return (len(run) - 1 - run[::-1].index(str(fiscal_year)), len(run))
         return None  # the nearest run wins even when it names no usable column: climbing past it would cross into the table above
     return None
+
+
+def _operand_table_rows(texts: list[str], fields: list[dict], keys: list[str], naz: list[str]) -> list[str] | None:
+    """The rows of the table the present-label search's *real* (non-null) operands were read from (v058): each
+    operand's source.quote must be an exact _page_rows row -- the anchor standard _column_values/_derived_value
+    already use -- and the span per page runs from the nearest year-header row above the page's topmost anchor
+    (_year_run over the growing window, _row_year_column's upward walk; the page top when no header sits above,
+    so a headerless table never narrows the search) down to the page's bottommost anchor, the Totalt row: bucket
+    words printed by another table on the same page (MedCap's contractual cash-flow table, docs/acrylic/evidence/
+    v058.md) or below the total are not this table's. None when no operand's quote is a printed row -- quotes the
+    model composed rather than copied give no provable table boundary, and the caller then keeps v044's
+    whole-page search instead of narrowing the guard on a guess."""
+    anchors: dict[int, list[int]] = {}
+    by_key = {f["key"]: f for f in fields}
+    for k in keys:
+        if k in naz:
+            continue
+        src = (by_key.get(k) or {}).get("source") or {}
+        p = src.get("page")
+        if not isinstance(p, int) or not 1 <= p <= len(texts) or not src.get("quote"):
+            continue
+        rows = _page_rows(texts[p - 1])
+        if src["quote"] in rows:
+            anchors.setdefault(p, []).append(rows.index(src["quote"]))
+    if not anchors:
+        return None
+    out: list[str] = []
+    for p, idxs in anchors.items():
+        rows = _page_rows(texts[p - 1])
+        top, bottom = min(idxs), max(idxs)
+        span_top = next((j for j in range(top - 1, -1, -1) if _year_run(" ".join(rows[j:top]))), 0)
+        out.extend(rows[span_top:bottom + 1])
+    return out
 
 
 def _segment_column(text: str, fiscal_year, fields: list[dict]) -> tuple[int, int] | None:
