@@ -13,9 +13,15 @@ splits per 100 non-empty lines, per page, per company, per section, and overall.
 is re-matched with parse.quote_on_page (the same function extract.py verifies provenance with) against
 (a) the cached pages.jsonl text and (b) the PDF re-parsed with the current parse.py. A quote lost on
 (a) was already broken when stored; a quote lost on (b) but not on (a) is a parser regression.
+--kb <dir> points the mode at another stored KB (e.g. a hardening round's seed dir, whose only
+section is debt_maturity); --section picks the section, or "both".
 
 --locate mode (locator non-regression): candidate_pages() per section on (a) the cached pages.jsonl
 text vs (b) the re-parsed text; prints both rankings so a changed top page is visible at a glance.
+
+--pages mode (directed page dump): print the current page_text() of named pages, e.g.
+--pages ependion_2025:155,ratos_2025:131 --out .../pages-before.txt. Run before and after a parse.py
+change so the two dumps line up page for page.
 """
 import argparse
 import json
@@ -68,37 +74,43 @@ def run_splits(out) -> None:
         print(f"  {section:<16} {sp} splits / {ln} lines = {100 * sp / max(ln, 1):.2f}%", file=out)
 
 
-def run_quotes(out) -> None:
-    kb = ROOT / "data" / "kb"
+def run_quotes(out, kb: pathlib.Path, sections: list[str]) -> None:
     pdfs = sorted((ROOT / "data" / "reports").glob("*.pdf"))
-    print(f"parse_check quote-regression run: PARSER_VERSION={parse.PARSER_VERSION}, {len(pdfs)} PDFs", file=out)
+    where = kb.name if kb.is_absolute() else kb.relative_to(ROOT)  # name only: an absolute path carries the machine's user name into committed evidence dumps
+    print(f"parse_check quote-regression run: PARSER_VERSION={parse.PARSER_VERSION}, {len(pdfs)} PDFs,"
+          f" kb={where}, sections={sections}", file=out)
     tot = {"old": [0, 0], "new": [0, 0]}  # [found, total]
     for pdf in pdfs:
         stem = pdf.stem
-        ext_file = kb / stem / "extractions" / "income_statement.json"
-        old_file = kb / stem / "pages.jsonl"
-        if not (ext_file.exists() and old_file.exists()):
-            print(f"\n== {stem}: no stored extraction/pages, skipped ==", file=out)
-            continue
-        old_texts = [json.loads(l)["text"] for l in old_file.read_text("utf-8").split("\n") if l]
-        new_texts = parse.page_texts(pdf)
-        fields = json.loads(ext_file.read_text("utf-8"))["fields"]
         n = old_found = new_found = 0
         lost = []
-        for f in fields:
-            src = f.get("source") or {}
-            quote, page = src.get("quote") or "", src.get("page")
-            if not quote or not isinstance(page, int) or not (1 <= page <= min(len(old_texts), len(new_texts))):
+        old_texts = new_texts = None
+        for section in sections:
+            ext_file = kb / stem / "extractions" / f"{section}.json"
+            old_file = kb / stem / "pages.jsonl"
+            if not (ext_file.exists() and old_file.exists()):
                 continue
-            n += 1
-            if parse.quote_on_page(quote, old_texts[page - 1]):
-                old_found += 1
-            else:
-                lost.append(("old", f["key"], page, quote))
-            if parse.quote_on_page(quote, new_texts[page - 1]):
-                new_found += 1
-            else:
-                lost.append(("new", f["key"], page, quote))
+            if old_texts is None:
+                old_texts = [json.loads(l)["text"] for l in old_file.read_text("utf-8").split("\n") if l]
+                new_texts = parse.page_texts(pdf)
+            fields = json.loads(ext_file.read_text("utf-8"))["fields"]
+            for f in fields:
+                src = f.get("source") or {}
+                quote, page = src.get("quote") or "", src.get("page")
+                if not quote or not isinstance(page, int) or not (1 <= page <= min(len(old_texts), len(new_texts))):
+                    continue
+                n += 1
+                if parse.quote_on_page(quote, old_texts[page - 1]):
+                    old_found += 1
+                else:
+                    lost.append(("old", f"{section}.{f['key']}", page, quote))
+                if parse.quote_on_page(quote, new_texts[page - 1]):
+                    new_found += 1
+                else:
+                    lost.append(("new", f"{section}.{f['key']}", page, quote))
+        if not n:
+            print(f"\n== {stem}: no stored extraction/pages, skipped ==", file=out)
+            continue
         tot["old"][0] += old_found
         tot["old"][1] += n
         tot["new"][0] += new_found
@@ -110,6 +122,20 @@ def run_quotes(out) -> None:
     for which in ("old", "new"):
         f, n = tot[which]
         print(f"  {which:>4}: {f}/{n} found, {n - f} lost", file=out)
+
+
+def run_pages(out, spec: str) -> None:
+    """Directed dump: the current page_text() of <stem>:<page> pairs, before/after a parse.py change."""
+    import pymupdf
+
+    print(f"parse_check directed-pages run: PARSER_VERSION={parse.PARSER_VERSION}", file=out)
+    for item in spec.split(","):
+        stem, page = item.strip().rsplit(":", 1)
+        pdf = ROOT / "data" / "reports" / f"{stem}.pdf"
+        with pymupdf.open(pdf) as doc:
+            text = parse.page_text(doc[int(page) - 1])
+        print(f"\n===== {stem} p.{page} ({len(text)} chars) =====", file=out)
+        print(text, file=out)
 
 
 def run_locate(out) -> None:
@@ -140,11 +166,16 @@ def main():
     mode = ap.add_mutually_exclusive_group()
     mode.add_argument("--quotes", action="store_true", help="quote regression instead of split-rate measurement")
     mode.add_argument("--locate", action="store_true", help="locator non-regression instead of split-rate measurement")
+    mode.add_argument("--pages", metavar="STEM:PAGE[,STEM:PAGE...]", help="directed dump of the current page_text() of these pages")
+    ap.add_argument("--kb", default="data/kb", help="knowledge base to read stored extractions/pages from (quote mode)")
+    ap.add_argument("--section", default="income_statement", help="extraction section(s) for quote mode: a name or 'both'")
     ap.add_argument("--out", default="-", help="write the report here ('-' = stdout)")
     a = ap.parse_args()
+    sections = SECTIONS if a.section == "both" else [a.section]
     out = open(ROOT / a.out, "w", encoding="utf-8", newline="\n") if a.out != "-" else sys.stdout
     with out:
-        run_quotes(out) if a.quotes else run_locate(out) if a.locate else run_splits(out)
+        run_quotes(out, ROOT / a.kb, sections) if a.quotes else run_locate(out) if a.locate \
+            else run_pages(out, a.pages) if a.pages else run_splits(out)
 
 
 if __name__ == "__main__":

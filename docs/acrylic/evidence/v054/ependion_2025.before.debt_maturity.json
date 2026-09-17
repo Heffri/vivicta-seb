@@ -1,0 +1,81 @@
+{
+  "report_id": "lib-ependion_2025",
+  "company": "Ependion",
+  "fiscal_year": 2025,
+  "currency": "SEK 000",
+  "section": "debt_maturity",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 583531,
+      "unit": "SEK 000",
+      "period": "2025",
+      "raw_label": "Borrowing",
+      "source": {
+        "page": 155,
+        "quote": "Corporate Governance Report mation, see Credit risks below. Borrowing 167,546 35,636 380,348 583,531"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 167546,
+      "unit": "SEK 000",
+      "period": "2025",
+      "raw_label": "Borrowing",
+      "source": {
+        "page": 155,
+        "quote": "Corporate Governance Report mation, see Credit risks below. Borrowing 167,546 35,636 380,348 583,531"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "SEK 000",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((167546 + 0 (due_1_to_5_years null) + 0 (due_after_5_years null)) - 583531) <= 2"
+    }
+  ],
+  "warnings": [
+    "due_1_to_5_years: 415984 is printed on none of pages [155, 156]; dropped as computed, not read"
+  ]
+}

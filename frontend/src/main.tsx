@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
+import type { Config } from './api'
 
 // desktop/preload.js exposes this on Electron only; a browser tab never has `window.arp`, so
 // dataset.material is simply never set and index.css's [data-material="on"] block never matches.
@@ -43,7 +44,10 @@ export type DesktopConfig = {
 }
 
 export type SetSettingsResult =
-  | { ok: true; port: number; config?: { model: string; embed_model: string; base_url: string | null; llm: boolean; provider: string } }
+  // v056: the inline literal is now api.ts's Config — desktop main.js resolves this field from
+  // /api/config's own JSON, which has carried `retrieval` since v034. No import cycle: api.ts
+  // imports ./types only.
+  | { ok: true; port: number; config?: Config }
   | { ok: false; error: string }
 
 export type TestConnectionResult =

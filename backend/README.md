@@ -146,6 +146,24 @@ The desktop Settings tab's Codex/Claude/API-endpoint cards carry a matching togg
 that writes this same env var on Save; there is no toggle for Local Ollama, which always runs with it
 off. See `pipeline/extract.py`'s own module docstring and `docs/acrylic/evidence/v043.md`/`v045.md`.
 
+## Quote retry (`EXTRACT_QUOTE_RETRY`)
+
+Opt-in, default **off**: `EXTRACT_QUOTE_RETRY=1` adds one follow-up call after the extraction call
+when the model's own answer cites a quote that is not printed verbatim on the page it names. The
+follow-up (`_quote_retry` in `pipeline/extract.py`) shows each such field's key, label and earlier
+value plus the cited page's own table rows (`_page_rows`, numbered; a page over
+`QUOTE_RETRY_MAX_ROWS` rows is filtered to the rows matching a field's value or one of its synonyms,
+±2 rows of context) and asks the model to copy the printed row character for character -- or answer
+null when no printed row states the figure. A field adopts the reply only when the new quote
+verifies on the page it names (`quote_on_page`), so a null, missing or still-unverifiable reply
+keeps the first answer: the retry can never leave a field worse than the single call. A 0 already
+proven by the report's own words (`_stated_zero`, v050) is not retried -- the sentence is the
+provenance, and a row list could only talk the model out of it. v054's 9-company Codex
+before/after (`docs/acrylic/evidence/v054.md`): 1 trigger in 9 (MEKO), no adoption (the true row is
+torn apart by a two-column layout in the text layer -- the `parse.py` defect HANDOFF's "Next" names),
+nothing worse, nothing improved, so it stays off pending a corpus where quote-shaped failures
+reproduce; the switch and its offline tests are ready either way.
+
 ## Checks
 
 - `python ../scripts/smoke_api.py` — every endpoint in `docs/API.md` against a running backend (`--llm` adds extract/index/ask,

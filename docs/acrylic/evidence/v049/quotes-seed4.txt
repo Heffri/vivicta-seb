@@ -1,0 +1,77 @@
+parse_check quote-regression run: PARSER_VERSION=4, 35 PDFs, kb=seed4-kb, sections=['debt_maturity']
+
+== academedia_2025: no stored extraction/pages, skipped ==
+
+== acast_2025: quotes=1 old_found=1 new_found=1
+
+== alligo_2025: no stored extraction/pages, skipped ==
+
+== apotea_2025: no stored extraction/pages, skipped ==
+
+== arjo_2025: no stored extraction/pages, skipped ==
+
+== atlas_copco_2025: no stored extraction/pages, skipped ==
+
+== bergman_beving_2025: no stored extraction/pages, skipped ==
+
+== better_collective_2025: no stored extraction/pages, skipped ==
+
+== bico_2025: no stored extraction/pages, skipped ==
+
+== boozt_2025: no stored extraction/pages, skipped ==
+
+== catella_2025: no stored extraction/pages, skipped ==
+
+== cloetta_2025: quotes=4 old_found=4 new_found=4
+
+== coor_service_management_hold_2025: no stored extraction/pages, skipped ==
+
+== creades_2025: no stored extraction/pages, skipped ==
+
+== ependion_2025: no stored extraction/pages, skipped ==
+
+== ework_2025: no stored extraction/pages, skipped ==
+
+== flat_capital_2025: no stored extraction/pages, skipped ==
+
+== flerie_2025: quotes=1 old_found=1 new_found=1
+
+== gentoo_media_2025: no stored extraction/pages, skipped ==
+
+== hansa_biopharma_2025: no stored extraction/pages, skipped ==
+
+== humana_2025: no stored extraction/pages, skipped ==
+
+== intrum_2025: quotes=3 old_found=3 new_found=3
+
+== knowit_2025: no stored extraction/pages, skipped ==
+
+== medcap_2025: no stored extraction/pages, skipped ==
+
+== meko_2025: quotes=2 old_found=1 new_found=1
+    LOST(new) debt_maturity.total_debt p.103: 'Total borrowing 6,558 5,327 3,446 3,244 quarter 2027. The covenants for the bank loans shall be test'
+    LOST(old) debt_maturity.due_within_1_year p.103: 'Total current 768 618 - 6\nliabilities'
+
+== morrow_bank_2025: no stored extraction/pages, skipped ==
+
+== ncab_2025: no stored extraction/pages, skipped ==
+
+== nelly_2025: no stored extraction/pages, skipped ==
+
+== norion_bank_2025: quotes=1 old_found=1 new_found=1
+
+== ovzon_2025: no stored extraction/pages, skipped ==
+
+== ratos_2025: no stored extraction/pages, skipped ==
+
+== storytel_2025: no stored extraction/pages, skipped ==
+
+== svolder_2025: quotes=1 old_found=1 new_found=1
+
+== vef_2025: no stored extraction/pages, skipped ==
+
+== xano_industri_2025: no stored extraction/pages, skipped ==
+
+== totals ==
+   old: 12/13 found, 1 lost
+   new: 12/13 found, 1 lost

@@ -99,7 +99,11 @@ opaque window — implemented, not testable on this branch's machines). The cust
 native chrome) is draggable and supports double-click-to-maximize/restore, verified at the Windows
 message level (`WM_NCHITTEST`/`WM_NCLBUTTONDBLCLK` against the real window). `npm run dist`
 produces two unsigned packages, portable and NSIS — unsigned means Windows SmartScreen warns on
-first run ("More info" → "Run anyway"). The data directory (reports, KB, uploads, `backend.log`)
+first run ("More info" → "Run anyway"). The current packaged release is **0.3.0**, built from
+`d1777d9` (the acrylic tip at package time, so it ships BM25 Ask, stated-zero, row-anchored year
+headers and the column-aware parse): `Annual Report Parser-0.3.0-portable.exe` (~141.4 MB) and
+`Annual Report Parser-Setup-0.3.0.exe` (NSIS, ~141.6 MB). [v055](evidence/v055.md) The data
+directory (reports, KB, uploads, `backend.log`)
 lives under the user's own `app.getPath('userData')/data`, seeded once from the bundled repo data
 on first launch and left alone on later launches/upgrades; first launch has no model provider
 configured, so it defaults to demo/fixture mode until Settings picks one (see "Model providers"
@@ -185,6 +189,13 @@ green throughout — see "How to verify".
 | `extract.py`: the column-bucket mechanism now rejects a whole row's column reading — not just one field — if any bucket value exceeds the row's own total past the check's rounding tolerance (Acast, which had been reading a stale prior-year row); `_derived_value`'s neighbour-sum repair no longer requires a row's label to be a *known* schema synonym before treating it as the model's own row, only that the value is literally quoted and the model's own label names that row (Nelly, whose correct current-portion answer was being overwritten by a current+non-current sum) | Fixes v037's two precisely-diagnosed bugs, both offline, zero model calls | [v040](evidence/v040.md) |
 | Opt-in two-pass page selection (`EXTRACT_TWO_PASS=1`, default off — see "Model providers" above), round 2: a longer, boilerplate-stripped pass-1 snippet with schema-keyword lines appended beyond its head; a forced two-page reply (primary + companion, repaired rather than rejected when the model names only one page); the schema's own `description` text reused verbatim as pass-1's steer | v043 (below) found three causes for its own 13 regressions — a starved 400-char snippet, a lost companion page, no schema-specific steer — and left them for the group; this round implements all three and re-runs the same 30 companies | [v045](evidence/v045.md) |
 | `debt_maturity.json` gains 26 bucket-label synonyms — spelled-out digit forms (`after five years`, `one to five years`) and Swedish `mellan`/`inom`/`efter`/`över` phrasing — found by reading every debt-maturity page cited across three prior hardening seeds, then corpus-wide false-positive-checked (four risky candidates found and left out) before shipping; zero code changes, zero model calls | Closes the spelled-out/Swedish vocabulary gap directly; two companies (Coor Service Management, Storytel) newly covered cleanly, two more (Ependion, Gentoo Media) confirmed still blocked by an unrelated parser-level column scramble, not vocabulary | [v046](evidence/v046.md) |
+| `kb.py`'s `/ask` retrieval goes three-state (`kb.retrieval_mode()`, surfaced as `retrieval` on `/api/config`): **hybrid** = min-max-normalised cosine (0.6) + BM25 (0.4) with `LLM_BASE_URL`; **bm25** = pure Okapi BM25 (in-memory index, no new files, stdlib only) under a codex/claude-only subscription; fixture untouched; `/ask` and `/index` gate on `_llm_configured()` instead of `LLM_BASE_URL` alone | A codex/claude-only desktop setup has no embeddings endpoint, so Ask was fixture-only there; the offline eval (1145 income + 77 debt queries over the stored KB) puts BM25's hit@3 at **87.0%** / **98.7%** vs the old token-share ranking's 41.4% / 59.7%, with hit@1 and hit@8 up too | [v034](evidence/v034.md) |
+| `parse.py` rebuilds page text column-aware (`PARSER_VERSION` 3 → 4): an XY-cut on the word-bbox x-projection behind four measured gates (substance, baseline alignment, label-column shape, torn-row pairs), plus block-level chaining of stacked header cells; over 35 real PDFs the split-row rate drops 0.27% → **0.20%** (debt pages) and 0.36% → **0.29%** (income pages), stored `data/kb` quotes 8/8 kept; `pymupdf==1.27.2.3` pinned to the text layer the parser was validated on | v013's baseline merge crosses gutters, so sidebars and side-by-side tables glued into the running text and scrambled rows on two-column report pages | [v049](evidence/v049.md) |
+| `extract.py` accepts a report-stated prose no-debt sentence as `total_debt = 0` behind a schema opt-in (`zero_if_stated`): value exactly 0, digit-free quote, verbatim on the cited page, naming the field, negation word from the schema's own list; a replay over all 42 stored seed runs moves exactly one company (Creades, the rule's only corpus candidate) | A correct "the company has no interest-bearing liabilities" sentence has no digits, so the printed-quote gates dropped the model's correctly-sourced 0 as "computed, not read" | [v050](evidence/v050.md) |
+| `extract.py`'s row derivations anchor on the nearest year run above the quoted row (was: the page's first header — wrong on multi-table note pages), resolve a repeated year across `Koncernen \| Moderbolaget` column pairs to the Group side when the run names Group before Parent, and `_between_rows` additionally tries the full rows printed directly above the uppermost operand row | MedCap p.101's stacked tables (an ageing table above the note, Group \| Parent year pairs in the note's own header) defeated every derivation window; the 135-company replay moves exactly 2 entries, both the intended medcap_2025 fix | [v052](evidence/v052.md) |
+| `scripts/replay_check.py` commits the stored-extraction replay as one repeatable script: every stored KB field list is fed back through baseline and worktree `extract()` (schemas loaded as of the same ref) and value/confidence/evidence/checks are diffed; `--kb/--section/--baseline/--only/--out`; the red control fires — seed4 vs pre-v048 reproduces exactly v048's 2 recorded changes (Intrum, MEKO) | v044/v050/v052 each hand-wrote a one-off replay script (30–60 min each, none committed); this is the capability they converged on, in the shape `label_regression.py` established | [v053](evidence/v053.md) |
+| Opt-in quote retry (`EXTRACT_QUOTE_RETRY`, default **off**): when the model's own answer cites a quote not printed on the page it names, **one** follow-up call shows those fields against the cited page's own table rows; a field adopts the reply only when the new quote verifies on the page it names, and a v050-proven stated zero is never retried; 9-company Codex before/after: 1 trigger (MEKO), 0 adoptions, nothing worse | Quote-shaped failures are the one class the offline repairs can't reach; the switch stays off pending a corpus where they reproduce — the mechanism and its offline tests are ready either way | [v054](evidence/v054.md) |
+| `kb.search()` returns no hits in bm25 mode when every raw BM25 score is 0 (was: stable cover-page order), and `ask()` then skips the model — a fixed "no passage matches the question's terms" answer, empty citations, an explanatory warning; hybrid untouched; KbView's Embeddings column reads `/api/config.retrieval` and shows a BM25 badge in bm25 mode | Swedish questions against English reports scored a flat 0 and still went to the model (v034's own finding) — the short-circuit saves the call and says why | [v059](evidence/v059.md) |
 
 **A single before/after model call is not proof.** v037 re-ran its own 10 companies a second time
 with no code change and watched two confidence numbers move anyway (Humana up, Storytel down) —
@@ -236,8 +247,9 @@ matching after the re-parse.
 
 ## Assumptions to confirm with Kristian / SEB
 
-Three calls the `debt_maturity` schema now makes on Kristian's behalf, written into its field
-descriptions (and the prompt the model reads) so they're applied consistently — not yet confirmed:
+Calls the `debt_maturity` pipeline now makes on Kristian's behalf — the first three written into
+its field descriptions (and the prompt the model reads), the later ones into schema switches and
+code gates, so they're applied consistently — not yet confirmed:
 
 - **Carrying amount, not contractual undiscounted maturities.** We assumed the table whose total
   reconciles to interest-bearing borrowings on the balance sheet, never the liquidity-risk note's
@@ -258,6 +270,17 @@ descriptions (and the prompt the model reads) so they're applied consistently �
   fields instead — that would also mean touching `ppt.py`'s `BUCKET_ORDER`/`BUCKET_LABELS` and the
   frontend's maturity charts, not just the schema.
   [v035](evidence/v035.md), [v036](evidence/v036.md), [v037](evidence/v037.md).
+- **A report's own prose no-debt sentence proves `total_debt = 0`.** When the report states in
+  words that there are no interest-bearing liabilities — a sentence with no digits, found verbatim
+  on the cited page, naming the field, carrying a negation word from the schema's own list — we
+  record `0` with that sentence as the provenance instead of dropping the field, behind the
+  schema's `zero_if_stated` opt-in. We assumed this; confirm it or tell us to flip it (drop the
+  field instead). [v050](evidence/v050.md).
+- **When a maturity table's year header repeats across Group | Parent column pairs, the Group side
+  wins.** If the header run's own row (or the one directly above it) names Group before Parent
+  (`Koncernen Moderbolaget`), the first pair is taken as the Group's; Parent named first → the last
+  pair; neither word, or no order → still declined as unknowable, exactly as before. We assumed
+  this; confirm it or tell us to flip it. [v052](evidence/v052.md).
 
 ## How to verify
 
