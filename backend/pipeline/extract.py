@@ -1046,7 +1046,8 @@ def _identity_closes(key: str, value, values: dict, defaults: dict, schema: dict
     return False
 
 
-def _bucket_synonym_hits(text: str, bucket_sfs: dict) -> list[tuple[int, int, str]]:
+def _bucket_synonym_hits(text: str, bucket_sfs: dict, total_sf: dict | None = None,
+                         ignore_syns: list | None = None) -> list[tuple[int, int, str]]:
     """[(start, end, key)] for every maturity-bucket synonym of every field in bucket_sfs found in text, dash-
     normalised (so "1–2 years" matches the schema's "1-2 years"), plus _BUCKET_BOUNDARY's English-symbol patch.
     A finer split that maps to the same key twice (Cloetta: "1–2 years" and "2–5 years" are both due_1_to_5_years)
@@ -1057,7 +1058,13 @@ def _bucket_synonym_hits(text: str, bucket_sfs: dict) -> list[tuple[int, int, st
     (not just the start) lets _bucket_header drop a hit that sits nested inside another, wider one -- two
     synonyms matching pieces of the one same printed phrase (XANO's "Summa inom 1 år": the bare word "Summa" and
     the plain synonym "inom 1 år" each match a piece of the one subtotal phrase already matched whole; Ework's
-    own header_synonym "3 months" is a literal substring of its own "1-3 months") is one column, not two."""
+    own header_synonym "3 months" is a literal substring of its own "1-3 months") is one column, not two.
+
+    v076, same span discipline: total_sf's own header_synonyms are carrying-amount wording (schema) -- a header
+    column of that wording is the total column itself (the report's stated total_debt basis), tagged apart from a
+    bare Total word as "total:carrying" so _bucket_header can prefer it when both shapes appear on one line; the
+    schema's ignore_header_synonyms (undiscounted/contractual total wording, printed beside the carrying column)
+    tag "_ignore" -- a real, counted column that is never assigned."""
     htext = text.translate(_DASHES)
     hits = []
     for key, sf in bucket_sfs.items():
@@ -1066,6 +1073,11 @@ def _bucket_synonym_hits(text: str, bucket_sfs: dict) -> list[tuple[int, int, st
             hits.extend((m.start(), m.end(), tag) for m in re.finditer(re.escape(syn.translate(_DASHES)), htext, re.I))
         if key in _BUCKET_BOUNDARY:
             hits.extend((m.start(), m.end(), key) for m in _BUCKET_BOUNDARY[key].finditer(htext))
+    if total_sf:
+        hits.extend((m.start(), m.end(), "total:carrying") for syn in total_sf.get("header_synonyms", [])
+                    for m in re.finditer(re.escape(syn.translate(_DASHES)), htext, re.I))
+    for syn in ignore_syns or []:
+        hits.extend((m.start(), m.end(), "_ignore") for m in re.finditer(re.escape(syn.translate(_DASHES)), htext, re.I))
     return hits
 
 
@@ -1101,7 +1113,8 @@ def _bucket_year_hits(text: str, fiscal_year) -> list[tuple[int, str]]:
     return hits
 
 
-def _bucket_header(rows: list[str], idx: int, bucket_sfs: dict, fiscal_year, max_back: int = 25) -> list[str] | None:
+def _bucket_header(rows: list[str], idx: int, bucket_sfs: dict, fiscal_year, max_back: int = 25,
+                   total_sf: dict | None = None, ignore_syns: list | None = None) -> list[str] | None:
     """The ordered column keys of the maturity-bucket table whose grand-total sits on rows[idx]: each bucket hit
     above it, in print order, plus a "total" slot wherever a bare Total/Summa/Totalt column header is seen. A
     due_within_1_year subtotal column (_SUBTOTAL_PHRASES, e.g. XANO's "Summa inom 1 år") overrides, not adds to,
@@ -1111,17 +1124,50 @@ def _bucket_header(rows: list[str], idx: int, bucket_sfs: dict, fiscal_year, max
     header and the total row. Within one row, a hit nested inside another, wider hit is dropped before counting
     (_drop_nested_hits) -- see its own docstring and _bucket_synonym_hits'. None without >=2 distinct bucket
     keys -- a page that merely mentions one bucket word in passing prose is not a bucket-column table. Falls
-    back to a literal calendar-year header (_bucket_year_hits) when no named bucket reaches that bar."""
+    back to a literal calendar-year header (_bucket_year_hits) when no named bucket reaches that bar.
+
+    v076: a carrying-amount phrase (total_sf's own header_synonyms) on a bucket-naming line fills the total slot
+    itself, and an undiscounted/contractual phrase (ignore_syns) on that same line becomes an "_ignore" column --
+    counted, never assigned. Both are dropped from lines that name no bucket (prose and note titles in the same
+    25-row window, v069's bare-"due" lesson). When the window carries a carrying hit anywhere, no bare Total word
+    in it claims the total slot any more -- on bucket-naming lines the bare word is demoted to _ignore (a
+    competing total-shaped column beside the carrying one, v028), on prose lines it is dropped; without a
+    carrying hit anywhere, the _ignore tags are dropped and every bare word keeps today's behaviour: the total
+    slot."""
     window = rows[max(0, idx - max_back):idx]
-    hits = []
+    per_row = []
     for row in window:
         bare_total = [(m.start(), m.end(), "total") for m in _BARE_TOTAL.finditer(row.translate(_DASHES))] if not _row_amounts(row) else []
         # a bare Total/Summa only marks a header column when its own row carries no amounts -- a row that
         # prints "Total 96 173" is another table's own data row (Boozt p.121's earlier receivables-ageing
         # note, still inside the 25-row window), not a column header wrapped above idx (v060)
-        row_hits = _drop_nested_hits(_bucket_synonym_hits(row, bucket_sfs) + bare_total)
-        hits.extend(key for _, _, key in sorted(row_hits))
-    if len({k.split(":")[0] for k in hits if k != "total"}) < 2:
+        row_hits = _bucket_synonym_hits(row, bucket_sfs, total_sf, ignore_syns)
+        if not any(k.split(":")[0] not in ("total", "_ignore") for _, _, k in row_hits):
+            row_hits = [h for h in row_hits if h[2].split(":")[0] not in ("total", "_ignore")]
+        per_row.append((row_hits, bare_total))
+    # v076: when the header carries a carrying-amount column anywhere in the window, it -- not a bare Total
+    # word -- is the total slot (v028), so every bare Total/Summa hit in the window is demoted to _ignore: a
+    # bare word on a bucket-naming line belongs to this header only when no carrying column exists ("Total
+    # undiscounted value" alone keeps today's reading); anywhere else ("…of the total balance for accounts…",
+    # Ework's own p.70 prose two tables above) it is prose that would shift every column after it by one the
+    # moment the carrying read makes the window's hit count match the row's amounts -- seen live in v076's
+    # first real-page run, caught by the over valve, and fenced here at the source.
+    has_carry = any(k == "total:carrying" for row_hits, _ in per_row for _, _, k in row_hits)
+    hits = []
+    for row_hits, bare_total in per_row:
+        if has_carry:
+            # demoted only on header lines (a bucket-naming row's bare word is this header's own secondary
+            # total column); dropped from prose rows -- counted, an amount-free prose row's bare word would
+            # pad the column count back up and break the very alignment the carrying read restores
+            if any(k.split(":")[0] not in ("total", "_ignore") for _, _, k in row_hits):
+                bare_total = [(s, e, "_ignore") for s, e, _ in bare_total]
+            else:
+                bare_total = []
+        else:
+            row_hits = [h for h in row_hits if h[2] != "_ignore"]
+        hits.extend(key for _, _, key in sorted(_drop_nested_hits(row_hits + bare_total)))
+    hits = ["total" if k == "total:carrying" else k for k in hits]
+    if len({k.split(":")[0] for k in hits if k.split(":")[0] not in ("total", "_ignore")}) < 2:
         year_hits = None
         for row in window:
             yh = _bucket_year_hits(row, fiscal_year)
@@ -1141,7 +1187,7 @@ def _bucket_header(rows: list[str], idx: int, bucket_sfs: dict, fiscal_year, max
 
 
 def _bucket_total_row(rows: list[str], total_sf: dict, bucket_sfs: dict | None = None, fiscal_year=None,
-                       known_total=None, warnings: list[str] | None = None) -> list[int]:
+                       known_total=None, warnings: list[str] | None = None, ignore_syns: list | None = None) -> list[int]:
     """Indices of rows that could be a maturity table's grand-total row: the total field's own synonym ("Summa
     räntebärande skulder"), or a bare Total/Totalt/Summa -- a schema's total-field synonyms are themselves
     phrased as row labels ("total borrowings"), but plenty of reports print just the bare word on the total row
@@ -1166,7 +1212,7 @@ def _bucket_total_row(rows: list[str], total_sf: dict, bucket_sfs: dict | None =
     for i, r in enumerate(rows):
         if i in hits or len(_row_amounts(r)) < 2 or not _label_known(_row_label(r), debt_sf):
             continue
-        col_keys = _bucket_header(rows, i, bucket_sfs, fiscal_year)
+        col_keys = _bucket_header(rows, i, bucket_sfs, fiscal_year, total_sf=total_sf, ignore_syns=ignore_syns)
         if col_keys and len(_row_amounts(r, len(col_keys), nil=None)) == len(col_keys):
             candidates.append(i)
     if len(candidates) > 1 and isinstance(known_total, (int, float)):
@@ -1188,6 +1234,9 @@ def _bucket_assign(amounts: list, col_keys: list[str]) -> dict[str, float | None
     window, same principle as the bucket fields' own "null if the table has no such row" rule, one level down."""
     out: dict[str, float | None] = {}
     for key in dict.fromkeys(col_keys):
+        if key == "_ignore":  # v076: a counted-but-unassigned total-shaped column (undiscounted beside carrying).
+            continue  # Skipping it here also keeps it out of the caller's over valve -- with future interest an
+        # undiscounted total exceeds the carrying total, which is ordinary, never grounds to reject the row.
         vals = [amounts[i] for i, k in enumerate(col_keys) if k == key and amounts[i] is not None]
         out[key] = round(sum(vals), 2) if vals else None
     return out
@@ -1203,7 +1252,15 @@ def _bucket_row_prior_year(rows: list[str], idx: int, fiscal_year) -> bool:
         return False
     fy, prior = str(fiscal_year), str(int(fiscal_year) - 1)
     run = _year_run(rows[idx]) or next((r for j in range(idx - 1, -1, -1) if (r := _year_run(" ".join(rows[j:idx])))), None)
-    return bool(run) and prior in run and fy not in run
+    if run:
+        return prior in run and fy not in run
+    # v076: Ework p.70 stacks its two maturity tables printing ONE year label each, which _page_rows glues as
+    # lone trailing tokens ("… Carrying amount 2025", "… 2,866,462 2024") -- no _year_run anywhere, so the walk
+    # above saw nothing and the prior-year valve never fired; the 2024 table's own Total row then read under the
+    # 2025 header four rows up the moment the carrying slot brought its key count level with its 8 amounts.
+    # Same nearest-window walk over lone year tokens: the nearest year named above the row answers alone.
+    lone = next((ys for j in range(idx - 1, -1, -1) if (ys := re.findall(r"\b20\d\d\b", " ".join(rows[j:idx])))), None)
+    return bool(lone) and prior in lone and fy not in lone
 
 
 def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, texts: list[str], pages: list[int],
@@ -1225,18 +1282,19 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
     total_sf = next((sf for sf in sfs if sf["key"] == total_key), None)
     if len(bucket_sfs) != len(part_keys) or not total_sf:
         return
+    ignore_syns = schema.get("ignore_header_synonyms", [])  # v076: undiscounted/contractual total wording
     by_key = {f["key"]: f for f in fields}
     cited = {by_key[k]["source"]["page"] for k in (total_key, *part_keys) if by_key[k]["source"]}
     for page in dict.fromkeys([p for p in pages[:2] if p] + sorted(cited)):
         if not (0 < page <= len(texts)):
             continue
         rows = _page_rows(texts[page - 1])
-        candidates = _bucket_total_row(rows, total_sf, bucket_sfs, fiscal_year, by_key[total_key]["value"], warnings)
+        candidates = _bucket_total_row(rows, total_sf, bucket_sfs, fiscal_year, by_key[total_key]["value"], warnings, ignore_syns)
         if not candidates:
             continue
         matched = [i for i in candidates if fiscal_year and str(fiscal_year) in " ".join(rows[max(0, i - 25):i])]
         for idx in (matched or candidates):
-            col_keys = _bucket_header(rows, idx, bucket_sfs, fiscal_year)
+            col_keys = _bucket_header(rows, idx, bucket_sfs, fiscal_year, total_sf=total_sf, ignore_syns=ignore_syns)
             if not col_keys:
                 continue
             amounts = _row_amounts(rows[idx], len(col_keys), nil=None)
