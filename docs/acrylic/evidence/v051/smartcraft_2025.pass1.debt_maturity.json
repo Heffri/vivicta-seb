@@ -1,0 +1,96 @@
+{
+  "report_id": "lib-smartcraft_2025",
+  "company": "SmartCraft Group",
+  "fiscal_year": 2025,
+  "currency": "NOK",
+  "section": "debt_maturity",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 13825,
+      "unit": "NOK",
+      "period": "2025",
+      "raw_label": "Less than 1 year",
+      "source": {
+        "page": 59,
+        "quote": "Less than 1 year 13 825 13 825"
+      },
+      "confidence": 0.95,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": 7462,
+      "unit": "NOK",
+      "period": "2025",
+      "raw_label": "2-3 years",
+      "source": {
+        "page": 59,
+        "quote": "2-3 years 7 462 7 462"
+      },
+      "confidence": 0.95,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement"
+      ]
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": 0,
+      "unit": "NOK",
+      "period": "2025",
+      "raw_label": "More than 5 years - -",
+      "source": {
+        "page": 59,
+        "quote": "More than 5 years - -"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: total_debt"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [59, 60] selected from candidates [59, 60, 31]",
+    "due_within_1_year: model returned null, filled from page 59 row 'Less than 1 year 13 825 13 825'",
+    "due_1_to_5_years: model returned null, filled from page 59 row '2-3 years 7 462 7 462'",
+    "due_after_5_years: model returned null, filled from page 59 row 'More than 5 years - -'",
+    "due_after_5_years: quoted '4-5 years - -'; the 'More than 5 years - -' row prints 0"
+  ]
+}

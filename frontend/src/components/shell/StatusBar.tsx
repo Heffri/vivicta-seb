@@ -10,7 +10,13 @@ export function StatusBar({ config }: StatusBarProps) {
       {config ? (
         <span title={config.base_url ?? (config.llm ? 'no embeddings endpoint — keyword (BM25) retrieval' : 'no LLM configured')}>
           {config.model}
-          <span className="opacity-60"> · {config.embed_model}</span>
+          {config.retrieval === 'bm25' ? (
+            // v034's bm25 state embeds nothing — same swap as SettingsView's StatusRow (v056);
+            // hybrid/fixture keep the embed model name.
+            <span className="opacity-60"> · retrieval BM25</span>
+          ) : (
+            <span className="opacity-60"> · {config.embed_model}</span>
+          )}
         </span>
       ) : (
         <span className="opacity-60">no backend</span>

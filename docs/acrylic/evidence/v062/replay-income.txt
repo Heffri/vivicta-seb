@@ -1,0 +1,65 @@
+replay_check: baseline origin/acrylic, sections ['income_statement'], worktree extract.py; stored fields fed back as the model answer, zero model calls
+  kb: <shared-seeds>seed1-kb
+  kb: <shared-seeds>seed2-kb
+  kb: <shared-seeds>seed3-kb
+  kb: <shared-seeds>seed4-kb
+  kb: <shared-seeds>seed5-kb
+
+totals: companies=0 same=0 changed=0 not_replayable=57
+  not replayable: seed1-kb/apotea_2025: no income_statement
+  not replayable: seed1-kb/bergman_beving_2025: no income_statement
+  not replayable: seed1-kb/better_collective_2025: no income_statement
+  not replayable: seed1-kb/catella_2025: no income_statement
+  not replayable: seed1-kb/cloetta_2025: no income_statement
+  not replayable: seed1-kb/ework_2025: no income_statement
+  not replayable: seed1-kb/flat_capital_2025: no income_statement
+  not replayable: seed1-kb/knowit_2025: no income_statement
+  not replayable: seed1-kb/ncab_2025: no income_statement
+  not replayable: seed1-kb/xano_industri_2025: no income_statement
+  not replayable: seed2-kb/academedia_2025: no income_statement
+  not replayable: seed2-kb/acast_2025: no income_statement
+  not replayable: seed2-kb/alligo_2025: no income_statement
+  not replayable: seed2-kb/apotea_2025: no income_statement
+  not replayable: seed2-kb/arjo_2025: no income_statement
+  not replayable: seed2-kb/bico_2025: no income_statement
+  not replayable: seed2-kb/boozt_2025: no income_statement
+  not replayable: seed2-kb/coor_service_management_hold_2025: no income_statement
+  not replayable: seed2-kb/humana_2025: no income_statement
+  not replayable: seed2-kb/ncab_2025: no income_statement
+  not replayable: seed2-kb/nelly_2025: no income_statement
+  not replayable: seed2-kb/storytel_2025: no income_statement
+  not replayable: seed3-kb/cloetta_2025: no income_statement
+  not replayable: seed3-kb/ependion_2025: no income_statement
+  not replayable: seed3-kb/flat_capital_2025: no income_statement
+  not replayable: seed3-kb/gentoo_media_2025: no income_statement
+  not replayable: seed3-kb/hansa_biopharma_2025: no income_statement
+  not replayable: seed3-kb/knowit_2025: no income_statement
+  not replayable: seed3-kb/medcap_2025: no income_statement
+  not replayable: seed3-kb/morrow_bank_2025: no income_statement
+  not replayable: seed3-kb/svolder_2025: no income_statement
+  not replayable: seed3-kb/vef_2025: no income_statement
+  not replayable: seed4-kb/acast_2025: no income_statement
+  not replayable: seed4-kb/cloetta_2025: no income_statement
+  not replayable: seed4-kb/creades_2025: no income_statement
+  not replayable: seed4-kb/flerie_2025: no income_statement
+  not replayable: seed4-kb/intrum_2025: no income_statement
+  not replayable: seed4-kb/meko_2025: no income_statement
+  not replayable: seed4-kb/norion_bank_2025: no income_statement
+  not replayable: seed4-kb/ovzon_2025: no income_statement
+  not replayable: seed4-kb/ratos_2025: no income_statement
+  not replayable: seed4-kb/svolder_2025: no income_statement
+  not replayable: seed5-kb/biogaia_2025: no income_statement
+  not replayable: seed5-kb/boozt_2025: no income_statement
+  not replayable: seed5-kb/ctt_systems_2025: no income_statement
+  not replayable: seed5-kb/ependion_2025: no income_statement
+  not replayable: seed5-kb/ework_2025: no income_statement
+  not replayable: seed5-kb/fasadgruppen_2025: no income_statement
+  not replayable: seed5-kb/fm_mattsson_2025: no income_statement
+  not replayable: seed5-kb/itab_2025: no income_statement
+  not replayable: seed5-kb/medcap_2025: no income_statement
+  not replayable: seed5-kb/smartcraft_2025: no income_statement
+  not replayable: seed5-kb/traction_2025: no income_statement
+  not replayable: seed5-kb/vef_2025: no income_statement
+  not replayable: seed5-kb/vicore_pharma_holding_2025: no income_statement
+  not replayable: seed5-kb/viva_wine_2025: no income_statement
+  not replayable: seed5-kb/xvivo_perfusion_2025: no income_statement
