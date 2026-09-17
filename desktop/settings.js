@@ -85,9 +85,10 @@ function envForConfig(clean) {
       return env
     }
     case 'codex': {
-      // LLM_BASE_URL is optional here (embeddings/Ask only -- backend/app.py's run_extract gates on
-      // _llm_configured(), true for provider=="codex" with no base URL at all); /index and /ask still
-      // gate on LLM_BASE_URL alone, so Ask stays unavailable without it. See docs/acrylic/evidence/v033.md.
+      // LLM_BASE_URL is optional here (embeddings/hybrid retrieval only -- backend/app.py gates
+      // /extract, /index and /ask on _llm_configured(), true for provider=="codex" with no base URL
+      // at all; since v034 Ask retrieves with pure BM25 without it, hybrid cosine+BM25 with it).
+      // See docs/acrylic/evidence/v033.md, v034.md.
       // An API key here is optional and only ever reaches that same base URL (embeddings/Ask) --
       // never the codex CLI call itself, which authenticates via `codex login`, not an env var.
       const env = { LLM_PROVIDER: 'codex', LLM_MODEL: clean.codexModel, EXTRACT_TWO_PASS: clean.extractTwoPass ? '1' : '0' }
