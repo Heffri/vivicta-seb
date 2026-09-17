@@ -58,6 +58,12 @@
       "header_synonyms": [
         "carrying amount", "carrying value", "redovisat värde", "bokfört värde"
       ],
+      "row_synonyms": [
+        "borrowing", "borrowings", "bank loans", "bank loan",
+        "interest-bearing liabilities", "interest bearing liabilities", "short-term interest-bearing liabilities",
+        "lease liabilities", "lease liability",
+        "upplåning", "räntebärande skulder"
+      ],
       "zero_if_stated": {
         "negations": [
           "varken", "ingen", "inga", "inget", "inte", "icke", "ej", "utan", "saknar", "noll",

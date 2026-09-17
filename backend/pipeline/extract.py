@@ -999,19 +999,6 @@ _BARE_TOTAL = re.compile(r"(?i)\btotalt?\b|\bsumma\b")
 _YEAR_TAIL = re.compile(r"(?i)\b(?:later|thereafter|senare|övriga år)\b")
 _SUBTOTAL_PHRASES = {"summa inom 1 år", "total within 1 year"}  # a printed within-1-year subtotal column
 # (XANO p.84's "Summa inom 1 år"): its own finer day/month sub-columns to its left must not also be summed in
-_DEBT_ROW_SYNONYMS = [  # _bucket_total_row's fallback when no row carries a total_debt synonym or a bare
-    # total/summa (Ependion's bucket row is labelled "Borrowing", Boozt's "Lease liabilities") -- never used
-    # for direct field-row matching (that stays on the schema's own synonyms), so a private word list here.
-    # Bare "loan"/"loans" deliberately excluded: a bank's own "Loans to the public"/"Loans to credit
-    # institutions" are asset rows (money lent out, not borrowed), and v060's replay against seed4-kb's
-    # Norion Bank caught this fallback picking one as if it were the debt row (Debt securities issue's own
-    # 2,896 replaced by a "Loans to credit institutions" row's unrelated figures) -- "bank loans" stays, a
-    # company's own bank borrowings, not the reverse direction.
-    "borrowing", "borrowings", "bank loans", "bank loan",
-    "interest-bearing liabilities", "interest bearing liabilities", "short-term interest-bearing liabilities",
-    "lease liabilities", "lease liability",
-    "upplåning", "räntebärande skulder",
-]
 
 
 def _identity_parts(schema: dict) -> tuple[str, list[str]] | None:
@@ -1196,8 +1183,8 @@ def _bucket_total_row(rows: list[str], total_sf: dict, bucket_sfs: dict | None =
     candidate), e.g. Cloetta's and Ework's own maturity notes. Appended (not substituted -- a page can have both
     a bare-Total row that turns out to be the wrong scope, Ework's own all-liabilities "Total" row, and the real
     debt row further down; the caller already tries each candidate in order and moves on when one doesn't pan
-    out): rows whose label is a debt synonym (_DEBT_ROW_SYNONYMS, Ependion's bucket row is labelled "Borrowing",
-    Boozt's "Lease liabilities") *and* that read a real bucket header above them with a column count matching
+    out): rows whose label is a debt synonym (total_sf's own schema-level row_synonyms, Ependion's bucket row is
+    labelled "Borrowing", Boozt's "Lease liabilities") *and* that read a real bucket header above them with a column count matching
     their own printed amounts -- so Ependion's four unrelated "Bank loans" per-currency rows (no bucket header
     over them at all) are never candidates to begin with. Multiple survivors narrow by known_total (the model's
     own already-sourced total_debt, if any) -- the row that itself prints that figure wins (Ework p.70: only the
@@ -1208,7 +1195,7 @@ def _bucket_total_row(rows: list[str], total_sf: dict, bucket_sfs: dict | None =
             and (_label_known(_row_label(r), total_sf) or _clean_label(_row_label(r)) in ("total", "totalt", "summa"))]
     if not bucket_sfs:
         return hits
-    debt_sf = {"synonyms": _DEBT_ROW_SYNONYMS}
+    debt_sf = {"synonyms": total_sf.get("row_synonyms", [])}
     candidates = []
     for i, r in enumerate(rows):
         if i in hits or len(_row_amounts(r)) < 2 or not _label_known(_row_label(r), debt_sf):
