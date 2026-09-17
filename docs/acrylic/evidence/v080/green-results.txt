@@ -1,0 +1,54 @@
+v080 green -- LLM_PROVIDER=codex (gpt-5.6-terra default), real Codex web-search calls: exactly 4 (the
+work order's cap). Paths redacted to <lane-tmp>/... (a local scratch dir outside the repo, not
+data/reports/ -- nothing here touched the committed index.json).
+
+1/4 -- Shell 2025 (country=unset)
+  mfn feed failed: HTTP Error 500: Internal Server Error
+  model candidate dropped: 'https://www.shell.com/sustainability/reporting-centre/_jcr_content/root/
+    main/section_597740108/promo.multi.stream/1773292272508/.../shell-annual-report-2025.pdf'
+  RESULT: 404, tried: []  (20s)
+  Root cause: the model's one candidate *is* shell.com's real annual-report PDF (same file, same
+  timestamp/hash as the stale URL in v074, just reached through Shell's "sustainability/reporting-
+  centre" AEM path) -- but fetch.py's pre-existing BAD_URL regex contains "sustainab" (meant to catch
+  actual sustainability *reports*) and matches the "/sustainability/reporting-centre/" path segment,
+  so _model_candidates drops it before any fetch is attempted. The URL never becomes a page_seed (it
+  is filtered pre-fetch, not post-fetch), so the fifth source never gets a chance to run for it. This
+  is a pre-existing filter false-positive shared by all four earlier sources, not something v080's
+  territory (fetch.py's fifth-source addition + one SEARCH_SYSTEM sentence) covers -- flagged here for
+  a follow-up lane rather than fixed, to stay inside this lane's assigned surface.
+
+2/4 -- Nestle 2025 (country=Switzerland)
+  https://www.nestle.com/sites/default/files/2026-02/annual-review-2025-en.pdf -> ok (67 pages, 1s)
+  RESULT: 200, note "model search (codex)", tags ["fetched","foreign"] (28s)
+  Same outcome as v074: the model's only candidate is a *direct, downloadable* link straight to the
+  67-page Annual Review (not an IR page), so it validates on the first try and level 4 returns
+  immediately -- the fifth source's "crawl the page, keep the biggest PDF" logic never triggers, since
+  there is no page-shaped leftover to crawl (the model never named a page this time either). Nestlé
+  stays on the summary volume today; the mechanism that *would* fix this (crawl an IR page that links
+  both volumes, keep the one with more pages) is exercised and proven instead in test_fetch.py's
+  fixture-server tests 10-12, deterministically, since live model behaviour is not reproducible on
+  demand.
+
+3/4 -- TotalEnergies 2025 (country=France)
+  https://totalenergies.com/system/files/documents/totalenergies_universal-registration-document-2025_2026_en.pdf
+    -> ok (666 pages, 2s)
+  RESULT: 200, note "model search (codex)", tags ["fetched","foreign"] (19s)
+  Direct hit at level 4 (France's "universal registration document" doubles as the annual report);
+  fifth source not needed.
+
+4/4 -- Nokia 2025 (country=Finland)
+  mfn feed failed: HTTP Error 500: Internal Server Error (x2)
+  https://www.nokia.com/system/files/2026-03/nokia-form-20-f-2025.pdf -> ok (204 pages, 0s)
+  RESULT: 200, note "model search (codex)", tags ["fetched","foreign"] (19s)
+  Direct hit at level 4 (a Form 20-F filing, which passes fetch.py's existing content validation same
+  as any other candidate); fifth source not needed.
+
+Summary: in all 4 live trials today, the model either returned something that validated immediately
+(Nestlé/TotalEnergies/Nokia) or a URL an earlier, pre-existing filter dropped before any fetch
+(Shell) -- so the new fifth source was never exercised live. The mechanism itself is proven
+deterministically in test_fetch.py (groups 10-13, all against a loopback server, zero model calls,
+zero network): a model-named IR page gets crawled and the real report link registered (10); a page
+linking both a shorter and a longer valid report resolves to the longer one (11); a one-hop crawl
+from a bare IR landing page to its own reports sub-page still finds the PDF (12); and a direct link's
+own domain gets the same IR-path guesses the pre-existing stub-notice fallback already makes,
+gated on the domain actually naming the company (13).

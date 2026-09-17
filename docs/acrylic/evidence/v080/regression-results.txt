@@ -1,0 +1,23 @@
+v080 regression -- zero model, real network. Paths redacted to <lane-tmp>/... (outside the repo).
+
+Atlas Copco 2025 (level 1, zero model, per common.md's baseline claim):
+  https://mb.cision.com/Main/90/4323954/3993642.pdf -> ok (174 pages, 1s)
+  RESULT: 200, tags ["fetched"], note None, tried: [1 url] (15s total)
+  Matches v074's own control run (174 pages). page_seeds bookkeeping never runs (first candidate
+  succeeds immediately) -- byte-identical to pre-v080 behaviour, no added latency.
+
+AstraZeneca 2025 (a directory company that needs the *full* existing multi-candidate path, zero
+model -- picked because it already exercises the pre-existing stub-notice-harvest fallback):
+  mfn feed failed: HTTP Error 500: Internal Server Error (x2)
+  https://attachment.news.eu.nasdaq.com/<id> -> only 1 pages          (a stub notice PDF)
+  https://www.astrazeneca.com/content/dam/az/Investor_Relations/annual-report-2025/pdf/
+    AstraZeneca_AR_2025.pdf -> ok (232 pages, 1s)                     (found via the existing
+                                                                        _stub_pages/_harvest fallback)
+  RESULT: 200, tags ["fetched"], note None, tried: [2 urls] (13s total)
+  The 1-page stub candidate is a real PDF (data.startswith(b"%PDF")), so it takes the *pre-existing*
+  stub_pages branch, not the new page_seeds branch -- confirms the two mechanisms are disjoint by
+  construction (data.startswith(b"%PDF") routes to the old stub-page harvest; the new page_seeds
+  only collects when data is *not* a PDF at all, or the request errored outright). 13s end to end,
+  no v080-added latency; the registered entry carries no "foreign" tag or note, confirming the fifth
+  source never engaged -- it only runs after the model block, which itself only runs after every
+  level-1-3 candidate (both of them, here) is exhausted, and this fetch never got that far.
