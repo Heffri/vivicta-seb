@@ -13,6 +13,13 @@ Columns: `report_file,section,key,expected_value,expected_page,notes`.
 - `python eval/run.py --dry-run` — no backend needed, scores against the fixture (sanity check).
 - `python eval/run.py` — uploads each report in `data/reports/` and runs real extractions.
 - Flags: `--api URL`, `--reports-dir DIR`, `--labels CSV`, `--no-fail` (don't exit 1 on misses).
+- `python eval/run.py --stored-kb DIR` — zero API/model calls: scores each label row against an
+  already-stored `<DIR>/<stem>/extractions/<section>.json` (the shape `GET /api/kb/<stem>/<section>`
+  returns) using the same comparison/printing as the modes above. Repeatable (`--stored-kb dir1
+  --stored-kb dir2 ...`) — one report is printed per directory, so the same `report_file` scored
+  against several snapshots (e.g. one per hardening seed) shows up once per snapshot, not merged. A
+  label row whose `(report_file, section)` has no stored extraction file at all scores `-` (not
+  counted as a miss) rather than a value mismatch.
 
 ## Reading output
 Per-row ✓/✗ for value and page match plus confidence, then value accuracy %, page hit-rate %,
