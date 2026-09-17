@@ -772,9 +772,12 @@ def demo():
     # concatenated as if printed together -- a real quote_on_page match (they really are contiguous on the
     # page) -- so the field survives the first per-field gate with a value (102.3, truncated by the "recover the
     # full row" step down to just the second row's own quote). Once due_within_1_year is itself numeric, it
-    # counts toward the check's own missing-operand detection, which reports "missing: due_after_5_years" (the
+    # counts toward the check's own missing-operand detection, which reported "missing: due_after_5_years" (the
     # one bucket that really has no row) -- so the "missing:"-only repair loop above never even looks at
     # due_within_1_year, and it would otherwise reach the Sectra-pattern drop below with nothing to rescue it.
+    # v058: the month rows are now the schema's own synonyms and the present-label search is table-scoped, so
+    # due_after_5_years is a confirmed 0 and the check this case reports PASSES on the very value the
+    # concatenation rescue just secured: 102.3+616.5+0 = 718.8 ≈ 718.7.
     x.call_llm = lambda *a, **k: {"fields": [
         {"key": "total_debt", "value": 718.7, "unit": "MSEK", "period": "2025", "raw_label": "Totalt", "source": {"page": 1, "quote": "Totalt 718,7 377,6 – –"}},
         {"key": "due_1_to_5_years", "value": 616.5, "unit": "MSEK", "period": "2025", "raw_label": "1 – 5 år", "source": {"page": 1, "quote": "1 – 5 år 616,5 316,7 – –"}},
@@ -785,7 +788,7 @@ def demo():
     within = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
     assert within["value"] == 102.3 and "value_derived" in within["evidence"] and within["confidence"] == 1.0 \
         and within["source"]["quote"] == "6 månader eller mindre 54,3 41,8 – – 6 – 12 månader 48,0 19,0 – –", (within, out["warnings"])
-    assert not out["checks"][0]["passed"] and out["checks"][0]["detail"] == "missing: due_after_5_years", out["checks"]
+    assert out["checks"][0]["passed"] and "abs((102.3 + 616.5 + 0 (due_after_5_years null)) - 718.7) <= 2" in out["checks"][0]["detail"], out["checks"]
     # ... and a repeated year with no Group/Parent named above the rows must not fire: Volvo-style segment
     # repetition stays unknowable, the field stays null exactly as before the anchoring existed
     out = x.extract([full101.replace(" Koncernen Moderbolaget", ""), medcap102], [1, 2], dm, {"fiscal_year": 2025})
