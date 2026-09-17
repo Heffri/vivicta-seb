@@ -41,6 +41,9 @@
     "likviditetsrisk"
   ],
   "value_convention": "Numbers exactly as printed in the maturity table. Unit = the unit stated in the table header (MSEK, SEK m, MEUR, USD m ...). Bucket boundaries follow the report's own columns, which do not always match the three buckets below one-for-one — sum whichever of the report's own columns fall entirely inside a bucket's range (e.g. a first-year split of <3 months + 3-12 months into due_within_1_year, 1-2y + 2-5y into due_1_to_5_years, or 6-10y + >10y into due_after_5_years); see each field's own description.",
+  "ignore_header_synonyms": [
+    "total undiscounted", "undiscounted cash flows", "odiskonterade kassaflöden", "total contractual"
+  ],
   "fields": [
     {
       "key": "total_debt",
@@ -51,6 +54,9 @@
         "total borrowings", "total borrowing", "total loans", "total interest-bearing liabilities", "total debt",
         "total secured borrowings",
         "räntebärande skulder totalt", "summa upplåning", "total upplåning", "summa räntebärande skulder"
+      ],
+      "header_synonyms": [
+        "carrying amount", "carrying value", "redovisat värde", "bokfört värde"
       ],
       "zero_if_stated": {
         "negations": [

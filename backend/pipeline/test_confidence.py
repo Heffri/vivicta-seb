@@ -824,13 +824,10 @@ def demo():
     # 91,284, not a synonym for anything else in the schema) plus the same dedup now reads a clean, correct
     # 7-column hit list -- but the row has 8 real columns, and nothing in the schema recognises "Carrying
     # amount" (the report's own book-value total, v028's own total_debt basis) as distinct from "Total
-    # undiscounted value" (the buckets' own subtotal, two columns to its left): stays honestly declined for
-    # this one still-open, out-of-territory reason (docs/acrylic/evidence/v069.md), not silently forced --
-    # adding a second "total" slot risks summing both trailing columns into total_debt on some other company's
-    # table where they are not equal, unproven at corpus scale, out of this lane's remit. Confirmed against the
-    # real page in full (all four candidate rows on p.70, not just this one in isolation, docs/acrylic/evidence/
-    # v069.md's own replay): every candidate still declines, none spuriously reached via the old prose-matching
-    # "due", and no new warning appears end to end.
+    # undiscounted value" (the buckets' own subtotal, two columns to its left): v069 left that honestly
+    # declined (its own doc, "not silently forced -- a second total slot risks summing both trailing columns
+    # into total_debt on some other company's table where they are not equal"); v076 below resolves it with
+    # exactly the missing half -- the two trailing columns named apart in the schema, counted, never summed.
     ework_real = ("kSEK Due < 1 month 1-3 months 3-12 months 1-5 years > 5 years Total undiscounted value Carrying amount\n"
                   "Short-term interest-bearing liabilities* – 153,761 971 1,677 – – 156,410 156,410\n")
     ework_rows = x._page_rows(ework_real)
@@ -838,11 +835,70 @@ def demo():
     assert x._bucket_header(ework_rows, ework_idx, bucket_sfs, 2025) == \
         ["due_within_1_year", "due_within_1_year", "due_within_1_year", "due_within_1_year", "due_1_to_5_years", "due_after_5_years", "total"]
     assert len(x._row_amounts(ework_rows[ework_idx], 7, nil=None)) == 8  # the row's own 8 amounts never shrink to fit a 7-column guess
+
+    # v076: the two trailing total-shaped columns separate. Ework p.70's header carries BOTH "Total undiscounted
+    # value" (the buckets' own undiscounted subtotal -- with future interest it can exceed the carrying total, so
+    # it must never be summed into, or compared against, total_debt) and "Carrying amount" (v028's own stated
+    # basis: the total that ties to the balance sheet). The schema now names both shapes -- carrying wording as
+    # total_debt's own header_synonyms (-> the total slot), undiscounted/contractual wording as the schema's
+    # explicit ignore_header_synonyms (-> an _ignore slot that is counted -- the column-count safety valve still
+    # needs 8 hits for the row's 8 amounts -- but never assigned), and carrying wins the total slot when both
+    # appear on the same header line (v028), while a header with only the undiscounted column keeps today's
+    # behaviour: its own bare "Total" word stays the total slot, the identity closing against the report's basis.
+    ework_8 = ["due_within_1_year", "due_within_1_year", "due_within_1_year", "due_within_1_year",
+               "due_1_to_5_years", "due_after_5_years", "_ignore", "total"]
+    assert x._bucket_header(ework_rows, ework_idx, bucket_sfs, 2025, total_sf=dmf["total_debt"],
+                            ignore_syns=dm["ignore_header_synonyms"]) == ework_8
+    # the prose guard, on Ework's own p.70 furniture: the note title ("…– undiscounted cash flows") and a
+    # sentence ("…reflected in the carrying amount of…") sit inside the same 25-row header window -- v069's
+    # bare-"due" lesson all over again -- and name no bucket on their own lines, so neither may add a slot.
+    # (Acast/Nederman print "Carrying amount" over non-bucket year/instrument tables; same guard keeps those
+    # headers reading exactly as before.)
+    ework_page = ("At the balance sheet date, there is no significant concentration of credit exposure. "
+                  "The maximum exposure to credit risk is reflected in the carrying amount of the trade receivables\n"
+                  "Maturity structure financial liabilities – undiscounted cash flows\n"
+                  "The Group kSEK Due < 1 month 1-3 months 3-12 months 1-5 years > 5 years Total undiscounted value Carrying amount 2025\n"
+                  "Lease liabilities – – 5,230 5,332 22,169 794 33,525 33,403\n"
+                  "Short-term interest-bearing liabilities* – 153,761 971 1,677 – – 156,410 156,410\n")
+    ework70_rows = x._page_rows(ework_page)
+    assert x._bucket_header(ework70_rows, len(ework70_rows) - 1, bucket_sfs, 2025, total_sf=dmf["total_debt"],
+                            ignore_syns=dm["ignore_header_synonyms"]) == ework_8
+    # undiscounted wording with no carrying column on the line: today's behaviour -- its own bare word is the total
+    assert x._bucket_header(x._page_rows(
+        "kSEK Due < 1 month 1-3 months 3-12 months 1-5 years > 5 years Total undiscounted value\n"
+        "Short-term interest-bearing liabilities* – 153,761 971 1,677 – – 156,410\n"),
+        1, bucket_sfs, 2025, total_sf=dmf["total_debt"], ignore_syns=dm["ignore_header_synonyms"]) == \
+        ["due_within_1_year", "due_within_1_year", "due_within_1_year", "due_within_1_year", "due_1_to_5_years", "due_after_5_years", "total"]
+    # end to end, the row read by column even with no model answer at all: the single debt-row candidate fills
+    # total_debt (156,410, the Carrying amount column) and due_within_1_year (156,409 = 153,761 + 971 + 1,677,
+    # the Due column nil); the dash columns stay null and the check honestly reads missing, not a fabricated 0
+    # (the buckets' own column headers ARE printed in this table, so the null bucket guard refuses the zero-fill)
     x.call_llm = lambda *a, **k: {"fields": [{"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None} for k in dmf]}
     out = x.extract([ework_real], [1], dm, {"fiscal_year": 2025})
     got = {f["key"]: f["value"] for f in out["fields"]}
-    assert got == {"total_debt": None, "due_within_1_year": None, "due_1_to_5_years": None, "due_after_5_years": None} \
-        and out["checks"][0]["detail"] == "missing: due_within_1_year" and not out["warnings"], (got, out["checks"], out["warnings"])  # correctly declined, not guessed
+    assert got == {"total_debt": 156410, "due_within_1_year": 156409, "due_1_to_5_years": None, "due_after_5_years": None} \
+        and out["checks"][0]["detail"] == "missing: due_1_to_5_years", (got, out["checks"], out["warnings"])
+    # end to end with the model's own answer restored (docs/acrylic/evidence/v051/ework_2025.partB.debt_maturity.json,
+    # the real pass's stored shape): total_debt already reads 156,410 (the Carrying amount column's own figure, so
+    # the column read agrees and the model's own evidence stands), and the column read fills due_within_1_year --
+    # 0 (Due) + 153,761 + 971 + 1,677 = 156,409; both dash columns stay null (unprinted, not fabricated zeros), and
+    # 156,409 + 0 + 0 sits within +-2 of 156,410 -- the identity closes, though the check's own detail stays
+    # "missing" (above) rather than passing the zero-fill past the printed bucket columns.
+    ework_answer = [
+        {"key": "total_debt", "value": 156410, "unit": "kSEK", "period": "2025", "raw_label": "Short-term interest-bearing liabilities*",
+         "source": {"page": 1, "quote": "Short-term interest-bearing liabilities* – 153,761 971 1,677 – – 156,410 156,410"}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]
+    x.call_llm = lambda *a, **k: {"fields": json.loads(json.dumps(ework_answer))}
+    out = x.extract([ework_real], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 156410, "due_within_1_year": 156409, "due_1_to_5_years": None, "due_after_5_years": None} \
+        and out["checks"][0]["detail"] == "missing: due_1_to_5_years", (got, out["checks"], out["warnings"])
+    w1y = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
+    assert "value_derived" in w1y["evidence"] and w1y["source"]["quote"] == \
+        "Short-term interest-bearing liabilities* – 153,761 971 1,677 – – 156,410 156,410", (w1y, out["warnings"])
+    assert any("156409 read from" in w for w in out["warnings"]), out["warnings"]
 
     qcalls = []
     # v054: EXTRACT_QUOTE_RETRY (default off) -- one follow-up call for the fields whose answer cites a quote
