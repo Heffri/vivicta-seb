@@ -986,6 +986,97 @@ def demo():
     d15 = next(f for f in out["fields"] if f["key"] == "due_1_to_5_years")
     assert "printed_nil" in d15["evidence"] and d15["confidence"] == 0.5, d15  # the report's own dash, not a fabricated number
 
+    # v085: Instalco (seed8-kb/v082 Finding 2, real p.128 text): the same carrying-beside-undiscounted shape as
+    # Ework above, but split across three lines instead of one -- "Total contractual cash flows" (the
+    # undiscounted group's own header) and "31/12/2025 Carrying amount receivables/ payables" (the carrying
+    # column's own header) each sit on their own line, directly above "Within 6 months / 6-12 months / 1-5
+    # years / Later than 5 years", nothing between them. v076's own has_carry never sees either: both hits are
+    # stripped before that check runs (their own row names no bucket), the same gate v082/v083 both traced to
+    # and left blocked. Admitted by the contiguous-run fallback below: the walk backward from the header's own
+    # last bucket-naming line crosses both, in order, and stops at the first line that carries neither a bucket
+    # word nor a carrying/ignore word of its own ("Current Non-current").
+    instalco128 = ("The Group\nCurrent Non-current\nTotal contractual cash flows\n"
+                   "31/12/2025 Carrying amount receivables/ payables\n"
+                   "Within 6 months 6–12 months 1–5 years Later than 5 years\n"
+                   "Liabilities to credit institutions – – 3,209 – 3,209 3,122\n")
+    instalco_rows = x._page_rows(instalco128)
+    instalco_idx = instalco_rows.index("Liabilities to credit institutions – – 3,209 – 3,209 3,122")
+    assert x._bucket_header(instalco_rows, instalco_idx, bucket_sfs, 2025, total_sf=dmf["total_debt"],
+                            ignore_syns=dm["ignore_header_synonyms"]) == \
+        ["due_within_1_year", "due_within_1_year", "due_1_to_5_years", "due_after_5_years", "_ignore", "total"]
+    # end to end: the header now reads 6 columns matching the row's own 6 amounts (declined before this lane,
+    # 5 against 6), but the fill still does not land -- due_1_to_5_years' own undiscounted figure (3,209)
+    # exceeds total_debt's own discounted "Carrying amount" (3,122) by design (future interest over the 1-5-
+    # year horizon, the same undiscounted-vs-carrying gap Ework's own table has above), which
+    # _fill_bucket_columns's `over` valve (out of this lane's territory -- word-list/admission-condition only)
+    # reads as a misaligned column and declines whole. Reported, not forced: the four fields stay exactly where
+    # v082/v083 left them, now with an honest reason on record instead of a silent decline with no warning.
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 3122, "unit": "SEK m", "period": "2025", "raw_label": "Liabilities to credit institutions",
+         "source": {"page": 1, "quote": "Liabilities to credit institutions – – 3,209 – 3,209 3,122"}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([instalco128], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 3122, "due_within_1_year": None, "due_1_to_5_years": None, "due_after_5_years": None}, (got, out["warnings"])
+    assert any("due_1_to_5_years 3209 exceeds its own total 3122" in w for w in out["warnings"]), out["warnings"]
+
+    # v085 guard, real page shapes that must NOT gain a fallback slot (the contiguous run stops before reaching
+    # them): Ework's own real p.70 (not the synthetic ework_real above) wraps "Total undiscounted value" /
+    # "Carrying amount" across a line-break so ragged pymupdf glues it into one row with the bucket words
+    # themselves ("Total undis- Carrying kSEK Due < 1 month ... counted value amount 2025") -- neither phrase
+    # is a contiguous substring any more, so this bucket-naming line has no carrying hit of its own, and its
+    # own immediate predecessor ("The Group") has neither a bucket word nor a carrying/ignore word either: the
+    # run stops on its very first step, never reaching the real prose danger six-plus lines further back
+    # ("...reflected in the carrying amount...", a note title with "...undiscounted cash flows"). Confirmed
+    # against the mechanism this lane could have broken, not assumed: without the stop, both leak in and this
+    # exact page previously misread the *other* row, Lease liabilities, as the table's own total (33,525, its
+    # own undiscounted-value column) -- caught by seed5-kb's own replay, not by inspection.
+    ework_real70 = ("At the balance sheet date, there is no significant concentration of credit exposure. "
+                    "The maximum exposure to credit risk is reflected in the carrying amount in the statement "
+                    "of financial position for each financial asset.\n"
+                    "Maturity structure financial liabilities – undiscounted cash flows\nThe Group\n"
+                    "Total undis- Carrying kSEK Due < 1 month 1-3 months 3-12 months 1-5 years > 5 years counted value amount 2025\n"
+                    "Lease liabilities – – 5,230 5,332 22,169 794 33,525 33,403\n"
+                    "Short-term interest-bearing liabilities* – 153,761 971 1,677 – – 156,410 156,410\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 156410, "unit": "kSEK", "period": "2025", "raw_label": "Short-term interest-bearing liabilities*",
+         "source": {"page": 1, "quote": "Short-term interest-bearing liabilities* – 153,761 971 1,677 – – 156,410 156,410"}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([ework_real70], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 156410, "due_within_1_year": None, "due_1_to_5_years": None, "due_after_5_years": None} \
+        and not out["warnings"], (got, out["warnings"])  # untouched: no candidate ever reaches the write step
+    # Ependion's own real p.155 (seed5-kb): two unrelated sentences each end "...correspond[s] to carrying
+    # amount[,] because..." between the page's own instrument rows and its "Contracted terms" bucket table --
+    # bucket-less, and each one line further back than the last, so the run (starting at "Between 1 and 2
+    # years", the header's own second-to-last bucket-naming line, which has no carrying/ignore hit of its own)
+    # stops immediately, before it can reach either. Without the stop, both leak in, wrongly demote the header's
+    # own real bare "Total" to _ignore, and turn this already-correct fill (v060's own ependion_real case above,
+    # same table, clean text) into a false decline -- caught the same way, by seed5-kb's own replay.
+    ependion155 = ("Financial liabilities measured at amortized cost\n- Borrowing 583,531 557,173\n"
+                   "- Accounts payable-trade 164,155 154,411\n"
+                   "The fair value of borrowing corresponds to carrying amount because interest on this "
+                   "borrowing is on a par with current market interest rates or due to borrowing being short term.\n"
+                   "Accounts payable are unsecured and normally paid within 30 days. The fair value of accounts "
+                   "payable are considered to correspond to carrying amount, because they are inherently short term.\n"
+                   "The following table states the contracted maturities of financial liabilities.\n"
+                   "Contracted terms\nSEK 000 Within 12 months\nBetween 1 and 2 years\nBetween 2 and 3 years Total\n"
+                   "Borrowing 167,546 35,636 380,348 583,531\n"
+                   "Accounts payable-trade 164,155 164,155 331,701 35,636 380,348 747,686\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([ependion155], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 583531, "due_within_1_year": 167546, "due_1_to_5_years": 415984, "due_after_5_years": None}, (got, out["warnings"])
+    assert out["checks"][0]["passed"], out["checks"]
+
     qcalls = []
     # v054: EXTRACT_QUOTE_RETRY (default off) -- one follow-up call for the fields whose answer cites a quote
     # that is not printed on the page it names: the cited page's own _page_rows go out numbered, and the model

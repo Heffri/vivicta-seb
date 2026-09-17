@@ -1121,16 +1121,49 @@ def _bucket_header(rows: list[str], idx: int, bucket_sfs: dict, fiscal_year, max
     in it claims the total slot any more -- on bucket-naming lines the bare word is demoted to _ignore (a
     competing total-shaped column beside the carrying one, v028), on prose lines it is dropped; without a
     carrying hit anywhere, the _ignore tags are dropped and every bare word keeps today's behaviour: the total
-    slot."""
+    slot.
+
+    v085: a carrying/ignore phrase dropped above for naming no bucket on its own line is kept aside, not
+    discarded outright, when it sits in an unbroken run of such lines directly touching the header's own last
+    bucket-naming line -- Instalco p.128 wraps a genuine third header tier ("31/12/2025 Carrying amount
+    receivables/ payables", "Total contractual cash flows") across two lines of its own, neither naming a
+    bucket, both directly above the "Within 6 months / 6-12 months / 1-5 years / Later than 5 years" line that
+    does, nothing else in between. The run stops at the first line with neither a bucket word nor a carrying/
+    ignore word of its own -- Ework's own prose danger ("...reflected in the carrying amount...") and note
+    title ("...undiscounted cash flows") sit six-plus lines further back on its real p.70, past "The Group"
+    naming neither, so the run never reaches them, unlike a blanket window-wide scan (confirmed against the
+    real page: without the stop, both leak in and misread the *other* row on the same page, Lease liabilities,
+    as this table's own total -- and on Ependion's real p.155, two unrelated "...corresponds to carrying
+    amount..." sentences leak in the same way and wrongly demote the real header's own bare Total to _ignore,
+    turning an already-correct fill into a false decline). Only consulted when no bucket-naming line in the
+    window already claims a carrying hit on its own (otherwise it would double what a same-line read, v076,
+    already found -- the false-total-word inflation v076 fenced) AND only when nothing between the header's
+    own last bucket-naming line and idx itself prints its own amounts: Instalco's own page prints a *second*
+    candidate row of exactly this shape one note-section down -- the whole table's own grand "Total" row,
+    summing debt with non-debt liabilities alike (Accounts payable, Contingent consideration) -- separated
+    from the header by the four instrument rows in between; those rows' own printed amounts close the header
+    block before it ever reaches that far, so the fallback stays unavailable for that row exactly as it was
+    before this lane (a bare Total/Summa row's own scope is _bucket_total_row's question, not this function's
+    -- left declined here, not silently handed a column reading it was never entitled to). Appended after
+    every bucket-naming line's own hits (every table seen so far prints its total-shaped columns last, and
+    _bucket_total_row's own column-count valve still has the final say)."""
     window = rows[max(0, idx - max_back):idx]
     per_row = []
-    for row in window:
-        bare_total = [(m.start(), m.end(), "total") for m in _BARE_TOTAL.finditer(row.translate(_DASHES))] if not _row_amounts(row) else []
+    row_ci = []  # v085: this row's own total:carrying/_ignore hits, kept aside because it names no bucket of
+    # its own -- a candidate for the contiguous-run fallback below, not yet admitted
+    bucket_pos = []  # window positions of rows that do name a bucket of their own
+    amounts_present = [bool(_row_amounts(row)) for row in window]
+    for pos, row in enumerate(window):
+        bare_total = [(m.start(), m.end(), "total") for m in _BARE_TOTAL.finditer(row.translate(_DASHES))] if not amounts_present[pos] else []
         # a bare Total/Summa only marks a header column when its own row carries no amounts -- a row that
         # prints "Total 96 173" is another table's own data row (Boozt p.121's earlier receivables-ageing
         # note, still inside the 25-row window), not a column header wrapped above idx (v060)
         row_hits = _bucket_synonym_hits(row, bucket_sfs, total_sf, ignore_syns)
-        if not any(k.split(":")[0] not in ("total", "_ignore") for _, _, k in row_hits):
+        if any(k.split(":")[0] not in ("total", "_ignore") for _, _, k in row_hits):
+            bucket_pos.append(pos)
+            row_ci.append([])
+        else:
+            row_ci.append([h for h in row_hits if h[2] in ("total:carrying", "_ignore")])
             row_hits = [h for h in row_hits if h[2].split(":")[0] not in ("total", "_ignore")]
         per_row.append((row_hits, bare_total))
     # v076: when the header carries a carrying-amount column anywhere in the window, it -- not a bare Total
@@ -1141,6 +1174,17 @@ def _bucket_header(rows: list[str], idx: int, bucket_sfs: dict, fiscal_year, max
     # moment the carrying read makes the window's hit count match the row's amounts -- seen live in v076's
     # first real-page run, caught by the over valve, and fenced here at the source.
     has_carry = any(k == "total:carrying" for row_hits, _ in per_row for _, _, k in row_hits)
+    hits_tail = []
+    if not has_carry and bucket_pos and not any(amounts_present[bucket_pos[-1] + 1:]):
+        tail = []
+        for pos in range(bucket_pos[-1] - 1, -1, -1):
+            if not row_ci[pos]:
+                break
+            tail.append(row_ci[pos])
+        tail.reverse()
+        if any(k == "total:carrying" for hs in tail for _, _, k in hs):
+            has_carry = True
+            hits_tail = [key for hs in tail for _, _, key in sorted(_drop_nested_hits(hs))]
     hits = []
     for row_hits, bare_total in per_row:
         if has_carry:
@@ -1154,6 +1198,7 @@ def _bucket_header(rows: list[str], idx: int, bucket_sfs: dict, fiscal_year, max
         else:
             row_hits = [h for h in row_hits if h[2] != "_ignore"]
         hits.extend(key for _, _, key in sorted(_drop_nested_hits(row_hits + bare_total)))
+    hits.extend(hits_tail)
     hits = ["total" if k == "total:carrying" else k for k in hits]
     if len({k.split(":")[0] for k in hits if k.split(":")[0] not in ("total", "_ignore")}) < 2:
         year_hits = None
