@@ -848,8 +848,13 @@ _SUBTOTAL_PHRASES = {"summa inom 1 år", "total within 1 year"}  # a printed wit
 # (XANO p.84's "Summa inom 1 år"): its own finer day/month sub-columns to its left must not also be summed in
 _DEBT_ROW_SYNONYMS = [  # _bucket_total_row's fallback when no row carries a total_debt synonym or a bare
     # total/summa (Ependion's bucket row is labelled "Borrowing", Boozt's "Lease liabilities") -- never used
-    # for direct field-row matching (that stays on the schema's own synonyms), so a private word list here
-    "borrowing", "borrowings", "loan", "loans", "bank loans", "bank loan",
+    # for direct field-row matching (that stays on the schema's own synonyms), so a private word list here.
+    # Bare "loan"/"loans" deliberately excluded: a bank's own "Loans to the public"/"Loans to credit
+    # institutions" are asset rows (money lent out, not borrowed), and v060's replay against seed4-kb's
+    # Norion Bank caught this fallback picking one as if it were the debt row (Debt securities issue's own
+    # 2,896 replaced by a "Loans to credit institutions" row's unrelated figures) -- "bank loans" stays, a
+    # company's own bank borrowings, not the reverse direction.
+    "borrowing", "borrowings", "bank loans", "bank loan",
     "interest-bearing liabilities", "interest bearing liabilities", "short-term interest-bearing liabilities",
     "lease liabilities", "lease liability",
     "upplåning", "räntebärande skulder",
