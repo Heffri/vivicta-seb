@@ -1305,6 +1305,25 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             continue
         nearby = sorted({src["page"], *pages[:2]})
         if not any(_value_in_quote(f["value"], texts[q - 1]) for q in nearby if 0 < q <= len(texts)):  # nothing above could read or derive it
+            # MedCap (v051): the model's own quote spans two printed rows ("6 månader eller mindre" + "6 – 12
+            # månader") concatenated as if one -- quote_on_page verifies (both rows really are contiguous on the
+            # page), so this field never reaches the _between_rows rescue above, which only fires for a field the
+            # model returned null outright. Same rows, same rescue, one more entry point before giving up on it.
+            fix = None
+            if pages and fiscal_year:
+                others_fields = [g for g in fields if g is not f]  # exclude f's own (about-to-be-dropped) quote from the operand search below
+                for sc in schema.get("checks", []):
+                    if sc.get("identity") and re.search(rf"\b{re.escape(f['key'])}\b", sc["expr"]):
+                        fix = _between_rows(sf, others_fields, sfs, defaults, texts, fiscal_year, sc, pages[0])
+                        if fix:
+                            break
+            if fix:
+                warnings.append(f"{f['key']}: {f['value']} is printed on none of pages {nearby}; {fix[1]!r} sums to {fix[0]} and closes the identity in every column")
+                f.update(value=fix[0], period=str(fiscal_year), raw_label=fix[2], source={"page": pages[0], "quote": fix[1]},
+                         evidence=["quote_on_page", "value_derived"])
+                values[f["key"]] = fix[0]
+                filled.add(f["key"])
+                continue
             warnings.append(f"{f['key']}: {f['value']} is printed on none of pages {nearby}; dropped as computed, not read")
             f.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
             values.pop(f["key"], None)
