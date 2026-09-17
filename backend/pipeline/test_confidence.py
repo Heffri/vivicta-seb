@@ -773,6 +773,77 @@ def demo():
     got = {f["key"]: f["value"] for f in out["fields"]}
     assert got == {"total_debt": None, "due_within_1_year": None, "due_1_to_5_years": None, "due_after_5_years": None}, (got, out["warnings"])
     assert any("names fiscal year 2024, not 2025" in w for w in out["warnings"]), out["warnings"]
+
+    # v069: Ework/XANO's real header text, now correctly single-line per v068's parse.py fix (PARSER_VERSION 6,
+    # docs/acrylic/evidence/v068.md) instead of matrix-transposed across two physical PDF lines -- the reason
+    # both companies stayed unfixed from v036 through v066 (the synthetic scrambled-header cases above, kept
+    # unchanged: still a real shape a header could be in, still correctly declined). With the header finally
+    # readable in true column order, two pre-existing, unrelated-to-parsing gaps in this file's own hit
+    # collection surfaced (v068's own "downstream" section, read-only, named for whoever owns extract.py/the
+    # schema next -- this lane): XANO's plain synonym "inom 1 år" and the bare word "Summa" each also match a
+    # piece of the one subtotal phrase "summa inom 1 år" already matched whole (10 hits, not 8); Ework's own
+    # header_synonym "3 months" is a literal substring of its own "1-3 months" (1 spurious hit that happened to
+    # roughly cancel out, in raw count only, the header's own separate, still-open "Due" gap below). Both fixed
+    # the same way, _drop_nested_hits: a hit whose span sits entirely inside another, wider hit's own span is
+    # dropped -- one printed phrase is one column, no matter how many schema synonyms happen to match pieces of
+    # it, a general geometric rule, not a XANO- or Ework-specific patch.
+    assert x._drop_nested_hits([(0, 5, "a"), (0, 16, "b:subtotal"), (6, 16, "a")]) == [(0, 16, "b:subtotal")]
+    assert x._drop_nested_hits([(0, 5, "a"), (5, 10, "b")]) == [(0, 5, "a"), (5, 10, "b")]  # adjacent, not nested: both kept
+
+    # "Due" (Ework's own column, v069's work order: add it to due_within_1_year's header_synonyms) turned out
+    # unsafe as a plain header_synonym entry -- that list is matched case-insensitively, with no word boundary,
+    # over the whole 25-row window _bucket_header searches above a candidate row, not just the header line
+    # itself, and Ework's own p.70/71 carries a dozen+ ordinary-prose "due"s in that window ("...risk due to
+    # assets...", "Past due accounts receivable...", "...not yet due..."). Confirmed end to end before choosing
+    # _BUCKET_BOUNDARY instead (case-sensitive "Due", excludes "Due to ..."): a naive case-insensitive substitute
+    # for the pattern below picks up "due" from that prose and pushes a wrong candidate row's own hit count to
+    # coincidentally match its amount count, reaching _fill_bucket_columns's `over` valve instead of the safety
+    # valve above it -- caught here, not guaranteed caught on every other company's own surrounding prose.
+    assert not x._BUCKET_BOUNDARY["due_within_1_year"].search("The Company is exposed to translation risk due to assets")
+    assert not x._BUCKET_BOUNDARY["due_within_1_year"].search("Past due accounts receivable 0-30 days")
+    assert not x._BUCKET_BOUNDARY["due_within_1_year"].search("Accounts receivable not yet due")
+    assert x._BUCKET_BOUNDARY["due_within_1_year"].search("kSEK Due < 1 month 1-3 months")
+
+    xano_real = ("FINANSIELLA SKULDER Förfallotid\n"
+                 "PER 2025-12-31 –30 dgr 31–90 dgr 91–360 dgr Summa inom 1 år Mellan 1 och 3 år Mellan 3 och 5 år Efter 5 år Totalt\n"
+                 "Lån och leasingskulder 4 090 8 680 38 305 51 075 735 261 33 784 50 778 870 898\n"
+                 "Summa räntebärande skulder 4 090 8 680 38 305 51 075 768 885 33 784 50 778 904 522\n")
+    xano_rows = x._page_rows(xano_real)
+    xano_idx = next(i for i, r in enumerate(xano_rows) if r.startswith("Summa räntebärande skulder"))
+    # red, confirmed against unmodified origin/acrylic before writing _drop_nested_hits: 10 hits (2 spurious,
+    # above) against the row's own 8 amounts -- declined, every field null
+    assert x._bucket_header(xano_rows, xano_idx, bucket_sfs, 2025) == \
+        ["_excluded", "_excluded", "_excluded", "due_within_1_year", "due_1_to_5_years", "due_1_to_5_years", "due_after_5_years", "total"]
+    x.call_llm = lambda *a, **k: {"fields": [{"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None} for k in dmf]}
+    out = x.extract([xano_real], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 904522, "due_within_1_year": 51075, "due_1_to_5_years": 802669, "due_after_5_years": 50778} \
+        and out["checks"][0]["passed"], (got, out["checks"], out["warnings"])  # matches eval/labels.csv (v057) exactly
+
+    # Ework: "Due" (above -- a real, sometimes-nonzero column, the Accounts payable row's own Due figure is
+    # 91,284, not a synonym for anything else in the schema) plus the same dedup now reads a clean, correct
+    # 7-column hit list -- but the row has 8 real columns, and nothing in the schema recognises "Carrying
+    # amount" (the report's own book-value total, v028's own total_debt basis) as distinct from "Total
+    # undiscounted value" (the buckets' own subtotal, two columns to its left): stays honestly declined for
+    # this one still-open, out-of-territory reason (docs/acrylic/evidence/v069.md), not silently forced --
+    # adding a second "total" slot risks summing both trailing columns into total_debt on some other company's
+    # table where they are not equal, unproven at corpus scale, out of this lane's remit. Confirmed against the
+    # real page in full (all four candidate rows on p.70, not just this one in isolation, docs/acrylic/evidence/
+    # v069.md's own replay): every candidate still declines, none spuriously reached via the old prose-matching
+    # "due", and no new warning appears end to end.
+    ework_real = ("kSEK Due < 1 month 1-3 months 3-12 months 1-5 years > 5 years Total undiscounted value Carrying amount\n"
+                  "Short-term interest-bearing liabilities* – 153,761 971 1,677 – – 156,410 156,410\n")
+    ework_rows = x._page_rows(ework_real)
+    ework_idx = len(ework_rows) - 1
+    assert x._bucket_header(ework_rows, ework_idx, bucket_sfs, 2025) == \
+        ["due_within_1_year", "due_within_1_year", "due_within_1_year", "due_within_1_year", "due_1_to_5_years", "due_after_5_years", "total"]
+    assert len(x._row_amounts(ework_rows[ework_idx], 7, nil=None)) == 8  # the row's own 8 amounts never shrink to fit a 7-column guess
+    x.call_llm = lambda *a, **k: {"fields": [{"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None} for k in dmf]}
+    out = x.extract([ework_real], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": None, "due_within_1_year": None, "due_1_to_5_years": None, "due_after_5_years": None} \
+        and out["checks"][0]["detail"] == "missing: due_within_1_year" and not out["warnings"], (got, out["checks"], out["warnings"])  # correctly declined, not guessed
+
     qcalls = []
     # v054: EXTRACT_QUOTE_RETRY (default off) -- one follow-up call for the fields whose answer cites a quote
     # that is not printed on the page it names: the cited page's own _page_rows go out numbered, and the model

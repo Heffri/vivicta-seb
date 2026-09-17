@@ -863,9 +863,17 @@ def _between_rows(sf: dict, fields: list[dict], sfs: list[dict], defaults: dict,
 
 
 _BUCKET_BOUNDARY = {  # the schema's own synonyms cover most of this (dash-normalised below, so "1–2 years" matches
-    # the schema's "1-2 years"); these patch the one gap HANDOFF's examples use that the schema only states in
-    # Swedish ("< 1 år", "> 5 år") -- reports also print the plain English symbol form, e.g. Cloetta's "< 1 year".
-    "due_within_1_year": re.compile(r"(?i)<\s*1\s*years?\b"),
+    # the schema's "1-2 years"); these patch gaps a plain header_synonyms literal-substring entry (case-
+    # insensitive, no word boundary, scanned over the whole 25-row window _bucket_header searches, not just the
+    # header line itself) cannot safely express. HANDOFF's examples use the plain English symbol form the schema
+    # only states in Swedish ("< 1 år", "> 5 år"), e.g. Cloetta's "< 1 year". "Due" (Ework p.70's own column,
+    # v069, docs/acrylic/evidence/v069.md) needs more than that: a bare header_synonym "due" fires on ordinary
+    # prose the same 25-row window routinely carries above a debt-maturity table -- proven on Ework's own p.70/71
+    # ("...risk due to assets...", "Past due accounts receivable...", "...not yet due...", a dozen+ hits) -- so
+    # this alternative is scoped case-sensitive (real column headers print "Due", capitalised; prose "due" almost
+    # never is) and excludes the one capitalised false positive a scan like this would still invite, a sentence
+    # opening "Due to ...".
+    "due_within_1_year": re.compile(r"(?i:<\s*1\s*years?\b)|\bDue\b(?!\s+to\b)"),
     "due_after_5_years": re.compile(r"(?i)>\s*5\s*years?\b"),
 }
 _BARE_TOTAL = re.compile(r"(?i)\btotalt?\b|\bsumma\b")
@@ -920,23 +928,37 @@ def _identity_closes(key: str, value, values: dict, defaults: dict, schema: dict
     return False
 
 
-def _bucket_synonym_hits(text: str, bucket_sfs: dict) -> list[tuple[int, str]]:
-    """[(position, key)] for every maturity-bucket synonym of every field in bucket_sfs found in text, dash-
+def _bucket_synonym_hits(text: str, bucket_sfs: dict) -> list[tuple[int, int, str]]:
+    """[(start, end, key)] for every maturity-bucket synonym of every field in bucket_sfs found in text, dash-
     normalised (so "1–2 years" matches the schema's "1-2 years"), plus _BUCKET_BOUNDARY's English-symbol patch.
     A finer split that maps to the same key twice (Cloetta: "1–2 years" and "2–5 years" are both due_1_to_5_years)
     keeps both hits -- each is its own table column, later summed by _bucket_assign. Also reads each field's own
     header_synonyms -- month-span/day-range header wording _label_known (row-label matching) never sees, v046's
     deliberate gap between the two lists. A hit whose synonym is one of _SUBTOTAL_PHRASES is tagged "key:subtotal"
-    so _bucket_header can make it override, not add to, its own finer columns already seen to its left."""
+    so _bucket_header can make it override, not add to, its own finer columns already seen to its left. The span
+    (not just the start) lets _bucket_header drop a hit that sits nested inside another, wider one -- two
+    synonyms matching pieces of the one same printed phrase (XANO's "Summa inom 1 år": the bare word "Summa" and
+    the plain synonym "inom 1 år" each match a piece of the one subtotal phrase already matched whole; Ework's
+    own header_synonym "3 months" is a literal substring of its own "1-3 months") is one column, not two."""
     htext = text.translate(_DASHES)
     hits = []
     for key, sf in bucket_sfs.items():
         for syn in sf.get("synonyms", []) + sf.get("header_synonyms", []):
             tag = f"{key}:subtotal" if syn.lower() in _SUBTOTAL_PHRASES else key
-            hits.extend((m.start(), tag) for m in re.finditer(re.escape(syn.translate(_DASHES)), htext, re.I))
+            hits.extend((m.start(), m.end(), tag) for m in re.finditer(re.escape(syn.translate(_DASHES)), htext, re.I))
         if key in _BUCKET_BOUNDARY:
-            hits.extend((m.start(), key) for m in _BUCKET_BOUNDARY[key].finditer(htext))
+            hits.extend((m.start(), m.end(), key) for m in _BUCKET_BOUNDARY[key].finditer(htext))
     return hits
+
+
+def _drop_nested_hits(hits: list[tuple[int, int, str]]) -> list[tuple[int, int, str]]:
+    """Drop any (start, end, key) hit whose span sits entirely inside another hit's own, strictly wider span in
+    the same list -- one printed header phrase matched by two overlapping synonyms (or a bare Total/Summa word
+    and a synonym, see _bucket_synonym_hits) is one column, not two, and an uncorrected double-count is
+    indistinguishable from a genuinely wider table to _bucket_header's own column-count safety valve. Ties
+    (identical span) are left alone -- two different keys matching the exact same text is a real ambiguity, not
+    this function's call to resolve."""
+    return [h for h in hits if not any(os <= h[0] and h[1] <= oe and (oe - os) > (h[1] - h[0]) for os, oe, _ in hits)]
 
 
 def _bucket_year_hits(text: str, fiscal_year) -> list[tuple[int, str]]:
@@ -968,18 +990,19 @@ def _bucket_header(rows: list[str], idx: int, bucket_sfs: dict, fiscal_year, max
     its own finer day/month columns already seen to its left in this same header. Read from a generous window of
     the rows above idx, not just the one right above it: pymupdf sometimes wraps a two-line column header (Summa
     / inom 1 år) into two of _page_rows' rows, and the note's own heading and instrument rows sit between the
-    header and the total row. None without >=2 distinct bucket keys -- a page that merely mentions one bucket
-    word in passing prose is not a bucket-column table. Falls back to a literal calendar-year header
-    (_bucket_year_hits) when no named bucket reaches that bar."""
+    header and the total row. Within one row, a hit nested inside another, wider hit is dropped before counting
+    (_drop_nested_hits) -- see its own docstring and _bucket_synonym_hits'. None without >=2 distinct bucket
+    keys -- a page that merely mentions one bucket word in passing prose is not a bucket-column table. Falls
+    back to a literal calendar-year header (_bucket_year_hits) when no named bucket reaches that bar."""
     window = rows[max(0, idx - max_back):idx]
     hits = []
     for row in window:
-        bare_total = [(m.start(), "total") for m in _BARE_TOTAL.finditer(row.translate(_DASHES))] if not _row_amounts(row) else []
+        bare_total = [(m.start(), m.end(), "total") for m in _BARE_TOTAL.finditer(row.translate(_DASHES))] if not _row_amounts(row) else []
         # a bare Total/Summa only marks a header column when its own row carries no amounts -- a row that
         # prints "Total 96 173" is another table's own data row (Boozt p.121's earlier receivables-ageing
         # note, still inside the 25-row window), not a column header wrapped above idx (v060)
-        row_hits = _bucket_synonym_hits(row, bucket_sfs) + bare_total
-        hits.extend(key for _, key in sorted(row_hits))
+        row_hits = _drop_nested_hits(_bucket_synonym_hits(row, bucket_sfs) + bare_total)
+        hits.extend(key for _, _, key in sorted(row_hits))
     if len({k.split(":")[0] for k in hits if k != "total"}) < 2:
         year_hits = None
         for row in window:
