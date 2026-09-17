@@ -11,9 +11,11 @@ Challenge owner: Kimberly Lejonö, Co-Head CIB Data & AI Hub, SEB. Full brief + 
 
 First run sets up a Python venv, installs dependencies, builds the frontend, and opens the app in
 your browser on one port — about 2-4 minutes. Later runs take a few seconds. No model is configured
-by default, so it runs on fixture (demo) data; see "Run it" below to point it at a real one. Prefer a
-double-click app with no terminal at all? Grab the packaged Windows build from Releases instead —
-[`desktop/README.md`](desktop/README.md).
+by default, so it runs on fixture (demo) data; see "Run it" below to point it at a real one. Ctrl+C
+stops it and closes the backend it started (on Windows, `run.bat` may ask `Terminate batch job
+(Y/N)?` first — that is `cmd.exe`'s own prompt for any batch file, not specific to this script;
+answer `Y`). Prefer a double-click app with no terminal at all? Grab the packaged Windows build from
+Releases instead — [`desktop/README.md`](desktop/README.md).
 
 ## The one idea to keep
 
