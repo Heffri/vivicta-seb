@@ -320,6 +320,11 @@ def _check(check: dict, values: dict, texts: list[str] | None = None, pages: lis
     listed = check.get("null_as_zero", [])
     naz = [k for k in listed if values.get(k) is None]
     zero = set(naz)
+    # v050: all listed operands null, but the identity's remaining operand(s) are themselves stated zeros --
+    # the report said in words there is no interest-bearing debt (Creades), so the buckets ARE zeros and
+    # 0+0+0 == 0 is a real pass, not the "pass on nothing" the guard above exists for (nothing read at all).
+    others = set(re.findall(r"\b[A-Za-z_]\w*\b", check["expr"])) - set(_SAFE_BUILTINS) - set(listed)
+    all_stated = naz and len(naz) == len(listed) and bool(others) and others <= (stated_zeros or set())
     if naz and len(naz) < len(listed) and texts and schema:
         # MedCap (v041 finding 3): a bucket the model failed to extract reads identically to a bucket the report
         # never prints -- both are null -- but only the second one is really a 0. Before defaulting a null bucket
@@ -336,20 +341,33 @@ def _check(check: dict, values: dict, texts: list[str] | None = None, pages: lis
         # the span must reach the total row, or it could stop short of the table's own bottom boundary
         operands = [k for k in re.findall(r"\b[A-Za-z_]\w*\b", check["expr"]) if k not in _SAFE_BUILTINS]
         span = _operand_table_rows(texts, fields or [], operands, naz)
+        page_rows = [normalize_ws(r).lower() for p in search if 0 < p <= len(texts) for r in _page_rows(texts[p - 1])]
+
+        def _evaluate(rows_list):
+            z = {k for k in naz if not any((cs := normalize_ws(s).lower()) and cs in r
+                                           for s in sf_by_key.get(k, {}).get("synonyms", []) for r in rows_list)}
+            ns2 = {**values, **{k: 0 for k in z}} if naz and (len(naz) < len(listed) or all_stated) else values
+            try:
+                result = eval(check["expr"], {"__builtins__": {}, **_SAFE_BUILTINS}, ns2)  # ponytail: our own schema files, not user input
+            except NameError as e:
+                return z, False, f"missing: {e.name}"
+            except Exception as e:
+                return z, False, f"{type(e).__name__}: {e}"
+            substituted = re.sub(r"\b[A-Za-z_]\w*\b", lambda m: f"0 ({m.group()} null)" if m.group() in z else str(ns2.get(m.group(), m.group())), check["expr"])
+            return z, bool(result), f"{check.get('detail', '')} | {substituted}".strip(" |")
+
         if span is not None:
             # v058: only the operands' own table -- a bucket word printed by another table on a candidate page
             # (MedCap's contractual cash-flow ">5år" header) must not block a 0 the operands' table really implies
-            rows = [normalize_ws(r).lower() for r in span]
+            zero, out["passed"], out["detail"] = _evaluate([normalize_ws(r).lower() for r in span])
+            if not out["passed"]:
+                # v058, supervisor ruling: a scoped zero that cannot close the identity has not proven its 0s
+                # enough to hard-fail the check and cap the verified fields -- v044's page-level verdict stands
+                zero, out["passed"], out["detail"] = _evaluate(page_rows)
         else:
-            # v058: no printable operand row to anchor a table boundary to -> v044's whole-page search, unweakened
-            rows = [normalize_ws(r).lower() for p in search if 0 < p <= len(texts) for r in _page_rows(texts[p - 1])]
-        zero = {k for k in naz if not any((cs := normalize_ws(s).lower()) and cs in r
-                                           for s in sf_by_key.get(k, {}).get("synonyms", []) for r in rows)}
-    # v050: all listed operands null, but the identity's remaining operand(s) are themselves stated zeros --
-    # the report said in words there is no interest-bearing debt (Creades), so the buckets ARE zeros and
-    # 0+0+0 == 0 is a real pass, not the "pass on nothing" the guard above exists for (nothing read at all).
-    others = set(re.findall(r"\b[A-Za-z_]\w*\b", check["expr"])) - set(_SAFE_BUILTINS) - set(listed)
-    all_stated = naz and len(naz) == len(listed) and bool(others) and others <= (stated_zeros or set())
+            # v058: no printable operand row / no provable table header -> v044's whole-page search, unweakened
+            zero, out["passed"], out["detail"] = _evaluate(page_rows)
+        return out
     ns = {**values, **{k: 0 for k in zero}} if naz and (len(naz) < len(listed) or all_stated) else values
     try:
         result = eval(check["expr"], {"__builtins__": {}, **_SAFE_BUILTINS}, ns)  # ponytail: our own schema files, not user input
@@ -436,12 +454,14 @@ def _operand_table_rows(texts: list[str], fields: list[dict], keys: list[str], n
     """The rows of the table the present-label search's *real* (non-null) operands were read from (v058): each
     operand's source.quote must be an exact _page_rows row -- the anchor standard _column_values/_derived_value
     already use -- and the span per page runs from the nearest year-header row above the page's topmost anchor
-    (_year_run over the growing window, _row_year_column's upward walk; the page top when no header sits above,
-    so a headerless table never narrows the search) down to the page's bottommost anchor, the Totalt row: bucket
-    words printed by another table on the same page (MedCap's contractual cash-flow table, docs/acrylic/evidence/
-    v058.md) or below the total are not this table's. None when no operand's quote is a printed row -- quotes the
-    model composed rather than copied give no provable table boundary, and the caller then keeps v044's
-    whole-page search instead of narrowing the guard on a guess."""
+    (_year_run over the growing window, _row_year_column's upward walk) down to the page's bottommost anchor,
+    the Totalt row: bucket words printed by another table on the same page (MedCap's contractual cash-flow
+    table, docs/acrylic/evidence/v058.md) or below the total are not this table's. None -- the caller then
+    keeps v044's whole-page search instead of narrowing the guard on a guess -- when no operand's quote is a
+    printed row, or when no year-header row sits above an anchored page's topmost anchor: a span from the page
+    top proves no boundary (the real table may continue from the previous page -- alligo/boozt/bergman_beving,
+    whose maturity headers live one page up), and zero-filling a bucket on that guess turned checks that were
+    honestly missing into hard failures on the 34-stem replay."""
     anchors: dict[int, list[int]] = {}
     by_key = {f["key"]: f for f in fields}
     for k in keys:
@@ -460,8 +480,10 @@ def _operand_table_rows(texts: list[str], fields: list[dict], keys: list[str], n
     for p, idxs in anchors.items():
         rows = _page_rows(texts[p - 1])
         top, bottom = min(idxs), max(idxs)
-        span_top = next((j for j in range(top - 1, -1, -1) if _year_run(" ".join(rows[j:top]))), 0)
-        out.extend(rows[span_top:bottom + 1])
+        header = next((j for j in range(top - 1, -1, -1) if _year_run(" ".join(rows[j:top]))), None)
+        if header is None:  # no provable table top on this page: the page-level search decides, not a guess
+            return None
+        out.extend(rows[header:bottom + 1])
     return out
 
 
@@ -995,12 +1017,16 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
 def _statement_row(rows: list[str], sf: dict, ncols: int) -> str | None:
     """The field's row on a statement page: the full row whose label is exactly a synonym ("Operating profit" for a bank's
     profit before tax; the synonym through the same _clean_label as the label — "Within 1 year" is exactly within1year),
-    else the one full row with a known, unexcluded label prefix. None when ambiguous."""
+    else the one full row with a known, unexcluded label prefix. None when ambiguous -- including when two different
+    full rows each match a different synonym of the SAME field (v058's month-range wording makes MedCap's "6 månader
+    eller mindre" and "6 – 12 månader" rows both due_within_1_year): that is a finer split summing to the bucket, no
+    single row is the field, and the statement-row fill must leave it to the identity machinery, not claim the first
+    row's figure as the bucket."""
     full = [r for r in rows if len(_row_amounts(r, ncols)) == ncols]
     syn = {c for s in sf.get("synonyms", []) if (c := _clean_label(s))}  # a synonym that cleans away to nothing would match every labelless row
-    hit = next((r for r in full if _clean_label(_row_label(r)) in syn), None)
-    if hit:
-        return hit
+    hits = [r for r in full if _clean_label(_row_label(r)) in syn]
+    if len(hits) == 1:
+        return hits[0]
     cands = [r for r in full if _label_known(_row_label(r), sf)]
     return cands[0] if len(cands) == 1 else None
 

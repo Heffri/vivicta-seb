@@ -565,12 +565,11 @@ def demo():
     # value is the sum 54.3+48.0=102.3, printed only as two separate rows) and due_after_5_years is null too
     # (this table really has no >5y row). v044 found due_within_1_year's "<1 år" on the contractual table two
     # pages later and kept the check at missing; v052's derivation then filled 102.3 from the rows above the
-    # "1 – 5 år" row. v058 scopes the present-label search to the operands' own table, and the carrying table
-    # names NEITHER null bucket (its first-year buckets are the two month rows, which no schema synonym names) --
-    # so both zero-fill and the identity fails on the genuinely-unread 102.3, recapping the verified fields.
-    # That is the honest cost of not counting another table's "<1 år": the stored state (bucket already read)
-    # passes again -- see the case below -- and the derivation keeps its coverage in the in-table-bucket-word
-    # variant further down.
+    # "1 – 5 år" row. v058 scopes the present-label search to the operands' own table -- the contractual
+    # table's "<1 år" decides nothing any more -- and the ruling adds the month rows to the schema itself
+    # ("6 månader eller mindre", "6 – 12 månader"): the guard keeps due_within_1_year out on its own table's
+    # wording, the check reads missing, the derivation fills 102.3, and with due_after_5_years a confirmed 0
+    # the identity closes -- passed, where v044/v052 stalled at "missing: due_after_5_years".
     medcap101 = ("Förfallotidpunkt för upplåning Koncernen Moderbolaget\nMSEK 2025-12-31 2024-12-31 2025-12-31 2024-12-31\n"
                  "6 månader eller mindre 54,3 41,8 – –\n6 – 12 månader 48,0 19,0 – –\n1 – 5 år 616,5 316,7 – –\nTotalt 718,7 377,6 – –\n")
     medcap102 = ("Koncernen 2025-12-31\nMSEK <1 år 1 – 2 år 2 – 4 år 4 – 5 år >5år\nSkulder till kreditinstitut 59,3 97,5 59,1 – –\n"
@@ -582,11 +581,13 @@ def demo():
         {"key": "due_1_to_5_years", "value": 616.5, "unit": "MSEK", "period": "2025", "raw_label": "1 – 5 år", "source": {"page": 1, "quote": "1 – 5 år 616,5 316,7 – –"}},
         {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
     out = x.extract([medcap101, medcap102], [1, 2], dm, {"fiscal_year": 2025})
-    assert not out["checks"][0]["passed"] and "0 (due_within_1_year null)" in out["checks"][0]["detail"] \
-        and "0 (due_after_5_years null)" in out["checks"][0]["detail"], out["checks"]  # both buckets confirmed 0s in their own table: failed on the real gap, not missing
+    assert out["checks"][0]["passed"] and "abs((102.3 + 616.5 + 0 (due_after_5_years null)) - 718.7) <= 2" in out["checks"][0]["detail"], out["checks"]
+    within = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
+    assert within["value"] == 102.3 and "value_derived" in within["evidence"], (within, out["warnings"])
     total = next(f for f in out["fields"] if f["key"] == "total_debt")
     bucket15 = next(f for f in out["fields"] if f["key"] == "due_1_to_5_years")
-    assert total["confidence"] == 0.5 and bucket15["confidence"] == 0.5, (total, bucket15)  # recapped: the identity now hard-fails
+    assert total["confidence"] == 0.9 and "arith_ok" in total["evidence"], total
+    assert bucket15["confidence"] == 1.0 and "arith_ok" in bucket15["evidence"], bucket15
     # Ependion (same seed, v041 finding 3's other example): stays failed, correctly -- its bucket table (p.155)
     # never prints a digit-form boundary at all ("Between 1 and 2 years" / "Between 2 and 3 years", spelled out,
     # scrambled by a sidebar TOC column glued onto the same lines by parse.py), and the schema has no spelled-out
@@ -745,12 +746,11 @@ def demo():
     catrows = x._page_rows(cat)
     assert x._row_year_column(catrows, catrows.index("Profit before tax 2,067 1,344"), 2025) == (0, 2)  # single-table page: the anchored header is the page's
     # ... end to end: the model computes due_within_1_year = 54,3 + 48,0 = 102,3 correctly but fabricates its quote,
-    # so the value is dropped as computed, not read. Under v044's page-level label search the check read
-    # "missing: due_within_1_year" (the "<1 år" hit on the contractual table) and v052's above-window derivation
-    # filled 102.3; v058 scopes that search to the operands' own table, whose rows name no within-1-year bucket
-    # word -- so the null zero-fills, the identity hard-fails (0+616.5 vs 718.7), and the derivation, which only
-    # fires on a missing operand, no longer triggers on this page shape. The derivation itself keeps its
-    # red->green in the in-table-bucket-word variant below; the stored state passes again in the case after it.
+    # so the value is dropped as computed, not read -- yet both rows are printed and are now the schema's own
+    # synonyms, so the table-scoped guard keeps the null operand out (missing), v052's above-window derivation
+    # fills 102.3 with the verified two-row quote, and once due_after_5_years is a confirmed 0 (its ">5år" lives
+    # on the contractual table, which no longer counts) the identity closes -- passed, where v044/v052 stalled
+    # at "missing: due_after_5_years".
     x.call_llm = lambda *a, **k: {"fields": [
         {"key": "total_debt", "value": 718.7, "unit": "MSEK", "period": "2025", "raw_label": "Totalt", "source": {"page": 1, "quote": "Totalt 718,7 377,6 – –"}},
         {"key": "due_1_to_5_years", "value": 616.5, "unit": "MSEK", "period": "2025", "raw_label": "1 – 5 år", "source": {"page": 1, "quote": "1 – 5 år 616,5 316,7 – –"}},
@@ -758,24 +758,23 @@ def demo():
         {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
     out = x.extract([full101, medcap102], [1, 2], dm, {"fiscal_year": 2025})
     within = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
-    assert within["value"] is None and within["confidence"] == 0.0 and not within["evidence"], (within, out["warnings"])
-    assert not out["checks"][0]["passed"] and "0 (due_within_1_year null)" in out["checks"][0]["detail"], out["checks"]
+    assert within["value"] == 102.3 and "value_derived" in within["evidence"] and within["source"]["quote"] \
+        == "6 månader eller mindre 54,3 41,8 – – 6 – 12 månader 48,0 19,0 – –", (within, out["warnings"])
+    assert within["confidence"] == 1.0 and within["raw_label"] == "6 månader eller mindre + 6 – 12 månader", within
+    assert out["checks"][0]["passed"] and "abs((102.3 + 616.5 + 0 (due_after_5_years null)) - 718.7) <= 2" in out["checks"][0]["detail"], out["checks"]
     total = next(f for f in out["fields"] if f["key"] == "total_debt")
     bucket15 = next(f for f in out["fields"] if f["key"] == "due_1_to_5_years")
-    assert (total["value"], total["confidence"]) == (718.7, 0.5) and (bucket15["value"], bucket15["confidence"]) == (616.5, 0.5), (total, bucket15)
+    assert (total["value"], total["confidence"]) == (718.7, 0.9) and (bucket15["value"], bucket15["confidence"]) == (616.5, 1.0), (total, bucket15)
     # ... and a repeated year with no Group/Parent named above the rows must not fire: Volvo-style segment
     # repetition stays unknowable, the field stays null exactly as before the anchoring existed
     out = x.extract([full101.replace(" Koncernen Moderbolaget", ""), medcap102], [1, 2], dm, {"fiscal_year": 2025})
     within = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
     assert within["value"] is None and within["confidence"] == 0.0 and not within["evidence"], (within, out["warnings"])
     assert not out["checks"][0]["passed"], out["checks"]
-    # v058: v052's above-window derivation keeps its own red->green on the page shape that still triggers it --
-    # when the operands' OWN table names the within-1-year bucket in its header ("inom 1 år", glued to "inom1år"
-    # like v012/v014), the guard keeps the null operand out, the check reads missing, and the month rows above
-    # the "1 – 5 år" row close the identity in every column, now ending PASSED: due_after_5_years' ">5år" lives
-    # on the contractual table, which no longer counts. (The real p.101 header carries no bucket word -- that is
-    # why the unmodified MedCap pages above zero-fill instead; the real table is only replayed here with one
-    # header word changed, nothing else.)
+    # v058: v052's above-window derivation also fires when the within-1-year wording sits in the table's own
+    # year-header row ("inom 1 år", glued to "inom1år" like v012/v014) rather than on the bucket rows -- the
+    # guard keeps the null operand out either way, and the real table here is only replayed with one header
+    # word changed, nothing else.
     medcap101_inom = medcap101.replace(
         "MSEK 2025-12-31 2024-12-31 2025-12-31 2024-12-31", "MSEK inom 1 år 2025-12-31 2024-12-31 2025-12-31 2024-12-31")
     x.call_llm = lambda *a, **k: {"fields": [
@@ -789,32 +788,25 @@ def demo():
         == "6 månader eller mindre 54,3 41,8 – – 6 – 12 månader 48,0 19,0 – –", (within, out["warnings"])
     assert within["confidence"] == 1.0 and within["raw_label"] == "6 månader eller mindre + 6 – 12 månader", within
     assert out["checks"][0]["passed"] and "abs((102.3 + 616.5 + 0 (due_after_5_years null)) - 718.7) <= 2" in out["checks"][0]["detail"], out["checks"]
-    # v058: the stored post-v052 MedCap state PASSES. With due_within_1_year already read (102.3, its quote the
-    # two printed month rows verbatim), the only null left is due_after_5_years, and its ">5år" wording lives on
-    # the contractual table -- not in the carrying table the operands were read from -- so it is a confirmed 0
-    # and 102.3+616.5+0 = 718.8 ≈ 718.7. (Pre-v058 the cross-table ">5år" kept this at "missing:
-    # due_after_5_years" forever. The _segment_column detour the joined quote takes on the way -- it votes the
-    # row into another column and the value_derived repair reads it back -- predates this lane.)
+    # v058's synthetic discriminator, MedCap's carrying table (the two month rows collapsed into their single
+    # "< 1 år" sum row and the Parent pair dropped, so the joined-quote/_segment_column detours stay out of the
+    # way) plus the contractual cash-flow table relocated onto ONE page BELOW it: the bucket word sits past the
+    # Totalt row the operands anchor, so both the page-level rule (found -> stay open) and the bottom-of-table
+    # boundary are exercised at once. Scoped to the operands' own table the null bucket is a confirmed 0:
+    # 102.3+616.5+0 = 718.8 ≈ 718.7.
+    onepage = ("Förfallotidpunkt för upplåning\nMSEK 2025 2024\n"
+               "< 1 år 102,3 60,8\n1 – 5 år 616,5 316,7\nTotalt 718,7 377,6\n"
+               "Koncernen 2025-12-31\nMSEK <1 år 1 – 2 år 2 – 4 år 4 – 5 år >5år\nSkulder till kreditinstitut 59,3 97,5 59,1 – –\n"
+               "Leasingskulder 50,6 100,8 66,4 30,6 142,9\nTotalt 431,8 385,4 125,5 30,6 142,9\n")
     x.call_llm = lambda *a, **k: {"fields": [
-        {"key": "total_debt", "value": 718.7, "unit": "MSEK", "period": "2025", "raw_label": "Totalt", "source": {"page": 1, "quote": "Totalt 718,7 377,6 – –"}},
-        {"key": "due_within_1_year", "value": 102.3, "unit": "MSEK", "period": "2025", "raw_label": "6 månader eller mindre + 6 – 12 månader", "source": {"page": 1, "quote": "6 månader eller mindre 54,3 41,8 – – 6 – 12 månader 48,0 19,0 – –"}},
-        {"key": "due_1_to_5_years", "value": 616.5, "unit": "MSEK", "period": "2025", "raw_label": "1 – 5 år", "source": {"page": 1, "quote": "1 – 5 år 616,5 316,7 – –"}},
+        {"key": "total_debt", "value": 718.7, "unit": "MSEK", "period": "2025", "raw_label": "Totalt", "source": {"page": 1, "quote": "Totalt 718,7 377,6"}},
+        {"key": "due_within_1_year", "value": 102.3, "unit": "MSEK", "period": "2025", "raw_label": "< 1 år", "source": {"page": 1, "quote": "< 1 år 102,3 60,8"}},
+        {"key": "due_1_to_5_years", "value": 616.5, "unit": "MSEK", "period": "2025", "raw_label": "1 – 5 år", "source": {"page": 1, "quote": "1 – 5 år 616,5 316,7"}},
         {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
-    out = x.extract([medcap101, medcap102], [1, 2], dm, {"fiscal_year": 2025})
-    assert out["checks"][0]["passed"] and "abs((102.3 + 616.5 + 0 (due_after_5_years null)) - 718.7) <= 2" in out["checks"][0]["detail"], out["checks"]
-    got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
-    assert got == {"total_debt": (718.7, 0.9), "due_within_1_year": (102.3, 1.0), "due_1_to_5_years": (616.5, 1.0), "due_after_5_years": (None, 0.0)}, (got, out["warnings"])
-    # v058's synthetic discriminator, MedCap's own two tables relocated onto ONE page: the bucket word sits in
-    # the contractual cash-flow table printed BELOW the carrying-amount table the operands were read from, so
-    # both the page-level rule (found -> stay open) and the bottom-of-table boundary are exercised at once.
-    # Scoped to the operands' own table the null bucket is a confirmed 0: 102.3+616.5+0 = 718.8 ≈ 718.7.
-    onepage = (medcap101
-               + "Koncernen 2025-12-31\nMSEK <1 år 1 – 2 år 2 – 4 år 4 – 5 år >5år\nSkulder till kreditinstitut 59,3 97,5 59,1 – –\n"
-                 "Leasingskulder 50,6 100,8 66,4 30,6 142,9\nTotalt 431,8 385,4 125,5 30,6 142,9\n")
     out = x.extract([onepage], [1], dm, {"fiscal_year": 2025})
     assert out["checks"][0]["passed"] and "0 (due_after_5_years null)" in out["checks"][0]["detail"], out["checks"]
     got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
-    assert got == {"total_debt": (718.7, 0.9), "due_within_1_year": (102.3, 1.0), "due_1_to_5_years": (616.5, 1.0), "due_after_5_years": (None, 0.0)}, (got, out["warnings"])
+    assert got == {"total_debt": (718.7, 1.0), "due_within_1_year": (102.3, 1.0), "due_1_to_5_years": (616.5, 1.0), "due_after_5_years": (None, 0.0)}, (got, out["warnings"])  # total_debt: the identity holds with the bare-Totalt row in both columns -> identity_all_columns
     # v043: EXTRACT_TWO_PASS (default off) -- pass 1 is a small "which candidate page" question over a
     # head-of-page snippet of *every* candidate (not just the top-2 the single-pass window shows), pass 2
     # is the existing extraction prompt fed only the page(s) pass 1 picks. Candidate 3 (never reached by
