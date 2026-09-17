@@ -119,6 +119,28 @@ def case_two_tables(mod):
     assert not any("payables" in l and "2,619" in l for l in lines), lines[:8]
 
 
+def case_stacked_header_columns(mod):
+    # (e) three adjacent wrapped header cells (Ependion p.155's maturity table, v049b): each cell's own
+    # stacked fragments must chain into one phrase, and neighboring cells must never interleave. Pymupdf
+    # groups these fragments into blocks by its own layout heuristic, which this test does not control and
+    # which changed between pymupdf releases for this exact page (one block under 1.27.2.3, five under
+    # 1.28.2) -- the assertions hold on whatever blocks this pymupdf happens to produce, on either release.
+    items = [
+        ("text", (60, 450), "Total assets"), ("text", (60, 463), "1,234"),  # a plain split row, so the
+        # page's raw text already has one open row and page_text takes the _merge_baselines path at all
+        ("text", (100, 300), "Within 12"), ("text", (100, 313), "months"),
+        ("text", (175, 287), "Between"), ("text", (178, 300), "1 and"), ("text", (176, 313), "2 years"),
+        ("text", (240, 287), "Between"), ("text", (243, 300), "2 and"), ("text", (241, 313), "3 years"),
+        ("text", (300, 313), "Total"),
+    ]
+    text = mod.page_text(_page(items))
+    assert "Within 12 months" in text, text  # a cell split across blocks still chains (col 1)
+    assert "Between 1 and 2 years" in text, text  # col 2's own three fragments, not just two of them
+    assert "Between 2 and 3 years Total" in text, text  # col 3 plus the trailing Total cell
+    assert "Between Between" not in text, text  # the two cells' first lines must never share a row
+    assert "1 and 2 and" not in text, text  # nor their second lines
+
+
 def columns(mod=p):
     """v049: the word-level rebuild is column-aware. Three layouts the page-wide baseline merge got wrong."""
     case_sidebar(mod)
@@ -127,6 +149,13 @@ def columns(mod=p):
     print("parse column self-check ok")
 
 
+def stacking(mod=p):
+    """v049b: stacked-cell chaining does not depend on pymupdf's own block partition."""
+    case_stacked_header_columns(mod)
+    print("parse stacking self-check ok")
+
+
 if __name__ == "__main__":
     demo()
     columns()
+    stacking()
