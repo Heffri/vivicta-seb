@@ -111,6 +111,16 @@ def demo_codex():
                 assert False, "expected a hung codex exec to time out"
             except subprocess.TimeoutExpired as e:
                 assert "timeout" in type(e).__name__.lower(), type(e).__name__
+
+            # web_lookup (v074): the same CLI, but with the top-level --search flag ahead of the
+            # subcommand (codex exec itself rejects --search) so the model gets its web_search tool
+            os.environ["FAKE_CODEX_MODE"], os.environ["LLM_TIMEOUT"] = "ok", "120"
+            os.environ["FAKE_CODEX_REPLY"] = json.dumps({"candidates": [{"url": "https://ir.example.com/ar.pdf"}]})
+            content = llm.web_lookup("s", "u", SCHEMA)
+            assert json.loads(content) == {"candidates": [{"url": "https://ir.example.com/ar.pdf"}]}, content
+            call = json.loads(debug.read_text(encoding="utf-8"))
+            args = call["args"]
+            assert args[args.index("--search") + 1] == "exec", args  # top-level flag, before the subcommand
     finally:
         for k, v in saved.items():
             if v is None:
@@ -219,6 +229,16 @@ def demo_claude():
                 assert False, "expected a hung claude -p to time out"
             except subprocess.TimeoutExpired as e:
                 assert "timeout" in type(e).__name__.lower(), type(e).__name__
+
+            # web_lookup (v074): the same call with --tools WebSearch instead of "" -- the allowlist
+            # is the whole difference ("" disables every tool, "WebSearch" leaves exactly that one)
+            os.environ["FAKE_CLAUDE_MODE"], os.environ["LLM_TIMEOUT"] = "ok", "120"
+            os.environ["FAKE_CLAUDE_REPLY"] = json.dumps({"candidates": [{"url": "https://ir.example.com/ar.pdf"}]})
+            content = llm.web_lookup("s", "u", SCHEMA)
+            assert json.loads(content) == {"candidates": [{"url": "https://ir.example.com/ar.pdf"}]}, content
+            call = json.loads(debug.read_text(encoding="utf-8"))
+            args = call["args"]
+            assert args[args.index("--tools") + 1] == "WebSearch", args
     finally:
         for k, v in saved.items():
             if v is None:
@@ -242,6 +262,22 @@ def demo():
             assert False, "expected an unknown LLM_PROVIDER to raise"
         except ValueError:
             pass
+    finally:
+        if saved is None:
+            os.environ.pop("LLM_PROVIDER", None)
+        else:
+            os.environ["LLM_PROVIDER"] = saved
+
+    # web_lookup (v074) exists only where a search tool exists: the openai provider has none, and the
+    # guard raises before any executable discovery or subprocess could happen
+    saved = os.environ.get("LLM_PROVIDER")
+    try:
+        os.environ["LLM_PROVIDER"] = "openai"
+        try:
+            llm.web_lookup("s", "u", SCHEMA)
+            assert False, "expected web_lookup to refuse the openai provider"
+        except ValueError as e:
+            assert "no web-search tool" in str(e), e
     finally:
         if saved is None:
             os.environ.pop("LLM_PROVIDER", None)

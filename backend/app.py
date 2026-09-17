@@ -65,6 +65,8 @@ class AskBody(BaseModel):
 class FetchBody(BaseModel):
     company: str
     year: int
+    country: str | None = None  # v074: optional context for the model search when the directory has no hit ("Switzerland")
+    hint: str | None = None     # v074: free-text hint for the model search ("FY ends 30 June", the report's exact title)
 
 
 def pdf_path(report_id: str) -> Path:
@@ -182,16 +184,21 @@ def list_companies(q: str = ""):
 
 @app.post("/api/reports/fetch")
 def fetch_report(body: FetchBody):
-    if not (1990 <= body.year <= 2100) or len(body.company) > 100:
+    if not (1990 <= body.year <= 2100) or len(body.company) > 100 or (body.country and len(body.country) > 60) or (body.hint and len(body.hint) > 300):
         raise HTTPException(400, "bad company/year")
     slug = fetch.slugify(body.company)
     entry = next((e for e in library_index() if e["fiscal_year"] == body.year and fetch.slugify(e["company"]) == slug), None)
     if not entry:
         t0 = time.time()
         try:
-            entry = fetch.fetch_report(body.company, body.year, LIBRARY)  # 10-90 s: MFN -> DuckDuckGo, validates PDF + text layer
+            # 10-90 s: MFN -> Nasdaq -> DuckDuckGo, then -- only with a codex/claude provider -- the
+            # model's own web search (fetch.py's fourth source, what the Swedish feeds never carry).
+            entry = fetch.fetch_report(body.company, body.year, LIBRARY, body.country, body.hint)
         except LookupError as e:
-            return JSONResponse({"detail": f"no annual report found for {body.company} {body.year}", "tried": e.args[0]}, status_code=404)
+            detail = f"no annual report found for {body.company} {body.year}"
+            if len(e.args) > 1 and e.args[1]:  # v074: a failed model search says so, with why
+                detail += f"; {e.args[1]}"
+            return JSONResponse({"detail": detail, "tried": e.args[0]}, status_code=404)
         print(f"[fetch] {body.company} {body.year} -> {entry['file']} from {entry['source_url']} in {time.time() - t0:.0f}s")
     return register_library(entry)
 

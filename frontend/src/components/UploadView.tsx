@@ -1,6 +1,6 @@
-import { Loader2 } from 'lucide-react'
+import { Globe, Loader2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { type ApiError, extractSection, fetchReport, getCompanies, getLibrary, getSchemas, registerLibraryReport, uploadReport } from '@/api'
+import { type ApiError, extractSection, fetchReport, getCompanies, getConfig, getLibrary, getSchemas, registerLibraryReport, uploadReport } from '@/api'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ErrorBlock, LoadingLine } from '@/components/ui/state'
@@ -10,6 +10,8 @@ import { Dropzone } from '@/components/upload/Dropzone'
 import type { Company, LibraryEntry, Report, Result, Schema } from '@/types'
 
 type Props = { onDone: (results: Result[]) => void }
+
+type QueueItem = { label: string; prep?: string; getReport: () => Promise<Report>; fromUpload?: boolean; web?: boolean }
 
 const isPdf = (f: File) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
 
@@ -24,6 +26,7 @@ export function UploadView({ onDone }: Props) {
   const [year, setYear] = useState('2025')
   const [companies, setCompanies] = useState<Company[]>([])
   const [dirError, setDirError] = useState<string | null>(null)
+  const [provider, setProvider] = useState<string | null>(null) // backend /api/config provider; null = not loaded yet
   const [picked, setPicked] = useState<Company[]>([]) // directory picks, deduped by name
   const [files, setFiles] = useState<File[]>([]) // uploads, in drop/pick order, deduped by name+size
   const [dragging, setDragging] = useState(false)
@@ -59,6 +62,11 @@ export function UploadView({ onDone }: Props) {
     getLibrary()
       .then(setLibrary)
       .catch((e: Error) => setLibraryError(e.message))
+    // v074: the web-search action is only offerable when the backend runs on a provider that has a
+    // web-search tool (codex/claude); fixture/openai get the "needs a model provider" hint instead.
+    getConfig()
+      .then((c) => setProvider(c.provider))
+      .catch(() => setProvider(null))
   }, [])
 
   // Reject non-PDFs individually (named in the error) and keep the rest; re-picking/re-dropping appends.
@@ -105,16 +113,22 @@ export function UploadView({ onDone }: Props) {
   const busy = progress !== null
   const count = picked.length + selected.size + files.length
   const canExtract = count > 0 && !!section && !busy
+  // The directory is Swedish-listed only; a no-hit query can still be fetched through the backend's
+  // fourth source (the model's own web search), which only a codex/claude provider has.
+  const noDirHit = query.trim().length > 0 && companies.length === 0 && dirError === null
+  const webSearchAvailable = provider === 'codex' || provider === 'claude'
 
-  const run = async () => {
+  const run = async (extra: QueueItem[] = []) => {
     if (!section) return
     setError(null)
     setTried({})
     const sectionTitle = schemas.find((s) => s.name === section)?.title ?? section
-    // Queue = directory picks (fetched on demand) + selected cached entries (library order) + the uploaded
-    // files, in drop order. Sequential on purpose: the local LLM is one GPU, parallel requests would only
-    // queue there and we'd lose the per-report progress line.
-    const queue = [
+    // Queue = web-search jobs (v074, run immediately on click) + directory picks (fetched on demand)
+    // + selected cached entries (library order) + the uploaded files, in drop order. Sequential on
+    // purpose: the local LLM is one GPU, parallel requests would only queue there and we'd lose the
+    // per-report progress line.
+    const queue: QueueItem[] = [
+      ...extra,
       ...picked.map((c) => ({
         label: c.name,
         prep: `Fetching ${c.name} annual report ${year}…`,
@@ -124,10 +138,10 @@ export function UploadView({ onDone }: Props) {
         .filter((e) => selected.has(e.file))
         .map((e) => ({ label: e.company, getReport: () => registerLibraryReport(e.file) })),
       ...files.map((f) => ({ label: f.name, getReport: () => uploadReport(f), fromUpload: true })),
-    ] as { label: string; prep?: string; getReport: () => Promise<Report>; fromUpload?: boolean }[]
+    ]
     const results: Result[] = []
     for (const [i, item] of queue.entries()) {
-      const n = `(${i + 1}/${queue.length}${item.prep ? ', can take a minute' : ''})`
+      const n = `(${i + 1}/${queue.length}${item.web ? ', can take 10–90 s' : item.prep ? ', can take a minute' : ''})`
       try {
         setProgress(`${item.prep ?? `Preparing ${item.label}`} ${n}`)
         const report = await item.getReport()
@@ -146,6 +160,18 @@ export function UploadView({ onDone }: Props) {
     setProgress(null)
     if (results.every((r) => r.error)) setError(results.map((r) => `${r.label}: ${r.error}`).join('\n'))
     else onDone(results)
+  }
+
+  // v074: a name the directory doesn't know goes straight through fetch → extract as its own run.
+  const runWeb = (name: string) => {
+    void run([
+      {
+        label: name,
+        prep: `Searching the web for ${name} annual report ${year}…`,
+        getReport: () => fetchReport(name, Number(year)),
+        web: true,
+      },
+    ])
   }
 
   return (
@@ -202,6 +228,23 @@ export function UploadView({ onDone }: Props) {
           />
         </div>
 
+        {/* v074: no directory hit for a non-empty query — offer the model's web search for that
+            name (available only on a codex/claude provider; fixture/openai get the pointer to
+            Settings instead). Same fetch → extract flow, same progress and error states. */}
+        {noDirHit && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border bg-background/50 px-5 py-3">
+            <span className="text-sm text-muted-foreground">No match in the directory for “{query.trim()}”.</span>
+            {webSearchAvailable ? (
+              <Button variant="outline" size="sm" disabled={busy || !section} onClick={() => runWeb(query.trim())}>
+                <Globe className="size-3.5" />
+                Search the web for ‘{query.trim()}’ FY {year}
+              </Button>
+            ) : (
+              <span className="text-xs text-muted-foreground">Web search needs a model provider (Settings).</span>
+            )}
+          </div>
+        )}
+
         {/* Action bar: section choice, run button, progress line. */}
         <div className="flex flex-wrap items-end gap-x-4 gap-y-3 border-t border-border bg-background/50 px-5 py-4">
           <div className="w-full max-w-80 space-y-1 min-[1280px]:flex-1">
@@ -231,7 +274,12 @@ export function UploadView({ onDone }: Props) {
               </ErrorBlock>
             )}
           </div>
-          <Button onClick={run} disabled={!canExtract}>
+          <Button
+            onClick={() => {
+              void run()
+            }}
+            disabled={!canExtract}
+          >
             {busy && <Loader2 className="animate-spin" />}
             {count > 1 ? `Extract ${count} reports` : 'Extract'}
           </Button>
