@@ -684,6 +684,49 @@ def demo():
     # neighbours" cap they were pinned to while due_within_1_year was null (score_field, untouched by this lane).
     assert got == {"total_debt": (441, 0.9), "due_within_1_year": (104, 1.0), "due_1_to_5_years": (273, 0.9), "due_after_5_years": (63, 0.9)}, (got, out["warnings"])
     assert out["warnings"] == ["due_within_1_year: model returned null; 104 read from 'Lease liabilities 441 26 78 273 63 -' by its column order"], out["warnings"]
+    # v083: the debt-row fallback word list moved from a private extract.py constant (_DEBT_ROW_SYNONYMS) to
+    # schema's total_debt.row_synonyms -- dmf["total_debt"] below is read straight from backend/schemas/
+    # debt_maturity.json, so this proves the schema key is what _bucket_total_row now reads, not a stale copy.
+    # Tången Industrikapital (seed8-kb/v082 Finding 1, real p.62 text): the maturity table's own row is labelled
+    # "Lån Kreditinstitut" ("Loan, Credit institutions") -- not a total_debt synonym, not bare Total/Summa, and
+    # not in the pre-v083 fallback list either, so the row was invisible to the fallback and never reached
+    # _bucket_header at all. "lån kreditinstitut" is added to row_synonyms as the exact two-word phrase actually
+    # printed (no "till"/"to"): deliberately NOT bare "lån" ("loan"), which v060's own Finding 2 already proved
+    # unsafe (Norion Bank's asset-side "Loans to credit institutions" via bare "loan"/"loans" -- see the fallback
+    # list's own comment history). The exact phrase "lån kreditinstitut" does not prefix-match a bank's own "lån
+    # till kreditinstitut" (asset-side lending, "till" intervenes), so it stays direction-safe the same way
+    # "bank loans" is. Two header words the same finding names are also missing from seed1-7's vocabulary:
+    # "mindre än 12 månader" (due_within_1_year) and "mellan 1 och 2 år" (due_1_to_5_years) -- "mellan 3 och 5 år"
+    # and "senare än 5 år" were already synonyms.
+    tangen62_2025 = ("31 december 2025 (KSEK)\nMindre än 12 månader\nMellan 1 och 2 år\nMellan 3 och 5 år\n"
+                     "Senare än 5 år Summa\nLeverantörsskulder och övriga skulder (exklusive icke finansiella skulder) 244 513 - - - 244 513\n"
+                     "Lån Kreditinstitut 141 734 137 898 251 081 57 486 588 199\n"
+                     "Leasingskulder 46 562 44 431 61 727 2 134 154 854\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([tangen62_2025], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 588199, "due_within_1_year": 141734, "due_1_to_5_years": 388979, "due_after_5_years": 57486}, (got, out["warnings"])
+    assert out["checks"][0]["passed"], out["checks"]  # 141734 + (137898+251081) + 57486 == 588199, exactly
+    total = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert total["raw_label"] == "Lån Kreditinstitut", total  # not "Leverantörsskulder..." (not a debt synonym), not "Leasingskulder" (not in row_synonyms, not this report's total)
+    # Finding 1's own real page (both fiscal years' tables, same row label each): a *closeable* table still
+    # correctly declines end to end, for a separate, pre-existing reason v083's own territory does not touch --
+    # _bucket_total_row's known_total narrowing reads a candidate row's amounts via the un-hinted _row_amounts
+    # (no ncols), which merges this table's tightly space-grouped Swedish thousands into unrecognisable blobs
+    # ("57486588199", not 588199) even when known_total is the model's own correctly-read 588199, so two same-
+    # labelled rows (2025's and 2024's own "Lån Kreditinstitut") stay ambiguous and neither is used -- proven
+    # empirically (docs/acrylic/evidence/v083.md), not assumed from the isolated single-year case above.
+    tangen62_full = tangen62_2025 + (
+        "31 december 2024 (KSEK)\nMindre än 12 månader\nMellan 1 och 2 år Mellan 3 och 5 år Senare än 5 år Summa\n"
+        "Leverantörsskulder och övriga skulder (exklusive icke finansiella skulder) 163 517 - - - 163 517\n"
+        "Lån Kreditinstitut 90 970 68 704 188 828 4 520 353 022\n")
+    warnings: list = []
+    assert x._bucket_total_row(x._page_rows(tangen62_full), dmf["total_debt"], bucket_sfs, 2025, 588199, warnings) == []
+    assert warnings == ["total_debt: 2 candidate debt rows for the bucket table ('Lån Kreditinstitut', 'Lån Kreditinstitut') -- ambiguous, none used"], warnings
     # v066 (a): Proact IT Group -- real Note 24 text (seed6-kb/proact_it_2025, p.103, trimmed to the two tables
     # that matter). The note's own per-instrument date breakdown lets the model correctly sum 216,360 (16 Jul
     # 2026) + 96,098 (2026) = 312,458 for due_within_1_year, closing the identity with the already-read

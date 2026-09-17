@@ -62,7 +62,8 @@
         "borrowing", "borrowings", "bank loans", "bank loan",
         "interest-bearing liabilities", "interest bearing liabilities", "short-term interest-bearing liabilities",
         "lease liabilities", "lease liability",
-        "upplåning", "räntebärande skulder"
+        "upplåning", "räntebärande skulder",
+        "lån kreditinstitut", "liabilities to credit institutions"
       ],
       "zero_if_stated": {
         "negations": [
@@ -90,7 +91,8 @@
         "within 12 months", "< 1 month", "1-3 months",
         "3 months", "three to twelve months",
         "-30 dgr", "31-90 dgr", "91-360 dgr",
-        "inom 12 månader",
+        "inom 12 månader", "mindre än 12 månader",
+        "within 6 months",
         "summa inom 1 år", "total within 1 year"
       ]
     },
@@ -109,7 +111,7 @@
         "1-2 år", "mellan 1 och 3 år", "mellan 3 och 5 år", "2-5 år"
       ],
       "header_synonyms": [
-        "3-5 years"
+        "3-5 years", "mellan 1 och 2 år"
       ]
     },
     {
