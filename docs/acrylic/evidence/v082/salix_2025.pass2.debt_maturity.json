@@ -1,0 +1,93 @@
+{
+  "report_id": "lib-salix_2025",
+  "company": "Salix Group",
+  "fiscal_year": 2025,
+  "currency": "SEK m",
+  "section": "debt_maturity",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 3246,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "31 December",
+      "source": {
+        "page": 177,
+        "quote": "unutilised portion of the revolving credit facility was 31 December 3,246 2,944"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 87,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Within 1 year",
+      "source": {
+        "page": 177,
+        "quote": "Within 1 year 87 87 1"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_1_to_5_years"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [177, 178] selected from candidates [177, 178, 182, 184, 181]",
+    "due_within_1_year: quote not found on page 177",
+    "due_within_1_year: 192 is not printed on the statement; filled from page 177 row 'Within 1 year 87 87 1'"
+  ],
+  "_driver_meta": {
+    "company": "Salix Group",
+    "stem": "salix_2025",
+    "pass": 2,
+    "status": 200,
+    "seconds": 43.1
+  }
+}
