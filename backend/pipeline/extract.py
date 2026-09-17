@@ -513,7 +513,18 @@ def _row_amounts(quote: str, ncols: int | None = None, nil=0) -> list:
     default), so columns stay aligned. With the column count known, Swedish space-grouped rows are split by it:
     "Total sales 6, 10 155 113 161 921" is a note reference plus two 6-digit amounts, which no regex can tell
     from five small numbers. nil=None for callers that must tell "not printed" apart from a printed 0 (a
-    maturity-bucket column, where "-" means no debt is due in that window, not a literal zero)."""
+    maturity-bucket column, where "-" means no debt is due in that window, not a literal zero).
+
+    The same space-grouping can over-merge two adjacent bucket columns that happen to look like one Swedish-
+    grouped number: Boozt's "Lease liabilities 441 26 78 273 63 -" (ncols=6) reads "78 273" as one 78273, a
+    column short. Undone only on the narrowest evidence ncols gives: the ordinary reading is exactly one
+    column short, that reading already has a nil in it (a bare "-" printed elsewhere in the same row -- one
+    instrument's own row, sparse by nature; a table's own whole-table Total row sums every instrument and is
+    almost never nil anywhere, so this must not start reading a coincidentally same-shaped Total row too, e.g.
+    Boozt's own "Total 2,358 1,928 92 273 63 0"), and exactly one "NN NNN" token in the row could be the glue
+    (two or more is a guess between candidates, so none is split) -- and even then only kept if splitting that
+    one token lands on exactly ncols amounts; landing anywhere else is not trusted either, and the ordinary
+    (short) reading stands."""
     q = _FOOTNOTE.sub("", quote.translate(_DASHES))
     toks = q.split()
     last_alpha = max((i for i, t in enumerate(toks) if re.search(r"[^\W\d_]", t)), default=-1)
@@ -524,37 +535,51 @@ def _row_amounts(quote: str, ncols: int | None = None, nil=0) -> list:
             chunks = [body[i * k:(i + 1) * k] for i in range(ncols)]
             if all(len(t) <= 2 for t in lead) and all(re.fullmatch(r"\d{3}", g) for ch in chunks for g in ch[1:]):
                 return [int("".join(ch)) for ch in chunks]
-    q = _SPACE_GROUPS.sub(lambda m: m.group(0).replace(" ", "").replace(" ", ""), q)  # "79 146" -> 79146 before splitting
-    toks = q.split()
-    if re.search(r"\d\.\d{1,2}\b|\d,\d{3}\b", q):  # "." is the decimal here, so "6,12" is a note reference, not 6.12
-        toks = [t for t in toks if not re.fullmatch(r"\d{1,2},\d{1,2}", t)]
-    last_alpha = max((i for i, t in enumerate(toks) if re.search(r"[^\W\d_]", t)), default=-1)
-    out, noteish, small = [], [], []  # noteish: a bare one- or two-digit token; "6" / "12" is a note reference, "(19)" / "-19" (Arion) is an amount
-    for t in toks[last_alpha + 1:]:
-        t = t.rstrip(",;")
-        if t == "-":  # Volvo "Income taxes 10 -11,669 -15,542 -1,016 -1,092 – – -12,685 -16,634": the eliminations columns are nil
-            out.append(nil)
-            noteish.append(False)
-            small.append(False)  # Cloetta "Accrued interest 0 - - - 0": a run of nil dashes must not desync small from out/noteish, or small[0] below runs off the end
-            continue
-        m = _AMOUNT.fullmatch(t)
-        if not m:
-            continue
-        if re.fullmatch(r"0[.,]\d{3}", m.group(1)) and not m.group(3):
-            v = float("0." + m.group(1)[2:])  # Fenix Outdoor "0.039" / "0.693": a lone zero is never a thousands group
-        else:
-            v = int(re.sub(r"\D", "", m.group(1))) + (float(f"0.{m.group(3)}") if m.group(3) else 0)  # ponytail: "1,234" is read as a thousand, not a Swedish decimal
-        v = -v if t[0] in "-(" else v
-        out.append(int(v) if float(v).is_integer() else round(v, 4))
-        noteish.append(len(re.sub(r"\D", "", t)) < 3 and not m.group(3) and t[0].isdigit())
-        small.append(len(re.sub(r"\D", "", t)) < 3 and t[0].isdigit())
-    if ncols:  # note references sit between the label and the amounts; after an amount a small number is a column
-        while out and noteish[0]:  # Vitrolife "Net sales 4, 5 3,440 3,609 15 25": the parent company's 15 and 25 are amounts
-            out, noteish, small = out[1:], noteish[1:], small[1:]
-        while len(out) > ncols and small[0]:  # Clas Ohlson "Nettoomsättning 2,3 12 513,9 11 626,7": "2,3" is notes 2 and 3 once the columns are full
-            out, small = out[1:], small[1:]
-        return out
-    return [v for v, n in zip(out, noteish) if not n]
+
+    def _degroup(m: re.Match) -> str:
+        return m.group(0).replace(" ", "").replace("\u00a0", "")
+
+    def _amounts(qc: str) -> list:
+        toks = qc.split()
+        if re.search(r"\d\.\d{1,2}\b|\d,\d{3}\b", qc):  # "." is the decimal here, so "6,12" is a note reference, not 6.12
+            toks = [t for t in toks if not re.fullmatch(r"\d{1,2},\d{1,2}", t)]
+        last_alpha = max((i for i, t in enumerate(toks) if re.search(r"[^\W\d_]", t)), default=-1)
+        out, noteish, small = [], [], []  # noteish: a bare one- or two-digit token; "6" / "12" is a note reference, "(19)" / "-19" (Arion) is an amount
+        for t in toks[last_alpha + 1:]:
+            t = t.rstrip(",;")
+            if t == "-":  # Volvo "Income taxes 10 -11,669 -15,542 -1,016 -1,092 – – -12,685 -16,634": the eliminations columns are nil
+                out.append(nil)
+                noteish.append(False)
+                small.append(False)  # Cloetta "Accrued interest 0 - - - 0": a run of nil dashes must not desync small from out/noteish, or small[0] below runs off the end
+                continue
+            m = _AMOUNT.fullmatch(t)
+            if not m:
+                continue
+            if re.fullmatch(r"0[.,]\d{3}", m.group(1)) and not m.group(3):
+                v = float("0." + m.group(1)[2:])  # Fenix Outdoor "0.039" / "0.693": a lone zero is never a thousands group
+            else:
+                v = int(re.sub(r"\D", "", m.group(1))) + (float(f"0.{m.group(3)}") if m.group(3) else 0)  # ponytail: "1,234" is read as a thousand, not a Swedish decimal
+            v = -v if t[0] in "-(" else v
+            out.append(int(v) if float(v).is_integer() else round(v, 4))
+            noteish.append(len(re.sub(r"\D", "", t)) < 3 and not m.group(3) and t[0].isdigit())
+            small.append(len(re.sub(r"\D", "", t)) < 3 and t[0].isdigit())
+        if ncols:  # note references sit between the label and the amounts; after an amount a small number is a column
+            while out and noteish[0]:  # Vitrolife "Net sales 4, 5 3,440 3,609 15 25": the parent company's 15 and 25 are amounts
+                out, noteish, small = out[1:], noteish[1:], small[1:]
+            while len(out) > ncols and small[0]:  # Clas Ohlson "Nettoomsättning 2,3 12 513,9 11 626,7": "2,3" is notes 2 and 3 once the columns are full
+                out, small = out[1:], small[1:]
+            return out
+        return [v for v, n in zip(out, noteish) if not n]
+
+    result = _amounts(_SPACE_GROUPS.sub(_degroup, q))  # "79 146" -> 79146 before splitting
+    if ncols and len(result) == ncols - 1 and nil in result:  # nil in result: see the docstring's Total-row caveat
+        glued = [gm for gm in _SPACE_GROUPS.finditer(q) if len(gm.group(0).split()) == 2]  # "NN NNN": one grouped number, or two adjacent bucket columns
+        if len(glued) == 1:  # two or more candidates is a guess which one -- don't
+            keep = glued[0]
+            split = _amounts(_SPACE_GROUPS.sub(lambda m: m.group(0) if (m.start(), m.end()) == (keep.start(), keep.end()) else _degroup(m), q))
+            if len(split) == ncols:  # only trust it when the split lands exactly on the header's own column count
+                return split
+    return result
 
 
 _NOTE_REFS = re.compile(r"(?:[A-Z]{1,3}\.?\d{1,2}(?:[-–]\d{1,2})?[,\s]*)+")  # "IE.3", "IE.4-7", "T.1–2", "A.1 IE.8", "B1, B2"
