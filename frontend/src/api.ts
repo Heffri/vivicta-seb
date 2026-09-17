@@ -65,7 +65,17 @@ export const pdfUrl = (reportId: string, page?: number) =>
   `/api/reports/${reportId}/pdf${page ? `#page=${page}` : ''}`
 
 // provider added in v031 (backend/app.py); this type lagged behind until v033's Settings view needed it.
-export type Config = { model: string; embed_model: string; base_url: string | null; llm: boolean; provider: string }
+// retrieval (v034, consumed by KbView since v059) is how /ask retrieves: embeddings+keywords or keywords only.
+// Optional: main.tsx's SetSettingsResult (desktop save path) predates it and is outside lane territory —
+// an absent field just keeps KbView's column on the pre-v059 wording.
+export type Config = {
+  model: string
+  embed_model: string
+  base_url: string | null
+  llm: boolean
+  provider: string
+  retrieval?: 'hybrid' | 'bm25' | 'fixture'
+}
 export const getConfig = () => request<Config>('/api/config')
 export const getKb = () => request<KbEntry[]>('/api/kb')
 // Stored extraction, no model call; the backend re-registers the PDF so pageUrl/csvUrl work.
