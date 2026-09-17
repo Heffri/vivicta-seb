@@ -99,14 +99,13 @@ opaque window — implemented, not testable on this branch's machines). The cust
 native chrome) is draggable and supports double-click-to-maximize/restore, verified at the Windows
 message level (`WM_NCHITTEST`/`WM_NCLBUTTONDBLCLK` against the real window). `npm run dist`
 produces two unsigned packages, portable and NSIS — unsigned means Windows SmartScreen warns on
-first run ("More info" → "Run anyway"). The current packaged release is **0.3.2**, built from
-`e216fd4` (the acrylic tip at package time — it ships everything 0.3.1 did plus the whole
-post-0.3.1 batch: Boozt's column-style split (v064), the closing guard and its two valves
-(v066), the two-row transposed-header rebuild with header dedup (`PARSER_VERSION` 6, v068),
-the Ework/XANO bucket-column downstream fix (v069), and the Settings-save status bar refresh
-that no longer needs a relaunch (v065)):
-`Annual Report Parser-0.3.2-portable.exe` (~141.4 MB) and
-`Annual Report Parser-Setup-0.3.2.exe` (NSIS, ~141.6 MB). [v071](evidence/v071.md) The data
+first run ("More info" → "Run anyway"). The current packaged release is **0.3.3**, built from
+`0f2e2bc` (the acrylic tip at package time — it ships everything 0.3.2 did plus v074's
+foreign-company annual-report web search (a no-hit directory query offers "Search the web for
+'…' FY 2025" under a Codex/Claude provider; the located PDF then registers like any other) and
+v076's bucket-column carrying-amount slot):
+`Annual Report Parser-0.3.3-portable.exe` (~141.4 MB) and
+`Annual Report Parser-Setup-0.3.3.exe` (NSIS, ~141.6 MB). [v077](evidence/v077.md) The data
 directory (reports, KB, uploads, `backend.log`)
 lives under the user's own `app.getPath('userData')/data`, seeded once from the bundled repo data
 on first launch and left alone on later launches/upgrades; first launch has no model provider
