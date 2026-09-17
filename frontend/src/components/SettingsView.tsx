@@ -221,13 +221,15 @@ function ReadOnlySettings() {
 
 // The only place that checks for window.arp — everything below takes `api` as a given, so there's
 // no repeated optional-chaining (or a dead "not desktop" branch inside effects/handlers that only
-// ever mount when it's already known to exist).
-export function SettingsView() {
+// ever mount when it's already known to exist). `onConfigChange` (v065) forwards the post-save
+// config to App so its StatusBar stops lagging behind a save until relaunch (v061 §6-5) — the same
+// fresh payload this view's own strip gets in DesktopSettings.save().
+export function SettingsView({ onConfigChange }: { onConfigChange?: (config: Config) => void }) {
   const api = typeof window !== 'undefined' ? window.arp?.settings : undefined
-  return api ? <DesktopSettings api={api} /> : <ReadOnlySettings />
+  return api ? <DesktopSettings api={api} onConfigChange={onConfigChange} /> : <ReadOnlySettings />
 }
 
-function DesktopSettings({ api }: { api: ArpSettingsApi }) {
+function DesktopSettings({ api, onConfigChange }: { api: ArpSettingsApi; onConfigChange?: (config: Config) => void }) {
   const [loaded, setLoaded] = useState(false)
   const [form, setForm] = useState<DesktopConfig>(DEFAULT_CONFIG)
   const [status, setStatus] = useState<Config | null>(null)
@@ -253,10 +255,12 @@ function DesktopSettings({ api }: { api: ArpSettingsApi }) {
       .then((c) => {
         setStatus(c)
         setStatusError(null)
+        return c // v065: save()'s no-config branch forwards this same payload up to App
       })
       .catch((e: Error) => {
         setStatus(null)
         setStatusError(e.message)
+        return null
       })
 
   useEffect(() => {
@@ -310,8 +314,19 @@ function DesktopSettings({ api }: { api: ArpSettingsApi }) {
     if (res.ok) {
       setSaved(true)
       setTwoPassStatus(effectiveTwoPass(form))
-      if (res.config) setStatus(res.config)
-      else refreshStatus()
+      // v065: App's StatusBar keeps the mount-time config until relaunch (v061 §6-5), so forward the
+      // post-restart payload up the same way this strip gets it -- res.config when the shell resolved
+      // it (desktop/main.js's nicety fetch; its failure path still resolves { ok: true } without a
+      // config), a fresh /api/config fetch otherwise. Success only: the failure branch's
+      // refreshStatus() below must leave App's footer showing whatever was live before the save.
+      if (res.config) {
+        setStatus(res.config)
+        onConfigChange?.(res.config)
+      } else {
+        refreshStatus().then((fresh) => {
+          if (fresh) onConfigChange?.(fresh)
+        })
+      }
     } else {
       setSaveError(res.error)
       // The old backend was already killed before the new one failed its health check (main.js's
