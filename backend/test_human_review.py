@@ -27,7 +27,8 @@ with tempfile.TemporaryDirectory() as tmp:
     current = corrected['fields'][0]
     assert current['value'] == 120 and current['evidence'] == []
     assert current['review_history'][1]['previous']['value'] == 100
-    assert corrected['checks'][0]['stale'] is True
+    assert corrected['checks'][0]['status'] == 'unavailable'
+    assert corrected['check_history'][0]['previous'][0]['detail'] == 'old calculation'
     assert 'corrected' in app.extraction_csv(x['report_id']).body.decode()
     persisted = json.loads((Path(tmp)/'review_test/extractions/income_statement.json').read_text())
     assert persisted['fields'][0] == current

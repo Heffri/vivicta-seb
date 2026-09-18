@@ -57,6 +57,7 @@ export function FieldsTable({ fields, selectedKey, onSelect }: FieldsTableProps)
                   <Badge variant={verification.variant} title={verification.detail}>
                     {verification.label}
                   </Badge>
+                  {f.human_review && <p className="mt-2 text-xs text-muted-foreground" title={fieldVerification({ ...f, human_review: undefined }).detail}>Automated evidence: {fieldVerification({ ...f, human_review: undefined }).label.toLowerCase()}</p>}
                   {['Needs review', 'Not checked', 'Not found'].includes(verification.label) && (
                     <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{verification.detail}</p>
                   )}

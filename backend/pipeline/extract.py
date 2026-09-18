@@ -318,7 +318,7 @@ def _check(check: dict, values: dict, texts: list[str] | None = None, pages: lis
     # "null_as_zero" operands (schema: Ericsson's note prints no >5y bucket — null there is a real 0, not an unanswered
     # field) count as 0 while null, but only while at least one of them is real: all buckets null would sum to 0 == total
     # and the check would pass on nothing.
-    listed = check.get("null_as_zero", [])
+    listed = [] if check.get("require_explicit_values") else check.get("null_as_zero", [])
     naz = [k for k in listed if values.get(k) is None]
     zero = set(naz)
     # v050: all listed operands null, but the identity's remaining operand(s) are themselves stated zeros --

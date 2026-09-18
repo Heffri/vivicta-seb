@@ -1,5 +1,6 @@
+import { BasisPanel, YearComparison } from '@/components/AnalystWorkbench'
 import { ArrowLeft, Download } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { csvUrl, pptxUrl } from '@/api'
 import { AskPanel } from '@/components/AskPanel'
 import { HumanReviewForm } from '@/components/results/HumanReviewForm'
@@ -10,7 +11,7 @@ import { StatusCards } from '@/components/results/StatusCards'
 import { Badge } from '@/components/ui/badge'
 import { fieldVerification } from '@/components/results/verification'
 import { Button, buttonVariants } from '@/components/ui/button'
-import type { Extraction, Field } from '@/types'
+import type { Comparison, Extraction, Field } from '@/types'
 
 type Props = {
   extraction: Extraction
@@ -18,6 +19,7 @@ type Props = {
   onUpdated: (result: Extraction) => void
   onReset: () => void
   onBack?: () => void
+  initialField?: string
   initialPage?: number | null // from a citation chip on the compare view
 }
 
@@ -40,9 +42,10 @@ const loadViewer = (): Viewer => {
   }
 }
 
-export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBack, initialPage }: Props) {
+export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBack, initialPage, initialField }: Props) {
   const { report_id, company, fiscal_year, currency, section, fields, checks, warnings } = extraction
-  const [selectedKey, setSelectedKey] = useState<string | null>(() => fields.find((f) => f.source)?.key ?? null)
+  const [selectedKey, setSelectedKey] = useState<string | null>(() => initialField ?? fields.find((f) => f.source)?.key ?? null)
+  const [comparison, setComparison] = useState<Comparison | null>(null)
   const [brokenPage, setBrokenPage] = useState<number | null>(null)
   const [askPage, setAskPage] = useState<number | null>(initialPage ?? null) // citation chip override; a row click clears it
   const [viewer, setViewerState] = useState<Viewer>(loadViewer)
@@ -55,6 +58,12 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
     }
   }
 
+  useEffect(() => {
+    if (initialField === '@basis') {
+      const basis = document.getElementById('basis-review') as HTMLDetailsElement | null
+      if (basis) { basis.open = true; basis.scrollIntoView({ block: 'start' }) }
+    } else if (initialField === '@checks') document.getElementById('calculation-checks')?.scrollIntoView({ block: 'start' })
+  }, [initialField])
   const selected = fields.find((f) => f.key === selectedKey) ?? null
   const page = askPage ?? selected?.source?.page ?? null // what the provenance pane shows
   const selectField = (key: string) => {
@@ -65,7 +74,7 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
 
   const exportJson = () => {
     // ponytail: Blob URL + synthetic click, fine for a single JSON. Upgrade: File System Access API if size ever matters.
-    const url = URL.createObjectURL(new Blob([JSON.stringify(extraction, null, 2)], { type: 'application/json' }))
+    const url = URL.createObjectURL(new Blob([JSON.stringify({ ...extraction, comparison }, null, 2)], { type: 'application/json' }))
     const a = Object.assign(document.createElement('a'), {
       href: url,
       download: `${slug(company ?? 'report')}-${section}.json`,
@@ -102,16 +111,18 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
           <Button variant="outline" onClick={exportJson}>
             <Download /> Export JSON
           </Button>
-          <a href={csvUrl(report_id)} download className={buttonVariants({ variant: 'outline' })}>
+          <a href={csvUrl(report_id, extraction.stem ? section : undefined, comparison?.previous_stem)} download className={buttonVariants({ variant: 'outline' })}>
             <Download /> Export CSV
           </a>
-          <a href={pptxUrl(report_id)} download className={buttonVariants({ variant: 'outline' })}>
+          <a href={pptxUrl(report_id, extraction.stem ? section : undefined, comparison?.previous_stem)} download className={buttonVariants({ variant: 'outline' })}>
             <Download /> Export PPTX
           </a>
           <Button onClick={onReset}>New report</Button>
         </div>
       </header>
 
+      <BasisPanel key={extraction.basis?.at ?? 'unknown'} extraction={extraction} onUpdated={onUpdated} />
+      <YearComparison extraction={extraction} onChange={setComparison} />
       {/* Two columns from 1280px (fields + verification left, provenance + Ask right);
           below that one column, Source directly under the table. The maturity chart
           (v009) leads the grid full-width so it clears the fold on a 900px screen —
@@ -141,12 +152,12 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
           onBrokenPage={setBrokenPage}
         />
 
-        <StatusCards checks={checks} warnings={warnings} fields={fields} onSelect={(key) => {
+        <div id="calculation-checks"><StatusCards checks={checks} warnings={warnings} fields={fields} onSelect={(key) => {
           selectField(key)
           const source = document.getElementById('report-source')
           source?.focus({ preventScroll: true })
           source?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        }} />
+        }} /></div>
 
         <AskPanel reports={[{ report_id, label: company ?? 'This report' }]} onCitation={(_id, p) => setAskPage(p)} />
       </div>

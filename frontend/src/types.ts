@@ -80,13 +80,23 @@ export type Field = {
 };
 
 export type Check = {
+  status?: "passed" | "failed" | "unavailable";
   stale?: boolean;
   name: string;             // from schema.checks[].name
   passed: boolean;
   detail: string;           // human-readable, e.g. "152340 + -88120 = 64220 == 64220"
 };
 
+export type Basis = { values: Record<string, string>; reviewer: string; note: string; at: string };
+export type ReviewIssue = { kind: 'basis' | 'field' | 'check'; key: string; detail: string };
+export type Comparison = { candidates: KbEntry[]; previous_stem?: string; current_year?: number; previous_year?: number; reasons: string[]; restatement?: Record<string, string>; rows: { key: string; label: string; current: Field['value']; previous: Field['value']; delta: number | null; percent: number | null; sign_change: boolean; reason: string }[] };
+export type QueueIssue = ReviewIssue & { report: KbEntry; section: string };
 export type Extraction = {
+  basis?: Basis;
+  basis_history?: (Basis & { previous: Partial<Basis> })[];
+  check_history?: unknown[];
+  issues?: ReviewIssue[];
+  ready?: boolean;
   report_id: string;
   stem?: string;            // saved source, provided when opening the knowledge base
   pdf_available?: boolean; // false means use saved page text instead of the PDF

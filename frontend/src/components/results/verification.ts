@@ -15,7 +15,6 @@ export function fieldVerification(field: Field): Verification {
   const evidence = field.evidence ?? []
   if (!evidence.length) return { label: 'Not checked', variant: 'secondary', detail: `No automated checks were recorded. Check ${field.value} against the report row, its ${field.period || 'year'} column and ${field.unit || 'currency/unit'}, then compare the related totals.` }
   const actions: Record<string, string> = {
-    arith_ok: 'Arithmetic is not verified. Compare this figure with the related totals in the calculation checks.',
     quote_on_page: `Check the quoted text against ${field.source ? `page ${field.source.page}` : 'the original report'}. It has not been matched to that page.`,
     label_known: `Confirm that “${field.raw_label || field.label}” represents ${field.label.toLowerCase()}, not a different measure.`,
     period_ok: `Confirm the figure is in the ${field.period || 'intended year'} column, not the comparative year.`,
@@ -31,5 +30,5 @@ export function fieldVerification(field: Field): Verification {
   }
   if (missing.length) return { label: 'Needs review', variant: 'warning', detail: missing.join(' ') }
   if (evidence.includes('value_derived')) return { label: 'Calculated from report', variant: 'secondary', detail: 'Calculated from source rows, rather than copied from a printed total. Review those rows in the report.' }
-  return { label: 'Checks passed', variant: 'success', detail: 'The figure matches its source text, label, year and unit. No related arithmetic check failed. This is an automated cross-check, not confirmation that the report itself is correct.' }
+  return { label: 'Checks passed', variant: 'success', detail: 'The figure matches its source text, label, year and unit. See the separate calculation checks for arithmetic. This is an automated cross-check, not confirmation that the report itself is correct.' }
 }

@@ -35,7 +35,7 @@ export function MaturityBar({ extraction }: { extraction: Extraction }) {
   // indicator) — never recomputed here. Only the sliver's *width* is derived locally, from
   // the same numbers already needed to size the three real segments.
   const check = extraction.checks.find((c) => c.name === IDENTITY_CHECK) ?? null
-  const missing = !!check?.stale || (check?.detail.startsWith('missing:') ?? false)
+  const missing = check?.status === 'unavailable' || !!check?.stale || (check?.detail.startsWith('missing:') ?? false)
   const mismatch = check ? !check.passed && !missing : false
   const shortfall = (total ?? 0) - sum
   const denom = Math.max(total ?? 0, sum, 1e-9)

@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field, FiniteFloat
 from typing import Literal
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from pipeline import extract as extract_mod, fetch, kb, llm, locate, parse, paths, ppt, collection
+from pipeline import extract as extract_mod, fetch, kb, llm, locate, parse, paths, ppt, collection, workbench
 
 load_dotenv()
 UPLOADS = paths.uploads_dir()
@@ -68,6 +68,14 @@ class ReviewBody(BaseModel):
     value: FiniteFloat | str | None = None
     unit: str | None = Field(default=None, max_length=80)
     period: str | None = Field(default=None, max_length=80)
+
+
+class BasisBody(BaseModel):
+    section: str = Field(pattern=r"^[a-z0-9_]+$")
+    expected: dict
+    values: dict[str, str]
+    reviewer: str = Field(min_length=1, max_length=120)
+    note: str = Field(min_length=1, max_length=2000)
 
 
 review_lock = threading.Lock()  # Local file store: serialize review read/modify/write.
@@ -294,7 +302,7 @@ def run_extract(report_id: str, body: ExtractBody):
     saved = kb.kb_dir() / report["stem"] / "extractions" / f"{body.section}.json"
     if body.reuse_saved and saved.exists():
         return kb_extraction(report["stem"], body.section)
-    if saved.exists() and any(f.get("review_history") for f in json.loads(saved.read_text(encoding="utf-8"))["fields"]):
+    if saved.exists() and has_reviews(json.loads(saved.read_text(encoding="utf-8"))):
         raise HTTPException(409, "This section has human reviews. Keep the reviewed extraction instead of replacing it.")
     if not _llm_configured():  # frontend dev mode: no model configured
         result = json.loads(FIXTURE.read_text(encoding="utf-8")) | {"report_id": report_id}
@@ -304,8 +312,9 @@ def run_extract(report_id: str, body: ExtractBody):
         print(f"[extract] {report_id} {body.section}: candidate pages {pages}")
         result = extract_mod.extract(texts, pages, schema, report)
         result.update(stem=report["stem"], pdf_available=pdf_path(report_id).is_file())
+        workbench.decorate(result, schema, {"at": datetime.datetime.now(datetime.timezone.utc).isoformat(), "reason": "Recalculated explicit values after extraction"})
         with review_lock:
-            if saved.exists() and any(f.get("review_history") for f in json.loads(saved.read_text(encoding="utf-8"))["fields"]):
+            if saved.exists() and has_reviews(json.loads(saved.read_text(encoding="utf-8"))):
                 raise HTTPException(409, "A human review was saved during extraction. The reviewed result was preserved.")
             kb.save_extraction(report["stem"], body.section, result)  # fixture results never enter the KB
     extractions[report_id] = result
@@ -390,7 +399,7 @@ def kb_extraction(stem: str, section: str):
     report_id = get_report(saved_report_id(stem))["report_id"]
     extractions[report_id] = json.loads(path.read_text(encoding="utf-8")) | {
         "report_id": report_id, "stem": stem, "pdf_available": pdf_path(report_id).is_file()}
-    return extractions[report_id]
+    return workbench.decorate(extractions[report_id], load_schema(section))
 
 
 @app.post("/api/reports/{report_id}/review")
@@ -421,17 +430,86 @@ def review_field(report_id: str, body: ReviewBody):
                   "at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
         if body.decision == "corrected":
             field.update(value=body.value, unit=body.unit, period=body.period, evidence=[], confidence=0)
-            for check in result.get("checks", []):
-                check["stale"] = True
-                check["passed"] = False
             for other in result["fields"]:
                 other["evidence"] = [e for e in other.get("evidence", []) if e != "arith_ok"]
         field["human_review"] = review
         field.setdefault("review_history", []).append({**review, "previous": previous})
+        workbench.decorate(result, load_schema(body.section), review)
         kb.save_extraction(stem, body.section, result)
         result.update(report_id=report_id, stem=stem, pdf_available=pdf_path(report_id).is_file())
         extractions[report_id] = result
         return result
+
+
+def has_reviews(result):
+    return bool(result.get("basis_history")) or any(f.get("review_history") for f in result["fields"])
+
+
+@app.post("/api/reports/{report_id}/basis")
+def review_basis(report_id: str, body: BasisBody):
+    stem = get_report(report_id)["stem"]
+    if not re.fullmatch(r"[a-z0-9_-]+", stem):
+        raise HTTPException(400, "Invalid report identifier")
+    if not body.reviewer.strip() or not body.note.strip():
+        raise HTTPException(422, "Enter your name and a basis review note")
+    if set(body.values) - set(workbench.required(body.section)) or any(len(v) > 2000 for v in body.values.values()):
+        raise HTTPException(422, "Invalid basis fields")
+    for key, options in workbench.CHOICES.items():
+        value = body.values.get(key, "").strip()
+        if value and value not in options:
+            raise HTTPException(422, f"Invalid {key} definition")
+    with review_lock:
+        path = kb.kb_dir() / stem / "extractions" / f"{body.section}.json"
+        if not path.is_file():
+            raise HTTPException(409, "Only saved extractions can be reviewed")
+        result = json.loads(path.read_text(encoding="utf-8"))
+        if result.get("basis", {}) != body.expected:
+            raise HTTPException(409, "The basis changed. Reopen the statement before saving.")
+        basis = {"values": {k: v.strip() for k, v in body.values.items()}, "reviewer": body.reviewer.strip(),
+                 "note": body.note.strip(), "at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+        result.setdefault("basis_history", []).append(dict(basis, previous=result.get("basis", {})))
+        result["basis"] = basis
+        workbench.decorate(result, load_schema(body.section), basis)
+        kb.save_extraction(stem, body.section, result)
+        result.update(report_id=report_id, stem=stem, pdf_available=pdf_path(report_id).is_file())
+        extractions[report_id] = result
+        return result
+
+
+@app.get("/api/review-queue")
+def review_queue():
+    out = []
+    for report in list_kb("wallenberg"):
+        for section in report["sections"]:
+            x = kb_extraction(report["stem"], section)
+            out.extend({"report": report, "section": section, **issue} for issue in x["issues"])
+    return out
+
+
+@app.get("/api/kb/{stem}/{section}/comparison")
+def comparison(stem: str, section: str, previous_stem: str | None = None):
+    current = kb_extraction(stem, section)
+    candidates = [e for e in list_kb() if current.get("company") and e.get("company") and e["stem"] != stem and section in e["sections"] and e.get("fiscal_year") and current.get("fiscal_year") and e["fiscal_year"] < current["fiscal_year"] and collection.identity(e.get("company")) == collection.identity(current.get("company"))]
+    if previous_stem is None:
+        default = [e for e in candidates if e["fiscal_year"] == current.get("fiscal_year", 0) - 1]
+        if len(default) != 1:
+            return {"candidates": candidates, "rows": [], "reasons": ["Choose the prior-year source: multiple saved reports exist." if default else "The immediately preceding year is not saved. Select another saved year to compare."]}
+        previous_stem = default[0]["stem"]
+    if previous_stem not in {e["stem"] for e in candidates}:
+        raise HTTPException(422, "Choose an earlier saved report for the same company and statement")
+    previous = kb_extraction(previous_stem, section)
+    return dict(workbench.compare(current, previous), candidates=candidates)
+
+
+def export_extraction(report_id, section=None, previous_stem=None):
+    report = get_report(report_id)
+    x = kb_extraction(report["stem"], section) if section else extractions.get(report_id)
+    if not x:
+        raise HTTPException(404, "No extraction yet")
+    x = workbench.decorate(copy.deepcopy(x), load_schema(x["section"]))
+    if previous_stem:
+        x["comparison"] = comparison(report["stem"], x["section"], previous_stem)
+    return x
 
 
 @app.get("/api/config")
@@ -444,28 +522,22 @@ def config():
 
 
 @app.get("/api/reports/{report_id}/extraction.csv")
-def extraction_csv(report_id: str):
-    get_report(report_id)
-    x = extractions.get(report_id)
-    if not x:
-        raise HTTPException(404, "no extraction yet; POST /extract first")
+def extraction_csv(report_id: str, section: str | None = None, previous_stem: str | None = None):
+    x = export_extraction(report_id, section, previous_stem)
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(CSV_HEADER + ["human_review", "reviewer", "reviewed_at", "review_note"])
+    w.writerow(CSV_HEADER + ["human_review", "reviewer", "reviewed_at", "review_note", "ready", "basis", "unresolved", "comparison", "review_history", "basis_history", "check_history"])
     for f in x["fields"]:
         src = f.get("source") or {}
         w.writerow([x["report_id"], x["company"], x["fiscal_year"], x["section"], f["key"], f["label"], f["value"],
-                    f["unit"], f["period"], f["raw_label"], src.get("page"), src.get("quote"), f["confidence"], *[(f.get("human_review") or {}).get(k, "") for k in ("decision", "reviewer", "at", "note")]])
+                    f["unit"], f["period"], f["raw_label"], src.get("page"), src.get("quote"), f["confidence"], *[(f.get("human_review") or {}).get(k, "") for k in ("decision", "reviewer", "at", "note")], x.get("ready", False), json.dumps(x.get("basis", {})), json.dumps(x.get("issues", [])), json.dumps(x.get("comparison", {})), json.dumps(f.get("review_history", [])), json.dumps(x.get("basis_history", [])), json.dumps(x.get("check_history", []))])
     return Response(buf.getvalue(), media_type="text/csv; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="{report_id}_{x["section"]}.csv"'})
 
 
 @app.get("/api/reports/{report_id}/extraction.pptx")
-def extraction_pptx(report_id: str):
-    get_report(report_id)
-    x = extractions.get(report_id)
-    if not x:
-        raise HTTPException(404, "no extraction yet; POST /extract first")
+def extraction_pptx(report_id: str, section: str | None = None, previous_stem: str | None = None):
+    x = export_extraction(report_id, section, previous_stem)
     data = ppt.build_pptx(x)
     return Response(data, media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
                     headers={"Content-Disposition": f'attachment; filename="{report_id}_{x["section"]}.pptx"'})

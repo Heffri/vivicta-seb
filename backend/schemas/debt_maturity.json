@@ -135,8 +135,9 @@
       "name": "maturity_sums_to_total",
       "expr": "abs((due_within_1_year + due_1_to_5_years + due_after_5_years) - total_debt) <= 2",
       "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding)",
-      "description": "A bucket with no row in the table is null upstream (see the bucket fields' description), not a fabricated 0 — but null_as_zero still counts a null bucket as 0 here, so the total is verified against whatever buckets the report does print.",
+      "description": "All buckets need explicit source values or documented human corrections. Missing values remain unknown and cannot produce a passing reconciliation.",
       "identity": true,
+      "require_explicit_values": true,
       "null_as_zero": ["due_within_1_year", "due_1_to_5_years", "due_after_5_years"]
     }
   ]

@@ -1,3 +1,4 @@
+import { ReviewQueue } from './components/AnalystWorkbench'
 import { useEffect, useState } from 'react'
 import { type Config, getConfig } from './api'
 import { AskView } from './components/AskView'
@@ -21,7 +22,8 @@ export default function App() {
   const [tone, setTone] = useTone()
   const [tab, setTab] = useState<Tab>('extract')
   const [savedReport, setSavedReport] = useState<KbEntry | null>(null)
-  const [reportOrigin, setReportOrigin] = useState<'kb' | 'map'>('kb')
+  const [reportOrigin, setReportOrigin] = useState<'kb' | 'map' | 'review'>('kb')
+  const [reviewTarget, setReviewTarget] = useState<{ section?: string; key?: string }>({})
   const [results, setResults] = useState<Result[]>([])
   const [detail, setDetail] = useState<number | null>(null) // index into results shown on the Results tab
   const [detailPage, setDetailPage] = useState<number | null>(null) // page a citation chip asked for, if any
@@ -55,6 +57,7 @@ export default function App() {
     compare: results.length > 1,
     ask: true,
     kb: true,
+    review: true,
     map: true,
     settings: true,
   }
@@ -68,7 +71,7 @@ export default function App() {
         <main id="content" tabIndex={-1} className="min-w-0 flex-1 overflow-y-auto">
           <div className="mx-auto max-w-6xl px-6 py-10">
             {tab === 'extract' && <UploadView onDone={done} />}
-            {tab === 'results' && savedReport && <SavedReportView key={savedReport.stem} report={savedReport} onBack={() => setTab(reportOrigin)} onReset={reset} />}
+            {tab === 'results' && savedReport && <SavedReportView initialSection={reportOrigin === 'review' ? reviewTarget.section : undefined} initialField={reportOrigin === 'review' ? reviewTarget.key : undefined} key={`${savedReport.stem}:${reviewTarget.section}:${reviewTarget.key}`} report={savedReport} onBack={() => setTab(reportOrigin)} onReset={reset} />}
             {tab === 'results' && !savedReport && shown?.extraction && (
               <ResultsView
                 key={shown.extraction.report_id}
@@ -93,6 +96,7 @@ export default function App() {
               />
             )}
             {tab === 'ask' && <AskView key={askCompany ?? 'global'} initialCompany={askCompany} />}
+            {tab === 'review' && <ReviewQueue onOpen={(report, section, key) => { setReviewTarget({ section, key }); setSavedReport(report); setReportOrigin('review'); setTab('results') }} />}
             {tab === 'kb' && <KbView onOpen={done} onOpenReport={report => { setSavedReport(report); setReportOrigin('kb'); setTab('results') }} />}
             {tab === 'map' && <KnowledgeMap onOpenReport={report => { setSavedReport(report); setReportOrigin('map'); setTab('results') }} onAsk={(company) => { setAskCompany(company); setTab('ask') }} />}
             {/* v065: a Save restarts the backend, leaving this mount-time `config` stale until

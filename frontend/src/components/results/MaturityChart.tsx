@@ -79,7 +79,7 @@ export function MaturityChart({ extraction, selectedKey, onSelect }: Props) {
   const byKey = new Map(extraction.fields.map((f) => [f.key, f]))
   const total = byKey.get('total_debt') ?? null
   const check = extraction.checks.find((c) => c.name === IDENTITY_CHECK) ?? null
-  const missing = !!check?.stale || (check?.detail.startsWith('missing:') ?? false)
+  const missing = check?.status === 'unavailable' || !!check?.stale || (check?.detail.startsWith('missing:') ?? false)
   const unit = extraction.currency ?? ''
 
   const step = niceStep(Math.max(...slots.map(numeric).map((v) => v ?? 0)) / TICKS)
