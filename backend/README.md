@@ -251,9 +251,29 @@ the undiscounted total by construction. The prompt follows the basis: the schema
 `description_undiscounted` beside its `description` (schema top level and `total_debt`), and
 `system_prompt` picks the one matching `debt_basis()`; anything but `undiscounted` in the env reads
 `carrying`, so a typo can never flip it. Every extraction reports the basis it was read on in its
-top-level `basis` field, and `GET /api/config` mirrors the live value as `maturity_basis`. The desktop
+top-level `maturity_basis` field (v089 named it `basis`; the 2026-09-18 merge renamed it, because
+Sebastijan's analyst-confirmed `basis` object owns that key), and `GET /api/config` mirrors the live
+value as `maturity_basis`. The desktop
 Settings cards carry the matching two-choice control that writes this env var on Save. See
 `pipeline/extract.py`'s `debt_basis()` and `docs/acrylic/evidence/v089.md`.
+
+## Publishing hardening results into `data/kb` (`scripts/publish_kb.py`) -- v093
+
+    python scripts/publish_kb.py --kb <seed1-kb> ... --kb <seedN-kb> [--section debt_maturity] [--dry-run]
+
+Copies the debt-maturity hardening rounds' stored results into `data/kb`. Per stem the `--kb`
+directories are walked in the order given and a later one overrides an earlier one — list them
+`seed1…seedN` and the highest seed that has the stem wins. `data/kb/<stem>/` missing → `meta.json` +
+`pages.jsonl` are copied byte for byte; same-PDF-sha stems get only the extraction written;
+different-sha stems are skipped and listed, never overwritten. Every extraction is **replay-gated**:
+the stored fields are fed back through the *current* `extract()` as if the model had just answered
+(no model call — the `scripts/replay_check.py` mechanism), and the replayed output is published only
+where it is no worse than stored — never a lost value, never a lower confidence; the original
+warnings are kept plus one `published:` line. Idempotent: run twice, nothing changes. `data/kb`
+currently carries the 72 seed-1–8 entries plus 12 more (seed 9 + Avarda/Linc) published with the
+same script — 186 companies, 85 of them with a `debt_maturity` extraction. To fold in a future seed,
+append its directory and re-run; the full per-stem table (what replayed better, what was kept as
+stored and why) is in `docs/acrylic/evidence/v093.md`.
 
 ## Checks
 
