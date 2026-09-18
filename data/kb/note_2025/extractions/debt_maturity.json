@@ -1,0 +1,77 @@
+{
+  "report_id": "lib-note_2025",
+  "company": "NOTE",
+  "fiscal_year": 2025,
+  "currency": "TSEK",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 595420,
+      "unit": "TSEK",
+      "period": "2025",
+      "raw_label": "Summa",
+      "source": {
+        "page": 107,
+        "quote": "Summa 595 420 380 108"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "TSEK",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "TSEK",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_1_to_5_years"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [107, 108] selected from candidates [107, 108, 88, 109]",
+    "llm: TimeoutExpired: Command '['C:\\\\Users\\\\<user>\\\\AppData\\\\Local\\\\Programs\\\\OpenAI\\\\Codex\\\\bin\\\\codex.EXE', 'exec', '-m', 'gpt-5.6-terra', '-s', 'read-only', '-C', 'C:\\\\Users\\\\<user>\\\\AppData\\\\Local\\\\Temp\\\\vivicta-codex-_w_nqk1v', '--skip-git-repo-check', '--json', '-o', 'C:\\\\Users\\\\<user>\\\\AppData\\\\Local\\\\Temp\\\\vivicta-codex-_w_nqk1v\\\\last-message.txt', '-']' timed out after 120.0 seconds (pages [107, 108])",
+    "total_debt: 824281 is printed on none of pages [107, 108]; dropped as computed, not read",
+    "published: seed9 run replayed with extract.py @ fab73152"
+  ]
+}

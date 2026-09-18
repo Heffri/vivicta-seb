@@ -1,0 +1,99 @@
+{
+  "report_id": "lib-rusta_2025",
+  "company": "Rusta",
+  "fiscal_year": 2025,
+  "currency": "MSEK",
+  "section": "debt_maturity",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 6624,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Total",
+      "source": {
+        "page": 115,
+        "quote": "Total 6,624 6,669"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": 2184,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "1–2 years; 2–5 years",
+      "source": {
+        "page": 115,
+        "quote": "2–5 years 2,184 2,130"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": 2431,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": ">5 years",
+      "source": {
+        "page": 115,
+        "quote": ">5 years 2,431 2,633"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_within_1_year"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [115, 116] selected from candidates [132, 133, 115, 108, 96]",
+    "total_debt: 6669 is not the 2025 column, 6624 is",
+    "due_1_to_5_years: 3062 is not printed in '2–5 years'; the row's 2025 figure is 2184",
+    "due_after_5_years: 2633 is not the 2025 column, 2431 is",
+    "due_within_1_year: 975 is printed on none of pages [115, 132, 133]; dropped as computed, not read",
+    "published: seed9 run as stored"
+  ]
+}
