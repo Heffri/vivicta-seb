@@ -20,7 +20,7 @@ Backend runs on `http://localhost:8000`, frontend dev server proxies `/api` to i
 | `POST` | `/api/reports/{report_id}/index` | – | `IndexStatus` — chunk + embed the report into the knowledge base (idempotent, cached on disk). ~10–30 s per report locally |
 | `POST` | `/api/ask` | `{ "question": string, "report_ids": string[] }` | `Answer` — RAG over the selected reports (page texts + prior extractions). Indexes on demand if `/index` was not called |
 | `GET`  | `/api/kb` | – | `KbEntry[]` — what is in `data/kb/` (one per parsed report: pages indexed, sections extracted) |
-| `GET`  | `/api/config` | – | `{ model, embed_model, base_url, llm, provider, retrieval }` — what the backend runs with; `retrieval` is `"hybrid"` (cosine+BM25) \| `"bm25"` (keyword-only, e.g. codex/claude subscription with no embeddings endpoint) \| `"fixture"` |
+| `GET`  | `/api/config` | – | `{ model, embed_model, base_url, llm, provider, retrieval, maturity_basis }` — what the backend runs with; `retrieval` is `"hybrid"` (cosine+BM25) \| `"bm25"` (keyword-only, e.g. codex/claude subscription with no embeddings endpoint) \| `"fixture"`; `maturity_basis` (v089) is `"carrying"` (default) \| `"undiscounted"`, from env `DEBT_BASIS` |
 | `POST` | `/api/reports/from-library` | `{ "file": "<LibraryEntry.file>" }` | `Report` — registers a bundled report exactly like an upload would. Same file twice = same `report_id` |
 
 Errors: JSON `{ "detail": "message" }` with 4xx/5xx.
@@ -113,6 +113,7 @@ type Extraction = {
   fiscal_year: number | null;
   currency: string | null;  // dominant unit in the section
   section: string;          // schema name
+  basis?: "carrying" | "undiscounted"; // v089, debt_maturity only: which maturity table total_debt + the buckets were read from (env DEBT_BASIS)
   fields: Field[];          // one entry per schema field, in schema order (value null if missing)
   checks: Check[];
   warnings: string[];       // free text, e.g. "revenue: quote not found on page 64"
