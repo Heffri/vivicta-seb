@@ -60,6 +60,6 @@
   ],
   "warnings": [
     "two_pass: page [32, 33] selected from candidates [32, 33]",
-    "published: seed7 run replayed with extract.py @ 545473cb"
+    "published: seed7 run replayed with extract.py @ 4ccbcaf8"
   ]
 }
