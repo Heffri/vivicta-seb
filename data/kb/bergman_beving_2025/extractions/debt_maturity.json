@@ -4,6 +4,7 @@
   "fiscal_year": 2025,
   "currency": "MSEK",
   "section": "debt_maturity",
+  "maturity_basis": "carrying",
   "fields": [
     {
       "key": "total_debt",
@@ -16,10 +17,11 @@
         "page": 120,
         "quote": "Total interest-bearing liabilities 2,390 2,062"
       },
-      "confidence": 0.5,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
+        "arith_ok",
         "label_known",
         "period_ok",
         "page_is_statement",
@@ -37,10 +39,11 @@
         "page": 120,
         "quote": "Total current liabilities 424 476"
       },
-      "confidence": 0.5,
+      "confidence": 0.9,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
+        "arith_ok",
         "period_ok",
         "page_is_statement",
         "unit_ok"
@@ -73,10 +76,10 @@
     {
       "name": "maturity_sums_to_total",
       "passed": false,
-      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((476 + 0 (due_1_to_5_years null) + 0 (due_after_5_years null)) - 2062) <= 2"
+      "detail": "missing: due_1_to_5_years"
     }
   ],
   "warnings": [
-    "published: seed1 run replayed with extract.py @ 832bc526"
+    "published: seed1 run replayed with extract.py @ 861fd65e"
   ]
 }

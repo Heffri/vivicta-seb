@@ -4,6 +4,7 @@
   "fiscal_year": 2025,
   "currency": null,
   "section": "debt_maturity",
+  "maturity_basis": "carrying",
   "fields": [
     {
       "key": "total_debt",
@@ -59,6 +60,6 @@
   ],
   "warnings": [
     "two_pass: page [41, 42] selected from candidates [41, 42]",
-    "published: seed5 run replayed with extract.py @ 832bc526"
+    "published: seed5 run replayed with extract.py @ 861fd65e"
   ]
 }

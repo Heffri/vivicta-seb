@@ -4,6 +4,7 @@
   "fiscal_year": 2025,
   "currency": "MSEK",
   "section": "debt_maturity",
+  "maturity_basis": "carrying",
   "fields": [
     {
       "key": "total_debt",
@@ -16,10 +17,11 @@
         "page": 143,
         "quote": "SUMMA SKULDER 3 629 2 232 5 861 3 573 2 344 5 917"
       },
-      "confidence": 0.5,
+      "confidence": 0.9,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
+        "arith_ok",
         "period_ok",
         "page_is_statement",
         "unit_ok"
@@ -36,10 +38,11 @@
         "page": 143,
         "quote": "Kortfristiga räntebärande skulder 473 - 473 452 - 452"
       },
-      "confidence": 0.5,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
+        "arith_ok",
         "label_known",
         "period_ok",
         "page_is_statement",
@@ -73,10 +76,10 @@
     {
       "name": "maturity_sums_to_total",
       "passed": false,
-      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((473 + 0 (due_1_to_5_years null) + 0 (due_after_5_years null)) - 3629) <= 2"
+      "detail": "missing: due_1_to_5_years"
     }
   ],
   "warnings": [
-    "published: seed2 run replayed with extract.py @ 832bc526"
+    "published: seed2 run replayed with extract.py @ 861fd65e"
   ]
 }

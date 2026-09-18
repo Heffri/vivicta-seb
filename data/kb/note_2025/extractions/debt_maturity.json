@@ -72,6 +72,6 @@
     "two_pass: page [107, 108] selected from candidates [107, 108, 88, 109]",
     "llm: TimeoutExpired: Command '['C:\\\\Users\\\\<user>\\\\AppData\\\\Local\\\\Programs\\\\OpenAI\\\\Codex\\\\bin\\\\codex.EXE', 'exec', '-m', 'gpt-5.6-terra', '-s', 'read-only', '-C', 'C:\\\\Users\\\\<user>\\\\AppData\\\\Local\\\\Temp\\\\vivicta-codex-_w_nqk1v', '--skip-git-repo-check', '--json', '-o', 'C:\\\\Users\\\\<user>\\\\AppData\\\\Local\\\\Temp\\\\vivicta-codex-_w_nqk1v\\\\last-message.txt', '-']' timed out after 120.0 seconds (pages [107, 108])",
     "total_debt: 824281 is printed on none of pages [107, 108]; dropped as computed, not read",
-    "published: seed9 run replayed with extract.py @ fab73152"
+    "published: seed9 run replayed with extract.py @ 861fd65e"
   ]
 }
