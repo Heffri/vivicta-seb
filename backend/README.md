@@ -269,11 +269,17 @@ different-sha stems are skipped and listed, never overwritten. Every extraction 
 the stored fields are fed back through the *current* `extract()` as if the model had just answered
 (no model call — the `scripts/replay_check.py` mechanism), and the replayed output is published only
 where it is no worse than stored — never a lost value, never a lower confidence; the original
-warnings are kept plus one `published:` line. Idempotent: run twice, nothing changes. `data/kb`
-currently carries the 72 seed-1–8 entries plus 12 more (seed 9 + Avarda/Linc) published with the
+warnings are kept plus one `published:` line. Idempotent: run twice, nothing changes. At v093
+`data/kb` carried the 72 seed-1–8 entries plus 12 more (seed 9 + Avarda/Linc) published with the
 same script — 186 companies, 85 of them with a `debt_maturity` extraction. To fold in a future seed,
 append its directory and re-run; the full per-stem table (what replayed better, what was kept as
-stored and why) is in `docs/acrylic/evidence/v093.md`.
+stored and why) is in `docs/acrylic/evidence/v093.md`. Since v093 the same script has republished
+the committed `data/kb` after every landed mechanism (the `data: republish` commits — 84 Mid Cap
+debt entries after v095/v096, the seed-10 publish, v101's sign normalization, v102's Ambea year fix,
+v104's Svedbergs finer-split sums; the publish gate clamps stored confidences at 1.0): `data/kb`
+now carries 196 companies, 95 of them with a `debt_maturity` extraction, and `eval/run.py
+--stored-kb data/kb` scores values 257/327 (78.6%) / pages 200/327 (61.2%) over the 327 scored
+label rows.
 
 ## Checks
 
