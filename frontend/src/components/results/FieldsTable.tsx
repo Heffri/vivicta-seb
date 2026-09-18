@@ -1,5 +1,5 @@
-import { TriangleAlert } from 'lucide-react'
-import { confidenceClass, confidenceTitle, fmtValue } from '@/components/ResultsView'
+import { fmtValue } from '@/components/ResultsView'
+import { fieldVerification } from './verification'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -7,7 +7,6 @@ import type { Field } from '@/types'
 
 type FieldsTableProps = {
   fields: Field[]
-  warnings: string[]
   selectedKey: string | null
   onSelect: (key: string) => void
 }
@@ -15,10 +14,10 @@ type FieldsTableProps = {
 /** The product's argument, one row per number: the number, its unit and period, how much
  *  the backend could verify. Selecting a row (click or Enter/Space) aims the Source panel;
  *  the selected row carries an accent left edge and a faint accent wash. */
-export function FieldsTable({ fields, warnings, selectedKey, onSelect }: FieldsTableProps) {
-  const warningFor = (f: Field) => warnings.find((w) => w.startsWith(f.key + ':'))
+export function FieldsTable({ fields, selectedKey, onSelect }: FieldsTableProps) {
   return (
     <Card className="py-0">
+      <p className="px-4 pt-4 text-xs text-muted-foreground">Select a figure to see its source and add a human review below the table.</p>
       <Table>
         <TableHeader>
           <TableRow>
@@ -26,14 +25,13 @@ export function FieldsTable({ fields, warnings, selectedKey, onSelect }: FieldsT
             <TableHead className="text-right">Value</TableHead>
             <TableHead>Unit</TableHead>
             <TableHead>Period</TableHead>
-            <TableHead>Confidence</TableHead>
-            <TableHead className="w-8" />
+            <TableHead>Verification</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {fields.map((f) => {
             const isSelected = f.key === selectedKey
-            const warning = warningFor(f)
+            const verification = fieldVerification(f)
             return (
               <TableRow
                 key={f.key}
@@ -55,13 +53,14 @@ export function FieldsTable({ fields, warnings, selectedKey, onSelect }: FieldsT
                 </TableCell>
                 <TableCell className="text-muted-foreground">{f.unit ?? '—'}</TableCell>
                 <TableCell className="text-muted-foreground">{f.period ?? '—'}</TableCell>
-                <TableCell>
-                  <Badge variant="outline" className={`tabular-nums ${confidenceClass(f.confidence)}`} title={confidenceTitle(f)}>
-                    {Math.round(f.confidence * 100)}%
+                <TableCell className="min-w-52 max-w-sm whitespace-normal align-top">
+                  <Badge variant={verification.variant} title={verification.detail}>
+                    {verification.label}
                   </Badge>
-                </TableCell>
-                <TableCell>
-                  {warning && <TriangleAlert className="size-3.5 text-warning" role="img" aria-label={warning} />}
+                  {f.human_review && <p className="mt-2 text-xs text-muted-foreground" title={fieldVerification({ ...f, human_review: undefined }).detail}>Automated evidence: {fieldVerification({ ...f, human_review: undefined }).label.toLowerCase()}</p>}
+                  {['Needs review', 'Not checked', 'Not found'].includes(verification.label) && (
+                    <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{verification.detail}</p>
+                  )}
                 </TableCell>
               </TableRow>
             )

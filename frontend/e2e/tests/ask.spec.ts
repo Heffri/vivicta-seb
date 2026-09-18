@@ -32,7 +32,7 @@ for (const tone of TONES) {
     // Touch the standalone Ask tab too (this test's flow otherwise only visits the embedded
     // AskPanel inside Results) so every rail tab gets a pageerror check somewhere in the suite.
     await railTab(page, 'Ask').click()
-    await expect(page.getByText('Ask the reports')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Ask your saved reports', exact: true })).toBeVisible()
 
     expect(errors).toEqual([])
   })

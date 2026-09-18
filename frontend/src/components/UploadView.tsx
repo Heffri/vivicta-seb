@@ -24,6 +24,7 @@ export function UploadView({ onDone }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set()) // LibraryEntry.file
   const [query, setQuery] = useState('')
   const [year, setYear] = useState('2025')
+  const [downloadPdf, setDownloadPdf] = useState(false)
   const [companies, setCompanies] = useState<Company[]>([])
   const [dirError, setDirError] = useState<string | null>(null)
   const [provider, setProvider] = useState<string | null>(null) // backend /api/config provider; null = not loaded yet
@@ -131,8 +132,8 @@ export function UploadView({ onDone }: Props) {
       ...extra,
       ...picked.map((c) => ({
         label: c.name,
-        prep: `Fetching ${c.name} annual report ${year}…`,
-        getReport: () => fetchReport(c.name, Number(year)),
+        prep: `Opening ${c.name} annual report ${year}…`,
+        getReport: () => fetchReport(c.name, Number(year), { download_pdf: downloadPdf }),
       })),
       ...library
         .filter((e) => selected.has(e.file))
@@ -168,7 +169,7 @@ export function UploadView({ onDone }: Props) {
       {
         label: name,
         prep: `Searching the web for ${name} annual report ${year}…`,
-        getReport: () => fetchReport(name, Number(year)),
+        getReport: () => fetchReport(name, Number(year), { download_pdf: true }),
         web: true,
       },
     ])
@@ -180,7 +181,7 @@ export function UploadView({ onDone }: Props) {
         <p className="text-xs text-muted-foreground uppercase tracking-wide">Extract</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">Pick reports, get source-linked numbers</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Search the directory, tick cached reports or drop a PDF. One report opens Results, several open Compare.
+          Wallenberg collection: reuse saved figures and page text, choose a local report or upload your own. PDFs are never downloaded automatically.
         </p>
       </header>
 
@@ -231,13 +232,13 @@ export function UploadView({ onDone }: Props) {
         {/* v074: no directory hit for a non-empty query — offer the model's web search for that
             name (available only on a codex/claude provider; fixture/openai get the pointer to
             Settings instead). Same fetch → extract flow, same progress and error states. */}
-        {noDirHit && (
+        {noDirHit && downloadPdf && (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border bg-background/50 px-5 py-3">
             <span className="text-sm text-muted-foreground">No match in the directory for “{query.trim()}”.</span>
             {webSearchAvailable ? (
               <Button variant="outline" size="sm" disabled={busy || !section} onClick={() => runWeb(query.trim())}>
                 <Globe className="size-3.5" />
-                Search the web for ‘{query.trim()}’ FY {year}
+                Find and download PDF for ‘{query.trim()}’ FY {year}
               </Button>
             ) : (
               <span className="text-xs text-muted-foreground">Web search needs a model provider (Settings).</span>
@@ -245,6 +246,7 @@ export function UploadView({ onDone }: Props) {
           </div>
         )}
 
+        <label className="flex items-start gap-2 border-t px-5 py-3 text-sm"><input type="checkbox" className="mt-1" checked={downloadPdf} disabled={busy} onChange={e => setDownloadPdf(e.target.checked)} /><span>Allow PDF download for this request<span className="block text-xs text-muted-foreground">Off by default. Saved text and figures work without the original PDF. Turn on only to fetch a missing report or its original PDF.</span></span></label>
         {/* Action bar: section choice, run button, progress line. */}
         <div className="flex flex-wrap items-end gap-x-4 gap-y-3 border-t border-border bg-background/50 px-5 py-4">
           <div className="w-full max-w-80 space-y-1 min-[1280px]:flex-1">
@@ -281,7 +283,7 @@ export function UploadView({ onDone }: Props) {
             disabled={!canExtract}
           >
             {busy && <Loader2 className="animate-spin" />}
-            {count > 1 ? `Extract ${count} reports` : 'Extract'}
+            {downloadPdf && picked.length ? 'Download PDF and extract' : count > 1 ? `Extract ${count} reports` : 'Extract'}
           </Button>
           {progress && <LoadingLine className="w-full">{progress}</LoadingLine>}
         </div>

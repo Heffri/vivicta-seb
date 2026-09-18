@@ -2,8 +2,9 @@ import { Download } from 'lucide-react'
 import { csvUrl } from '@/api'
 import { AskPanel } from '@/components/AskPanel'
 import { MaturityBar } from '@/components/compare/MaturityBar'
-import { confidenceClass, confidenceTitle, fmtValue } from '@/components/ResultsView'
+import { fmtValue } from '@/components/ResultsView'
 import { isMaturitySection } from '@/components/results/MaturityChart'
+import { fieldVerification } from '@/components/results/verification'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -50,7 +51,7 @@ export function CompareView({ results, onSelect, onReset }: Props) {
               <TableHead className="sticky left-0 z-10 bg-card">Field</TableHead>
               {results.map((r, i) => {
                 const x = r.extraction
-                const failed = x?.checks.filter((c) => !c.passed).length ?? 0
+                const reviewCount = x?.fields.filter((f) => ['Needs review', 'Not checked', 'Not found'].includes(fieldVerification(f).label)).length ?? 0
                 return (
                   <TableHead key={i} className="min-w-48 p-1.5 align-top">
                     <Card size="sm" className="gap-1">
@@ -63,8 +64,8 @@ export function CompareView({ results, onSelect, onReset }: Props) {
                         <span className="font-medium text-foreground">{r.label}</span>
                         <span className="text-xs font-normal text-muted-foreground">FY {x?.fiscal_year ?? '—'}</span>
                         {x ? (
-                          <Badge variant={failed === 0 ? 'success' : 'danger'}>
-                            {x.checks.length === 0 ? 'No checks' : `${x.checks.length - failed}/${x.checks.length} checks`}
+                          <Badge variant={reviewCount ? 'warning' : 'secondary'}>
+                            {reviewCount ? `${reviewCount} figures to review` : 'Source checks recorded'}
                           </Badge>
                         ) : (
                           <Badge variant="danger">failed</Badge>
@@ -100,15 +101,17 @@ export function CompareView({ results, onSelect, onReset }: Props) {
                     return ri === 0 && !showMaturityRow ? errorCell(r, i, rows.length) : null
                   }
                   const f = r.extraction.fields.find((x) => x.key === row.key)
+                  const verification = f ? fieldVerification(f) : null
                   return (
                     <TableCell key={i} className={`tabular-nums ${f?.value == null ? 'text-muted-foreground' : ''}`}>
                       {fmtValue(f?.value ?? null)}
                       {f?.unit && f.value !== null && <span className="ml-1 text-xs text-muted-foreground">{f.unit}</span>}
-                      {f && (
-                        <Badge variant="outline" className={`ml-2 px-1.5 tabular-nums ${confidenceClass(f.confidence)}`} title={confidenceTitle(f)}>
-                          {Math.round(f.confidence * 100)}%
+                      {verification && (
+                        <Badge variant={verification.variant} className="ml-2 px-1.5" title={verification.detail}>
+                          {verification.label}
                         </Badge>
                       )}
+                      {verification && ['Needs review', 'Not checked', 'Not found'].includes(verification.label) && <details className="mt-2 max-w-sm whitespace-normal text-xs text-muted-foreground"><summary className="cursor-pointer">What to review</summary><p className="mt-2 leading-relaxed">{verification.detail}</p></details>}
                     </TableCell>
                   )
                 })}
@@ -127,7 +130,7 @@ export function CompareView({ results, onSelect, onReset }: Props) {
                       </Button>
                       {/* ponytail: one CSV per column; a merged CSV isn't in the API and isn't worth inventing client-side. */}
                       <a
-                        href={csvUrl(r.extraction.report_id)}
+                        href={csvUrl(r.extraction.report_id, r.extraction.stem ? r.extraction.section : undefined)}
                         download
                         className={buttonVariants({ size: 'xs', variant: 'outline' })}
                       >

@@ -339,7 +339,7 @@ def _check(check: dict, values: dict, texts: list[str] | None = None, pages: lis
     # "null_as_zero" operands (schema: Ericsson's note prints no >5y bucket — null there is a real 0, not an unanswered
     # field) count as 0 while null, but only while at least one of them is real: all buckets null would sum to 0 == total
     # and the check would pass on nothing.
-    listed = check.get("null_as_zero", [])
+    listed = [] if check.get("require_explicit_values") else check.get("null_as_zero", [])
     naz = [k for k in listed if values.get(k) is None]
     zero = set(naz)
     # v050: all listed operands null, but the identity's remaining operand(s) are themselves stated zeros --
@@ -1918,7 +1918,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
         "fiscal_year": fiscal_year,
         "currency": currency,
         "section": schema["name"],
-        "basis": basis,  # v089: the maturity basis these fields were read on (debt_maturity only uses it today)
+        "maturity_basis": basis,  # v089: the maturity basis these fields were read on (debt_maturity only uses it today); the analyst-confirmed `basis` object is a different key
         "fields": fields,
         "checks": checks,
         "warnings": warnings,

@@ -31,7 +31,7 @@ export function CompanySearch({
   onTogglePick,
 }: CompanySearchProps) {
   return (
-    <Face label="Directory search" hint="fetches the PDF on demand">
+    <Face label="Wallenberg companies" hint="uses saved reports first; downloading is optional">
       <div className="flex gap-2">
         <Input
           id="company-q"

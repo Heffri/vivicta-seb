@@ -31,6 +31,7 @@ export type IndexStatus = { report_id: string; chunks: number; embed_model: stri
 
 export type Citation = {
   report_id: string;
+  stem?: string;            // saved report source for text-only citations
   company: string | null;
   fiscal_year: number | null;
   page: number;
@@ -48,13 +49,14 @@ export type Answer = {
 
 export type KbEntry = {
   stem: string;             // data/kb/<stem>/, = report filename without .pdf
-  report_id: string | null; // set while the backend has it registered this run
+  report_id: string | null; // stable ID, restored after restart
   company: string | null;
   fiscal_year: number | null;
   pages: number;
   sections: string[];       // extractions present, e.g. ["income_statement"]
   indexed: boolean;         // embeddings cached
-  pdf_cached?: boolean;     // v092: the PDF is in data/reports/ (page images will work). Absent on a pre-v092 backend — KbView then falls back to GET /api/library
+  sector: string | null;
+  pdf_available: boolean;
 };
 
 export type Source = {
@@ -62,7 +64,10 @@ export type Source = {
   quote: string;            // verbatim text from that page that supports the value
 };
 
+export type HumanReview = { decision: 'confirmed' | 'corrected' | 'unresolved'; reviewer: string; note: string; at: string };
 export type Field = {
+  human_review?: HumanReview;
+  review_history?: (HumanReview & { previous: Omit<Field, 'review_history'> })[];
   key: string;              // canonical key from the schema, e.g. "revenue"
   label: string;            // human label from the schema
   value: number | string | null;  // null = not found
@@ -75,18 +80,31 @@ export type Field = {
 };
 
 export type Check = {
+  status?: "passed" | "failed" | "unavailable";
+  stale?: boolean;
   name: string;             // from schema.checks[].name
   passed: boolean;
   detail: string;           // human-readable, e.g. "152340 + -88120 = 64220 == 64220"
 };
 
+export type Basis = { values: Record<string, string>; reviewer: string; note: string; at: string };
+export type ReviewIssue = { kind: 'basis' | 'field' | 'check'; key: string; detail: string };
+export type Comparison = { candidates: KbEntry[]; previous_stem?: string; current_year?: number; previous_year?: number; reasons: string[]; restatement?: Record<string, string>; rows: { key: string; label: string; current: Field['value']; previous: Field['value']; delta: number | null; percent: number | null; sign_change: boolean; reason: string }[] };
+export type QueueIssue = ReviewIssue & { report: KbEntry; section: string };
 export type Extraction = {
+  basis?: Basis;
+  basis_history?: (Basis & { previous: Partial<Basis> })[];
+  check_history?: unknown[];
+  issues?: ReviewIssue[];
+  ready?: boolean;
   report_id: string;
+  stem?: string;            // saved source, provided when opening the knowledge base
+  pdf_available?: boolean; // false means use saved page text instead of the PDF
   company: string | null;
   fiscal_year: number | null;
   currency: string | null;  // dominant unit in the section
   section: string;          // schema name
-  basis?: 'carrying' | 'undiscounted'; // v089, debt_maturity only: which maturity table total_debt + the buckets were read from
+  maturity_basis?: 'carrying' | 'undiscounted'; // v089, debt_maturity only: which maturity table total_debt + the buckets were read from (env DEBT_BASIS)
   fields: Field[];          // one entry per schema field, in schema order (value null if missing)
   checks: Check[];
   warnings: string[];       // free text, e.g. "revenue: quote not found on page 64"

@@ -74,7 +74,7 @@ export function Rail({ active, enabled, compareCount, onSelect, tone, onToneChan
   }
 
   return (
-    <nav className="flex w-16 shrink-0 flex-col border-r border-border min-[901px]:w-56">
+    <nav className="app-rail flex w-16 shrink-0 flex-col border-r border-border min-[901px]:w-56">
       <ul
         role="tablist"
         aria-label="Sections"
@@ -125,7 +125,7 @@ export function Rail({ active, enabled, compareCount, onSelect, tone, onToneChan
         <button
           type="button"
           onClick={() => onToneChange(tone === 'dark' ? 'light' : 'dark')}
-          title={tone === 'dark' ? 'Switch to light glass' : 'Switch to dark glass'}
+          title={tone === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           className={`flex w-full items-center justify-center gap-2 rounded-lg border border-border py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground min-[901px]:justify-start min-[901px]:px-3 ${FOCUS_RING}`}
         >
           {tone === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}

@@ -390,10 +390,11 @@ def test_app_gates():
 # ---- v092: KB open without the cached PDF ---------------------------------------------------
 
 def test_kb_open_without_pdf():
-    """GET /api/kb/{stem}/{section} with no cached PDF serves the stored extraction on a KB-only
-    report (kb-<stem>, meta from meta.json, no PDF path): tables/CSV/PPTX/Compare work, page images
-    and /pdf 404 with a fetch-it hint, data/kb is not rewritten. Once the PDF arrives, the plain
-    register_library path takes over and /api/kb's report_id points at the real (lib-) one."""
+    """GET /api/kb/{stem}/{section} with no cached PDF serves the stored extraction on the saved
+    report id (lib-<stem>, meta from meta.json, no PDF path -- get_report's lazy registration):
+    tables/CSV/PPTX work off the stored extraction, page images and /pdf 409 with a fetch-it hint,
+    data/kb is not rewritten. Once the PDF arrives the same id gains its PDF path and pages render.
+    (v092's own kb-<stem> registration was superseded by the team's saved_report_id path, 2026-09-18.)"""
     with tempfile.TemporaryDirectory() as tmp:
         from . import kb
         stem = _seed(kb, tmp)  # acme_2025 + income_statement in the isolated KB_DIR
@@ -401,48 +402,48 @@ def test_kb_open_without_pdf():
         from fastapi.testclient import TestClient
         client = TestClient(app_mod.app)
         orig_index, orig_library = app_mod.library_index, app_mod.LIBRARY
-        mine = (f"kb-{stem}", f"lib-{stem}")
+        mine = (f"lib-{stem}",)
         app_mod.library_index = lambda: []  # fresh-clone state: index.json exists, no PDF on disk
         meta_bytes = (kb.kb_dir() / stem / "meta.json").read_bytes()
         try:
             r = client.get(f"/api/kb/{stem}/income_statement")
             assert r.status_code == 200, f"open without the PDF: {r.status_code} {r.text}"  # was 409 pre-v092
             x = r.json()
-            assert x["report_id"] == f"kb-{stem}" and x["company"] == "Acme" and x["fields"][0]["value"] == 1234, x["report_id"]
-            assert (kb.kb_dir() / stem / "meta.json").read_bytes() == meta_bytes, "KB-only open rewrote meta.json"
+            assert x["report_id"] == mine[0] and x["company"] == "Acme" and x["fields"][0]["value"] == 1234, x["report_id"]
+            assert x["pdf_available"] is False, x.get("pdf_available")
+            assert (kb.kb_dir() / stem / "meta.json").read_bytes() == meta_bytes, "PDF-less open rewrote meta.json"
 
-            # exports ride the stored extraction alone — no PDF anywhere
+            # exports ride the stored extraction alone -- no PDF anywhere
             csv = client.get(f"/api/reports/{mine[0]}/extraction.csv")
             assert csv.status_code == 200 and "revenue" in csv.text, csv.status_code
             pptx = client.get(f"/api/reports/{mine[0]}/extraction.pptx")
             assert pptx.status_code == 200 and pptx.headers["content-type"].startswith("application/vnd"), pptx.status_code
 
-            # ...but the page endpoints say where to get the pages
-            hint = f"the PDF for '{stem}' is not cached; fetch it from Extract (directory search) to see the pages"
+            # ...but the page endpoints say the PDF is missing (409, require_pdf)
             png = client.get(f"/api/reports/{mine[0]}/pages/1.png")
-            assert png.status_code == 404 and hint in png.json()["detail"], png.text
+            assert png.status_code == 409 and "no longer cached" in png.json()["detail"], png.text
             pdf = client.get(f"/api/reports/{mine[0]}/pdf")
-            assert pdf.status_code == 404 and hint in pdf.json()["detail"], pdf.text
+            assert pdf.status_code == 409 and "no longer cached" in pdf.json()["detail"], pdf.text
 
             entry = next(e for e in client.get("/api/kb").json() if e["stem"] == stem)
-            assert entry["pdf_cached"] is False and entry["report_id"] == mine[0], entry
+            assert entry["pdf_available"] is False and entry["report_id"] == mine[0], entry
 
-            # the PDF arriving later: register_library's real id wins, both ids coexist harmlessly
+            # the PDF arriving later: the same saved id picks up its PDF path and pages render
             import pymupdf
             libdir = Path(tmp) / "reports"
             libdir.mkdir()
             with pymupdf.open() as doc:
                 for text in ("Net sales page", "operating profit page", "unrelated page"):
                     doc.new_page().insert_text((72, 72), text)
-                doc.save(libdir / f"{stem}.pdf")
+                doc.save(libdir / "acme.pdf")  # meta.json's own filename -- get_report joins on it, not on the stem
             app_mod.LIBRARY = libdir
-            app_mod.library_index = lambda: [{"file": f"{stem}.pdf", "company": "Acme", "fiscal_year": 2025}]
+            app_mod.library_index = lambda: [{"file": "acme.pdf", "company": "Acme", "fiscal_year": 2025}]
+            app_mod.reports.pop(mine[0], None)  # a restart: get_report re-registers from meta.json and finds the PDF
             r2 = client.get(f"/api/kb/{stem}/income_statement")
-            assert r2.status_code == 200 and r2.json()["report_id"] == mine[1], r2.text
-            assert mine[0] in app_mod.reports, "KB-only registration vanished when the real one arrived"
+            assert r2.status_code == 200 and r2.json()["report_id"] == mine[0] and r2.json()["pdf_available"] is True, r2.text
             entry2 = next(e for e in client.get("/api/kb").json() if e["stem"] == stem)
-            assert entry2["report_id"] == mine[1] and entry2["pdf_cached"] is True, entry2
-            assert client.get(f"/api/reports/{mine[1]}/pages/1.png").status_code == 200, "cached PDF page still 404"
+            assert entry2["report_id"] == mine[0] and entry2["pdf_available"] is True, entry2
+            assert client.get(f"/api/reports/{mine[0]}/pages/1.png").status_code == 200, "cached PDF page still failing"
         finally:
             app_mod.library_index, app_mod.LIBRARY = orig_index, orig_library
             for k in mine:

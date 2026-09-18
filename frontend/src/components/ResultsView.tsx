@@ -1,20 +1,25 @@
+import { BasisPanel, YearComparison } from '@/components/AnalystWorkbench'
 import { ArrowLeft, Download } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { csvUrl, pptxUrl } from '@/api'
 import { AskPanel } from '@/components/AskPanel'
+import { HumanReviewForm } from '@/components/results/HumanReviewForm'
 import { FieldsTable } from '@/components/results/FieldsTable'
 import { MaturityChart } from '@/components/results/MaturityChart'
 import { SourcePanel, type Viewer } from '@/components/results/SourcePanel'
 import { StatusCards } from '@/components/results/StatusCards'
 import { Badge } from '@/components/ui/badge'
+import { fieldVerification } from '@/components/results/verification'
 import { Button, buttonVariants } from '@/components/ui/button'
-import type { Extraction, Field } from '@/types'
+import type { Comparison, Extraction, Field } from '@/types'
 
 type Props = {
   extraction: Extraction
   sectionTitle: string
+  onUpdated: (result: Extraction) => void
   onReset: () => void
   onBack?: () => void
+  initialField?: string
   initialPage?: number | null // from a citation chip on the compare view
 }
 
@@ -25,22 +30,6 @@ export const fmtValue = (v: Field['value']) =>
     : typeof v === 'number'
       ? v.toLocaleString('en-US', { maximumFractionDigits: 6 }).replaceAll(',', ' ')
       : v
-
-const EVIDENCE = ['quote_on_page', 'value_in_quote', 'arith_ok', 'label_known', 'period_ok', 'page_is_statement', 'unit_ok'] // docs/CONFIDENCE.md
-
-/** Tooltip for the confidence badge: which evidence the backend could not verify. */
-export const confidenceTitle = (f: { confidence: number; evidence?: string[] }) => {
-  const missing = EVIDENCE.filter((e) => !(f.evidence ?? []).includes(e))
-  return missing.length ? `missing: ${missing.join(', ')}` : 'all evidence verified'
-}
-
-// Status tokens from index.css (v001); CompareView rides along through this same function.
-export const confidenceClass = (c: number) =>
-  c >= 0.9
-    ? 'border-success/30 bg-success-muted text-success'
-    : c >= 0.7
-      ? 'border-warning/30 bg-warning-muted text-warning'
-      : 'border-danger/30 bg-danger-muted text-danger'
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
@@ -53,9 +42,10 @@ const loadViewer = (): Viewer => {
   }
 }
 
-export function ResultsView({ extraction, sectionTitle, onReset, onBack, initialPage }: Props) {
-  const { report_id, company, fiscal_year, currency, section, basis, fields, checks, warnings } = extraction
-  const [selectedKey, setSelectedKey] = useState<string | null>(() => fields.find((f) => f.source)?.key ?? null)
+export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBack, initialPage, initialField }: Props) {
+  const { report_id, company, fiscal_year, currency, section, maturity_basis, fields, checks, warnings } = extraction
+  const [selectedKey, setSelectedKey] = useState<string | null>(() => initialField ?? fields.find((f) => f.source)?.key ?? null)
+  const [comparison, setComparison] = useState<Comparison | null>(null)
   const [brokenPage, setBrokenPage] = useState<number | null>(null)
   const [askPage, setAskPage] = useState<number | null>(initialPage ?? null) // citation chip override; a row click clears it
   const [viewer, setViewerState] = useState<Viewer>(loadViewer)
@@ -68,17 +58,23 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack, initial
     }
   }
 
+  useEffect(() => {
+    if (initialField === '@basis') {
+      const basis = document.getElementById('basis-review') as HTMLDetailsElement | null
+      if (basis) { basis.open = true; basis.scrollIntoView({ block: 'start' }) }
+    } else if (initialField === '@checks') document.getElementById('calculation-checks')?.scrollIntoView({ block: 'start' })
+  }, [initialField])
   const selected = fields.find((f) => f.key === selectedKey) ?? null
   const page = askPage ?? selected?.source?.page ?? null // what the provenance pane shows
   const selectField = (key: string) => {
     setSelectedKey(key)
     setAskPage(null)
   }
-  const failed = checks.filter((c) => !c.passed).length
+  const reviewCount = fields.filter((f) => ['Needs review', 'Not checked', 'Not found'].includes(fieldVerification(f).label)).length
 
   const exportJson = () => {
     // ponytail: Blob URL + synthetic click, fine for a single JSON. Upgrade: File System Access API if size ever matters.
-    const url = URL.createObjectURL(new Blob([JSON.stringify(extraction, null, 2)], { type: 'application/json' }))
+    const url = URL.createObjectURL(new Blob([JSON.stringify({ ...extraction, comparison }, null, 2)], { type: 'application/json' }))
     const a = Object.assign(document.createElement('a'), {
       href: url,
       download: `${slug(company ?? 'report')}-${section}.json`,
@@ -106,37 +102,35 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack, initial
             <span>FY {fiscal_year ?? '—'}</span>
             <span aria-hidden>·</span>
             <span>{currency ?? '—'}</span>
-            {/* v089: debt_maturity extractions name the basis their fields were read on; older or
-                non-debt extractions carry no basis and show nothing, exactly as before. */}
-            {basis && (
+            {/* v089: debt_maturity extractions name the maturity basis their fields were read on (env DEBT_BASIS);
+                older or non-debt extractions carry none and show nothing. Distinct from the analyst-confirmed `basis`. */}
+            {maturity_basis && (
               <>
                 <span aria-hidden>·</span>
-                <span>basis: {basis === 'undiscounted' ? 'contractual undiscounted' : 'carrying amount'}</span>
+                <span>basis: {maturity_basis === 'undiscounted' ? 'contractual undiscounted' : 'carrying amount'}</span>
               </>
             )}
-            {checks.length === 0 ? (
-              <Badge variant="outline">No checks</Badge>
-            ) : failed === 0 ? (
-              <Badge variant="success">{`${checks.length}/${checks.length} checks passed`}</Badge>
-            ) : (
-              <Badge variant="danger">{`${failed} failed`}</Badge>
-            )}
+            <Badge variant={reviewCount ? 'warning' : 'secondary'}>
+              {reviewCount ? `${reviewCount} figures to review` : 'Source checks recorded'}
+            </Badge>
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={exportJson}>
             <Download /> Export JSON
           </Button>
-          <a href={csvUrl(report_id)} download className={buttonVariants({ variant: 'outline' })}>
+          <a href={csvUrl(report_id, extraction.stem ? section : undefined, comparison?.previous_stem)} download className={buttonVariants({ variant: 'outline' })}>
             <Download /> Export CSV
           </a>
-          <a href={pptxUrl(report_id)} download className={buttonVariants({ variant: 'outline' })}>
+          <a href={pptxUrl(report_id, extraction.stem ? section : undefined, comparison?.previous_stem)} download className={buttonVariants({ variant: 'outline' })}>
             <Download /> Export PPTX
           </a>
           <Button onClick={onReset}>New report</Button>
         </div>
       </header>
 
+      <BasisPanel key={extraction.basis?.at ?? 'unknown'} extraction={extraction} onUpdated={onUpdated} />
+      <YearComparison extraction={extraction} onChange={setComparison} />
       {/* Two columns from 1280px (fields + verification left, provenance + Ask right);
           below that one column, Source directly under the table. The maturity chart
           (v009) leads the grid full-width so it clears the fold on a 900px screen —
@@ -147,11 +141,16 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack, initial
             buckets, the same rule ppt.py uses to pick chart over table. */}
         <MaturityChart extraction={extraction} selectedKey={selectedKey} onSelect={selectField} />
 
-        <FieldsTable fields={fields} warnings={warnings} selectedKey={selectedKey} onSelect={selectField} />
+        <div className="space-y-4">
+          <FieldsTable fields={fields} selectedKey={selectedKey} onSelect={selectField} />
+          {selected && <HumanReviewForm key={`${selected.key}:${selected.human_review?.at ?? ''}`} extraction={extraction} field={selected} onSaved={onUpdated} />}
+        </div>
 
         {/* ponytail: no longer sticky — it would slide over the Ask panel below it. */}
         <SourcePanel
           reportId={report_id}
+          stem={extraction.stem}
+          pdfAvailable={extraction.pdf_available}
           page={page}
           selected={selected}
           askPage={askPage}
@@ -161,7 +160,12 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack, initial
           onBrokenPage={setBrokenPage}
         />
 
-        <StatusCards checks={checks} warnings={warnings} />
+        <div id="calculation-checks"><StatusCards checks={checks} warnings={warnings} fields={fields} onSelect={(key) => {
+          selectField(key)
+          const source = document.getElementById('report-source')
+          source?.focus({ preventScroll: true })
+          source?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }} /></div>
 
         <AskPanel reports={[{ report_id, label: company ?? 'This report' }]} onCitation={(_id, p) => setAskPage(p)} />
       </div>

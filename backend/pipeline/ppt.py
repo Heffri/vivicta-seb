@@ -2,6 +2,7 @@
 a bar chart when the fields look like maturity buckets ('due_*' keys), a table otherwise.
 """
 import io
+import json
 
 from pptx import Presentation
 from pptx.chart.data import CategoryChartData
@@ -26,11 +27,24 @@ def build_pptx(x: dict) -> bytes:
     by_key = {f["key"]: f for f in x["fields"]}
     buckets = [k for k in BUCKET_ORDER if k in by_key and by_key[k]["value"] is not None]
 
+    basis = (x.get("basis") or {}).get("values", {})
+    status = "Ready for analyst use" if x.get("ready") else "Draft - unresolved items"
+    _textbox(slide, status, Pt(16), bold=True, top=Inches(1.35), color=(30, 100, 60) if x.get("ready") else (160, 70, 20))
+    summary = " | ".join(str(basis.get(k) or "Unknown " + k) for k in ("entity", "consolidation", "currency", "scale"))
+    _textbox(slide, summary[:160], Pt(12), top=Inches(1.75))
     if buckets:
+        debt_basis = f"{basis.get('debt_basis') or 'Debt basis unknown'} | Leases: {basis.get('leases') or 'unknown'}"
+        _textbox(slide, debt_basis, Pt(12), top=Inches(2.05))
         _debt_chart(slide, by_key, buckets)
     else:
         _table(slide, x["fields"])
 
+    comparison = x.get("comparison") or {}
+    period = f"Comparison: {comparison.get('previous_year')} to {comparison.get('current_year')} | " if comparison else ""
+    unresolved = x.get("issues", [])
+    counts = {kind: sum(i["kind"] == kind for i in unresolved) for kind in ("field", "basis", "check")}
+    _textbox(slide, period + (f"Unresolved: {counts['field']} figures, {counts['basis']} definitions, {counts['check']} calculations. " if unresolved else "") + "Full sources and review history in speaker notes.", Pt(11), top=Inches(6.9))
+    slide.notes_slide.notes_text_frame.text = json.dumps(x, ensure_ascii=False, indent=2)
     buf = io.BytesIO()
     prs.save(buf)
     return buf.getvalue()
@@ -40,33 +54,40 @@ def _debt_chart(slide, by_key, buckets):
     total = by_key.get("total_debt", {}).get("value")
     unit = next((by_key[k]["unit"] for k in buckets if by_key[k].get("unit")), "")
     if total is not None:
-        _textbox(slide, f"Total debt: {total:,.0f} {unit}".replace(",", " "), Pt(20), bold=True, top=Inches(1.5))
+        _textbox(slide, "Total debt: " + f"{total:,.6f}".rstrip("0").rstrip(".").replace(",", " ") + " " + unit, Pt(20), bold=True, top=Inches(2.4))
 
     data = CategoryChartData()
     data.categories = [BUCKET_LABELS[k] for k in buckets]
     data.add_series("Debt due", [by_key[k]["value"] for k in buckets])
-    frame = slide.shapes.add_chart(XL_CHART_TYPE.COLUMN_CLUSTERED, Inches(1.2), Inches(2.2), Inches(10.9), Inches(4.6), data)
+    frame = slide.shapes.add_chart(XL_CHART_TYPE.COLUMN_CLUSTERED, Inches(1.2), Inches(2.95), Inches(10.9), Inches(3.7), data)
     chart = frame.chart
     chart.has_legend = False
     plot = chart.plots[0]
     plot.has_data_labels = True
-    plot.data_labels.number_format = "#,##0"
+    plot.data_labels.number_format = "#,##0.######"
     plot.data_labels.number_format_is_linked = False
     chart.value_axis.has_title = True
     chart.value_axis.axis_title.text_frame.text = unit or ""
 
 
 def _table(slide, fields):
-    rows = [f for f in fields if f["value"] is not None]
-    shape = slide.shapes.add_table(len(rows) + 1, 3, Inches(1.2), Inches(1.8), Inches(10.9), Inches(0.4 * (len(rows) + 1)))
+    rows = fields
+    shape = slide.shapes.add_table(len(rows) + 1, 3, Inches(1.2), Inches(2.2), Inches(10.9), Inches(4.45))
     table = shape.table
     for c, h in enumerate(["Field", "Value", "Unit"]):
         table.cell(0, c).text = h
     for r, f in enumerate(rows, start=1):
         v = f["value"]
         table.cell(r, 0).text = f["label"]
-        table.cell(r, 1).text = f"{v:,.0f}".replace(",", " ") if isinstance(v, (int, float)) else str(v)
-        table.cell(r, 2).text = f["unit"] or ""
+        table.cell(r, 1).text = f"{v:,.6f}".rstrip("0").rstrip(".").replace(",", " ") if isinstance(v, (int, float)) else str(v) if v is not None else "Unknown"
+        table.cell(r, 2).text = f["unit"] or "Unknown"
+    for row in table.rows:
+        for cell in row.cells:
+            for paragraph in cell.text_frame.paragraphs:
+                paragraph.font.size = Pt(14)
+    table.columns[0].width = Inches(6.1)
+    table.columns[1].width = Inches(2.4)
+    table.columns[2].width = Inches(2.4)
 
 
 def _textbox(slide, text, size, bold=False, top=Inches(0.4), color=None):

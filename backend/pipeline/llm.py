@@ -123,6 +123,11 @@ def _codex_executable() -> str:
     for candidate in roots:
         if candidate.is_file():
             return str(candidate)
+    if os.name == "nt":
+        for candidate in roots:
+            versions = [p for p in candidate.parent.glob("*/codex.exe") if p.is_file()]
+            if versions:
+                return str(max(versions, key=lambda p: p.stat().st_mtime))
     raise RuntimeError("codex executable not found (PATH, or the usual OpenAI Codex install dirs); set CODEX_BIN to override")
 
 

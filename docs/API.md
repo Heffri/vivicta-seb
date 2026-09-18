@@ -18,9 +18,10 @@ Backend runs on `http://localhost:8000`, frontend dev server proxies `/api` to i
 | `POST` | `/api/reports/fetch` | `{ "company": "<Company.name>", "year": 2025, "country"?, "hint"? }` | `Report` — finds the company's annual report for that year on the web, downloads it into the cache (`data/reports/`), registers it like an upload. 10–90 s. Any company name is accepted — not just directory entries; `country`/`hint` are optional context for the model search (v074). `404` with `{detail, tried: string[]}` when nothing usable was found (a failed model search says so in `detail`). Cached = instant |
 | `GET`  | `/api/library` | – | `LibraryEntry[]` — the report **cache** in `data/reports/` (only files present on disk). Populated by `/fetch`; hand-curated entries also live in `index.json` |
 | `POST` | `/api/reports/{report_id}/index` | – | `IndexStatus` — chunk + embed the report into the knowledge base (idempotent, cached on disk). ~10–30 s per report locally |
-| `POST` | `/api/ask` | `{ "question": string, "report_ids": string[] }` | `Answer` — RAG over the selected reports (page texts + prior extractions). Indexes on demand if `/index` was not called |
-| `GET`  | `/api/kb` | – | `KbEntry[]` — what is in `data/kb/` (one per parsed report: pages indexed, sections extracted; `pdf_cached` says whether its PDF is in `data/reports/` right now) |
-| `GET`  | `/api/kb/{stem}/{section}` | – | `Extraction` — the stored extraction for that stem/section, re-attached to a live `report_id`. No model call. With the PDF cached that is a full re-registration (page images work); without it (v092) the report registers **KB-only** (`kb-<stem>`, meta from `meta.json`): tables, `/extraction.csv`, `/extraction.pptx` and Compare all work, and only `/pdf` and `/pages/{n}.png` 404 with a `the PDF … is not cached; fetch it from Extract (directory search)` detail. This endpoint never 409s. 404 when the stem/section has no stored extraction |
+| `POST` | `/api/ask` | `{ "question": string, "report_ids"?: string[], "report_stems"?: string[] }` | `Answer` — omit both scopes to search all saved reports. Explicit scopes must be non-empty and mutually exclusive; unknown entries fail rather than widening the search. Global retrieval uses BM25 with bounded context, without embedding the entire library |
+| `GET`  | `/api/kb` | – | `KbEntry[]` — what is in `data/kb/` (one per parsed report: pages indexed, sections extracted) |
+| `GET` | `/api/kb/{stem}/pages/{page}` | – | `{ page: number, text: string }` — saved page text, available even without the PDF; exact known stem and valid page required |
+| `GET` | `/api/kb/{stem}/{section}` | – | Saved `Extraction`, no model call, available without the original PDF |
 | `GET`  | `/api/config` | – | `{ model, embed_model, base_url, llm, provider, retrieval, maturity_basis }` — what the backend runs with; `retrieval` is `"hybrid"` (cosine+BM25) \| `"bm25"` (keyword-only, e.g. codex/claude subscription with no embeddings endpoint) \| `"fixture"`; `maturity_basis` (v089) is `"carrying"` (default) \| `"undiscounted"`, from env `DEBT_BASIS` |
 | `POST` | `/api/reports/from-library` | `{ "file": "<LibraryEntry.file>" }` | `Report` — registers a bundled report exactly like an upload would. Same file twice = same `report_id` |
 
@@ -60,6 +61,7 @@ type IndexStatus = { report_id: string; chunks: number; embed_model: string; cac
 
 type Citation = {
   report_id: string;
+  stem?: string;            // exact saved report for source text, also disambiguates fiscal years
   company: string | null;
   fiscal_year: number | null;
   page: number;
@@ -77,13 +79,14 @@ type Answer = {
 
 type KbEntry = {
   stem: string;             // data/kb/<stem>/, = report filename without .pdf
-  report_id: string | null; // set while the backend has it registered this run (the PDF-backed id once the PDF arrives)
+  report_id: string | null; // stable ID restored from saved metadata after restart
   company: string | null;
   fiscal_year: number | null;
   pages: number;
   sections: string[];       // extractions present, e.g. ["income_statement"]
   indexed: boolean;         // embeddings cached
-  pdf_cached: boolean;      // v092: the PDF is in data/reports/ right now — false means a KB-only open (no page images)
+  sector: string | null;    // company directory sector, exact normalized name match; unknown stays null
+  pdf_available: boolean;   // whether the source PDF currently exists
 };
 
 type Source = {
@@ -111,11 +114,13 @@ type Check = {
 
 type Extraction = {
   report_id: string;
+  stem?: string;            // saved source, provided when opening the knowledge base
+  pdf_available?: boolean; // false means use saved page text instead of the PDF
   company: string | null;
   fiscal_year: number | null;
   currency: string | null;  // dominant unit in the section
   section: string;          // schema name
-  basis?: "carrying" | "undiscounted"; // v089, debt_maturity only: which maturity table total_debt + the buckets were read from (env DEBT_BASIS)
+  maturity_basis?: "carrying" | "undiscounted"; // v089, debt_maturity only: which maturity table total_debt + the buckets were read from (env DEBT_BASIS); distinct from the analyst-confirmed `basis` object below
   fields: Field[];          // one entry per schema field, in schema order (value null if missing)
   checks: Check[];
   warnings: string[];       // free text, e.g. "revenue: quote not found on page 64"
@@ -225,3 +230,37 @@ KB_DIR=../data/kb                        # optional override
 ```
 
 Same variables point at Azure OpenAI / OpenAI / OpenRouter with no code change.
+
+## Global Ask and company map
+
+Ask searches saved page text and extracted facts. `@Company` is a UI scope selector, resolved
+against the parsed-company catalogue to exact `report_stems` across available years. Unknown or
+unfinished mentions must be corrected before submission. No mentions means the entire saved library.
+Question length is limited to 2,000 characters. The UI shows the effective company/report scope.
+
+The knowledge map groups real saved reports by company-directory sector, then company and fiscal
+year. Edges represent membership, not embedding similarity or inferred business relationships.
+Unknown sectors remain unclassified. Company actions open saved extractions or prefill a scoped Ask.
+Source PDFs are optional: page-text citations remain available, while PDF/image requests return an
+explicit missing-PDF response when the original file is absent. The existing selected-report Ask
+continues to accept `report_ids` and retains its retrieval mode.
+
+
+### Human review
+`POST /api/reports/{report_id}/review` accepts `section`, `key`, `expected` (the complete field last read), `decision` (`confirmed`, `corrected`, `unresolved`), `reviewer` (self-reported name), `note`, and optional `value`, `unit`, `period` for corrections. Returns the updated Extraction. Requires a saved extraction. Stale fields return 409. Reviews persist inside each field as `human_review` and append-only `review_history` with the previous field snapshot and a UTC timestamp. Corrections retain source provenance, clear the changed field's automated evidence, and mark calculation checks `stale: true`. Review does not certify automated checks. Re-extraction of a reviewed section is rejected (409) to prevent loss of reviews. JSON export includes the full history; CSV includes current review status, name, time, and note.
+
+
+### Wallenberg collection and opt-in PDFs
+The desktop UI requests `collection_name=wallenberg` on GET `/api/companies`, `/api/library`, and `/api/kb`. The API's `all` scope remains available and existing data is retained. The roster is defined in `pipeline/collection.py`, sourced from Investor and FAM, and shipped as application code. It is a curated holdings collection, not an exhaustive ownership graph. Global Ask sends the visible collection's report stems explicitly.
+POST `/api/reports/fetch` defaults `download_pdf` to false. It reuses saved text or an existing PDF and returns 409 if neither exists, without making a web request. Only `download_pdf: true` permits a download. POST `/api/reports/{id}/extract` accepts `reuse_saved: true` to return the saved extraction before calling a model, preserving human reviews. A new extraction can use saved page text without a PDF.
+
+
+### Analyst workbench
+Extractions gain optional `basis`, `basis_history`, `check_history`, `issues`, and derived `ready`. Basis records entity, consolidation, period, currency, scale, source page, restatement status and (debt only) debt basis, leases and bucket mapping. Values are analyst-confirmed, never inferred as confirmed from legacy data. GET `/api/review-queue` returns unresolved issues for the Wallenberg collection. POST `/api/reports/{id}/basis` accepts section, expected basis, values, reviewer and note, returning the updated extraction. Existing field reviews recalculate deterministic checks and archive previous checks. GET `/api/kb/{stem}/{section}/comparison?previous_stem=...` returns compatible saved-report deltas or reasons why unavailable. Exports accept optional section and previous_stem to bind the exact statement and comparison. Missing values never implicitly become zero. No endpoint in this workflow downloads PDFs.
+
+
+`basis` is `{values: Record<string,string>, reviewer, note, at}`. Shared value keys: `entity`, `consolidation`, `period`, `currency`, `scale`, `source`, `restatement`. Debt adds `debt_basis`, `leases`, `bucket_mapping`. Empty values remain unknown. Basis review accepts `{section, expected: previousBasisOrEmptyObject, values, reviewer, note}` and rejects stale snapshots with 409. `basis_history` records each prior basis. `check_history` records previous checks when recalculation changes them.
+
+Checks include `status: passed|failed|unavailable`. Reconciliation requires every operand to be explicit and use the same nonempty unit and period. Source evidence remains distinct from arithmetic and human review. `issues` contains `{kind: basis|field|check, key, detail}`. `ready` requires no unresolved issues, including missing figures even when a human confirmed their absence. Queue entries add `report: KbEntry` and `section`.
+
+Comparison responses include saved `candidates`, `previous_stem`, `current_year`, `previous_year`, `reasons`, and per-field `rows` with current/previous values, delta, percent, sign-change flag, sources and human reviews. Missing immediate prior years and duplicate sources require explicit selection. Definitions must be confirmed and compatible before calculating changes. Period formats must match after replacing each fiscal year. A zero previous value gives a null percentage, never infinity. Alternate intervals and declared restatements remain explicit. Export query parameters `section` and `previous_stem` select the saved statement and comparison, regardless of the last statement opened.

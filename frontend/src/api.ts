@@ -23,7 +23,7 @@ export function uploadReport(file: File) {
   return request<Report>('/api/reports', { method: 'POST', body })
 }
 
-export const getLibrary = () => request<LibraryEntry[]>('/api/library')
+export const getLibrary = () => request<LibraryEntry[]>('/api/library?collection_name=wallenberg')
 
 export const registerLibraryReport = (file: string) =>
   request<Report>('/api/reports/from-library', {
@@ -32,11 +32,11 @@ export const registerLibraryReport = (file: string) =>
     body: JSON.stringify({ file }),
   })
 
-export const getCompanies = (q: string) => request<Company[]>(`/api/companies?q=${encodeURIComponent(q)}`)
+export const getCompanies = (q: string) => request<Company[]>(`/api/companies?q=${encodeURIComponent(q)}&collection_name=wallenberg`)
 
 // v074: country/hint are optional context for the backend's model search (its fourth fetch source,
 // used when the directory has no hit); they are ignored by the feed levels.
-export const fetchReport = (company: string, year: number, opts?: { country?: string; hint?: string }) =>
+export const fetchReport = (company: string, year: number, opts?: { country?: string; hint?: string; download_pdf?: boolean }) =>
   request<Report>('/api/reports/fetch', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -47,22 +47,22 @@ export const extractSection = (reportId: string, section: string) =>
   request<Extraction>(`/api/reports/${reportId}/extract`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ section }),
+    body: JSON.stringify({ section, reuse_saved: true }),
   })
 
 export const indexReport = (reportId: string) =>
   request<IndexStatus>(`/api/reports/${reportId}/index`, { method: 'POST' })
 
-export const ask = (question: string, reportIds: string[]) =>
+export const ask = (question: string, reportIds?: string[], reportStems?: string[]) =>
   request<Answer>('/api/ask', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question, report_ids: reportIds }),
+    body: JSON.stringify({ question, ...(reportIds === undefined ? {} : { report_ids: reportIds }), ...(reportStems === undefined ? {} : { report_stems: reportStems }) }),
   })
 
 export const pageUrl = (reportId: string, page: number) => `/api/reports/${reportId}/pages/${page}.png`
-export const csvUrl = (reportId: string) => `/api/reports/${reportId}/extraction.csv`
-export const pptxUrl = (reportId: string) => `/api/reports/${reportId}/extraction.pptx`
+export const csvUrl = (reportId: string, section?: string, previous?: string) => `/api/reports/${reportId}/extraction.csv?${new URLSearchParams({ ...(section ? { section } : {}), ...(previous ? { previous_stem: previous } : {}) })}`
+export const pptxUrl = (reportId: string, section?: string, previous?: string) => `/api/reports/${reportId}/extraction.pptx?${new URLSearchParams({ ...(section ? { section } : {}), ...(previous ? { previous_stem: previous } : {}) })}`
 export const pdfUrl = (reportId: string, page?: number) =>
   `/api/reports/${reportId}/pdf${page ? `#page=${page}` : ''}`
 
@@ -77,11 +77,22 @@ export type Config = {
   llm: boolean
   provider: string
   retrieval?: 'hybrid' | 'bm25' | 'fixture'
-  maturity_basis?: 'carrying' | 'undiscounted' // v089: the backend's live DEBT_BASIS; absent in older stored payloads
+  maturity_basis?: 'carrying' | 'undiscounted' // v089: the backend's live DEBT_BASIS; absent on older backends
 }
 export const getConfig = () => request<Config>('/api/config')
-export const getKb = () => request<KbEntry[]>('/api/kb')
-// Stored extraction, no model call; the backend re-attaches it to a live report_id — PDF-backed when the
-// file is cached (pageUrl works), KB-only otherwise (v092: tables/csvUrl/pptxUrl work, page images 404).
+export const getKb = () => request<KbEntry[]>('/api/kb?collection_name=wallenberg')
+// Stored extraction, no model call; the backend re-registers the PDF so pageUrl/csvUrl work.
 export const openKbExtraction = (stem: string, section: string) =>
   request<Extraction>(`/api/kb/${encodeURIComponent(stem)}/${encodeURIComponent(section)}`)
+
+export const getKbPage = (stem: string, page: number) =>
+  request<{ page: number; text: string }>(`/api/kb/${encodeURIComponent(stem)}/pages/${page}`)
+
+export const reviewField = (reportId: string, body: { section: string; key: string; expected: import('./types').Field; decision: import('./types').HumanReview['decision']; reviewer: string; note: string; value?: number | string | null; unit?: string | null; period?: string | null }) =>
+  request<Extraction>(`/api/reports/${encodeURIComponent(reportId)}/review`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+
+export const getReviewQueue = () => request<import('./types').QueueIssue[]>('/api/review-queue')
+export const saveBasis = (reportId: string, body: { section: string; expected: Partial<import('./types').Basis>; values: Record<string, string>; reviewer: string; note: string }) =>
+  request<Extraction>(`/api/reports/${encodeURIComponent(reportId)}/basis`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+export const getComparison = (stem: string, section: string, previous?: string) =>
+  request<import('./types').Comparison>(`/api/kb/${encodeURIComponent(stem)}/${encodeURIComponent(section)}/comparison${previous ? `?previous_stem=${encodeURIComponent(previous)}` : ''}`)

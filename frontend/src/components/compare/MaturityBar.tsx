@@ -35,7 +35,8 @@ export function MaturityBar({ extraction }: { extraction: Extraction }) {
   // indicator) — never recomputed here. Only the sliver's *width* is derived locally, from
   // the same numbers already needed to size the three real segments.
   const check = extraction.checks.find((c) => c.name === IDENTITY_CHECK) ?? null
-  const mismatch = check ? !check.passed : false
+  const missing = check?.status === 'unavailable' || !!check?.stale || (check?.detail.startsWith('missing:') ?? false)
+  const mismatch = check ? !check.passed && !missing : false
   const shortfall = (total ?? 0) - sum
   const denom = Math.max(total ?? 0, sum, 1e-9)
   const sliverPct = mismatch && shortfall > SUM_TOLERANCE ? (shortfall / denom) * 100 : 0
@@ -88,6 +89,11 @@ export function MaturityBar({ extraction }: { extraction: Extraction }) {
         total {total === null ? '—' : fmtValue(total)}
         {unit && total !== null ? ` ${unit}` : ''}
       </p>
+      {check && (
+        <p className={`mt-1 text-xs ${mismatch ? 'text-danger' : 'text-muted-foreground'}`}>
+          {check.stale ? 'Needs recalculation after human correction' : missing ? 'Not enough data to check the total' : check.passed ? 'Repayments add up (within rounding)' : 'Repayments do not add up to total debt'}
+        </p>
+      )}
     </div>
   )
 }

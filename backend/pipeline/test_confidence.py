@@ -319,6 +319,12 @@ def demo():
     assert not c["passed"] and c["detail"] == "missing: due_after_5_years", c  # without the flag: the old behaviour
     # ... end to end: the identity passes with the null bucket as 0, and total_debt keeps arith_ok at full confidence
     dm = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
+    # 2026-09-18: the shipped schema sets require_explicit_values on the identity check (team ruling: a null
+    # bucket stays unknown, never an implicit 0 -- see docs/API.md). Everything below exercises the null_as_zero
+    # mechanism itself, so the self-check runs the schema with that flag off; the flag's own behaviour is
+    # asserted right above (the "without the flag"/"missing:" pair) and in backend/test_workbench.py.
+    for _chk in dm.get("checks", []):
+        _chk.pop("require_explicit_values", None)
     ericsson = "Note 20 Borrowings\nMSEK\n2025\nTotal borrowings 32,703\nWithin 1 year 3,538\n1-5 years 29,165\n"
     x.call_llm = lambda *a, **k: {"fields": [
         {"key": "total_debt", "value": 32703, "unit": "MSEK", "period": "2025", "raw_label": "Total borrowings", "source": {"page": 1, "quote": "Total borrowings 32,703"}},
@@ -1078,7 +1084,7 @@ def demo():
     assert out["checks"][0]["passed"], out["checks"]
 
     # v089: the maturity basis is a user choice, not a hardcode -- DEBT_BASIS=carrying (default;
-    # everything above, byte for byte, and the extraction now says so in its own top-level "basis")
+    # everything above, byte for byte, and the extraction now says so in its own top-level "maturity_basis")
     # or "undiscounted": the same bucket columns read as always, but total_debt comes from the
     # contractual undiscounted total column -- the schema's ignore_header_synonyms wording (v076)
     # becomes the total slot and the carrying wording becomes the ignored column -- so the identity
@@ -1092,7 +1098,7 @@ def demo():
         {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
         {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
     out = x.extract([instalco128], [1], dm, {"fiscal_year": 2025})
-    assert out["basis"] == "carrying" and out["checks"][0]["passed"] is False, (out["basis"], out["checks"])
+    assert out["maturity_basis"] == "carrying" and out["checks"][0]["passed"] is False, (out["maturity_basis"], out["checks"])
     # the prompt names the basis (the schema carries both wordings; the carrying one is the one
     # every extraction has carried since v028, unchanged)
     sp = x.system_prompt(dm)
@@ -1115,7 +1121,7 @@ def demo():
     out = x.extract([instalco128], [1], dm, {"fiscal_year": 2025})
     got = {f["key"]: f["value"] for f in out["fields"]}
     assert got == {"total_debt": 3209, "due_within_1_year": 0, "due_1_to_5_years": 3209, "due_after_5_years": 0} \
-        and out["checks"][0]["passed"] and out["basis"] == "undiscounted", (got, out["checks"], out["warnings"])
+        and out["checks"][0]["passed"] and out["maturity_basis"] == "undiscounted", (got, out["checks"], out["warnings"])
     assert any("total_debt: 3122 disagrees with the maturity table" in w for w in out["warnings"]), out["warnings"]
     nilw = next(f for f in out["fields"] if f["key"] == "due_after_5_years")
     assert nilw["confidence"] == 0.5 and "printed_nil" in nilw["evidence"], nilw  # the dash, still the report's own 0
@@ -1127,7 +1133,7 @@ def demo():
     out = x.extract([ework_real], [1], dm, {"fiscal_year": 2025})
     got = {f["key"]: f["value"] for f in out["fields"]}
     assert got == {"total_debt": 156410, "due_within_1_year": 156409, "due_1_to_5_years": 0, "due_after_5_years": 0} \
-        and out["checks"][0]["passed"] and out["basis"] == "undiscounted", (got, out["checks"], out["warnings"])
+        and out["checks"][0]["passed"] and out["maturity_basis"] == "undiscounted", (got, out["checks"], out["warnings"])
     x.call_llm = lambda *a, **k: {"fields": json.loads(json.dumps(ework_answer))}
     out = x.extract([ework_real70], [1], dm, {"fiscal_year": 2025})
     got = {f["key"]: f["value"] for f in out["fields"]}

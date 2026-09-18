@@ -1,6 +1,6 @@
 import { Database, Loader2, Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { getConfig, getKb, getLibrary, getSchemas, openKbExtraction, type Config } from '@/api'
+import { type ApiError, getConfig, getKb, getLibrary, getSchemas, openKbExtraction, type Config } from '@/api'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -8,19 +8,20 @@ import { ErrorBlock, LoadingLine } from '@/components/ui/state'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { KbEntry, Result, Schema } from '@/types'
 
-type Props = { onOpen: (results: Result[]) => void }
+type Props = { onOpen: (results: Result[]) => void; onOpenReport: (report: KbEntry) => void }
 
 const NO_PDF_DESC_ID = 'kb-no-pdf-desc'
-const NO_PDF_TITLE = 'page images unavailable until the PDF is fetched from Extract'
+const NO_PDF_TITLE = 'Saved figures and page text are available; the original PDF is not cached'
 
 // Everything the parser has learnt so far: one row per report in data/kb, opened from disk without a model call.
-export function KbView({ onOpen }: Props) {
+export function KbView({ onOpen, onOpenReport }: Props) {
   const [entries, setEntries] = useState<KbEntry[] | null>(null)
   const [schemas, setSchemas] = useState<Schema[]>([])
   const [config, setConfig] = useState<Config | null>(null) // retrieval mode decides what the Embeddings column says
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set()) // stems
   const [busy, setBusy] = useState<string | null>(null)
+  const [notCached, setNotCached] = useState(false) // last error was the 409 "PDF no longer cached"
   const [query, setQuery] = useState('')
   // Basenames present in data/reports/ right now (GET /api/library, disk-backed). null = not known yet — either
   // still loading or the call failed (old backend / network); either way fall back to "everything openable".
@@ -33,14 +34,11 @@ export function KbView({ onOpen }: Props) {
     getConfig().then(setConfig).catch(() => {}) // v034-era backend without `retrieval` -> null, column unchanged
     getLibrary()
       .then((lib) => setPdfFiles(new Set(lib.map((l) => l.file))))
-      .catch(() => {}) // fixture-era backend or a blip: stay null, pdf_cached (or "unknown") carries the rows
+      .catch(() => {}) // fixture-era backend or a blip: stay null, every row stays openable
   }, [])
 
-  // /api/kb's pdf_cached is the same join the backend's own open uses (v092: file == f"{stem}.pdf" on disk);
-  // GET /api/library remains the pre-v092 fallback. Unknown on both = available — a stale answer only
-  // mislabels the badge, it never blocks the open (v092 made that PDF-independent).
-  const hasPdf = (e: KbEntry) => e.pdf_cached ?? (!pdfFiles || pdfFiles.has(`${e.stem}.pdf`))
-  const pdfKnown = !!pdfFiles || !!entries?.some((e) => typeof e.pdf_cached === 'boolean')
+  // Same join the backend's own GET /api/kb/{stem}/{section} 409 check uses (app.py: file == f"{stem}.pdf").
+  const hasPdf = (stem: string) => entries?.find((entry) => entry.stem === stem)?.pdf_available ?? (!pdfFiles || pdfFiles.has(`${stem}.pdf`))
 
   const title = (section: string) => schemas.find((s) => s.name === section)?.title ?? section
 
@@ -48,15 +46,18 @@ export function KbView({ onOpen }: Props) {
     setBusy(stems.join())
     setError(null)
     const results: Result[] = []
+    let missingPdf = false
     for (const stem of stems) {
       const label = entries?.find((e) => e.stem === stem)?.company ?? stem
       try {
         results.push({ label, sectionTitle: title(section), extraction: await openKbExtraction(stem, section) })
       } catch (e) {
         results.push({ label, sectionTitle: title(section), error: (e as Error).message })
+        if ((e as ApiError).status === 409) missingPdf = true // backend re-registration needs the PDF in data/reports
       }
     }
     setBusy(null)
+    setNotCached(missingPdf)
     if (results.every((r) => r.error)) setError(results.map((r) => `${r.label}: ${r.error}`).join('\n'))
     else onOpen(results)
   }
@@ -82,22 +83,21 @@ export function KbView({ onOpen }: Props) {
   const filtered = (entries ?? []).filter(
     (e) =>
       (!q || (e.company ?? '').toLowerCase().includes(q) || e.stem.toLowerCase().includes(q)) &&
-      (!pdfOnly || hasPdf(e)),
+      (!pdfOnly || hasPdf(e.stem)),
   )
 
   return (
     <div className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-5">
         <div>
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">Knowledge base</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wide">Wallenberg collection · Knowledge base</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">
             {entries
-              ? `${entries.length} reports${pdfKnown ? ` · ${entries.filter((e) => hasPdf(e)).length} with PDF` : ''}`
+              ? `${entries.length} reports${pdfFiles ? ` · ${entries.filter((e) => hasPdf(e.stem)).length} with PDF` : ''}`
               : 'Reports'}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Stored page text, extractions and embeddings in <code>data/kb</code>. Opening a row reads the saved
-            extraction — no model call; rows without a cached PDF open too, only the page images wait for it.
+            Browse saved figures and source pages. Reports can be opened even when the original PDF is not on this device.
           </p>
         </div>
         <Button disabled={withSection.length < 2 || !!busy} onClick={() => open(withSection, section)}>
@@ -106,7 +106,19 @@ export function KbView({ onOpen }: Props) {
         </Button>
       </header>
 
-      {error && <ErrorBlock>{error}</ErrorBlock>}
+      {error && (
+        <ErrorBlock
+          details={
+            notCached ? (
+              <p className="mt-2 text-xs">
+                Next step: fetch the PDF from the Extract tab’s Directory search, then open it here again.
+              </p>
+            ) : undefined
+          }
+        >
+          {error}
+        </ErrorBlock>
+      )}
 
       {!entries && !error && <LoadingLine>Loading…</LoadingLine>}
 
@@ -129,13 +141,13 @@ export function KbView({ onOpen }: Props) {
             {filtered.length} / {entries.length}
           </span>
           <label
-            className={`flex items-center gap-1.5 text-xs ${pdfKnown ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}
-            title={pdfKnown ? undefined : 'PDF availability unknown — cannot filter by it'}
+            className={`flex items-center gap-1.5 text-xs ${pdfFiles ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}
+            title={pdfFiles ? undefined : 'PDF cache list unavailable — cannot filter by it'}
           >
             <input
               type="checkbox"
               checked={pdfOnly}
-              disabled={!pdfKnown}
+              disabled={!pdfFiles}
               onChange={(e) => setPdfOnly(e.target.checked)}
               className="size-3.5 accent-ring"
             />
@@ -168,14 +180,13 @@ export function KbView({ onOpen }: Props) {
             <TableBody>
               {filtered.map((e) => {
                 const isSelected = selected.has(e.stem)
-                const available = hasPdf(e)
+                const available = hasPdf(e.stem)
                 return (
                   <TableRow
                     key={e.stem}
                     className={`border-l-2 ${isSelected ? 'border-l-ring bg-primary/10 hover:bg-primary/15' : 'border-l-transparent hover:bg-primary/5'}`}
                   >
                     <TableCell>
-                      {/* v092: a missing PDF no longer blocks selecting — the stored extraction opens without it */}
                       <input
                         type="checkbox"
                         aria-label={`Select ${e.company ?? e.stem}`}
@@ -190,7 +201,7 @@ export function KbView({ onOpen }: Props) {
                       {e.company ?? e.stem}
                       <span className="ml-2 font-mono text-xs text-muted-foreground max-[900px]:hidden">{e.stem}</span>
                       {!available && (
-                        <Badge variant="outline" className="ml-2 text-muted-foreground" title={NO_PDF_TITLE}>
+                        <Badge variant="outline" className="ml-2 text-muted-foreground">
                           no PDF
                         </Badge>
                       )}
@@ -224,20 +235,9 @@ export function KbView({ onOpen }: Props) {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      {e.sections.map((s) => (
-                        <Button
-                          key={s}
-                          size="xs"
-                          variant="outline"
-                          disabled={!!busy}
-                          title={available ? undefined : NO_PDF_TITLE}
-                          aria-describedby={available ? undefined : NO_PDF_DESC_ID}
-                          onClick={() => open([e.stem], s)}
-                        >
-                          {busy === e.stem ? <Loader2 className="animate-spin" /> : null}
-                          Open
-                        </Button>
-                      ))}
+                      <Button size="xs" variant="outline" disabled={!!busy} onClick={() => onOpenReport(e)}>
+                        Open
+                      </Button>
                     </TableCell>
                   </TableRow>
                 )
