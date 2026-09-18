@@ -21,6 +21,7 @@ const DEFAULT_CONFIG: DesktopConfig = {
   claudeModel: 'claude-sonnet-5',
   extractTwoPass: true, // matches desktop/settings.js's own DEFAULTS -- see its comment for why
   maturityBasis: 'carrying', // v089, same -- the backend's own default since v028
+  theme: 'solid', // v100, same -- desktop/settings.js's own DEFAULTS; never reaches the backend
 }
 
 // Ollama has no toggle for this (see the Local (Ollama) card below) and desktop/settings.js's
@@ -177,6 +178,82 @@ function MaturityBasisSelect({
   )
 }
 
+// v100: the owner's either/or between the app's two visual languages — Solid (default: the
+// 09-18 opaque surfaces, pixel-identical to before this control existed) and Acrylic (the
+// v001–v006b glass: wallpaper glow + backdrop blur in the browser, real Windows acrylic in the
+// desktop app). Rendered outside every provider card in *both* settings variants: in a plain
+// browser tab localStorage is the whole persistence, the desktop additionally writes config.json
+// and flips the live window material through window.arp.setTheme (main.tsx).
+function ThemeSelect({ onThemeChange }: { onThemeChange?: (theme: DesktopConfig['theme']) => void }) {
+  const [theme, setTheme] = useState<DesktopConfig['theme']>(() =>
+    localStorage.getItem('arp-theme') === 'acrylic' ? 'acrylic' : 'solid',
+  )
+  const [restartHint, setRestartHint] = useState(false)
+
+  const select = async (next: DesktopConfig['theme']) => {
+    if (next === theme) return
+    setTheme(next)
+    setRestartHint(false)
+    // The browser look is instant and local: <html data-theme> is what index.css's Acrylic scope
+    // keys off, and localStorage is what main.tsx restores on the next load.
+    if (next === 'acrylic') document.documentElement.dataset.theme = 'acrylic'
+    else delete document.documentElement.dataset.theme
+    localStorage.setItem('arp-theme', next)
+    // Desktop only: keep the form's copy in step so a later Save (which writes the whole config)
+    // persists the same theme the user just picked, never a stale one.
+    onThemeChange?.(next)
+    const setDesktopTheme = window.arp?.setTheme
+    if (!setDesktopTheme) return
+    const res = await setDesktopTheme(next).catch(() => null)
+    if (!res) return // localStorage + data-theme already applied; config catches up on next launch
+    if (!res.appliedNow) {
+      setRestartHint(true) // no live setBackgroundMaterial on this window — restart to apply
+      return
+    }
+    // Mirror main.tsx's startup rule: the OS-material branch goes on only when the desktop
+    // actually switched the window to real acrylic (transparent ground, no painted wallpaper).
+    if (res.material === 'acrylic') document.documentElement.dataset.material = 'on'
+    else delete document.documentElement.dataset.material
+  }
+
+  const options: Record<DesktopConfig['theme'], string> = {
+    solid: 'Solid (default)',
+    acrylic: 'Acrylic',
+  }
+  return (
+    <Card size="sm">
+      <CardContent className="space-y-2">
+        <Field caption="Theme">
+          <Select
+            value={theme}
+            onValueChange={(v) => {
+              if (v === 'solid' || v === 'acrylic') void select(v)
+            }}
+            items={options}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(options) as (keyof typeof options)[]).map((k) => (
+                <SelectItem key={k} value={k}>
+                  {options[k]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <p className="text-xs text-muted-foreground">
+          Acrylic uses Windows&rsquo; translucent material in the desktop app and a wallpaper glow in the browser.
+        </p>
+        {restartHint && (
+          <p className="text-xs text-warning">Restart the app to apply the window material.</p>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 // Shared by the Codex and Claude cards (v033 owner follow-up added Claude, same shape as Codex): a
 // model dropdown, an optional base URL for embeddings/Ask with an optional key for it, and a status
 // badge from the CLI-specific *Status() check. `info` is whatever that check last returned.
@@ -264,10 +341,11 @@ function ReadOnlySettings() {
       <header className="border-b border-border pb-5">
         <p className="text-xs text-muted-foreground uppercase tracking-wide">Settings</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">Model provider</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Settings are edited in the desktop app or via backend/.env.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Model settings are edited in the desktop app or via backend/.env; theme is local to this browser.</p>
       </header>
       {error && <ErrorBlock>{error}</ErrorBlock>}
       {!status && !error && <LoadingLine>Loading…</LoadingLine>}
+      <ThemeSelect />
       {status && <StatusRow status={status} error={error} />}
     </div>
   )
@@ -403,6 +481,8 @@ function DesktopSettings({ api, onConfigChange }: { api: ArpSettingsApi; onConfi
       </header>
 
       <StatusRow status={status} error={statusError} twoPass={twoPassStatus} />
+
+      <ThemeSelect onThemeChange={(t) => update({ theme: t })} />
 
       {!loaded ? (
         <LoadingLine>Loading current settings…</LoadingLine>

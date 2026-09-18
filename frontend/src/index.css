@@ -186,6 +186,142 @@
     background: var(--background);
 }
 
+/* v100: the Acrylic theme. Everything above (and the :root dark table) is the default "Solid"
+   look — this scope re-imports our v001–v006b glass token table verbatim from 263f8eb for users
+   who pick Acrylic in Settings (localStorage `arp-theme` -> <html data-theme="acrylic">, set by
+   main.tsx before first render). Solid is the *absence* of the attribute, so the default
+   rendering never depends on this block existing. Dark here differs from :root only in
+   --popover (263f8eb's translucent var(--bg-4) vs Solid's opaque dropdown fill); light restores
+   the v006b glass values that Solid replaced with opaque surfaces. Contrast numbers for these
+   exact values: docs/acrylic/evidence/v006.md §v006b. */
+[data-theme="acrylic"] {
+    --bg-0: rgb(11 11 14 / 66%);
+    --bg-1: rgb(22 22 27 / 58%);
+    --bg-2: rgb(32 32 39 / 62%);
+    --bg-3: rgb(48 48 57 / 64%);
+    --bg-4: rgb(62 62 73 / 62%);
+    --line-0: rgb(255 255 255 / 6%);
+    --line-1: rgb(255 255 255 / 11%);
+    --line-2: rgb(255 255 255 / 19%);
+    --fg-0: #f4f4f7;
+    --fg-1: #b6b6c0;
+    --fg-2: #a0a0aa;
+    --fg-3: #8a8a95;
+    --glass-hi: rgb(255 255 255 / 8%);
+    --glass-shadow: 0 22px 60px rgb(0 0 0 / 55%);
+    --blur: saturate(180%) blur(26px);
+    --wallpaper:
+        radial-gradient(90% 75% at 14% 0%, rgb(56 96 178 / 26%) 0%, transparent 62%),
+        radial-gradient(75% 65% at 88% 100%, rgb(112 78 190 / 30%) 0%, transparent 60%),
+        linear-gradient(168deg, #1b2444 0%, #131830 45%, #0a0a12 100%);
+    color-scheme: dark;
+
+    --background: var(--bg-1);
+    --foreground: var(--fg-0);
+    --card: var(--bg-3);
+    --card-foreground: var(--fg-0);
+    --popover: var(--bg-4);
+    --popover-foreground: var(--fg-0);
+    --primary: color-mix(in srgb, #7aa2f7 22%, var(--bg-0));
+    --primary-hover: color-mix(in srgb, #7aa2f7 29%, var(--bg-0));
+    --primary-foreground: color-mix(in srgb, #7aa2f7 34%, #f0f5ff);
+    --secondary: var(--bg-2);
+    --secondary-foreground: var(--fg-1);
+    --muted: var(--bg-2);
+    --muted-foreground: var(--fg-2);
+    --accent: var(--bg-3);
+    --accent-foreground: var(--fg-0);
+    --destructive: #e0897f;
+    --success: #7bc99a;
+    --success-foreground: #0f2a1c;
+    --success-muted: color-mix(in srgb, #7bc99a 12%, transparent);
+    --warning: #d9b06a;
+    --warning-foreground: #2b1c05;
+    --warning-muted: color-mix(in srgb, #d9b06a 12%, transparent);
+    --danger: #e0897f;
+    --danger-foreground: #2a0d09;
+    --danger-muted: color-mix(in srgb, #e0897f 12%, transparent);
+    --border: var(--line-1);
+    --input: var(--line-1);
+    --ring: #7aa2f7;
+}
+
+[data-theme="acrylic"][data-tone="light"] {
+    --bg-0: rgb(252 252 254 / 76%);
+    --bg-1: rgb(0 0 0 / 2.5%);
+    --bg-2: rgb(0 0 0 / 4%);
+    --bg-3: rgb(0 0 0 / 6%);
+    --bg-4: rgb(0 0 0 / 10%);
+    --line-0: rgb(0 0 0 / 7%);
+    --line-1: rgb(0 0 0 / 12%);
+    --line-2: rgb(0 0 0 / 20%);
+    --fg-0: #16161a;
+    --fg-1: #3e3e47;
+    --fg-2: #4e4e58;
+    --fg-3: #60606b;
+    --glass-hi: rgb(255 255 255 / 65%);
+    --glass-shadow: 0 22px 60px rgb(40 44 60 / 22%);
+    --wallpaper:
+        radial-gradient(90% 75% at 14% 0%, rgb(168 190 235 / 40%) 0%, transparent 62%),
+        radial-gradient(75% 65% at 88% 100%, rgb(196 178 228 / 28%) 0%, transparent 60%),
+        linear-gradient(168deg, #f7f3e9 0%, #ececf6 45%, #e6e6f2 100%);
+    color-scheme: light;
+
+    --background: var(--bg-1);
+    --foreground: var(--fg-0);
+    --card: var(--bg-3);
+    --card-foreground: var(--fg-0);
+    --popover: var(--bg-4);
+    --popover-foreground: var(--fg-0);
+    --primary: color-mix(in srgb, #2b5cb4 16%, transparent);
+    --primary-hover: color-mix(in srgb, #2b5cb4 24%, transparent);
+    --primary-foreground: #12305e;
+    --secondary: var(--bg-2);
+    --secondary-foreground: var(--fg-1);
+    --muted: var(--bg-2);
+    --muted-foreground: var(--fg-2);
+    --accent: var(--bg-3);
+    --accent-foreground: var(--fg-0);
+    --destructive: #a23a32;
+    --success: #276f47;
+    --success-foreground: #eafff2;
+    --success-muted: color-mix(in srgb, #276f47 5%, transparent);
+    --warning: #805208;
+    --warning-foreground: #fff6e6;
+    --warning-muted: color-mix(in srgb, #805208 5%, transparent);
+    --danger: #a23a32;
+    --danger-foreground: #fff1ee;
+    --danger-muted: color-mix(in srgb, #a23a32 5%, transparent);
+    --border: var(--line-1);
+    --input: var(--line-1);
+    --ring: #2b5cb4;
+}
+
+/* Solid's light tone paints the rail/titlebar opaque (rule above); under Acrylic the shell is
+   one glass pane again, so those strips go back to showing it (263f8eb had no such rule — this
+   only ever matches inside the Acrylic scope, never Solid's default). */
+[data-theme="acrylic"][data-tone="light"] :is(.app-titlebar, .app-rail) {
+    background: transparent;
+}
+
+/* 263f8eb's OS-material pairing for light (dark + fonts already live in the
+   :root[data-material="on"] block below): with real Windows acrylic behind the window the
+   painted wallpaper goes away and the ground clears a little further. */
+[data-theme="acrylic"][data-tone="light"][data-material="on"] {
+    --bg-0: rgb(252 252 254 / 62%);
+}
+
+/* Popovers ride tokens again under Acrylic: bg-popover resolves to the translucent --bg-4, which
+   without a blur would let underlying content bleed through the dropdown — so the floating
+   select popup gets its thin glass back (v001–v006b's SelectContent treatment; Solid's opaque
+   dropdowns above are untouched by this rule). */
+[data-theme="acrylic"] [data-slot="select-content"] {
+    background: var(--bg-0);
+    backdrop-filter: var(--blur);
+    -webkit-backdrop-filter: var(--blur);
+    box-shadow: inset 0 1px 0 var(--glass-hi), var(--glass-shadow);
+}
+
 /* Real Windows acrylic (desktop/, BrowserWindow backgroundMaterial: 'acrylic') replaces the
    painted --wallpaper: the OS itself blurs the desktop behind the window, so the body's own
    gradient would just sit on top of it, doubling up. main.tsx sets this from the preload-exposed
