@@ -1,0 +1,83 @@
+{
+  "report_id": "lib-scandi_standard_2025",
+  "company": "Scandi Standard",
+  "fiscal_year": 2025,
+  "currency": "MSEK",
+  "section": "debt_maturity",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": -2307,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Gross debt December 31 2025 (Note 21)",
+      "source": {
+        "page": 134,
+        "quote": "(Note 21) –2,021 –286 –2,307"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": -70,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Interest-bearing liabilities – repayable within one year",
+      "source": {
+        "page": 134,
+        "quote": "– repayable within one year –70 –64"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((-70 + 0 (due_1_to_5_years null) + 0 (due_after_5_years null)) - -2307) <= 2"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [134, 135] selected from candidates [127, 128, 134, 148, 102]",
+    "total_debt: column reading of 'Total 547 44 – – –12' rejected -- due_within_1_year 547, due_1_to_5_years 44 exceed its own total -12; model's own values kept",
+    "published: seed6 run replayed with extract.py @ 832bc526"
+  ]
+}

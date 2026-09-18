@@ -1,0 +1,97 @@
+{
+  "report_id": "lib-intrum_2025",
+  "company": "Intrum",
+  "fiscal_year": 2025,
+  "currency": "SEK M",
+  "section": "debt_maturity",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 43384,
+      "unit": "SEK M",
+      "period": "2025",
+      "raw_label": "Total borrowing",
+      "source": {
+        "page": 123,
+        "quote": "Total borrowing 43,384 50,701 - 50,701"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 271,
+      "unit": "SEK M",
+      "period": "2025",
+      "raw_label": "Total borrowings in current liabilities1",
+      "source": {
+        "page": 123,
+        "quote": "Total borrowings in current liabilities1 271 13,839 - 13,839"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": 43113,
+      "unit": "SEK M",
+      "period": "2025",
+      "raw_label": "Between 4 and 5 years: Total borrowings in non-current liabilities",
+      "source": {
+        "page": 123,
+        "quote": "Total borrowings in non-current liabilities 43,113 36,862 - 36,862"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "SEK M",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": true,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((271 + 43113 + 0 (due_after_5_years null)) - 43384) <= 2"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [123, 124] selected from candidates [123, 124, 132]",
+    "published: seed4 run replayed with extract.py @ 832bc526"
+  ]
+}
