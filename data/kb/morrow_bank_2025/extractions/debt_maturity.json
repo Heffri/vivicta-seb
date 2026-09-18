@@ -4,6 +4,7 @@
   "fiscal_year": 2025,
   "currency": "NOK million",
   "section": "debt_maturity",
+  "maturity_basis": "carrying",
   "fields": [
     {
       "key": "total_debt",
@@ -68,6 +69,6 @@
     }
   ],
   "warnings": [
-    "published: seed3 run replayed with extract.py @ 832bc526"
+    "published: seed3 run replayed with extract.py @ 861fd65e"
   ]
 }

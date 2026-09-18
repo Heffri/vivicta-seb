@@ -4,6 +4,7 @@
   "fiscal_year": 2025,
   "currency": "THOUSANDS OF SEK",
   "section": "debt_maturity",
+  "maturity_basis": "carrying",
   "fields": [
     {
       "key": "total_debt",
@@ -69,6 +70,6 @@
   ],
   "warnings": [
     "currency: the model says thousands of SEK, but the statement names only EUR/GBP/SEK/USD and the report mostly SEK; SEK it is",
-    "published: seed3 run replayed with extract.py @ 832bc526"
+    "published: seed3 run replayed with extract.py @ 861fd65e"
   ]
 }

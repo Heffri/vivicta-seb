@@ -4,6 +4,7 @@
   "fiscal_year": 2025,
   "currency": "MSEK",
   "section": "debt_maturity",
+  "maturity_basis": "carrying",
   "fields": [
     {
       "key": "total_debt",
@@ -16,10 +17,11 @@
         "page": 109,
         "quote": "Total 5,887 7,053"
       },
-      "confidence": 0.5,
+      "confidence": 0.9,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
+        "arith_ok",
         "period_ok",
         "page_is_statement",
         "unit_ok"
@@ -58,10 +60,11 @@
         "page": 109,
         "quote": "Closing balance 5,887 7,053 Repayment after more than 5 yr. 4 –"
       },
-      "confidence": 0.5,
+      "confidence": 0.9,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
+        "arith_ok",
         "period_ok",
         "page_is_statement",
         "unit_ok"
@@ -72,7 +75,7 @@
     {
       "name": "maturity_sums_to_total",
       "passed": false,
-      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((0 (due_within_1_year null) + 0 (due_1_to_5_years null) + 4) - 5887) <= 2"
+      "detail": "missing: due_within_1_year"
     }
   ],
   "warnings": [
@@ -80,6 +83,6 @@
     "llm: TimeoutExpired: Command '['C:\\\\Users\\\\<user>\\\\AppData\\\\Local\\\\Programs\\\\OpenAI\\\\Codex\\\\bin\\\\codex.EXE', 'exec', '-m', 'gpt-5.6-terra', '-s', 'read-only', '-C', 'C:\\\\Users\\\\<user>\\\\AppData\\\\Local\\\\Temp\\\\vivicta-codex-sey61ck1', '--skip-git-repo-check', '--json', '-o', 'C:\\\\Users\\\\<user>\\\\AppData\\\\Local\\\\Temp\\\\vivicta-codex-sey61ck1\\\\last-message.txt', '-']' timed out after 120.0 seconds (pages [109, 110])",
     "due_within_1_year: 710 is printed on none of pages [109, 110]; dropped as computed, not read",
     "due_1_to_5_years: 5152 is printed on none of pages [109, 110]; dropped as computed, not read",
-    "published: seed7 run replayed with extract.py @ 832bc526"
+    "published: seed7 run replayed with extract.py @ 861fd65e"
   ]
 }
