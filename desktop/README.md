@@ -83,7 +83,6 @@ certificate, which is out of scope here.
 ## Not done (left for later)
 
 - Code signing / SmartScreen suppression.
-- Auto-update.
 - Data directory override in the Settings UI (still only via `ARP_DEV_BACKEND_DIR`, a testing escape
   hatch — see "Settings" above for what the UI does cover: provider/model, not paths).
 - macOS/Linux packaging targets (`win` only in `electron-builder.yml`; the acrylic material itself
@@ -106,3 +105,27 @@ certificate, which is out of scope here.
 - `icons/icon.ico` (+ `make-icon.js`, its generator) — placeholder mark, "AR" in a 5x7 dot-matrix
   font on a dark rounded square, hand-drawn with a ~130-line PNG/ICO encoder (no image-library
   dependency for one static asset). Colors from `docs/acrylic/DESIGN.md`'s dark wallpaper/accent.
+
+## Automatic updates
+
+Pushes to `main` and `demo` build the frontend, Python backend and Windows NSIS installer in
+GitHub Actions. Each branch publishes its own update feed:
+
+- [Main installer releases](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-main)
+- [Demo installer releases](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-demo)
+
+Install the Setup executable once. The old portable 0.3.4 executable cannot update itself.
+Installed copies check on startup and hourly, download in the background, and apply on normal
+exit. Restart to use the new build. A failed build leaves the previous update available. Offline
+update checks do not prevent using the app. Main and demo install separately and keep separate
+settings and data. Demo retains the old portable app's data directory.
+
+Versions are generated as `1.<workflow run number>.<attempt>` without commits that bump versions.
+The workflow uploads the installer and blockmap before `latest.yml`. The feed retains older
+versioned installers so clients finishing an earlier download can still retrieve them.
+
+For local development, run `npm run dev` in `desktop/` after installing the backend/frontend
+prerequisites above. Frontend edits reload through Vite. Restart the desktop app for main-process
+changes. No release or installer is needed for local development.
+
+Checks: `node --test desktop/updates.test.js` and `python scripts/check_codex_discovery.py`.
