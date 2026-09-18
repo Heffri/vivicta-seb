@@ -9,7 +9,7 @@
     {
       "key": "total_debt",
       "label": "Total borrowings",
-      "value": -1474,
+      "value": 1474,
       "unit": "SEK M",
       "period": "2025",
       "raw_label": "Total interest-bearing liabilities",
@@ -20,6 +20,7 @@
       "confidence": 1.0,
       "evidence": [
         "quote_on_page",
+        "sign_normalized",
         "value_in_quote",
         "arith_ok",
         "label_known",
@@ -70,6 +71,6 @@
     }
   ],
   "warnings": [
-    "published: seed1 run replayed with extract.py @ 861fd65e"
+    "published: seed1 run replayed with extract.py @ 545473cb"
   ]
 }

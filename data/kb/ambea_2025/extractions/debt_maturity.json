@@ -83,6 +83,6 @@
     "two_pass: page [119, 120] selected from candidates [119, 120, 125]",
     "total_debt: 12643 is not the 2025 column, 10757 is",
     "due_within_1_year: 2308 is not the 2025 column, 1879 is",
-    "published: seed9 run replayed with extract.py @ 861fd65e"
+    "published: seed9 run replayed with extract.py @ 545473cb"
   ]
 }

@@ -9,7 +9,7 @@
     {
       "key": "total_debt",
       "label": "Total borrowings",
-      "value": -89532,
+      "value": 89532,
       "unit": "Tkr",
       "period": "2025",
       "raw_label": "Räntebärande skulder (not 37)",
@@ -20,6 +20,7 @@
       "confidence": 0.9,
       "evidence": [
         "quote_on_page",
+        "sign_normalized",
         "value_in_quote",
         "arith_ok",
         "period_ok",
@@ -70,6 +71,6 @@
   ],
   "warnings": [
     "two_pass: page [123, 124] selected from candidates [123, 124]",
-    "published: seed5 run replayed with extract.py @ 861fd65e"
+    "published: seed5 run replayed with extract.py @ 545473cb"
   ]
 }
