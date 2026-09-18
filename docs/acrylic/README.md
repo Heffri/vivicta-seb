@@ -56,6 +56,8 @@ their own thin glass. Dark is the default (`:root`), light is `[data-tone="light
 | Ask | Pulled out of `App.tsx` into `AskView`; citation chips get a stronger hover; example questions are badge "chips" | [v004](evidence/v004.md) |
 | Knowledge base (`KbView`) | Filter box (case-insensitive, shows `n / 102`, doesn't disturb an existing selection); sticky table header; accent row selection; a 409 ("PDF not cached") now tells you to fetch it from Extract first; rows without a cached PDF get a muted "no PDF" badge and a disabled Open button/checkbox with a tooltip; the header count splits into "n reports · m with PDF"; a "With PDF only" toggle filters the table, and degrades to a disabled no-op rather than a false filter if the library call hasn't resolved | [v005](evidence/v005.md), [v010 §5](evidence/v010.md), [v019](evidence/v019.md) |
 | Cross-cutting | Hardcoded emerald/amber/red replaced by `--success`/`--warning`/`--danger` tokens everywhere; wallpaper redone as a two-glow gradient so the glass reads as glass, not flat fill; focus rings, hover/active steps, disabled state, `Select`/`Table` interaction states unified; shared `LoadingLine`/`ErrorBlock` rolled out to Extract, Ask and Knowledge base (Results/Compare's error surfaces are per-cell, not view-level, so left as-is); shell rail + tone toggle got the same focus ring; the same outline-ring recipe extended to the directory-search input, the KB filter input, the Results PDF/Image segmented toggle, and the Ask textarea | [v006](evidence/v006.md) (incl. v006b), [v010](evidence/v010.md), [v015 §1](evidence/v015.md) |
+| Settings / status strip / Results header | A "Maturity basis" select ("Carrying amount (default)" / "Contractual undiscounted") on all four provider cards beside the two-pass toggle — Save writes `DEBT_BASIS` and restarts the backend (unlike two-pass, it passes through for every non-fixture provider, Ollama included); the status strip shows the live `basis carrying amount \| contractual undiscounted` from `/api/config`'s `maturity_basis` — visible on the plain-browser mirror too, unlike two-pass — and the Results header meta line prints `basis: …` whenever the extraction carries one (older stored extractions and other sections show nothing) | [v089](evidence/v089.md) |
+| Knowledge base — open without a cached PDF | v092 enabled Open and the row checkbox for no-PDF entries (the "no PDF" badge stays, now carrying a tooltip on why page images are absent); the 09-18 merge kept that behavior through Sebastijan's rewritten KbView (his `saved_report_id` open path, the Wallenberg collection default) — the v092 frontend pieces that survive are the test coverage (rewritten to his semantics) and the SourcePanel "Fetch the PDF from Extract" hint sentence | [v092](evidence/v092.md) |
 
 **Screenshots** — the closest thing to a full walkthrough, one pair per tab, `evidence/v010/`, 1440×900:
 
@@ -195,11 +197,13 @@ checked against the 102+ reports already parsed into `data/kb/` and/or PDFs fetc
 purpose. The `debt_maturity` hardening-loop rows are the exception: each round runs
 `scripts/random_check.py` against a real model (Codex CLI) to find failures on a random sample,
 then — usually — lands a deterministic fix — schema wording/keywords, or an `extract.py` code
-change — verified afterwards with no further model calls. Eight rounds so far, seeds 1–8, 77
-company draws ([v035](evidence/v035.md), [v037](evidence/v037.md), [v041](evidence/v041.md),
-[v048](evidence/v048.md), [v051](evidence/v051.md), [v063](evidence/v063.md),
-[v072](evidence/v072.md), [v082](evidence/v082.md); seeds 7 and 8 measured the merged stack and
-deliberately landed nothing), and
+change — verified afterwards with no further model calls. Ten rounds so far — seeds 1–9 plus a
+Financials sweep — 105 company draws ([v035](evidence/v035.md), [v037](evidence/v037.md),
+[v041](evidence/v041.md), [v048](evidence/v048.md), [v051](evidence/v051.md), [v063](evidence/v063.md),
+[v072](evidence/v072.md), [v082](evidence/v082.md), [v088](evidence/v088.md), [v090](evidence/v090.md);
+seeds 7 and 8 measured the merged stack and deliberately landed nothing, seed 9 likewise — all four of
+its candidate fixes rejected offline, with evidence — and the Financials sweep landed one schema
+ruling (bank borrowings, its row below) plus a `--sector` flag on `random_check.py`), and
 the failures they chased resolve into four mechanism families, each now with its own deterministic
 reader: bucket-shaped rows (`_between_rows`), bucket-shaped columns (`_fill_bucket_columns`),
 per-instrument maturity dates (`_date_bucket_derive`), and stated-zero prose sentences
@@ -256,6 +260,12 @@ green throughout — see "How to verify".
 | Debt-row vocabulary moves to the schema: `_DEBT_ROW_SYNONYMS` (11 words, `extract.py`'s private constant) becomes `total_debt.row_synonyms` byte-identical — the constant is deleted rather than kept as a code default, so debt wording can't silently inject into a future same-shaped schema — plus seed-8's word gaps as exact printed phrases (`"lån kreditinstitut"`, `"liabilities to credit institutions"` as rows; `"mindre än 12 månader"`, `"within 6 months"`, `"mellan 1 och 2 år"` as headers), direction-safe against v060's asset-side bare-`loan` lesson; `backend/README.md` documents the four synonym-shaped keys: Tången closes on the isolated single-year replay (588 199 = 141 734 + 388 979 + 57 486, check **passed**; the real two-year page still declines ambiguous — v084's target), Instalco byte-identical, replay 179 companies 0 changed | v082's Findings 1–2: a genuine closeable table whose row label the private list never matched — and vocabulary belongs in the schema, not in code | [v083](evidence/v083.md) |
 | Bucket columns pick the **fiscal-year table** when two years print the same debt row: `_bucket_total_row` narrows duplicate same-labelled candidates by year (via the already-trusted `_bucket_row_prior_year`) *before* `known_total` — exactly one survivor wins outright; more than one still declines exactly as before: Tången's real two-table p.62 closes end to end (588 199 / 141 734 / 388 979 / 57 486, check **passed**, was "2 candidate debt rows … ambiguous, none used"); Byggmax's neither-year-decidable rows still decline (its replay line moves warnings 1 → 0 only), replay 78 companies otherwise 0 changed | v083's own named remaining blocker: Swedish notes stack one table per year under identical row labels, and the ambiguity decline blocked the fix v083 had already unlocked | [v084](evidence/v084.md) |
 | The bucket header admits a **second header tier** with no bucket word of its own (v085): an unbroken run of carrying/ignore-bearing lines touching the header joins the read — only when v076's same-line mechanism finds nothing, and only when nothing between the header and the candidate row prints its own amounts (both guards load-bearing, proven by removing each: Instalco's total corrupts 3 122 → 4 802 without the second; Ework/Ependion regress on real prose "carrying amount" sentences without the contiguous-run stop): Instalco's three-line wrapped header now reads 6 keys matching its 6 printed amounts, but the fill is rejected one layer further down by `_fill_bucket_columns`' `over` valve (undiscounted 1–5y 3 209 vs carrying total 3 122) — named with figures for the next lane; replay 179 companies: instalco warnings-only, 0 values moved | v082/v083's Instalco blocker: its column header wraps across three lines and the carrying phrase sits on a bucket-less line, so v076's same-line gate stripped the hit before `has_carry` ever ran | [v085](evidence/v085.md) |
+| `debt_maturity` hardening round 9 (seed 9, 10 fresh Mid Cap companies × 2 passes, two-pass selection 10/10): full confidence **0/10, partial 7/10, failed 3/10** (Karnell, Inwido, NOTE); pass1==pass2 value-stable **6/10**, up from v082's 3/10; **zero schema commits** — four candidate fixes were built, replayed offline against the real pages (zero model calls) and rejected with evidence: Karnell's `>3 years` as a header synonym walks the fill onto the all-liabilities Total row (533.5 with the check *passing* on the wrong scope) and as an ignore-synonym is a provable no-op under v076's no-carry rule; Rusta's `0–6/7–12 months` as bucket-field synonyms leaks into the header read through `synonyms + header_synonyms` and changes it; Inwido's locator gap is folios printed at line start disabling the TOC boost report-wide, unreachable without v017's net-negative re-ranking. v084's two-year disambiguation confirmed live (Viscaria, by direct function call); the two general levers it named — `_bucket_total_row` candidate order/scope (Karnell) and finer-split sibling-row sums (Rusta) — are dispatched as v095/v096 | Ninth measure-first round: quantify v083/v084/v085 on ten fresh companies before landing anything else | [v088](evidence/v088.md) |
+| `DEBT_BASIS` makes the maturity basis a user option — `carrying` (default; byte-identical to every earlier round) or `contractual undiscounted`: the two total-shaped word groups swap slots (`ignore_header_synonyms` wording fills the total slot, carrying `header_synonyms` become the ignored column), the prompt picks the schema's `description_undiscounted` beside the untouched `description`, the over valve and dash-to-0 gate compare against the slot the basis itself named, and anything but `undiscounted`/`contractual` in the env reads carrying, so a typo can never flip it; every extraction reports the basis it was read on — `maturity_basis` since the 09-18 merge renamed v089's `basis` (Sebastijan's analyst-confirmed object owns that name now) — and `/api/config` mirrors the live value; replay 78 debt + 101 income companies, 0 changed | The v008 carrying-vs-undiscounted assumption (Assumptions #1) became SEB's call to flip per deployment, not ours to hard-wire; Instalco — the exact table v085's over valve rejected (3,209 > 3,122) — closes on the undiscounted basis by construction (0 + 3,209 + 0 = 3,209, check **passed**); Ework reads identical figures on both bases (156,410 / 156,409 / 0 / 0) | [v089](evidence/v089.md) |
+| `debt_maturity` Financials sweep — all 18 Mid Cap Financials (15 already drawn by seeds 1–8 re-run once, 3 fresh × 2 passes), offline page scans before any verdict: the sector splits into **four shapes, not one** — ordinary borrowings notes (Intrum, the sector's one strict full-confidence company; VNV Global), banks with a printed interest-bearing total (Hoist Finance: deposits *inside* the report's own 52,680), banks with no total row at all (Norion, Morrow, Enity, Avarda — honest nulls; deposits are operating funding there), investment companies (stated zeros, dash rows, undiscounted-only bucket tables, one locator-blind report — Öresund, zero candidates); headline **full 2 / partial 13 / failed 3**; one schema commit with word lists untouched: the **bank-borrowings ruling** written into the schema `description` (borrowings = the report's own interest-bearing total when printed — deposits included; otherwise no single borrowed-money sub-row may stand in, leave the fields null, never read the undiscounted liquidity note), A/B'd live: Hoist 52,680@0.95 via widen → @1.0 direct pick, Morrow's wrong 265@0.9 subordinated-loans read → honest null, Intrum byte-identical, Catella honestly not rescued (parser scramble); `random_check.py --sector` (one flag) so a whole sector can be drawn | The one HANDOFF universe no hardening round had systematically touched ("Financials … lower priority — industrials first"); the ruling is Assumptions #5 below, page-verified on all six banks before writing | [v090](evidence/v090.md) |
+| KB extractions open without the cached PDF — the whole-report 409 is gone: stored extractions, CSV, PPTX and Compare work for every KB entry, only the page-image/PDF endpoints 404 with a fetch-it-from-Extract hint, and `/api/kb` entries carry `pdf_cached`. **Superseded the same day by Sebastijan's merge**: his `saved_report_id`/`require_pdf` KB-open path replaced this lane's `register_kb_only` backend and his KbView replaced ours — what survived of v092 is the test coverage (rewritten to his semantics), the never-409 contract, and the pieces outside KbView (the SourcePanel "Fetch the PDF from Extract" sentence) | The fifth contract gap: `data/kb` held 102 stored extractions, but on a fresh clone (PDFs gitignored, ~130 MB) every open 409'd — nothing could be read, compared or exported | [v092](evidence/v092.md) |
+| `scripts/publish_kb.py` publishes the hardening seeds' debt results into `data/kb` — best run per stem (highest seed wins; idempotent, a second run writes nothing; byte-for-byte `meta.json`/`pages.jsonl` copies, same-PDF-sha stems get only the extraction, different-sha stems are skipped and listed), each extraction **replay-gated**: stored fields fed back through the current `extract()` with no model call, replayed output published only where it is no worse than stored (55 reproduced exactly, 7 improved — Ependion's three seed-nulls become the exact label values, MedCap's 102.3, Boozt's 104 —, 10 kept as stored, 5 not replayable); 72 Mid Cap entries, plus 12 more after seed 9/Avarda/Linc via the same script = **186 companies in `data/kb`, 85 with a `debt_maturity` extraction**; `eval/run.py --stored-kb data/kb` on the 90 Mid Cap debt labels: `total_debt` 20/27, non-null buckets 18/25, null buckets 38/38, pages 35/90 — every rate at or above v057's across-seeds number, on one committed KB | The 72 stems lived only in per-seed shared directories; published, they light up the KB sections list, Compare, PPTX, Ask's BM25, the desktop build's bundled data and the offline eval at once | [v093](evidence/v093.md) |
+| `eval/labels.csv` gains 91 hand-verified `debt_maturity` rows across 35 companies (seeds 5–8's 39-company universe; v057's method, page-by-page: every value printed on a page read, in the report's native units; zero-prose sentences labelled `total_debt = 0` + page only; current/non-current reports get `total_debt` + `due_within_1_year` only; dash buckets stay null; undiscounted tables never used for values; leases follow the report's own aggregation — the file now holds **181 rows over 62 companies**); per-seed `--stored-kb` scoring of the 35 labelled companies: `total_debt` 23/35 (65.7%), non-null buckets 17/44 (38.6%), null buckets 10/12 (83.3%), pages 43/91 (47.3%); seven earlier-evidence corrections by re-derivation (CellaVision's lease-only table, Salix's contract-liabilities 87, Enea, VEF, Bonava, Viaplay, Byggmax); one data finding — seed8's `modern_times_2025` is MTG's FY2021 report under a 2025 stem; 6 disputed companies left unlabelled for Kristian (Instalco/VBG/ITAB buckets, Green Landscaping, Viva Wine, Enity) | v057 covered seeds 1–4's universe; seeds 5–8's results were being scored against nothing — this is the ground truth behind every `--stored-kb` number above | [v094](evidence/v094.md) |
 
 **A single before/after model call is not proof.** v037 re-ran its own 10 companies a second time
 with no code change and watched two confidence numbers move anyway (Humana up, Storytel down) —
@@ -283,6 +293,27 @@ torn from its own figures) over 10 real PDFs went from 12.14% → 0.24% on debt-
 0.19% on income pages, with all 76 previously-verified `income_statement` quotes (+3/3 debt) still
 matching after the re-parse.
 
+## 2026-09-18: merged with Sebastijan's demo/main
+
+Sebastijan pushed to team `demo` this week: CI-built, auto-updating desktop apps for `main` and
+`demo`, refreshed themes, a global Ask, an interactive company/knowledge map, an analyst review
+queue with saved confirmations, saved-year comparisons, and a curated Wallenberg collection. The
+merge (`042aac6`) kept his frontend and resolved the overlaps: his `saved_report_id`/`require_pdf`
+KB-open path supersedes v092's `register_kb_only` (the never-409 contract survives; his
+KbView/kb.spec/types/api taken, the `test_kb` case rewritten to his semantics, v092's SourcePanel
+hint kept); v089's extraction key `basis` is renamed `maturity_basis` — his `basis` is the
+analyst-confirmed object; `docs/API.md` keeps his rows plus `/api/config.maturity_basis`. Two
+semantic changes:
+
+- **Empty buckets are no longer counted as 0.** His `require_explicit_values: true` switches the
+  debt sum check's `null_as_zero` off by default: a missing bucket now leaves the check unclosed
+  instead of passing as 0. Replaying the 68 replayable `data/kb` debt entries through the merged
+  code moves 21 check/confidence results (MedCap's `due_within_1_year` 102.3 → null) — Assumptions
+  #3 below carries the annotation.
+- **The KB page defaults to the Wallenberg collection filter.** All 186 companies — the 85 with a
+  stored `debt_maturity` extraction included — stay in the backend, visible to Ask and
+  `eval/run.py --stored-kb`; the KB page just doesn't list non-Wallenberg entries by default.
+
 ## Contract gaps we noticed, not fixed
 
 - **Opening a KB report rewrites tracked files.** Reading an extraction whose PDF is on disk makes the
@@ -305,7 +336,9 @@ matching after the re-parse.
   `data/reports/` 409s the entire open, not just the page images — right now only Atlas Copco is
   openable offline. [v003](evidence/v003.md). — **fixed in v092**: the open no longer needs the PDF;
   stored extractions, CSV, PPTX and Compare work for every KB entry, and only the page-image and
-  PDF endpoints 404 with a fetch-it-from-Extract hint. [v092](evidence/v092.md)
+  PDF endpoints 404 with a fetch-it-from-Extract hint. (The 09-18 merge replaced the mechanism with
+  Sebastijan's `saved_report_id`/`require_pdf` path — same behavior, different implementation; see
+  the merge section above.) [v092](evidence/v092.md)
 
 ## Assumptions to confirm with Kristian / SEB
 
@@ -316,13 +349,20 @@ code gates, so they're applied consistently — not yet confirmed:
 - **Carrying amount, not contractual undiscounted maturities.** We assumed the table whose total
   reconciles to interest-bearing borrowings on the balance sheet, never the liquidity-risk note's
   undiscounted cash-flow table (includes future interest); the locator alone can't tell them apart.
-  We assumed this; confirm it or tell us to flip it. [v008](evidence/v008.md), [v028](evidence/v028.md).
+  We assumed this; confirm it or tell us to flip it — since v089 it is a user option: Settings'
+  "Maturity basis" select / `DEBT_BASIS=undiscounted` flips the whole read to the liquidity note's
+  contractual cash flows, default unchanged (carrying). [v008](evidence/v008.md), [v028](evidence/v028.md),
+  [v089](evidence/v089.md).
 - **Lease liabilities (IFRS 16) follow the report's own convention.** `total_debt` includes them only
   if the report's own note already does — we never add or remove leases ourselves. We assumed this;
   confirm it or tell us to flip it. [v028](evidence/v028.md).
 - **A missing bucket (e.g. no `>5y` row) counts as 0 in the sum check**, not a check failure. We
   assumed this; confirm it or tell us to flip it (fail the check instead).
-  [v011](evidence/v011.md), [v028](evidence/v028.md).
+  [v011](evidence/v011.md), [v028](evidence/v028.md). — **Team default flipped 09-18, one schema
+  flag**: Sebastijan's merge set `require_explicit_values: true`, so a missing bucket now leaves the
+  check unclosed instead of counting as 0; replaying the 68 replayable `data/kb` debt entries
+  through the merged code moves 21 check/confidence results (MedCap's `due_within_1_year`
+  102.3 → null among them). See the merge section above.
 - **A report's own finer bucket splits (e.g. `1-2y`/`2-5y`, or nothing finer than a plain
   current/non-current split) get summed into our three buckets, not kept as their own fields.** The
   schema tells the model to add a report's own finer columns into `due_within_1_year`/
@@ -349,6 +389,15 @@ code gates, so they're applied consistently — not yet confirmed:
   the page; when it isn't (no year header above, or a quote the model composed rather than
   copied), the older whole-page behavior applies unchanged. We assumed this conservative default;
   confirm it or tell us to flip it. [v058](evidence/v058.md), [v060](evidence/v060.md).
+- **Bank borrowings (debt_maturity): a deposit-taking bank's "borrowings" is the report's own
+  interest-bearing total when one is printed — deposit-taking banks include customer deposits in it
+  (deposits from the public + issued debt securities + subordinated debt), so the deposits count.
+  When no such total row exists — true for 4 of the 6 Mid Cap bank reports we measured — customer
+  deposits are the bank's operating funding, not borrowings, and no single borrowed-money sub-row
+  may stand in for the total: the fields stay null. Banks' only maturity tables are the liquidity
+  note's undiscounted contractual cash flows and are never read.** Verified on Hoist Finance, Norion
+  Bank, Morrow Bank, Avarda/TF Bank, Enity, Intrum (FY2025 reports); written into the schema
+  `description` in v090. [v090](evidence/v090.md).
 
 ## How to verify
 
