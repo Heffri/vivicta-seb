@@ -4,6 +4,7 @@
   "fiscal_year": 2025,
   "currency": "SEK ’000",
   "section": "debt_maturity",
+  "maturity_basis": "carrying",
   "fields": [
     {
       "key": "total_debt",
@@ -69,6 +70,6 @@
   ],
   "warnings": [
     "two_pass: page [133, 134] selected from candidates [133, 134, 97]",
-    "published: seed6 run replayed with extract.py @ 832bc526"
+    "published: seed6 run replayed with extract.py @ 861fd65e"
   ]
 }

@@ -4,6 +4,7 @@
   "fiscal_year": 2025,
   "currency": "MSEK",
   "section": "debt_maturity",
+  "maturity_basis": "carrying",
   "fields": [
     {
       "key": "total_debt",
@@ -68,6 +69,6 @@
   ],
   "warnings": [
     "two_pass: page [18, 19] selected from candidates [18, 19]",
-    "published: seed4 run replayed with extract.py @ 832bc526"
+    "published: seed4 run replayed with extract.py @ 861fd65e"
   ]
 }

@@ -4,6 +4,7 @@
   "fiscal_year": 2025,
   "currency": "SEK m",
   "section": "debt_maturity",
+  "maturity_basis": "carrying",
   "fields": [
     {
       "key": "total_debt",
@@ -73,12 +74,12 @@
   "checks": [
     {
       "name": "maturity_sums_to_total",
-      "passed": true,
-      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((0 (due_within_1_year null) + 2243 + 0 (due_after_5_years null)) - 2243) <= 2"
+      "passed": false,
+      "detail": "missing: due_within_1_year"
     }
   ],
   "warnings": [
     "two_pass: page [160, 161] selected from candidates [160, 161, 116, 129, 130]",
-    "published: seed8 run replayed with extract.py @ 832bc526"
+    "published: seed8 run replayed with extract.py @ 861fd65e"
   ]
 }

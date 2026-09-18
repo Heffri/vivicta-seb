@@ -4,6 +4,7 @@
   "fiscal_year": 2025,
   "currency": null,
   "section": "debt_maturity",
+  "maturity_basis": "carrying",
   "fields": [
     {
       "key": "total_debt",
@@ -81,8 +82,8 @@
   "checks": [
     {
       "name": "maturity_sums_to_total",
-      "passed": true,
-      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((167546 + 415984 + 0 (due_after_5_years null)) - 583531) <= 2"
+      "passed": false,
+      "detail": "missing: due_after_5_years"
     }
   ],
   "warnings": [
@@ -90,6 +91,6 @@
     "total_debt: 'Borrowing' 583531 dropped: the same row as due_1_to_5_years, and not a total borrowings label",
     "due_within_1_year: 'Borrowing' 167546 dropped: the same row as due_1_to_5_years, and not a due within 1 year label",
     "due_1_to_5_years: 415984 is printed on none of pages [155, 156]; dropped as computed, not read",
-    "published: seed5 run replayed with extract.py @ 832bc526"
+    "published: seed5 run replayed with extract.py @ 861fd65e"
   ]
 }

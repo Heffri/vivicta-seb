@@ -4,6 +4,7 @@
   "fiscal_year": 2025,
   "currency": "SEKm",
   "section": "debt_maturity",
+  "maturity_basis": "carrying",
   "fields": [
     {
       "key": "total_debt",
@@ -16,10 +17,11 @@
         "page": 150,
         "quote": "As of 31 December 2025, the group had pension provisions of SEK 37.5m (42.3) Total interest-bearing liabilities 2,475.3 2,479.7"
       },
-      "confidence": 0.5,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
+        "arith_ok",
         "label_known",
         "period_ok",
         "page_is_statement",
@@ -37,10 +39,11 @@
         "page": 150,
         "quote": "Total 117.3 136.2"
       },
-      "confidence": 0.5,
+      "confidence": 0.9,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
+        "arith_ok",
         "period_ok",
         "page_is_statement",
         "unit_ok"
@@ -73,11 +76,11 @@
     {
       "name": "maturity_sums_to_total",
       "passed": false,
-      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((117.3 + 0 (due_1_to_5_years null) + 0 (due_after_5_years null)) - 2475.3) <= 2"
+      "detail": "missing: due_1_to_5_years"
     }
   ],
   "warnings": [
     "two_pass: page [150, 151] selected from candidates [150, 151]",
-    "published: seed7 run replayed with extract.py @ 832bc526"
+    "published: seed7 run replayed with extract.py @ 861fd65e"
   ]
 }

@@ -120,7 +120,7 @@ def compare_fields(stored: dict, replayed: dict) -> tuple[list[str], list[str]]:
     for key, s in sf.items():
         r = rf.get(key) or {}
         sv, rv = s.get("value"), r.get("value")
-        sc = s.get("confidence") or 0.0
+        sc = min(s.get("confidence") or 0.0, 1.0)  # a stored >1.0 is a scoring bug (fixed after v097), never a real edge
         rc = r.get("confidence") or 0.0
         if sv is not None and rv is None:
             worse.append(f"{key}: value {sv!r} -> null")

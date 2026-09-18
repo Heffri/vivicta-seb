@@ -1,0 +1,95 @@
+{
+  "report_id": "lib-svedbergs_2025",
+  "company": "Svedbergs Group",
+  "fiscal_year": 2025,
+  "currency": "Tkr",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 496405,
+      "unit": "Tkr",
+      "period": "2025",
+      "raw_label": "Summa",
+      "source": {
+        "page": 132,
+        "quote": "Summa 496 405 886 478 432 824 609 480 Per 31 december 2025 865 828 101 399 967 226 412 211 20 613 432 824"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 51440,
+      "unit": "Tkr",
+      "period": "2025",
+      "raw_label": "3 månader eller mindre; Mellan 3 månader och 1 år",
+      "source": {
+        "page": 132,
+        "quote": "Mellan 3 månader och 1 år 24 707 28 420 15 460 18 924 Ej kassaflödespåverkande förändringar:"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": 9124,
+      "unit": "Tkr",
+      "period": "2025",
+      "raw_label": "Mer än 5 år",
+      "source": {
+        "page": 132,
+        "quote": "Mer än 5 år 9 124 11 230 — — Valutakursdifferenser –46 145 –13 437 –59 583 –45 004 –2 374 –47 378"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_1_to_5_years"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [132, 133] selected from candidates [132, 133, 131]",
+    "due_1_to_5_years: 435842 is printed on none of pages [132, 133]; dropped as computed, not read",
+    "published: seed10 run replayed with extract.py @ dde534b4"
+  ]
+}

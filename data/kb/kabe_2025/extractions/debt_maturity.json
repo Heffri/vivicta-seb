@@ -4,6 +4,7 @@
   "fiscal_year": 2025,
   "currency": "Mkr",
   "section": "debt_maturity",
+  "maturity_basis": "carrying",
   "fields": [
     {
       "key": "total_debt",
@@ -69,6 +70,6 @@
   ],
   "warnings": [
     "two_pass: page [92, 93] selected from candidates [29, 30, 93]",
-    "published: seed7 run replayed with extract.py @ 832bc526"
+    "published: seed7 run replayed with extract.py @ 861fd65e"
   ]
 }

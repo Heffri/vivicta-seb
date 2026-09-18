@@ -9,57 +9,98 @@
     {
       "key": "total_debt",
       "label": "Total borrowings",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "value": 397.2,
+      "unit": "KSEK",
+      "period": "2025",
+      "raw_label": "Liabilities to credit institutions",
+      "source": {
+        "page": 106,
+        "quote": "Liabilities to credit institutions 43.5 353.7 - 397.2"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "due_within_1_year",
       "label": "Due within 1 year",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "value": 43.5,
+      "unit": "KSEK",
+      "period": "2025",
+      "raw_label": "Liabilities to credit institutions",
+      "source": {
+        "page": 106,
+        "quote": "Liabilities to credit institutions 43.5 353.7 - 397.2"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "value": 353.7,
+      "unit": "KSEK",
+      "period": "2025",
+      "raw_label": "Liabilities to credit institutions",
+      "source": {
+        "page": 106,
+        "quote": "Liabilities to credit institutions 43.5 353.7 - 397.2"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "due_after_5_years",
       "label": "Due after 5 years",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "value": 0,
+      "unit": "KSEK",
+      "period": "2025",
+      "raw_label": "Liabilities to credit institutions",
+      "source": {
+        "page": 106,
+        "quote": "Liabilities to credit institutions 43.5 353.7 - 397.2"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_derived",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     }
   ],
   "checks": [
     {
       "name": "maturity_sums_to_total",
-      "passed": false,
-      "detail": "missing: due_within_1_year"
+      "passed": true,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((43.5 + 353.7 + 0) - 397.2) <= 2"
     }
   ],
   "warnings": [
     "two_pass: page [106, 107] selected from candidates [106, 107, 93, 71]",
-    "published: seed9 run replayed with extract.py @ fab73152"
+    "published: seed9 run replayed with extract.py @ 861fd65e"
   ]
 }

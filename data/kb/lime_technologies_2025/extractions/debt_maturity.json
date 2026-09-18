@@ -1,0 +1,83 @@
+{
+  "report_id": "lib-lime_technologies_2025",
+  "company": "Lime Technologies",
+  "fiscal_year": 2025,
+  "currency": "TSEK",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": null,
+      "unit": "TSEK",
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 66396,
+      "unit": "TSEK",
+      "period": "2025",
+      "raw_label": "Borrowing (incl. overdraft)",
+      "source": {
+        "page": 72,
+        "quote": "Borrowing (incl. overdraft) 15,000 51,396 60,000 25,000"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": 85000,
+      "unit": "TSEK",
+      "period": "2025",
+      "raw_label": "Borrowing (incl. overdraft)",
+      "source": {
+        "page": 72,
+        "quote": "Borrowing (incl. overdraft) 15,000 51,396 60,000 25,000"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "TSEK",
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_after_5_years"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [72, 73] selected from candidates [72, 73]",
+    "published: seed10 run replayed with extract.py @ dde534b4"
+  ]
+}

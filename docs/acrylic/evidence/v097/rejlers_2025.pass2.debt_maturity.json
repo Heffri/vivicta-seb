@@ -1,0 +1,184 @@
+{
+ "report_id": "lib-rejlers_2025",
+ "company": "Rejlers",
+ "fiscal_year": 2025,
+ "currency": "SEK million",
+ "section": "debt_maturity",
+ "maturity_basis": "carrying",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 400.3,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "Total",
+   "source": {
+    "page": 105,
+    "quote": "Remeasurement 42.0 Total 400.3 349.5"
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": 400.3,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "Within one year",
+   "source": {
+    "page": 105,
+    "quote": "Within one year 400.3 349.5"
+   },
+   "confidence": 1.0,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "label_known",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": 0,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "1-2 years; 2–3 years; 3-4 years; 4-5 years",
+   "source": {
+    "page": 105,
+    "quote": "1-2 years - -\n2–3 years - -\n3-4 years - -\n4-5 years - -"
+   },
+   "confidence": 0.25,
+   "evidence": [
+    "arith_ok",
+    "label_known",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": null,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "status": "unavailable",
+   "detail": "Missing explicit values: due_after_5_years"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [105, 106] selected from candidates [105, 106, 36]",
+  "due_1_to_5_years: quote not found on page 105"
+ ],
+ "stem": "rejlers_2025",
+ "pdf_available": true,
+ "check_history": [
+  {
+   "at": "2026-09-18T13:25:42.716976+00:00",
+   "reason": "Recalculated explicit values after extraction",
+   "previous": [
+    {
+     "name": "maturity_sums_to_total",
+     "passed": false,
+     "detail": "missing: due_after_5_years"
+    }
+   ]
+  }
+ ],
+ "issues": [
+  {
+   "kind": "basis",
+   "key": "entity",
+   "detail": "Confirm entity"
+  },
+  {
+   "kind": "basis",
+   "key": "consolidation",
+   "detail": "Confirm consolidation"
+  },
+  {
+   "kind": "basis",
+   "key": "period",
+   "detail": "Confirm period"
+  },
+  {
+   "kind": "basis",
+   "key": "currency",
+   "detail": "Confirm currency"
+  },
+  {
+   "kind": "basis",
+   "key": "scale",
+   "detail": "Confirm scale"
+  },
+  {
+   "kind": "basis",
+   "key": "source",
+   "detail": "Confirm source"
+  },
+  {
+   "kind": "basis",
+   "key": "restatement",
+   "detail": "Confirm restatement"
+  },
+  {
+   "kind": "basis",
+   "key": "debt_basis",
+   "detail": "Confirm debt basis"
+  },
+  {
+   "kind": "basis",
+   "key": "leases",
+   "detail": "Confirm leases"
+  },
+  {
+   "kind": "basis",
+   "key": "bucket_mapping",
+   "detail": "Confirm bucket mapping"
+  },
+  {
+   "kind": "field",
+   "key": "total_debt",
+   "detail": "Total borrowings: verify value, unit, period and source"
+  },
+  {
+   "kind": "field",
+   "key": "due_1_to_5_years",
+   "detail": "Due 1–5 years: verify value, unit, period and source"
+  },
+  {
+   "kind": "field",
+   "key": "due_after_5_years",
+   "detail": "Due after 5 years: missing value (not zero)"
+  },
+  {
+   "kind": "check",
+   "key": "maturity_sums_to_total",
+   "detail": "maturity_sums_to_total: Missing explicit values: due_after_5_years"
+  }
+ ],
+ "ready": false
+}

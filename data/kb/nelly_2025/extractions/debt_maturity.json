@@ -80,6 +80,6 @@
   ],
   "warnings": [
     "due_within_1_year: 36.2 fails maturity_sums_to_total; 'Kortfristiga 36,2 35,7 Långfristiga 250,9 251,5' sums to 287.1 in every column, which passes",
-    "published: seed2 run replayed with extract.py @ 832bc526"
+    "published: seed2 run as stored"
   ]
 }

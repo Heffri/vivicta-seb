@@ -1821,7 +1821,9 @@ def score_field(field: dict, sf: dict, checks: list[dict], schema: dict, currenc
     unit = str(field.get("unit") or "")
     if unit and currency and (unit.upper() == str(currency).upper() or (sf.get("unit_hint") == "currency_per_share" and _ccy(unit) == _ccy(currency))):
         ev.append("unit_ok")  # EPS in SEK when the statement is in MSEK / SEKm / SEK million
-    score = sum(WEIGHTS[e] for e in ev)
+    if "value_derived" in ev and "value_in_quote" in ev:
+        ev.remove("value_in_quote")  # a derived value stands in for the printed one, never both (v097 saw 1.2 when a derivation's own quote happened to contain the sum)
+    score = min(sum(WEIGHTS[e] for e in ev), 1.0)
     if "quote_on_page" not in ev:
         score = min(score, 0.25)  # no verifiable provenance
     if "quote_on_page" in ev and "value_in_quote" not in ev and "value_derived" not in ev:

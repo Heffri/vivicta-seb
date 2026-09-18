@@ -1,0 +1,199 @@
+{
+  "report_id": "lib-rvrc_holding_2025",
+  "company": "RVRC Holding",
+  "fiscal_year": 2025,
+  "currency": "SEKm",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 220,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "Total",
+      "source": {
+        "page": 110,
+        "quote": "Total 210 3 7 0 0 220"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 210,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "Total",
+      "source": {
+        "page": 110,
+        "quote": "Total 210 3 7 0 0 220"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": 10,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "Total",
+      "source": {
+        "page": 110,
+        "quote": "Total 210 3 7 0 0 220"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_derived",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": 0,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "Total",
+      "source": {
+        "page": 110,
+        "quote": "Total 210 3 7 0 0 220"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": true,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((210 + 10 + 0) - 220) <= 2",
+      "status": "passed"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [109, 110] selected from candidates [110, 111, 109]",
+    "total_debt: 12 disagrees with the maturity table; 220 read from 'Total 210 3 7 0 0 220' by its column order",
+    "due_within_1_year: model returned null; 210 read from 'Total 210 3 7 0 0 220' by its column order",
+    "due_1_to_5_years: model returned null; 10 read from 'Total 210 3 7 0 0 220' by its column order",
+    "due_after_5_years: model returned null; 0 read from 'Total 210 3 7 0 0 220' by its column order",
+    "published: seed10 run as stored"
+  ],
+  "stem": "rvrc_holding_2025",
+  "pdf_available": true,
+  "check_history": [
+    {
+      "at": "2026-09-18T13:40:42.893427+00:00",
+      "reason": "Recalculated explicit values after extraction",
+      "previous": [
+        {
+          "name": "maturity_sums_to_total",
+          "passed": true,
+          "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((210 + 10 + 0) - 220) <= 2"
+        }
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "kind": "basis",
+      "key": "entity",
+      "detail": "Confirm entity"
+    },
+    {
+      "kind": "basis",
+      "key": "consolidation",
+      "detail": "Confirm consolidation"
+    },
+    {
+      "kind": "basis",
+      "key": "period",
+      "detail": "Confirm period"
+    },
+    {
+      "kind": "basis",
+      "key": "currency",
+      "detail": "Confirm currency"
+    },
+    {
+      "kind": "basis",
+      "key": "scale",
+      "detail": "Confirm scale"
+    },
+    {
+      "kind": "basis",
+      "key": "source",
+      "detail": "Confirm source"
+    },
+    {
+      "kind": "basis",
+      "key": "restatement",
+      "detail": "Confirm restatement"
+    },
+    {
+      "kind": "basis",
+      "key": "debt_basis",
+      "detail": "Confirm debt basis"
+    },
+    {
+      "kind": "basis",
+      "key": "leases",
+      "detail": "Confirm leases"
+    },
+    {
+      "kind": "basis",
+      "key": "bucket_mapping",
+      "detail": "Confirm bucket mapping"
+    },
+    {
+      "kind": "field",
+      "key": "total_debt",
+      "detail": "Total borrowings: verify value, unit, period and source"
+    },
+    {
+      "kind": "field",
+      "key": "due_within_1_year",
+      "detail": "Due within 1 year: verify value, unit, period and source"
+    },
+    {
+      "kind": "field",
+      "key": "due_1_to_5_years",
+      "detail": "Due 1–5 years: verify value, unit, period and source"
+    },
+    {
+      "kind": "field",
+      "key": "due_after_5_years",
+      "detail": "Due after 5 years: verify value, unit, period and source"
+    }
+  ],
+  "ready": false
+}
