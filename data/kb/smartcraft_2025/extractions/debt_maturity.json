@@ -93,6 +93,6 @@
     "due_1_to_5_years: model returned null, filled from page 59 row '2-3 years 7 462 7 462'",
     "due_after_5_years: model returned null, filled from page 59 row 'More than 5 years - -'",
     "due_after_5_years: quoted '4-5 years - -'; the 'More than 5 years - -' row prints 0",
-    "published: seed5 run replayed with extract.py @ 4ccbcaf8"
+    "published: seed5 run replayed with extract.py @ 16f128b0"
   ]
 }

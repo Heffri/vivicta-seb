@@ -61,6 +61,6 @@
   "warnings": [
     "two_pass: page [61, 62] selected from candidates [61, 62]",
     "total_debt: 0 is printed on none of pages [61, 62]; dropped as computed, not read",
-    "published: seed4 run replayed with extract.py @ 4ccbcaf8"
+    "published: seed4 run replayed with extract.py @ 16f128b0"
   ]
 }

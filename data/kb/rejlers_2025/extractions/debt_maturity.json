@@ -91,6 +91,6 @@
   "warnings": [
     "two_pass: page [105, 106] selected from candidates [105, 106, 36]",
     "due_1_to_5_years: quote not found on page 105",
-    "published: seed10 run replayed with extract.py @ 4ccbcaf8"
+    "published: seed10 run replayed with extract.py @ 16f128b0"
   ]
 }

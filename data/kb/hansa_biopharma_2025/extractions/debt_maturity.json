@@ -70,6 +70,6 @@
   ],
   "warnings": [
     "currency: the model says thousands of SEK, but the statement names only EUR/GBP/SEK/USD and the report mostly SEK; SEK it is",
-    "published: seed3 run replayed with extract.py @ 4ccbcaf8"
+    "published: seed3 run replayed with extract.py @ 16f128b0"
   ]
 }

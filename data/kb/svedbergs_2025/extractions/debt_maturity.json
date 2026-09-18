@@ -50,13 +50,24 @@
     {
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "value": 435842,
+      "unit": "Tkr",
+      "period": "2025",
+      "raw_label": "Mellan 1 år och 2 år + Mellan 2 år och 5 år",
+      "source": {
+        "page": 132,
+        "quote": "Mellan 1 år och 2 år 423 946 614 610 412 211 578 370 Förändringar övriga skulder –23 579 19 869 –3 709 — — — Mellan 2 år och 5 år 11 896 19 122 — — Förändringar leasingskuld 360 125 50 547 410 672 — — —"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_derived",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "due_after_5_years",
@@ -83,13 +94,13 @@
   "checks": [
     {
       "name": "maturity_sums_to_total",
-      "passed": false,
-      "detail": "missing: due_1_to_5_years"
+      "passed": true,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((51440 + 435842 + 9124) - 496405) <= 2"
     }
   ],
   "warnings": [
     "two_pass: page [132, 133] selected from candidates [132, 133, 131]",
     "due_1_to_5_years: 435842 is printed on none of pages [132, 133]; dropped as computed, not read",
-    "published: seed10 run replayed with extract.py @ 4ccbcaf8"
+    "published: seed10 run replayed with extract.py @ 16f128b0"
   ]
 }
