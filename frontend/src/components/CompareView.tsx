@@ -1,7 +1,9 @@
 import { Download } from 'lucide-react'
 import { csvUrl } from '@/api'
 import { AskPanel } from '@/components/AskPanel'
+import { MaturityBar } from '@/components/compare/MaturityBar'
 import { confidenceClass, confidenceTitle, fmtValue } from '@/components/ResultsView'
+import { isMaturitySection } from '@/components/results/MaturityChart'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -16,12 +18,23 @@ export function CompareView({ results, onSelect, onReset }: Props) {
   const rows = first?.fields ?? []
   const ok = results.filter((r) => r.extraction).length
   const reports = results.flatMap((r) => (r.extraction ? [{ report_id: r.extraction.report_id, label: r.label }] : []))
+  // Same judgment as MaturityChart, per successful column — one non-bucket column and the
+  // matrix stays exactly as it was (no row, nothing else changes).
+  const showMaturityRow = ok > 0 && results.every((r) => !r.extraction || isMaturitySection(r.extraction.fields))
+  const errorCell = (r: Result, i: number, span: number) => (
+    <TableCell key={i} rowSpan={span} className="max-w-60 whitespace-normal align-top text-xs text-danger">
+      {r.error}
+      <p className="mt-2 text-danger/80">
+        Next step: fetch the PDF from the Extract tab’s Directory search, then open it here again.
+      </p>
+    </TableCell>
+  )
 
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4 border-b pb-5">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Annual Report Parser</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Comparison</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">Comparison</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {results[0].sectionTitle} · {ok} of {results.length} reports extracted
@@ -34,52 +47,57 @@ export function CompareView({ results, onSelect, onReset }: Props) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Field</TableHead>
+              <TableHead className="sticky left-0 z-10 bg-card">Field</TableHead>
               {results.map((r, i) => {
                 const x = r.extraction
                 const failed = x?.checks.filter((c) => !c.passed).length ?? 0
                 return (
-                  <TableHead key={i} className="min-w-40 align-top">
-                    <button
-                      type="button"
-                      onClick={() => x && onSelect(i)}
-                      disabled={!x}
-                      className="flex flex-col items-start gap-1 py-2 text-left enabled:cursor-pointer enabled:hover:underline"
-                    >
-                      <span className="font-medium text-foreground">{r.label}</span>
-                      <span className="text-xs font-normal">FY {x?.fiscal_year ?? '—'}</span>
-                      {x ? (
-                        <Badge
-                          variant="outline"
-                          className={
-                            failed === 0
-                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                              : 'border-red-200 bg-red-50 text-red-700'
-                          }
-                        >
-                          {x.checks.length === 0 ? 'No checks' : `${x.checks.length - failed}/${x.checks.length} checks`}
-                        </Badge>
-                      ) : (
-                        <Badge variant="destructive">failed</Badge>
-                      )}
-                    </button>
+                  <TableHead key={i} className="min-w-48 p-1.5 align-top">
+                    <Card size="sm" className="gap-1">
+                      <button
+                        type="button"
+                        onClick={() => x && onSelect(i)}
+                        disabled={!x}
+                        className="flex w-full flex-col items-start gap-1 px-3 py-1.5 text-left enabled:cursor-pointer enabled:hover:underline"
+                      >
+                        <span className="font-medium text-foreground">{r.label}</span>
+                        <span className="text-xs font-normal text-muted-foreground">FY {x?.fiscal_year ?? '—'}</span>
+                        {x ? (
+                          <Badge variant={failed === 0 ? 'success' : 'danger'}>
+                            {x.checks.length === 0 ? 'No checks' : `${x.checks.length - failed}/${x.checks.length} checks`}
+                          </Badge>
+                        ) : (
+                          <Badge variant="danger">failed</Badge>
+                        )}
+                      </button>
+                    </Card>
                   </TableHead>
                 )
               })}
             </TableRow>
           </TableHeader>
           <TableBody>
+            {showMaturityRow && (
+              <TableRow>
+                <TableCell className="sticky left-0 z-10 bg-muted/50 font-medium">Maturity profile</TableCell>
+                {results.map((r, i) =>
+                  r.extraction ? (
+                    <TableCell key={i} className="bg-muted/50">
+                      <MaturityBar extraction={r.extraction} />
+                    </TableCell>
+                  ) : (
+                    errorCell(r, i, rows.length + 1)
+                  ),
+                )}
+              </TableRow>
+            )}
             {rows.map((row, ri) => (
               <TableRow key={row.key}>
-                <TableCell className="font-medium">{row.label}</TableCell>
+                <TableCell className="sticky left-0 z-10 bg-card font-medium">{row.label}</TableCell>
                 {results.map((r, i) => {
                   if (!r.extraction) {
                     // One tall cell with the error instead of N empty ones.
-                    return ri === 0 ? (
-                      <TableCell key={i} rowSpan={rows.length} className="max-w-60 whitespace-normal align-top text-xs text-destructive">
-                        {r.error}
-                      </TableCell>
-                    ) : null
+                    return ri === 0 && !showMaturityRow ? errorCell(r, i, rows.length) : null
                   }
                   const f = r.extraction.fields.find((x) => x.key === row.key)
                   return (
@@ -99,7 +117,7 @@ export function CompareView({ results, onSelect, onReset }: Props) {
           </TableBody>
           <TableFooter>
             <TableRow>
-              <TableCell />
+              <TableCell className="sticky left-0 z-10 bg-muted/50" />
               {results.map((r, i) => (
                 <TableCell key={i}>
                   {r.extraction && (

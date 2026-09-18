@@ -1,0 +1,396 @@
+----- PAGE 148 -----
+Note C19
+Interest-bearing liabilities
+Current, SEK million 31 Dec 2025 31 Dec 2024
+Lease liabilities 518 393
+Bank loans 25 201
+Total carrying amount 543 594
+Non-current, SEK million 31 Dec 2025 31 Dec 2024
+Lease liabilities 2,318 2,680
+Bank loans 1,541 1,875
+Other 0 1
+Total carrying amount 3,858 4,556
+Borrowing is conducted in SEK, NOK and EUR. Of bank loans in 2025,
+SEK 1,565m (1,468) concerns the Parent Company.
+Bank loan terms and conditions
+During the year, Humana signed a new financing agreement for a total
+amount corresponding to SEK 2.3bn, spread across SEK, EUR and NOK.
+The agreement also includes an option to expand the credit facility further.
+The agreement is a three-year loan agreement, with two extension options
+of one year each. The credit facilities have an annual interest rate that cor-
+responds to the relevant IBOR rate plus a variable margin based on Huma-
+na’s interest-bearing net debt relative to EBITDA. The weighted average
+interest rate for the credit facilities (including charges for unutilised credit)
+was 4.8 percent on 31 December 2025, most of which is variable. The
+credit facilities are conditional on Humana fulfilling certain market-based
+financial conditions, including certain financial key ratios, such as inter-
+est-bearing net debt/EBITDA and interest coverage ratio, which must not
+deviate negatively from certain levels specified in the agreement. During the
+year, Humana fulfilled these conditions. See also Notes C21 and C22.
+Note C20
+Accrued expenses
+and deferred income
+SEK million 31 Dec 2025 31 Dec 2024
+Accrued salaries 394 424
+Accrued holiday pay 562 553
+Accrued pensions 107 106
+Accrued audit fees 6 7
+Accrued interest expenses 15 36
+Other 120 119
+Total 1,203 1,245
+Note C21
+Financial instruments and risk management
+31 Dec 2025, SEK million
+Financial assets
+Financial assets
+at amortised cost
+Carrying
+amount
+Financial assets 18 18
+Trade receivables 877 877
+Other receivables 53 53
+Accrued income 100 100
+Cash and cash
+equivalents 366 366
+Total 1,414 1,414
+31 Dec 2025, SEK million
+Financial liabilities
+Financial
+liabilities at fair
+value through
+profit or loss
+Financial liabilities
+at amortised cost
+Carrying
+amount
+Lease liabilities - 2,836 2,836
+Bank loans - 1,565 1,565
+Trade payables - 213 213
+Other current liabilities - 277 277
+Accrued expenses - 15 15
+Other non-current
+liabilities - - -
+Total - 4,906 4,906
+31 Dec 2024, SEK million
+Financial assets
+Financial assets
+at amortised cost
+Carrying
+amount
+Financial assets 17 17
+Trade receivables 1,031 1,031
+Other receivables 22 22
+Accrued income 38 38
+Cash and cash
+equivalents 583 583
+Total 1,691 1,691
+31 Dec 2024, SEK million
+Financial liabilities
+Financial
+liabilities at fair
+value through
+profit or loss
+Financial liabilities
+at amortised cost
+Carrying
+amount
+Lease liabilities - 3,073 3,073
+Bank loans - 2,077 2,077
+Trade payables - 244 244
+Other current liabilities - 309 309
+Accrued expenses - 36 36
+Other non-current
+liabilities - 1 1
+Total - 5,740 5,740
+Fair value does not differ materially from the carrying amount of trade
+receivables, other receivables, cash and cash equivalents, trade payables
+and other liabilities.
+Financial instruments at fair value
+When determining the fair value of an asset or liability, the Group uses
+observable data as far as possible. Fair value measurement is based on the
+fair value hierarchy, which categorises inputs into different levels as follows:
+• Level 1: according to prices quoted in an active market for the same
+instruments
+• Level 2: based on directly or indirectly observable market data that is not
+included in level 1
+• Level 3: inputs that are not observable in the market
+Reconciliation of financial instruments measured in level 3
+The table below shows a reconciliation between the opening and closing
+balances for financial instruments measured in Level 3.
+SEK million 2025 2024
+Contingent consideration
+Opening balance - 21
+Settled during the year - -26
+Interest expense - 1
+Recognised in profit or loss - 5
+Closing balance - -
+Valuation techniques and inputs
+The tables below show the valuation techniques used for fair value mea-
+surement in Levels 2 and 3, and significant non-observable inputs.
+Financial instruments measured at fair value through profit and loss
+Contingent consideration
+Valuation technique EBIT multiples: The measurement model calculates
+the value of the contingent consideration based on
+likely scenarios of future EBIT outcomes using agreed
+multiples.
+Significant non-
+observable inputs
+Forecast EBIT
+Connection between signifi-
+cant non-observable inputs
+and fair value calculation
+The estimated fair value would increase (decrease)
+if: EBIT was higher (lower)
+Financial instruments not measured at fair value
+Type
+Valuation
+technique
+Significant non-
+observable inputs
+Measurement
+level
+Other financial
+liabilities1)
+Discounted cash
+flows E/T 2
+1) Other financial liabilities comprise bank loans and lease liabilities.
+GROUP NOTES HUMANA ANNUAL AND SUSTAINABILITY REPORT 2025 | 148
+Open printer-friendly PDF
+CONTENTS
+THIS IS HUMANA
+TRENDS AND MARKET
+SUSTAINABLE STRATEGY
+OFFERING
+CORPORATE GOVERNANCE
+BOARD OF DIRECTORS’ REPORT
+FINANCIAL STATEMENTS
+Financial statements
+Accounting policies
+• Group notes
+Parent Company notes
+The Board of Directors’ signatures
+Auditor’s report
+Auditor’s limited assurance report
+of Humana AB (publ)’s
+sustaina­bilitiy statement
+OTHER
+
+----- PAGE 149 -----
+GROUP NOTES HUMANA ANNUAL AND SUSTAINABILITY REPORT 2025 | 149
+Note C21, cont.
+Risks associated with financial instruments Maturity analysis for financial liabilities Interest rate risk
+CONTENTS In the course of its operations, the Group is exposed to different types of Humana's finance costs are affected by market interest rates. The Group’s
+<3 3–12 1–5
+financial risk. 2025, SEK million months months years >5 years Total loans may or may not be hedged, by means of interest rate swaps or inter-
+THIS IS HUMANA • Financing and liquidity risk est rate options. Humana has not hedged any loans in 2025.
+Bank loans - 25 1,540 - 1,565
+TRENDS AND MARKET • Credit risk The Group’s interest rate risk arises mainly through long-term borrow-
+• Interest rate risk Interest on bank loans 19 56 105 - 180 ing. The Group’s loans generally have fixed-rate terms of 3 months, which
+SUSTAINABLE STRATEGY • Currency risk Lease liabilities 92 451 1,528 1,438 3,509 is in line with the Group’s financial policy.
+Trade payables 213 - - - 213 A +/- 1 percentage point change in the market rate on the reporting
+OFFERING The Group’s financial policy for financial risk management has been formu- date would affect interest expenses relating to loans by SEK +/- 16m (21).
+lated by the Board and provides a framework of guidelines and rules in the Other - - - - -
+CORPORATE GOVERNANCE form of risk mandates and limits for financing activities. The Group’s finan- Total 324 532 3,173 1,438 5,467 Currency risk
+cial transactions and risks are managed centrally by the CFO in consulta- As the Group operates in Sweden, Finland and Norway, it is exposed to
+BOARD OF DIRECTORS’ REPORT tion with the Board. The overall goal of the finance function is to provide 2024, SEK million months <3 months 3–12 years 1–5 >5 years Total currency risks from exposure to the euro (EUR) and the Norwegian krone
+cost-effective financing and minimise adverse effects of market risks on the (NOK). The Group’s profit is affected by translation of the foreign subsidiar-
+FINANCIAL STATEMENTS Group’s profit. Bank loans - 201 1,875 - 2,076 ies’ income statements at the average exchange rate for the financial year.
+Financial statements Interest on bank loans 31 88 60 - 179
+If a foreign subsidiary’s local currency changes in relation to SEK, the
+Accounting policies Liquidity and financing risk Lease liabilities 96 461 1,577 1,622 3,757 Group's reported net revenue and profit change when translated to SEK.
+Liquidity risk is the risk of the Group being unable to discharge its payment Trade payables 244 - - - 244 Currency risk also arises through future business transactions, reported
+• Group notes obligations. The CFO manages liquidity risks centrally for the Group. To Other - - 1 - 1 assets and liabilities, and net investments in foreign operations. NOK and
+Parent Company notes facilitate liquidity planning and control, the Group has credit facilities such EUR exposure has therefore been partly offset through borrowing in NOK
+The Board of Directors’ signatures as bank overdraft facilities and cash pools. Financing risk is the risk of the Total 371 750 3,513 1,622 6,256 and EUR.
+company being unable to discharge the obligations associated with its Net assets in NOK amount to SEK 277m (278), including goodwill. A
+Auditor’s report financial liabilities. Focusing on cash flow and making adjustments in the Credit risk change of 5 percentage points in the exchange rate would have an effect of
+Auditor’s limited assurance report event of changed market conditions reduces the risk of being unable to dis- Credit risk refers to exposure to receivables in the form of investments of SEK 7m (6) on the income statement and SEK 14m (3) on the Group’s other
+of Humana AB (publ)’s charge obligations under financing agreements. excess liquidity and trade receivables. Humana’s excess liquidity is only comprehensive income. Net assets in EUR amount to SEK 220m (597),
+invested in deposit accounts with Nordic banks that have high credit rat-
+sustaina­bilitiy statement Specification of available liquidity, SEK million 31 Dec 2025 31 Dec 2024 ings. Most of the Group’s trade receivables are from state, municipal and including goodwill. A change of 5 percentage points in the exchange rate
+would have an effect of SEK 3m (6) on the income statement and SEK 11m
+OTHER Unused overdraft facility 395 200 regional entities, which are considered to have good creditworthiness. The (8) on the Group’s other comprehensive income.
+Unused revolving credit facility 279 440 risk of credit losses is considered to be low.
+Cash 366 583 Maximum exposure to credit risk, SEK million 31 Dec 2025 31 Dec 2024 Hedging of net investments in foreign operations
+Open printer-friendly PDF Total 1,040 1,223 Trade receivables 877 1,031 As of 31 December 2025, the Group has no currency transaction exposure
+to the EUR or NOK. Translation differences of SEK 7m (-16) before tax have
+The Group’s interest-bearing liabilities, which are shown in Note C19, Other receivables 53 22 been recognised in the consolidated statement of other comprehensive
+amounted to SEK 4,401m (5,150) at the end of the year and consisted of Bank balances 365 583 income and relate to hedge accounting in EUR up until 15 July 2025. The
+current liabilities of SEK 543m (594) and non-current liabilities of SEK Total 1,295 1,636 hedge becomes ineffective when the amount of the investment in foreign
+3,858m (4,556). subsidiaries falls below the loan amount.
+
+----- PAGE 150 -----
+GROUP NOTES HUMANA ANNUAL AND SUSTAINABILITY REPORT 2025 | 150
+Note C21, cont.
+The hedging instrument’s effect on financial position:
+CONTENTS Fair value changes used to Hedge accounting’s effect on equity and other Translation
+Nominal Carrying measure ineffectiveness comprehensive income reserve
+THIS IS HUMANA 2025 amount amount, SEK m during the period
+TRENDS AND MARKET Interest-bearing 2025, SEK million
+loans, EURm - - 6 At start of year 22
+SUSTAINABLE STRATEGY Exchange differences on translation of foreign operations -90
+Fair value changes used to
+Nominal Carrying measure ineffectiveness Exchange differences on remeasurement of hedging instruments
+OFFERING 2024 amount amount, SEKm during the period (interest-bearing loans) 7
+CORPORATE GOVERNANCE Interest-bearing Tax effect -1
+loans, EURm 38.5 442 -12 At end of year -62
+BOARD OF DIRECTORS’ REPORT
+The hedged items’ effect on financial position: 2024, SEK million
+FINANCIAL STATEMENTS At start of year 22
+Fair value changes used to Exchange differences on translation of foreign operations 12
+Financial statements 2025 Translation reserve measure ineffectiveness
+Exchange differences on remeasurement of hedging instruments
+Accounting policies Net investment in foreign (interest-bearing loans) -16
+• Group notes subsidiaries, SEKm -90 6
+Tax effect 3
+Parent Company notes
+Fair value changes used to At end of year 22
+The Board of Directors’ signatures 2024 Translation reserve measure ineffectiveness
+Auditor’s report Net investment in foreign Capital management
+subsidiaries, SEKm 12 -12 The Group’s policy is to maintain a good financial position, thereby helping
+Auditor’s limited assurance report
+to maintain the confidence of investors, lenders and the market, and provid-
+of Humana AB (publ)’s The hedging loss before tax recognised in other comprehensive income cor- ing a solid foundation for continuing development of business operations,
+sustaina­bilitiy statement responds to the fair value change used to measure effectiveness. No inef- while also generating a satisfactory long-term return for shareholders. The
+fectiveness has been reported in the Group’s results. Board aims to achieve a balance between a potential higher return on
+OTHER
+equity from a high debt to equity ratio and the advantages and security
+associated with a strong capital base. The objective is to continue to gener-
+Open printer-friendly PDF ate returns for shareholders and value for other stakeholders.
+Reconciliation of liabilities attributable to financing activities
+Non-cash movements
+Acquisitions/disposals
+SEK million 1 Jan 2025 Cash flows of subsidiaries Changes to leases Exchange differences Liabilities held for sale 31 Dec 2025
+Bank loans 2,076 -456 - - -55 - 1,565
+Lease liabilities 3,073 -466 - 277 -47 - 2,836
+Total liabilities attributable to financing activities 5,149 -922 - 277 -103 - 4,401
+Non-cash movements
+Acquisitions/disposals
+SEK million 1 Jan 2024 Cash flows of subsidiaries Changes to leases Exchange differences Liabilities held for sale 31 Dec 2024
+Bank loans 2,086 -41 - - 31 - 2,076
+Lease liabilities 3,297 -483 103 401 26 -271 3,073
+Total liabilities attributable to financing activities 5,383 -524 103 401 57 -271 5,149
+
+----- PAGE 151 -----
+Note C22
+Pledged assets and contingent liabilities
+SEK million 31 Dec 2025 31 Dec 2024
+Pledged assets
+Other pledged assets 5 6
+Total pledged assets 5 6
+Contingent liabilities
+Other contingent liabilities - 0
+Total contingent liabilities - 0
+Humana has been summoned as a party in a legal proceeding before the
+Labor Court concerning retroactive payment of overtime compensation due
+to scheduling regulations in Norway (in Norwegian: “Medleverturnus”). The
+dispute pertains to a claim for retroactive payment because the parties did
+not agree on a local special agreement during the period 1 May, 2023 - 19
+October, 2023. This dispute involves approximately 300 employees in Nor-
+way. Humana assesses that there’s a risk the company may become liable
+for payment. As of the publication of this annual report, it’s not possible to
+estimate the size of the claim.
+Note C23
+Contingent assets
+On June 14, 2024 Humana Assistans AB filed a statement of claim at the
+District Court of Stockholm to have the right for compensation tried for
+parts of the finanical damages that Humana Assistans AB suffered due to
+the incorrect decision by IVO on January 31, 2023 to revoke the company’s
+license. In the request for damages claim Humana Assistans AB is demands
+that the state compensate the company with SEK 225.5m for client losses
+and SEK 14m for legal expenses connected with the process in the Adminis-
+trative Court. The proceedings before the District Court are expected to
+take place in April 2026.
+Note C24
+Related-party transactions
+The Group’s key personnel consists of the Board of Directors, the CEO and
+Group executive management, through ownership of Humana and through
+their roles as senior executives. Related parties also include the principal
+owner Impilo Care AB, which is represented on the Board by Carolina
+Oscarius Dahl and Fredrik Strömholm. Related party transactions are based
+on market conditions.
+Remuneration of key personnel
+Remuneration of key personnel is shown in Note C5.
+Note C25
+Companies included in these financial statements
+Humana AB is the Parent Company of the Group, which includes subsidiaries and sub-subsidiaries as listed below.
+All subsidiaries and sub-subsidiaries have financial years that correspond with the Parent Company’s financial year.
+Company name
+Number
+of shares Registered office
+Share of
+equity, %
+Adventum Specialpedagogik AB, 556387-6753 1,000 Borlänge 100%
+Adventum Vård AB, 556330-3030 1,000 Borlänge 100%
+Arkipäivä Oy, 0585203-4 75 Tornio, Finland 100%
+Assistans på Gotland AB, 556763-8209 1,000 Gotland 100%
+Baggium Vård & Behandling AB, 556747-5230 1,000 Gothenburg 100%
+Balans Behandling AB, 556979-4224 500 Luleå 100%
+Balans Behandlingshem AB, 556858-9567 500 Luleå 100%
+Balans Familjehemsvård AB, 559050-1317 500 Luleå 100%
+Balanshem AB, 556733-8099 1,000 Höör 100%
+Behandlingshemmet Källtorp AB, 556668-5979 1,000 Stockholm 100%
+Björkvik-Ringsjöhemmet AB, 556435-1889 1,500 Stockholm 100%
+Björkviks vårdhem AB, 556257-3575 2,000 Stockholm 100%
+Björntorps HVB-hem AB, 556740-6219 1,000 Stockholm 100%
+Botnia 24h Oy, 2091344-8 10 Tornio, Finland 100%
+Cureum AB, 556681-8661 821 Örebro 100%
+Dammenskolan i Holvarby AB, 559392-8509 1,000 Uppsala 100%
+Davidsbo Fastigheter AB, 556787-3327 1,000 Norberg 100%
+Davidsbogård AB, 556709-4296 1,000 Norberg 100%
+Enigheten Personligassistans AB, 556717-5178 1,000 Borlänge 100%
+Fabriken Förändringskonsulterna i Skaraborg AB, 556650-8544 1,000 Stockholm 100%
+Fideli Omsorg AB, 559067-7265 3,402 Stockholm 100%
+Fuga Omsorg AB, 556897-4371 5,000 Stockholm 100%
+Gamingkontakten AS, 925157562 1,000 Oslo, Norway 100%
+Habiliteket AB, 556484-2416 1,000 Täby 100%
+Company name
+Number
+of shares Registered office
+Share of
+equity, %
+Hallandshem AB, 556699-6129 1,000 Kungsbacka 100%
+Human Care AS, 997915038 1,000 Tonsberg, Norway 100%
+Human Care BO AS, 925034657 1 Kvaefjord, Norway 100%
+Human Care Eiendom 2 AS, 823755872 3,000 Tonsberg, Norway 100%
+Human Care Eiendom 3 AS, 925669342 3,000 Tonsberg, Norway 100%
+Human Care Eiendom 4 AS, 927119757 3,000 Tonsberg, Norway 100%
+Human Care Eiendom 5 AS, 927966263 3,000 Tonsberg, Norway 100%
+Human Care Eiendom AS, 922597871 1,000 Tonsberg, Norway 100%
+Human Care Holding AS, 923166076 1,000 Tonsberg, Norway 100%
+Human Care Ung AS, 925036226 1 Tonsberg, Norway 100%
+Humana Assistans AB, 556605-3996 100,000 Örebro 100%
+Humana Avopalvelut Oy, 2292973-4 240 Lohja, Finland 100%
+Humana BU Holding AB, 559224-2688 1,000 Stockholm 100%
+Humana Care Real Estate Finland AB, 559222-3142 1,000 Stockholm 100%
+Humana Care Real Estate Norge AB, 559222-3159 1,000 Stockholm 100%
+Humana Danmark ApS, 39804778 500 Søborg, Denmark 100%
+Humana Ekeliden AB, 556891-0508 50,000 Örebro 100%
+Humana Familj Holding AB, 559224-1292 1,000 Stockholm 100%
+Humana Familjeforum Sverige AB, 556589-3764 1,000 Stockholm 100%
+Humana Familjestödsgruppen i Sverige AB, 556699-8182 1,000 Stockholm 100%
+Humana Fastighets Holding AB, 559224-3322 1,000 Stockholm 100%
+Humana Fastighetsförvaltning AB, 559222-3126 1,000 Stockholm 100%
+Humana Fastighetsutveckling AB, 559222-3118 1,000 Stockholm 100%
+Humana Finland AB, 559224-0435 1,000 Stockholm 100%
+GROUP NOTES HUMANA ANNUAL AND SUSTAINABILITY REPORT 2025 | 151
+Open printer-friendly PDF
+CONTENTS
+THIS IS HUMANA
+TRENDS AND MARKET
+SUSTAINABLE STRATEGY
+OFFERING
+CORPORATE GOVERNANCE
+BOARD OF DIRECTORS’ REPORT
+FINANCIAL STATEMENTS
+Financial statements
+Accounting policies
+• Group notes
+Parent Company notes
+The Board of Directors’ signatures
+Auditor’s report
+Auditor’s limited assurance report
+of Humana AB (publ)’s
+sustaina­bilitiy statement
+OTHER
+

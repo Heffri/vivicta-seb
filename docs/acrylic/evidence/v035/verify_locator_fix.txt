@@ -1,0 +1,8 @@
+ok    Knowit                       1/1 fields at 1.0, checks ok, 126s    []
+ok    Catella                      1/1 fields at 1.0, checks ok, 43s    []
+ok    NCAB Group                   1/1 fields at 1.0, checks ok, 40s    []
+
+3/3 companies at full confidence (3 tried, seed 1, Mid Cap, Real Estate)
+low   Apotea                       1/2 fields at 1.0, checks ok, 13s  due_within_1_year=21.6@0.9  []
+
+0/1 companies at full confidence (1 tried, seed 1, Mid Cap, Real Estate)

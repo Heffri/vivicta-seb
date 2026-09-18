@@ -1,0 +1,132 @@
+parse_check split-rate run: PARSER_VERSION=3, 10 PDFs
+
+== atlas_copco_2025 (174p) ==
+  [debt_maturity] candidates [135, 136]
+    p.135  lines=43  splits=0   rate=  0.0%
+    p.136  lines=91  splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=134 rate=0.00%
+  [income_statement] candidates [106, 107, 16]
+    p.106  lines=63  splits=0   rate=  0.0%
+    p.107  lines=68  splits=0   rate=  0.0%
+    p.16   lines=72  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=203 rate=0.00%
+
+== bravida_holding_2025 (171p) ==
+  [debt_maturity] candidates [144, 145]
+    p.144  lines=47  splits=1   rate=  2.1%
+        | 'Koncernen Moderbolaget'
+        | '2025-12-31 2024-12-31 2025-12-31 2024-12-31'
+    p.145  lines=38  splits=0   rate=  0.0%
+    [debt_maturity] splits=1 lines=85 rate=1.18%
+  [income_statement] candidates [112, 113, 165]
+    p.112  lines=30  splits=1   rate=  3.3%
+        | 'Marknad +'
+        | '2025-01-01 2024-01-01 2025-01-01 2024-01-01'
+    p.113  lines=68  splits=0   rate=  0.0%
+    p.165  lines=108 splits=0   rate=  0.0%
+    [income_statement] splits=1 lines=206 rate=0.49%
+
+== camurus_2025 (164p) ==
+  [debt_maturity] candidates [70, 71]
+    p.70   lines=190 splits=0   rate=  0.0%
+    p.71   lines=138 splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=328 rate=0.00%
+  [income_statement] candidates [60, 61, 79]
+    p.60   lines=87  splits=0   rate=  0.0%
+    p.61   lines=88  splits=0   rate=  0.0%
+    p.79   lines=50  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=225 rate=0.00%
+
+== clas_ohlson_2025 (148p) ==
+  [debt_maturity] candidates [140, 141, 139]
+    p.140  lines=29  splits=0   rate=  0.0%
+    p.141  lines=21  splits=0   rate=  0.0%
+    p.139  lines=34  splits=1   rate=  2.9%
+        | 'EBITDA Fritt kassaflöde Försäljningstillväxt onl'
+        | '2025/26 2024/25 2025/26 2024/25 2025/26 2024/25'
+    [debt_maturity] splits=1 lines=84 rate=1.19%
+  [income_statement] candidates [98, 99, 108]
+    p.98   lines=40  splits=1   rate=  2.5%
+        | 'Koncernens resultaträkning Koncernens totalresul'
+        | '250501 − 240501 −'
+    p.99   lines=58  splits=0   rate=  0.0%
+    p.108  lines=49  splits=0   rate=  0.0%
+    [income_statement] splits=1 lines=147 rate=0.68%
+
+== ericsson_2025 (236p) ==
+  [debt_maturity] candidates [65, 66]
+    p.65   lines=58  splits=0   rate=  0.0%
+    p.66   lines=129 splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=187 rate=0.00%
+  [income_statement] candidates [33, 34, 18]
+    p.33   lines=51  splits=0   rate=  0.0%
+    p.34   lines=64  splits=0   rate=  0.0%
+    p.18   lines=62  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=177 rate=0.00%
+
+== getinge_2025 (216p) ==
+  [debt_maturity] candidates [160, 161, 190]
+    p.160  lines=45  splits=0   rate=  0.0%
+    p.161  lines=73  splits=1   rate=  1.4%
+        | 'restructuring reserves.'
+        | '160'
+    p.190  lines=72  splits=0   rate=  0.0%
+    [debt_maturity] splits=1 lines=190 rate=0.53%
+  [income_statement] candidates [140, 141, 207]
+    p.140  lines=38  splits=1   rate=  2.6%
+        | 'Consolidated income statement'
+        | '139 139'
+    p.141  lines=31  splits=0   rate=  0.0%
+    p.207  lines=51  splits=0   rate=  0.0%
+    [income_statement] splits=1 lines=120 rate=0.83%
+
+== husqvarna_2025 (134p) ==
+  [debt_maturity] candidates [26, 27]
+    p.26   lines=44  splits=0   rate=  0.0%
+    p.27   lines=41  splits=1   rate=  2.4%
+        | 'SEKm SEKm % SEKm SEKm %'
+        | '35,000 4,000 16 15,000 1,600 16'
+    [debt_maturity] splits=1 lines=85 rate=1.18%
+  [income_statement] candidates [84, 85, 24]
+    p.84   lines=51  splits=0   rate=  0.0%
+    p.85   lines=56  splits=0   rate=  0.0%
+    p.24   lines=67  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=174 rate=0.00%
+
+== noba_bank_2025 (295p) ==
+  [debt_maturity] candidates [222, 223, 272]
+    p.222  lines=31  splits=0   rate=  0.0%
+    p.223  lines=42  splits=0   rate=  0.0%
+    p.272  lines=33  splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=106 rate=0.00%
+  [income_statement] candidates [162, 163, 265]
+    p.162  lines=33  splits=0   rate=  0.0%
+    p.163  lines=27  splits=0   rate=  0.0%
+    p.265  lines=32  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=92 rate=0.00%
+
+== saab_2025_sv (231p) ==
+  [debt_maturity] candidates [194, 195, 212]
+    p.194  lines=77  splits=0   rate=  0.0%
+    p.195  lines=90  splits=0   rate=  0.0%
+    p.212  lines=98  splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=265 rate=0.00%
+  [income_statement] candidates [151, 152]
+    p.151  lines=54  splits=0   rate=  0.0%
+    p.152  lines=74  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=128 rate=0.00%
+
+== skanska_2025 (226p) ==
+  [debt_maturity] candidates [143, 144]
+    p.143  lines=78  splits=0   rate=  0.0%
+    p.144  lines=97  splits=0   rate=  0.0%
+    [debt_maturity] splits=0 lines=175 rate=0.00%
+  [income_statement] candidates [121, 122, 159]
+    p.121  lines=45  splits=0   rate=  0.0%
+    p.122  lines=58  splits=0   rate=  0.0%
+    p.159  lines=37  splits=0   rate=  0.0%
+    [income_statement] splits=0 lines=140 rate=0.00%
+
+== overall (all candidate pages, splits per 100 non-empty lines) ==
+  debt_maturity    4 splits / 1639 lines = 0.24%
+  income_statement 3 splits / 1612 lines = 0.19%

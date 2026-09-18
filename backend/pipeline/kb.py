@@ -7,8 +7,12 @@ chunks x 1024 dims per report, math.sumprod makes that a few ms -- numpy not wor
     python -m pipeline.kb build                      # meta+pages+embeddings for every bundled report on disk
     python -m pipeline.kb atlas_copco_2025 "What was the revenue?"
 
-Next for a teammate: (1) hybrid BM25 instead of the token-share rerank; (2) embed the page
-*before/after* a hit for table context; (3) invalidate embeddings.jsonl when EMBED_MODEL changes.
+Retrieval is three-state (retrieval_mode()): hybrid cosine+BM25 when an embeddings endpoint exists
+(LLM_BASE_URL), pure BM25 under a codex/claude-only subscription (neither has an embeddings endpoint,
+so Ask works there too), fixture when nothing is configured at all. embeddings.jsonl records the
+EMBED_MODEL that built it (first line) and is rebuilt wholesale when that changes.
+
+Next for a teammate: (2) embed the page *before/after* a hit for table context.
 """
 import hashlib
 import json
@@ -16,14 +20,15 @@ import math
 import os
 import re
 import time
+from collections import Counter
 from heapq import nlargest
 from pathlib import Path
 
 from openai import OpenAI
 
+from . import llm, paths
 from .parse import normalize_ws
 
-HERE = Path(__file__).resolve().parent.parent  # backend/
 CHUNK, OVERLAP, BATCH = 800, 100, 64
 ASK_SYSTEM = ("You answer questions about annual reports using ONLY the excerpts. Each excerpt is labelled "
               "[Company FY p.N]. Cite every number/claim inline as [Company p.N]. For each citation also give a short "
@@ -42,10 +47,11 @@ ANSWER_SCHEMA = {
 _dot = getattr(math, "sumprod", lambda a, b: sum(x * y for x, y in zip(a, b)))  # 3.12+; fallback for older venvs
 _vecs: dict[str, tuple[float, list[dict]]] = {}   # stem -> (embeddings.jsonl mtime, rows)
 _pages_cache: dict[str, tuple[float, dict[int, str]]] = {}
+BM25_K1, BM25_B = 1.5, 0.75  # Okapi defaults
 
 
 def kb_dir() -> Path:  # function, not constant: app.py calls load_dotenv() after importing us
-    return (HERE / os.getenv("KB_DIR", "../data/kb")).resolve()
+    return paths.kb_dir()
 
 
 def embed_model() -> str:
@@ -120,7 +126,7 @@ def _fmt(v) -> str:
 
 
 def _title(section: str) -> str:
-    p = HERE / "schemas" / f"{section}.json"
+    p = paths.schemas_dir() / f"{section}.json"
     return json.loads(p.read_text(encoding="utf-8")).get("title", section) if p.exists() else section
 
 
@@ -164,26 +170,44 @@ def _rows(stem: str) -> list[dict]:
     p = kb_dir() / stem / "embeddings.jsonl"
     mtime = p.stat().st_mtime
     if stem not in _vecs or _vecs[stem][0] != mtime:
-        _vecs[stem] = (mtime, [json.loads(l) for l in p.read_text(encoding="utf-8").split('\n') if l])
+        _vecs[stem] = (mtime, [r for r in (json.loads(l) for l in p.read_text(encoding="utf-8").split('\n') if l) if "text" in r])
     return _vecs[stem][1]
 
 
+def _emb_model(stem: str) -> str | None:
+    """The EMBED_MODEL recorded on embeddings.jsonl's first line (v034). None = legacy file without the
+    line, or no file -- index() treats both as needing one rebuild against the current embed_model()."""
+    p = kb_dir() / stem / "embeddings.jsonl"
+    if not p.exists():
+        return None
+    with open(p, encoding="utf-8") as f:
+        line = f.readline()
+    try:
+        return json.loads(line).get("embed_model")
+    except ValueError:  # torn/empty first line: rebuild
+        return None
+
+
 def index(stem: str, force=False) -> dict:
-    """Build embeddings.jsonl unless it is newer than pages.jsonl and every extraction."""
+    """Build embeddings.jsonl unless it is newer than pages.jsonl and every extraction AND was built by
+    the current embed_model(). A model switch rebuilds from scratch: vectors from two models must never
+    share a cosine space, so the old file is not mined for reuse either."""
     d = kb_dir() / stem
     emb = d / "embeddings.jsonl"
     deps = [d / "pages.jsonl", *(d / "extractions").glob("*.json")]
-    if not force and emb.exists() and emb.stat().st_mtime >= max(x.stat().st_mtime for x in deps):
+    same_model = _emb_model(stem) == embed_model()
+    if not force and same_model and emb.exists() and emb.stat().st_mtime >= max(x.stat().st_mtime for x in deps):
         return {"chunks": len(_rows(stem)), "embed_model": embed_model(), "cached": True}
     t0 = time.time()
     rows = chunks(stem)
-    old = {r["text"]: r["vec"] for r in _rows(stem)} if emb.exists() else {}  # reuse: a new extraction only adds facts
+    old = {r["text"]: r["vec"] for r in _rows(stem)} if emb.exists() and same_model else {}  # reuse: a new extraction only adds facts
     todo = [r["text"] for r in rows if r["text"] not in old]
     fresh = dict(zip(todo, embed(todo)))
     for r in rows:
         r["vec"] = old.get(r["text"]) or fresh[r["text"]]
     tmp = emb.with_suffix(f".{os.getpid()}.tmp")  # per-process name: two backends indexing the same stem never share a temp file
     with open(tmp, "w", encoding="utf-8") as f:
+        f.write(json.dumps({"embed_model": embed_model()}) + "\n")  # meta line; _rows/_emb_model skip it
         for r in rows:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
     os.replace(tmp, emb)  # atomic: a second backend on the same KB_DIR never reads a half-written file
@@ -198,22 +222,108 @@ STOP = frozenset("what was were the and which that this with for from how much m
                  "vad var och det den som för hur mycket till med av på är vilken vilket sida".split())
 
 
+def _terms(s: str) -> list[str]:
+    """Content terms, with multiplicity: split at digit/letter edges (FY2025 -> 2025, p.106 -> 106), drop
+    stop words so "what was the" does not reward prose; 7-char prefix ≈ stemmer (revenue/revenues,
+    rörelseresultat/-et)."""
+    return [t[:7] for t in re.findall(r"\d+|[^\W\d_]+", s.lower()) if len(t) > 2 and t not in STOP]
+
+
 def _tokens(s: str) -> set[str]:
-    """Content tokens: split at digit/letter edges (FY2025 -> 2025, p.106 -> 106), drop stop words so
-    "what was the" does not reward prose; 7-char prefix ≈ stemmer (revenue/revenues, rörelseresultat/-et).
-    # ponytail: BM25 would do this properly"""
-    return {t[:7] for t in re.findall(r"\d+|[^\W\d_]+", s.lower()) if len(t) > 2 and t not in STOP}
+    return set(_terms(s))
+
+
+def _bag(s: str) -> Counter:
+    return Counter(_terms(s))
+
+
+def retrieval_mode() -> str:
+    """/ask's retrieval strategy, decided from env alone: "hybrid" (min-max-normalised cosine + BM25,
+    0.6/0.4) when an embeddings endpoint exists, "bm25" (keyword-only, embed() never called) under a
+    codex/claude-only subscription -- neither CLI has an embeddings endpoint, and Ask must still work
+    there -- and "fixture" when no model at all is configured (app.py then serves the canned answer)."""
+    if os.getenv("LLM_BASE_URL"):
+        return "hybrid"
+    if llm.provider() in ("codex", "claude"):
+        return "bm25"
+    return "fixture"
+
+
+_bm25_cache: dict[str, tuple[tuple, dict]] = {}  # stem -> ((pages.jsonl mtime, newest extraction mtime), index)
+
+
+def _bm25(stem: str) -> dict:
+    """Inverted index over chunks(stem) for BM25: term -> [(chunk i, term frequency)], plus per-chunk
+    token counts and the chunk rows themselves. In memory only, invalidated by the same mtimes as the
+    embeddings file -- zero disk output, so bm25 mode never touches embeddings.jsonl."""
+    d = kb_dir() / stem
+    pages = d / "pages.jsonl"
+    exs = list((d / "extractions").glob("*.json"))
+    key = (pages.stat().st_mtime, max((p.stat().st_mtime for p in exs), default=0.0))
+    if stem in _bm25_cache and _bm25_cache[stem][0] == key:
+        return _bm25_cache[stem][1]
+    rows = chunks(stem)
+    postings: dict[str, list[tuple[int, int]]] = {}
+    dls: list[int] = []
+    for i, r in enumerate(rows):
+        bag = _bag(r["text"])
+        dls.append(sum(bag.values()))
+        for t, f in bag.items():
+            postings.setdefault(t, []).append((i, f))
+    idx = {"rows": rows, "postings": postings, "dls": dls}
+    _bm25_cache[stem] = (key, idx)
+    return idx
+
+
+def _minmax(xs: list[float]) -> list[float]:
+    lo, hi = min(xs), max(xs)
+    return [(x - lo) / (hi - lo) if hi > lo else 0.0 for x in xs]  # flat signal -> no fake spread
 
 
 def search(stems: list[str], query: str, k=8) -> list[dict]:
-    """cosine + 0.15 * share of query tokens in the chunk, so exact figures/labels beat paraphrases."""
-    q, qt = embed([query])[0], _tokens(query)
-    scored = []
-    for stem in stems:
-        index(stem)
-        for r in _rows(stem):
-            share = len(qt & _tokens(r["text"])) / len(qt) if qt else 0
-            scored.append((_dot(q, r["vec"]) + 0.15 * share, stem, r, share))
+    """BM25 over the chunks of the named stems; with embeddings (hybrid mode) blended 0.6/0.4 with
+    min-max-normalised cosine. Replaces the old 0.15 * token-share rerank (kept as the before-baseline
+    in docs/acrylic/evidence/v034.md). IDF is computed over exactly the chunks of the stems this query
+    names, so a two-report Compare is one corpus."""
+    mode = retrieval_mode()
+    terms, qt = _terms(query), set(_terms(query))
+    if mode == "hybrid":
+        for s in stems:
+            index(s)  # fresh embeddings first: _rows and _bm25 must describe the same chunk list
+        q = embed([query])[0]
+    idxs = {s: _bm25(s) for s in stems}
+    n = sum(len(ix["dls"]) for ix in idxs.values()) or 1
+    avgdl = sum(sum(ix["dls"]) for ix in idxs.values()) / n or 1.0
+    cand: list[tuple[float, float, float, str, dict]] = []  # (cosine raw, BM25 raw, share, stem, row)
+    for s in stems:
+        ix = idxs[s]
+        dls, part, hits = ix["dls"], {}, {}
+        for t in set(terms):
+            pl = ix["postings"].get(t)
+            if not pl:
+                continue
+            df = sum(len(idxs[s2]["postings"][t]) for s2 in stems if t in idxs[s2]["postings"])
+            idf = math.log(1.0 + (n - df + 0.5) / (df + 0.5))
+            for i, f in pl:
+                hits[i] = hits.get(i, 0) + 1  # distinct query terms on this chunk -> the share/ride-along rule
+                part[i] = part.get(i, 0.0) + idf * f * (BM25_K1 + 1.0) / (f + BM25_K1 * (1.0 - BM25_B + BM25_B * dls[i] / avgdl))
+        vecs = [r["vec"] for r in _rows(s)] if mode == "hybrid" else ()
+        for i, r in enumerate(ix["rows"]):
+            cos = _dot(q, vecs[i]) if mode == "hybrid" else 0.0
+            cand.append((cos, part.get(i, 0.0), (hits.get(i, 0) / len(qt)) if qt else 0.0, s, r))
+    if not cand:
+        return []
+    if mode == "bm25" and not any(x[1] for x in cand):
+        # v059: no query term matched any chunk (Swedish question against an English report, a topic the
+        # report does not cover) -- ranking would just hand back cover-page order and ask() would spend a
+        # 10-40 s model call to answer "the excerpts don't say". Empty means empty. Hybrid keeps going:
+        # cosine still has a signal when the words differ.
+        return []
+    if mode == "hybrid":
+        finals = (0.6 * c + 0.4 * b for c, b in zip(_minmax([x[0] for x in cand]), _minmax([x[1] for x in cand])))
+    else:
+        finals = _minmax([x[1] for x in cand])  # 0..1, same contract as the cosine-era scores
+    scored = [(f, s, r, share) for f, (_, _, share, s, r) in zip(finals, cand)]
     top = nlargest(k, scored, key=lambda x: x[0])
     seen = {id(x[2]) for x in top}
     for stem in stems:  # ponytail: the 2 best label-matching extraction facts per report always ride along (~150 chars
@@ -230,17 +340,22 @@ def _norm_name(s: str) -> str:
 
 def ask(stems: list[str], question: str, k=8, ids: dict[str, str] | None = None) -> dict:
     """Answer dict per docs/API.md. ids maps stem -> report_id (defaults to the stem)."""
-    from .extract import call_llm  # lazy: extract imports us for few-shot
     ids = ids or {}
     metas = {s: _meta(s) for s in stems}
     label = {s: f"{m.get('company') or s} FY{m.get('fiscal_year') or '?'}" for s, m in metas.items()}
     hits = search(stems, question, k)
+    if not hits:  # v059: bm25 all-zero (or no chunks at all) -- answer directly, save the 10-40 s call
+        return {"question": question,
+                "answer": "No passage in the selected report(s) matches the question's terms — try the report's own wording or another language.",
+                "citations": [],
+                "warnings": ["retrieval: no matching excerpt (bm25 all-zero); model not called"],
+                "model": os.getenv("LLM_MODEL", "")}
     user = (f"Question: {question}\n\nQuotes must be copied character for character from one excerpt (a line break may become a "
             f"space; keep note numbers and every token between label and figure).\n\nExcerpts:\n"
             + "\n\n".join(f"[{label[h['stem']]} p.{h['page']}]\n{h['text']}" for h in hits))
     warnings: list[str] = []
     try:
-        raw = call_llm(ASK_SYSTEM, user, ANSWER_SCHEMA, "answer")
+        raw = json.loads(llm.chat(ASK_SYSTEM, user, ANSWER_SCHEMA, "answer"))
     except Exception as e:  # ponytail: no retry, same as extract
         raw, warnings = {"answer": "", "citations": []}, [f"llm: {type(e).__name__}: {e}"]
 
@@ -305,7 +420,7 @@ def fewshot_examples(section: str, exclude_stem: str | None, n: int) -> list[dic
 def build() -> None:
     """meta + pages + embeddings for every data/reports/index.json entry present on disk."""
     from .parse import page_texts
-    lib = HERE.parent / "data" / "reports"
+    lib = paths.reports_dir()
     for e in json.loads((lib / "index.json").read_text(encoding="utf-8")):
         pdf = lib / e["file"]
         if not pdf.exists():
@@ -320,7 +435,7 @@ def build() -> None:
 if __name__ == "__main__":
     import sys
     from dotenv import load_dotenv
-    load_dotenv(HERE / ".env")
+    load_dotenv(paths.resource_dir() / ".env")
     if sys.argv[1:] == ["build"]:
         build()
     else:

@@ -4,6 +4,19 @@ PDF annual report in → structured, **source-linked** data out → JSON/CSV for
 
 Challenge owner: Kimberly Lejonö, Co-Head CIB Data & AI Hub, SEB. Full brief + meeting notes: [`docs/CHALLENGE.md`](docs/CHALLENGE.md).
 
+## Quick start
+
+- **Windows** — double-click `run.bat` (or run it from a terminal).
+- **macOS/Linux** — `./run.sh`
+
+First run sets up a Python venv, installs dependencies, builds the frontend, and opens the app in
+your browser on one port — about 2-4 minutes. Later runs take a few seconds. No model is configured
+by default, so it runs on fixture (demo) data; see "Run it" below to point it at a real one. Ctrl+C
+stops it and closes the backend it started (on Windows, `run.bat` may ask `Terminate batch job
+(Y/N)?` first — that is `cmd.exe`'s own prompt for any batch file, not specific to this script;
+answer `Y`). Prefer a double-click app with no terminal at all? Grab the packaged Windows build from
+Releases instead — [`desktop/README.md`](desktop/README.md).
+
 ## The one idea to keep
 
 Every extracted number carries `source.page` + `source.quote`, and the backend checks the quote really exists on that page.
@@ -23,13 +36,16 @@ The handshake between frontend and backend is [`docs/API.md`](docs/API.md). Chan
 
 ## Run it
 
+`run.bat` / `run.sh` (see "Quick start" above) does all of this in one step and serves frontend +
+backend on a single port. To run each piece by hand instead (e.g. to use `--reload` while editing):
+
 Backend (terminal 1):
 
 ```bash
 cd backend
 python -m venv .venv
 # Windows: .venv\Scripts\activate    mac/linux: source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.txt    # pymupdf pinned to 1.27.2.3 — why: docs/acrylic/evidence/v049.md
 cp .env.example .env               # leave LLM_BASE_URL unset → returns the fixture (UI dev mode)
 uvicorn app:app --reload --port 8000
 ```
@@ -45,7 +61,8 @@ npm install
 npm run dev                        # http://localhost:5173, proxies /api → :8000
 ```
 
-Real extraction with a local model:
+Real extraction with a local model (using `run.bat`/`run.sh`? put the same lines in a `.env` file in
+the repo root instead of `backend/.env` — either is picked up; `backend/.env` wins if both exist):
 
 ```bash
 ollama pull qwen3:8b               # or qwen2.5:14b / qwen3:14b if you have ≥12 GB VRAM
@@ -57,6 +74,27 @@ ollama pull qwen3:8b               # or qwen2.5:14b / qwen3:14b if you have ≥1
 
 Same three variables point at Azure OpenAI / OpenAI / OpenRouter — no code change.
 
+Or with the Codex CLI instead of a model endpoint (no local model; uses a Codex subscription/API key):
+
+```bash
+# in backend/.env:
+#   LLM_PROVIDER=codex
+#   LLM_MODEL=gpt-5.6-terra   # -m passed to `codex exec`; the CLI must be installed and already logged in
+```
+
+Or with the Claude Code CLI, same idea, for a Claude subscription (a Claude *API key* instead needs no CLI —
+`LLM_PROVIDER=openai` + `LLM_BASE_URL=https://api.anthropic.com/v1/` + `LLM_API_KEY` already works):
+
+```bash
+# in backend/.env:
+#   LLM_PROVIDER=claude
+#   LLM_MODEL=claude-sonnet-5   # --model passed to `claude -p`; the CLI must be installed and already logged in
+```
+
+Extraction and Ask's answers then run on Codex/Claude — no base URL needed; without one, Ask's retrieval
+falls back to keyword search (BM25), and an `LLM_BASE_URL` (Ollama/OpenAI-compatible) upgrades it to hybrid
+embeddings+BM25 — see `backend/README.md`.
+
 Accuracy:
 
 ```bash
@@ -64,6 +102,12 @@ python eval/run.py --dry-run       # scores the fixture, no backend needed
 python eval/run.py                 # runs the real pipeline over data/reports + eval/labels.csv
 python scripts/random_check.py --n 10 --seed 1   # fetches 10 untuned Large Cap reports; how many parse at full confidence
 ```
+
+## Desktop app
+
+A double-click Windows app instead of a browser tab — same frontend, a packaged `backend.exe`, real
+OS acrylic material on Windows 11. Build and run it from `desktop/`:
+[`desktop/README.md`](desktop/README.md).
 
 ## How a section works
 

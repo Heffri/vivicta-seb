@@ -1,0 +1,72 @@
+{
+  "report_id": "lib-vicore_pharma_holding_2025",
+  "company": "Vicore Pharma Holding",
+  "fiscal_year": 2025,
+  "currency": "SEK thousand",
+  "section": "debt_maturity",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 0,
+      "unit": "SEK thousand",
+      "period": "2025",
+      "raw_label": "Currently, the group is financed by shareholders’ equity and is therefore not exposed to risks related to external loan financing.",
+      "source": {
+        "page": 46,
+        "quote": "Currently, the group is financed by shareholders’ equity and is therefore not exposed to risks related to external loan financing."
+      },
+      "confidence": 0.25,
+      "evidence": [
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": null,
+      "unit": "SEK thousand",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "SEK thousand",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "SEK thousand",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_within_1_year"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [46, 47] selected from candidates [46, 47, 45]",
+    "total_debt: quote not found on page 46"
+  ]
+}

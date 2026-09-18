@@ -1,0 +1,24 @@
+GREEN Atlas Copco 2025 -> HTTP 200 in 21s: {"report_id":"lib-atlas_copco_2025","filename":"atlas_copco_2025.pdf","pages":174,"company":"Atlas Copco","fiscal_year":2025,"stem":"atlas_copco_2025"}
+GREEN Nestle 2025 -> HTTP 200 in 32s: {"report_id":"lib-nestle_2025","filename":"nestle_2025.pdf","pages":67,"company":"Nestle","fiscal_year":2025,"stem":"nestle_2025"}
+GREEN Siemens 2025 -> HTTP 404 in 26s body: 
+{
+  "detail": "no annual report found for Siemens 2025",
+  "tried": [
+    "https://assets.new.siemens.com/siemens/assets/api/uuid%3A428ea18a-e7ab-4f93-a160-33908f1c3540/Siemens-Annual-Report-2025.pdf"
+  ]
+}
+GREEN Shell 2025 -> HTTP 404 in 20s body: 
+{
+  "detail": "no annual report found for Shell 2025",
+  "tried": [
+    "https://www.shell.com/investors/results-and-reporting/annual-report/_jcr_content/root/main/section/promo/links/item0.stream/1773292272508/5e49e127579b77081f032b6088b348694aac0d14/shell-annual-report-2025.pdf"
+  ]
+}
+GREEN2 Siemens 2025 -> HTTP 200 in 30s: {"report_id":"lib-siemens_2025","filename":"siemens_2025.pdf","pages":335,"company":"Siemens","fiscal_year":2025,"stem":"siemens_2025"}
+GREEN2 Shell 2025 -> HTTP 404 in 18s body: 
+{
+  "detail": "no annual report found for Shell 2025",
+  "tried": [
+    "https://www.shell.com/investors/results-and-reporting/annual-report/_jcr_content/root/main/section/promo/links/item0.stream/1773292272508/5e49e127579b77081f032b6088b348694aac0d14/shell-annual-report-2025.pdf"
+  ]
+}

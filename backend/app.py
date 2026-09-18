@@ -1,29 +1,42 @@
 """SEB annual-report parser, backend. The contract is docs/API.md; change it there first."""
+import argparse
 import csv
 import io
 import json
+import logging
 import os
 import re
+import sys
 import time
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 import pymupdf
+import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from pipeline import extract as extract_mod, fetch, kb, locate, parse, ppt
+from pipeline import extract as extract_mod, fetch, kb, llm, locate, parse, paths, ppt
 
 load_dotenv()
-HERE = Path(__file__).parent
-UPLOADS = HERE / "uploads"
-UPLOADS.mkdir(exist_ok=True)
-SCHEMAS = HERE / "schemas"
-LIBRARY = HERE.parent / "data" / "reports"  # bundled reports; index.json is committed, PDFs via `python data/fetch.py`
-FIXTURE = HERE / "fixtures" / "sample_extraction.json"
-COMPANIES = json.loads((HERE.parent / "data" / "companies.json").read_text(encoding="utf-8"))  # Nasdaq Stockholm, data/companies_build.py
+UPLOADS = paths.uploads_dir()
+SCHEMAS = paths.schemas_dir()
+LIBRARY = paths.reports_dir()  # bundled reports; index.json is committed, PDFs via `python data/fetch.py`
+def _llm_configured() -> bool:
+    """A model answers /extract when an OpenAI-compatible endpoint is set, or when the Codex or Claude CLI provider
+    is selected (v031: LLM_PROVIDER=codex needs no base URL; v039: same for claude). /ask runs on that model too:
+    since v034 its retrieval falls back to pure BM25 without LLM_BASE_URL (kb.retrieval_mode()), and /index then
+    reports keyword-only chunks instead of embedding anything."""
+    return bool(os.getenv("LLM_BASE_URL")) or llm.provider() in ("codex", "claude")
+
+
+FIXTURE = paths.fixture_path()
+COMPANIES = json.loads(paths.companies_path().read_text(encoding="utf-8"))  # Nasdaq Stockholm, data/companies_build.py
 CSV_HEADER = "report_id,company,fiscal_year,section,key,label,value,unit,period,raw_label,page,quote,confidence".split(",")
 
 app = FastAPI(title="vivicta backend")
@@ -52,6 +65,8 @@ class AskBody(BaseModel):
 class FetchBody(BaseModel):
     company: str
     year: int
+    country: str | None = None  # v074: optional context for the model search when the directory has no hit ("Switzerland")
+    hint: str | None = None     # v074: free-text hint for the model search ("FY ends 30 June", the report's exact title)
 
 
 def pdf_path(report_id: str) -> Path:
@@ -169,16 +184,21 @@ def list_companies(q: str = ""):
 
 @app.post("/api/reports/fetch")
 def fetch_report(body: FetchBody):
-    if not (1990 <= body.year <= 2100) or len(body.company) > 100:
+    if not (1990 <= body.year <= 2100) or len(body.company) > 100 or (body.country and len(body.country) > 60) or (body.hint and len(body.hint) > 300):
         raise HTTPException(400, "bad company/year")
     slug = fetch.slugify(body.company)
     entry = next((e for e in library_index() if e["fiscal_year"] == body.year and fetch.slugify(e["company"]) == slug), None)
     if not entry:
         t0 = time.time()
         try:
-            entry = fetch.fetch_report(body.company, body.year, LIBRARY)  # 10-90 s: MFN -> DuckDuckGo, validates PDF + text layer
+            # 10-90 s: MFN -> Nasdaq -> DuckDuckGo, then -- only with a codex/claude provider -- the
+            # model's own web search (fetch.py's fourth source, what the Swedish feeds never carry).
+            entry = fetch.fetch_report(body.company, body.year, LIBRARY, body.country, body.hint)
         except LookupError as e:
-            return JSONResponse({"detail": f"no annual report found for {body.company} {body.year}", "tried": e.args[0]}, status_code=404)
+            detail = f"no annual report found for {body.company} {body.year}"
+            if len(e.args) > 1 and e.args[1]:  # v074: a failed model search says so, with why
+                detail += f"; {e.args[1]}"
+            return JSONResponse({"detail": detail, "tried": e.args[0]}, status_code=404)
         print(f"[fetch] {body.company} {body.year} -> {entry['file']} from {entry['source_url']} in {time.time() - t0:.0f}s")
     return register_library(entry)
 
@@ -208,7 +228,7 @@ def page_png(report_id: str, n: int):
 def run_extract(report_id: str, body: ExtractBody):
     report = get_report(report_id)
     schema = load_schema(body.section)
-    if not os.getenv("LLM_BASE_URL"):  # frontend dev mode: no model configured
+    if not _llm_configured():  # frontend dev mode: no model configured
         result = json.loads(FIXTURE.read_text(encoding="utf-8")) | {"report_id": report_id}
     else:
         texts = report_texts(report_id)
@@ -223,8 +243,10 @@ def run_extract(report_id: str, body: ExtractBody):
 @app.post("/api/reports/{report_id}/index")
 def index_report(report_id: str):
     report = get_report(report_id)
-    if not os.getenv("LLM_BASE_URL"):
+    if not _llm_configured():
         return {"report_id": report_id, "chunks": 0, "embed_model": "fixture", "cached": True}
+    if kb.retrieval_mode() == "bm25":  # codex/claude-only setup: no embeddings endpoint, retrieval is keyword-only
+        return {"report_id": report_id, "chunks": len(kb.chunks(report["stem"])), "embed_model": "bm25", "cached": True}
     return kb.index(report["stem"]) | {"report_id": report_id}
 
 
@@ -235,13 +257,13 @@ def ask(body: AskBody):
     if len(body.question) > 2000:  # trust boundary: the question goes straight into the prompt
         raise HTTPException(400, "question too long (max 2000 chars)")
     ids = {get_report(r)["stem"]: r for r in body.report_ids}  # stem -> report_id; 404 on unknown ids
-    if not os.getenv("LLM_BASE_URL"):  # frontend dev mode: canned Answer, one citation
+    if not _llm_configured():  # frontend dev mode: canned Answer, one citation
         return {"question": body.question, "answer": "Fixture mode (LLM_BASE_URL unset). Revenue was 152 340 MSEK [Nordic Industrials p.64].",
                 "citations": [{"report_id": body.report_ids[0], "company": "Nordic Industrials AB (fictional fixture)", "fiscal_year": 2025,
                                "page": 64, "quote": "Intäkter 152 340 141 902", "score": 0.91}],
                 "warnings": ["fixture answer: LLM_BASE_URL unset"], "model": "fixture"}
     t0 = time.time()
-    answer = kb.ask(list(ids), body.question, ids=ids)  # indexes on demand
+    answer = kb.ask(list(ids), body.question, ids=ids)  # retrieval (BM25 or hybrid) + a real model call
     print(f"[ask] {body.report_ids}: {len(answer['citations'])} citations, {len(answer['warnings'])} warnings in {time.time() - t0:.1f}s")
     return answer
 
@@ -268,8 +290,11 @@ def kb_extraction(stem: str, section: str):
 
 @app.get("/api/config")
 def config():
-    return {"model": os.getenv("LLM_MODEL") or "fixture", "embed_model": kb.embed_model(), "base_url": os.getenv("LLM_BASE_URL"),
-            "llm": bool(os.getenv("LLM_BASE_URL"))}
+    # codex/claude defaults live in llm.py; not "fixture" only for a provider _llm_configured() already accepts without LLM_MODEL
+    model = os.getenv("LLM_MODEL") or {"codex": "gpt-5.6-terra", "claude": "claude-sonnet-5"}.get(llm.provider(), "fixture")
+    return {"model": model, "embed_model": kb.embed_model(), "base_url": os.getenv("LLM_BASE_URL"),
+            "llm": _llm_configured(), "provider": llm.provider() if _llm_configured() else "fixture",
+            "retrieval": kb.retrieval_mode()}  # v034: "hybrid" | "bm25" | "fixture"
 
 
 @app.get("/api/reports/{report_id}/extraction.csv")
@@ -298,3 +323,69 @@ def extraction_pptx(report_id: str):
     data = ppt.build_pptx(x)
     return Response(data, media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
                     headers={"Content-Disposition": f'attachment; filename="{report_id}_{x["section"]}.pptx"'})
+
+
+# ---- static frontend (desktop build only; unset FRONTEND_DIST -> no route added, dev proxy unaffected) --------
+
+FRONTEND_DIST = os.getenv("FRONTEND_DIST")
+if FRONTEND_DIST:
+    class SPAStaticFiles(StaticFiles):
+        """A path with no matching file falls back to index.html (client-side routing). Registered after every
+        /api/* route above, which Starlette always tries first, so this never shadows the API -- the api/ prefix
+        check below is only a backstop for an /api/* typo that no real route matched. StaticFiles signals a miss
+        by raising HTTPException(404), not by returning a 404 response, hence the try/except here. get_path()
+        joins with os.path.join/normpath, so `path` uses OS-native separators (backslash on Windows) -- compare
+        via Path(...).parts, not a literal "api/" prefix, or the guard silently never matches on Windows."""
+        async def get_response(self, path: str, scope):
+            try:
+                return await super().get_response(path, scope)
+            except StarletteHTTPException as exc:
+                if exc.status_code == 404 and Path(path).parts[:1] != ("api",):
+                    return await super().get_response("index.html", scope)
+                raise
+
+    app.mount("/", SPAStaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
+
+
+class _TeeToLog:
+    """Mirrors console output into the rotating log file, so the existing print()-based diagnostics (here and in
+    pipeline/*) are still visible when the packaged exe runs with no attached console. One record per non-empty line."""
+
+    def __init__(self, stream, logger: logging.Logger):
+        self._stream, self._logger = stream, logger
+
+    def write(self, data: str) -> None:
+        self._stream.write(data)
+        for line in data.splitlines():
+            if line.strip():
+                self._logger.info(line)
+
+    def flush(self) -> None:
+        self._stream.flush()
+
+    def isatty(self) -> bool:
+        return self._stream.isatty()
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(prog="backend", description="SEB annual-report parser backend")
+    ap.add_argument("--port", type=int, default=8000)
+    ap.add_argument("--host", default="127.0.0.1")
+    args = ap.parse_args()
+
+    log_dir = paths.data_dir()
+    log_dir.mkdir(parents=True, exist_ok=True)
+    file_logger = logging.getLogger("backend.file")
+    file_logger.setLevel(logging.INFO)
+    file_logger.propagate = False
+    handler = RotatingFileHandler(log_dir / "backend.log", maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+    file_logger.addHandler(handler)
+    sys.stdout = _TeeToLog(sys.stdout, file_logger)  # covers both print() and uvicorn's own ext://sys.stdout handlers
+    sys.stderr = _TeeToLog(sys.stderr, file_logger)
+
+    uvicorn.run(app, host=args.host, port=args.port, loop="asyncio", http="h11", ws="none")
+
+
+if __name__ == "__main__":
+    main()

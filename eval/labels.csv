@@ -98,3 +98,93 @@ securitas_2025.pdf,income_statement,profit_before_tax,7295,106,Income before tax
 securitas_2025.pdf,income_statement,income_tax,-2151,106,Income tax
 securitas_2025.pdf,income_statement,net_profit,5144,106,Net income for the year (total incl. NCI 29)
 securitas_2025.pdf,income_statement,eps_basic,8.93,106,Earnings per share before and after dilution (SEK); next line 11.55 (before items affecting comparability) is an APM — not used
+cloetta_2025.pdf,debt_maturity,total_debt,1605,169,"Note 21 Borrowings, carrying amount, 31 Dec 2025 'Total' row; v035/v036/v041/v045/v048 all replay 1605"
+cloetta_2025.pdf,debt_maturity,due_within_1_year,197,169,"same row, '< 1 year' column, carrying"
+cloetta_2025.pdf,debt_maturity,due_1_to_5_years,1399,169,"same row; 1-2 years (22) + 2-5 years (1,377) columns summed per schema's own finer-split convention -- no single printed cell for this, v036 already documents the same 22+1,377 sum"
+cloetta_2025.pdf,debt_maturity,due_after_5_years,9,169,"same row, '> 5 years' column, carrying"
+knowit_2025.pdf,debt_maturity,total_debt,758938,152,"Note 21, Summa raentebaerande skulder row 2025, native unit KSEK (as printed -- the backend does not normalize to millions, unit_hint only steers the prompt); v035/v041/v045 replay 758938"
+knowit_2025.pdf,debt_maturity,due_within_1_year,null,152,no maturity/bucket table for this total anywhere on the page (only a contractual table for a different liability scope exists)
+knowit_2025.pdf,debt_maturity,due_1_to_5_years,null,152,same
+knowit_2025.pdf,debt_maturity,due_after_5_years,null,152,same
+ncab_2025.pdf,debt_maturity,total_debt,1090075,101,"Note 27 Borrowings, Total borrowings row 2025, native unit kSEK (as printed); v035/v036/v045 replay 1090075"
+ncab_2025.pdf,debt_maturity,due_within_1_year,null,101,'Current' row printed blank; all borrowing matures 2030 per the note's own text -- no bucket split beyond current/non-current
+ncab_2025.pdf,debt_maturity,due_1_to_5_years,null,101,same
+ncab_2025.pdf,debt_maturity,due_after_5_years,null,101,same
+apotea_2025.pdf,debt_maturity,total_debt,21.6,113,"Note 29 Borrowings, 'Total secured borrowings' 2025, MSEK; v035/v036/v045 replay 21.6"
+apotea_2025.pdf,debt_maturity,due_within_1_year,21.6,113,same row ('Current: Overdraft facility'); text states 'no long-term borrowings'
+apotea_2025.pdf,debt_maturity,due_1_to_5_years,null,113,no such row; only bucket is the current overdraft facility
+apotea_2025.pdf,debt_maturity,due_after_5_years,null,113,same
+catella_2025.pdf,debt_maturity,total_debt,-1474,108,"Note 3, 'Total interest-bearing liabilities' row, SEK M, sign as printed; v035/v036/v050 replay -1474"
+catella_2025.pdf,debt_maturity,due_within_1_year,null,108,no maturity table for this total (p.107's liquidity table is a broader/undiscounted scope)
+catella_2025.pdf,debt_maturity,due_1_to_5_years,null,108,same
+catella_2025.pdf,debt_maturity,due_after_5_years,null,108,same
+xano_industri_2025.pdf,debt_maturity,total_debt,904522,84,"Summa raentebaerande skulder row, Totalt column, 2025, native unit TSEK (as printed); resolves v035/v036/v044's unattributed-8th-column finding -- full header is 8 cols incl. a printed Summa inom 1 aar subtotal, not 7"
+xano_industri_2025.pdf,debt_maturity,due_within_1_year,51075,84,"same row, Summa inom 1 aar column -- a printed subtotal, not computed; TSEK"
+xano_industri_2025.pdf,debt_maturity,due_1_to_5_years,802669,84,same row; Mellan 1-3 aar (768885) + Mellan 3-5 aar (33784) summed per schema finer-split rule; TSEK
+xano_industri_2025.pdf,debt_maturity,due_after_5_years,50778,84,"same row, Efter 5 aar column; TSEK"
+ework_2025.pdf,debt_maturity,total_debt,156410,70,"Note 21, Short-term interest-bearing liabilities row, Carrying value amount column, 2025, native unit kSEK (as printed); cross-verified via the tables own Total row"
+ework_2025.pdf,debt_maturity,due_within_1_year,156409,70,"corrected per v068 word-level column order; was 154732/1677. v068's bbox-verified column reconstruction (docs/acrylic/evidence/v068.md) shows the row's true 8-column order is Due, <1 month, 1-3 months, 3-12 months, 1-5 years, >5 years, Total undiscounted value, Carrying amount -- one column ('Due') the pre-v068 scrambled-header reading never saw. due_within_1_year sums every within-1-year sub-column per the schema's own finer-split rule: Due (nil=0) + 153761 (<1 month) + 971 (1-3 months) + 1677 (3-12 months) = 156409; reconciles to total_debt=156410 within the check's own +-2 rounding tolerance (the tables own Total row reconciles the same way, see v068.md)"
+ework_2025.pdf,debt_maturity,due_1_to_5_years,null,70,"corrected per v068 word-level column order; was 1677. Under the true 8-column order (see due_within_1_year's own note) the row's own '1-5 years' column is a printed dash for this row (Short-term interest-bearing liabilities*: '... 1,677 – – 156,410 156,410'), not a printed 0 -- 1677 is the row's own '3-12 months' column, itself a within-1-year sub-column per the schema's finer-split rule, not due_1_to_5_years. null (not 0), consistent with _bucket_assign's own convention that a dash-marked bucket column is unprinted, not a fabricated zero"
+flat_capital_2025.pdf,debt_maturity,total_debt,0,33,"Note 11: 'the investment company has neither interest-bearing liabilities nor accounts receivable' -- zero_if_stated (negation 'neither'); real page is 33, never a locator candidate ([18,19] per v035); stored extractions (v035/v036/v041/v050) return null here, not 0 -- schema says 0 is correct for a plain-language no-debt statement"
+flat_capital_2025.pdf,debt_maturity,due_within_1_year,null,33,no maturity table at all -- no borrowings note exists
+flat_capital_2025.pdf,debt_maturity,due_1_to_5_years,null,33,same
+flat_capital_2025.pdf,debt_maturity,due_after_5_years,null,33,same
+arjo_2025.pdf,debt_maturity,total_debt,5387,109,"Note 20, roll-forward table, 'Total interest-bearing liabilities' Dec 31 2025 closing balance, SEK M; v035/v037/v045/v050 replay 5387"
+arjo_2025.pdf,debt_maturity,due_within_1_year,null,109,no maturity/bucket table near this note (roll-forward only)
+arjo_2025.pdf,debt_maturity,due_1_to_5_years,null,109,same
+arjo_2025.pdf,debt_maturity,due_after_5_years,null,109,same
+gentoo_media_2025.pdf,debt_maturity,total_debt,111798,88,"Note 5.2, Total loans and borrowings 2025, carrying, native unit EUR'000 (as printed); cross-verified against p.92's contractual tables own carrying-amount column (also 111798)"
+gentoo_media_2025.pdf,debt_maturity,due_within_1_year,111798,88,"same page, Borrowings, current row -- equals total_debt because Borrowings, non-current is printed nil (-); EUR'000"
+gentoo_media_2025.pdf,debt_maturity,due_1_to_5_years,null,88,"'Borrowings, non-current' printed nil -- no non-current debt exists"
+gentoo_media_2025.pdf,debt_maturity,due_after_5_years,null,88,same
+nelly_2025.pdf,debt_maturity,total_debt,287.1,89,"'Leasingskulder som ingaar i rapporten oever finansiell staellning' 2025, carrying, Miljoner kronor (entire debt = IFRS16 leases)"
+nelly_2025.pdf,debt_maturity,due_within_1_year,36.2,89,"'Kortfristiga' row 2025; v037 diagnosed the model's own value (287.1, total) as wrong for this field, v040 fixed the bug that caused it -- 36.2 confirmed the correct read"
+medcap_2025.pdf,debt_maturity,total_debt,718.7,101,"'Foerfallotidpunkt foer uplaaning', Koncernen 2025-12-31, 'Totalt' row, MSEK"
+medcap_2025.pdf,debt_maturity,due_within_1_year,102.3,101,"same table; '6 maanader eller mindre' (54.3) + '6-12 maanader' (48.0) summed per schema's finer-split rule -- v041 diagnosed this as a real value the backend couldn't quote-verify, v052 fixed the mechanism that now derives it"
+medcap_2025.pdf,debt_maturity,due_1_to_5_years,616.5,101,"same table, '1-5 aar' row, printed directly"
+medcap_2025.pdf,debt_maturity,due_after_5_years,null,101,table has no '>5 aar' row
+ependion_2025.pdf,debt_maturity,total_debt,583531,155,"Borrowing row, amortized cost table, 2025, carrying, native unit SEK 000 (as printed)"
+ependion_2025.pdf,debt_maturity,due_within_1_year,167546,155,"Contracted terms table, Within 12 months column; its Total (583531) reconciles exactly to the carrying total_debt, so this tables basis gap is negligible here (footnoted: fair value = carrying amount); SEK 000"
+ependion_2025.pdf,debt_maturity,due_1_to_5_years,415984,155,same table; Between 1 and 2 years (35636) + Between 2 and 3 years (380348) summed per schema finer-split rule; SEK 000
+ependion_2025.pdf,debt_maturity,due_after_5_years,null,155,table has no bucket beyond 3 years; total reconciles exactly with only these 3 buckets
+svolder_2025.pdf,debt_maturity,total_debt,0,18,"p.18: ""Vid balansdagen den 31 augusti 2025 var krediten oanvaend"" (credit facility unused at balance date); full-report scan (v041) finds zero other debt keywords in 88 pages; v048/v050 independently confirm total_debt=0 here"
+svolder_2025.pdf,debt_maturity,due_within_1_year,null,18,"no debt, no maturity table"
+svolder_2025.pdf,debt_maturity,due_1_to_5_years,null,18,same
+svolder_2025.pdf,debt_maturity,due_after_5_years,null,18,same
+intrum_2025.pdf,debt_maturity,total_debt,43384,123,"Summary of borrowings at year end, Total borrowing row, 2025, SEK M"
+intrum_2025.pdf,debt_maturity,due_within_1_year,271,123,"same table, Total borrowings in current liabilities; footnoted less than one year; v048 added the synonym that lets the backend recognize this row"
+intrum_2025.pdf,debt_maturity,due_1_to_5_years,43113,123,"Total borrowings in non-current liabilities -- also verified by summing the Maturities of long-term borrowings table's own 4 sub-buckets (9,355+18,234+6,817+8,707=43,113, exact)"
+intrum_2025.pdf,debt_maturity,due_after_5_years,null,123,"the 4 non-current sub-buckets (1-2y..4-5y) already sum exactly to the non-current total -- no residual, no printed >5y row"
+ratos_2025.pdf,debt_maturity,total_debt,4126,131,"prose: the Group's interest-bearing liabilities to credit institutions amounted to SEK 4,126m (4,506), SEK m, carrying; v048 hand-verified this exact sentence"
+creades_2025.pdf,debt_maturity,total_debt,0,61,"Note 18: Investmentfoeretaget har varken raentebaerande skulder eller kundfordringar -- zero_if_stated (negation varken); v048/v050 confirm the pipeline currently drops this to null (no literal digit in the quote) despite the model attempting 0 -- a known, documented gap, not fixed here per this lane's territory"
+creades_2025.pdf,debt_maturity,due_within_1_year,null,61,"no debt, no maturity table"
+creades_2025.pdf,debt_maturity,due_1_to_5_years,null,61,same
+creades_2025.pdf,debt_maturity,due_after_5_years,null,61,same
+ovzon_2025.pdf,debt_maturity,total_debt,423,61,"NOTE 23 - BORROWING, Total borrowing row, 12/31/25, MSEK; v048 quoted this table but the real page (61) never reaches the locator's candidate window ([62,63])"
+ovzon_2025.pdf,debt_maturity,due_within_1_year,40,61,"same table, Liabilities to credit institutions, current row"
+ovzon_2025.pdf,debt_maturity,due_1_to_5_years,null,61,"non-current (390) is a single lump; no further year split printed (the loan's own maturity is Sept 2027-2028 per the note's prose, but that is not a printed bucket row)"
+ovzon_2025.pdf,debt_maturity,due_after_5_years,null,61,same
+meko_2025.pdf,debt_maturity,total_debt,6558,103,"23 Borrowing, Total borrowing row, 2025, SEK M; v048 added the singular total borrowing synonym that lifted this to 1.0 confidence"
+meko_2025.pdf,debt_maturity,due_within_1_year,768,103,"same page, Total current liabilities row (= lease liabilities current, the only nonzero current line in 2025); v048 flagged the model's own quote as unverified (0.25, parse.py artifact) even though this figure is directly printed"
+meko_2025.pdf,debt_maturity,due_1_to_5_years,null,103,"non-current (5,790) is a single lump combining bonds/bank loans/leases/derivatives; no further year split printed"
+meko_2025.pdf,debt_maturity,due_after_5_years,null,103,same
+better_collective_2025.pdf,debt_maturity,total_debt,259691,161,"Note 19, Debt to credit institutions row, carrying, FY2025 column, native unit tEUR (as printed); resolved a two-column-merge ambiguity by anchoring to p.129's cash-flow statement (FY2025 cash=13494) -- corrects v045's own 259946, which is the FY2024 comparative, not FY2025 (see evidence findings)"
+alligo_2025.pdf,debt_maturity,total_debt,3629,143,"printed folio 141; Koncernen balance-sheet table, SUMMA SKULDER row, Raentebaerande column, 2025, MSEK (=Laangfristiga 3,156 + Kortfristiga 473)"
+alligo_2025.pdf,debt_maturity,due_within_1_year,473,143,"same table, Kortfristiga raentebaerande skulder row, carrying"
+boozt_2025.pdf,debt_maturity,total_debt,441,108,"LEASE LIABILITY note, Total row, Dec 31 2025, SEK million carrying; Liabilities to credit institutions = 0 in 2025 per p.121, so this is the whole of total_debt"
+boozt_2025.pdf,debt_maturity,due_within_1_year,104,108,"same note, Short-term liability row; cross-checked against p.121's own bucket table (Maturity within 3 months 26 + three-to-twelve months 78 = 104, exact)"
+boozt_2025.pdf,debt_maturity,due_1_to_5_years,273,121,"p.121 Maturity structure of borrowing table, Lease liabilities row, Maturity within one to five years column; basis gap to carrying is <1% here (26+78+273+63=440 vs carrying 441), unlike the disputed two-basis cases"
+boozt_2025.pdf,debt_maturity,due_after_5_years,63,121,"same table, Maturity within five to nine years column (+0 for the Maturity after nine years column)"
+coor_service_management_hold_2025.pdf,debt_maturity,total_debt,2727,157,"Note 16, Carrying amounts and fair values of borrowings, Total row, 2025, SEK million (includes leases per this table; p.156's own narrower Total borrowings excludes them, 2,294 -- see evidence)"
+coor_service_management_hold_2025.pdf,debt_maturity,due_within_1_year,null,157,"no maturity/bucket table anywhere in Note 16 for either the 2,727 or 2,294 figure"
+coor_service_management_hold_2025.pdf,debt_maturity,due_1_to_5_years,null,157,same
+coor_service_management_hold_2025.pdf,debt_maturity,due_after_5_years,null,157,same
+humana_2025.pdf,debt_maturity,total_debt,4401,148,"Note C19, carrying; also stated in prose on p.149 (amounted to SEK 4,401m); SEK million"
+humana_2025.pdf,debt_maturity,due_within_1_year,543,148,"same note, Current: Total carrying amount row; cross-verified in p.149's prose (current liabilities of SEK 543m)"
+academedia_2025.pdf,debt_maturity,total_debt,12103,87,"Note K28: Skulder (Group note; NOT p.97's M10, which is the Parent Company-only note per this filing's M-prefix convention and excluded by schema exclude_keywords), roll-forward SUMMA row, 30 juni 2025, MSEK"
+bergman_beving_2025.pdf,debt_maturity,total_debt,2390,120,"Group / Financial risk management table, Total interest-bearing liabilities, 31 Mar 2026 column (the report's current year -- CORRECTS v035/v036/v040/v050's stored 2,062, which is the 31 Mar 2025 prior-year comparative; verified against the same page's own prose, amounted to MSEK 2,038 (1,626) as of 31 March 2026, bank loans only, +352 lease = 2,390); SEK M"
+bergman_beving_2025.pdf,debt_maturity,due_within_1_year,424,120,"same table, Total current liabilities, 31 Mar 2026 column (CORRECTS v035/v036's stored 476, the 31 Mar 2025 comparative)"
+storytel_2025.pdf,debt_maturity,total_debt,550,114,"prose: the Groups total loan liabilities amounted to MSEK 550, with the entire loan classified as current -- carrying, already MSEK (the pages own Maturity analysis table, 555,436 TSEK, is explicitly footnoted as the wrong/undiscounted basis)"
+storytel_2025.pdf,debt_maturity,due_within_1_year,550,114,same sentence: entire loan classified as current
+storytel_2025.pdf,debt_maturity,due_1_to_5_years,null,114,none -- entire loan is current per the reports own statement
+storytel_2025.pdf,debt_maturity,due_after_5_years,null,114,same

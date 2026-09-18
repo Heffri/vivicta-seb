@@ -1,0 +1,32 @@
+appId: com.vivicta.annual-report-parser
+productName: Annual Report Parser
+directories:
+  output: dist
+files:
+  - main.js
+  - preload.js
+  - settings.js
+  - updates.js
+  - icons/icon.ico
+  - package.json
+extraResources:
+  - from: build-resources/frontend-dist
+    to: frontend-dist
+  - from: build-resources/backend
+    to: backend
+  - from: build-resources/data
+    to: data
+win:
+  icon: icons/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+nsis:
+  oneClick: true
+  perMachine: false
+  createDesktopShortcut: always
+  artifactName: ${productName}-Setup-${version}.${ext}
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}

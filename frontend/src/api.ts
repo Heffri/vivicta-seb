@@ -34,11 +34,13 @@ export const registerLibraryReport = (file: string) =>
 
 export const getCompanies = (q: string) => request<Company[]>(`/api/companies?q=${encodeURIComponent(q)}`)
 
-export const fetchReport = (company: string, year: number) =>
+// v074: country/hint are optional context for the backend's model search (its fourth fetch source,
+// used when the directory has no hit); they are ignored by the feed levels.
+export const fetchReport = (company: string, year: number, opts?: { country?: string; hint?: string }) =>
   request<Report>('/api/reports/fetch', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ company, year }),
+    body: JSON.stringify({ company, year, ...opts }),
   })
 
 export const extractSection = (reportId: string, section: string) =>
@@ -64,7 +66,18 @@ export const pptxUrl = (reportId: string) => `/api/reports/${reportId}/extractio
 export const pdfUrl = (reportId: string, page?: number) =>
   `/api/reports/${reportId}/pdf${page ? `#page=${page}` : ''}`
 
-export type Config = { model: string; embed_model: string; base_url: string | null; llm: boolean }
+// provider added in v031 (backend/app.py); this type lagged behind until v033's Settings view needed it.
+// retrieval (v034, consumed by KbView since v059) is how /ask retrieves: embeddings+keywords or keywords only.
+// Optional: main.tsx's SetSettingsResult (desktop save path) predates it and is outside lane territory —
+// an absent field just keeps KbView's column on the pre-v059 wording.
+export type Config = {
+  model: string
+  embed_model: string
+  base_url: string | null
+  llm: boolean
+  provider: string
+  retrieval?: 'hybrid' | 'bm25' | 'fixture'
+}
 export const getConfig = () => request<Config>('/api/config')
 export const getKb = () => request<KbEntry[]>('/api/kb')
 // Stored extraction, no model call; the backend re-registers the PDF so pageUrl/csvUrl work.

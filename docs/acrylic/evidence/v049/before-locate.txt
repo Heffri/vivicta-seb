@@ -1,0 +1,75 @@
+parse_check locator run: PARSER_VERSION=3, 35 PDFs
+
+== academedia_2025: no cached pages, skipped ==
+
+== acast_2025: no cached pages, skipped ==
+
+== alligo_2025: no cached pages, skipped ==
+
+== apotea_2025: no cached pages, skipped ==
+
+== arjo_2025: no cached pages, skipped ==
+
+== atlas_copco_2025 ==
+  [debt_maturity] old [135, 136, 146] -> new [146, 147]  <== top-2 changed
+  [income_statement] old [106, 107, 16, 151] -> new [106, 107, 16, 151]
+
+== bergman_beving_2025: no cached pages, skipped ==
+
+== better_collective_2025: no cached pages, skipped ==
+
+== bico_2025: no cached pages, skipped ==
+
+== boozt_2025: no cached pages, skipped ==
+
+== catella_2025: no cached pages, skipped ==
+
+== cloetta_2025: no cached pages, skipped ==
+
+== coor_service_management_hold_2025: no cached pages, skipped ==
+
+== creades_2025: no cached pages, skipped ==
+
+== ependion_2025: no cached pages, skipped ==
+
+== ework_2025: no cached pages, skipped ==
+
+== flat_capital_2025: no cached pages, skipped ==
+
+== flerie_2025: no cached pages, skipped ==
+
+== gentoo_media_2025: no cached pages, skipped ==
+
+== hansa_biopharma_2025: no cached pages, skipped ==
+
+== humana_2025: no cached pages, skipped ==
+
+== intrum_2025: no cached pages, skipped ==
+
+== knowit_2025: no cached pages, skipped ==
+
+== medcap_2025: no cached pages, skipped ==
+
+== meko_2025: no cached pages, skipped ==
+
+== morrow_bank_2025: no cached pages, skipped ==
+
+== ncab_2025: no cached pages, skipped ==
+
+== nelly_2025: no cached pages, skipped ==
+
+== norion_bank_2025: no cached pages, skipped ==
+
+== ovzon_2025: no cached pages, skipped ==
+
+== ratos_2025: no cached pages, skipped ==
+
+== storytel_2025: no cached pages, skipped ==
+
+== svolder_2025: no cached pages, skipped ==
+
+== vef_2025: no cached pages, skipped ==
+
+== xano_industri_2025: no cached pages, skipped ==
+
+== 1 section rankings with a changed top-2 ==

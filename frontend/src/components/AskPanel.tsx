@@ -1,9 +1,11 @@
-import { Loader2, TriangleAlert } from 'lucide-react'
+import { TriangleAlert } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { ask, indexReport, pdfUrl } from '@/api'
+import { AnswerText } from '@/components/ask/AnswerText'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ErrorBlock, LoadingLine } from '@/components/ui/state'
 import type { Answer } from '@/types'
 
 type Props = {
@@ -73,14 +75,11 @@ export function AskPanel({ reports, onCitation }: Props) {
               <li key={i} className="space-y-2 border-b pb-4 text-sm last:border-b-0">
                 <p className="font-medium">{t.question}</p>
                 {t.error ? (
-                  <p role="alert" className="text-destructive">
-                    {t.error}
-                  </p>
+                  <ErrorBlock>{t.error}</ErrorBlock>
                 ) : (
                   t.answer && (
                     <>
-                      {/* ponytail: answer is markdown per the contract; plain text + stripped ** is enough — the inline [Company p.N] cites read fine as-is. */}
-                      <p className="whitespace-pre-wrap break-words leading-relaxed">{t.answer.answer.replaceAll('**', '')}</p>
+                      <AnswerText text={t.answer.answer} citations={t.answer.citations} onCitation={onCitation} />
                       {t.answer.citations.length > 0 && (
                         <div className="flex flex-wrap gap-1.5">
                           {t.answer.citations.map((c, j) => (
@@ -89,7 +88,7 @@ export function AskPanel({ reports, onCitation }: Props) {
                               variant="outline"
                               render={<button type="button" />}
                               title={c.quote}
-                              className="cursor-pointer hover:bg-muted"
+                              className="cursor-pointer transition-colors hover:border-ring hover:bg-accent hover:text-accent-foreground"
                               onClick={() =>
                                 onCitation
                                   ? onCitation(c.report_id, c.page)
@@ -102,7 +101,7 @@ export function AskPanel({ reports, onCitation }: Props) {
                         </div>
                       )}
                       {t.answer.warnings.map((w) => (
-                        <p key={w} className="flex gap-1.5 text-xs text-amber-700/80">
+                        <p key={w} className="flex gap-1.5 text-xs text-warning">
                           <TriangleAlert className="mt-0.5 size-3 shrink-0" aria-hidden />
                           <span className="break-words">{w}</span>
                         </p>
@@ -115,18 +114,24 @@ export function AskPanel({ reports, onCitation }: Props) {
           </ol>
         )}
 
-        {busy && (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" /> Thinking… local model, 10–40 s
-          </p>
-        )}
+        {busy && <LoadingLine>Thinking… 10–40 s</LoadingLine>}
 
         <div className="space-y-2">
           <div className="flex flex-wrap gap-1.5">
             {EXAMPLES.map((q) => (
-              <Button key={q} size="xs" variant="outline" disabled={busy || ids.length === 0} onClick={() => submit(q)}>
+              <Badge
+                key={q}
+                variant="outline"
+                render={<button type="button" />}
+                aria-disabled={busy || ids.length === 0}
+                onClick={() => {
+                  if (busy || ids.length === 0) return
+                  submit(q)
+                }}
+                className="cursor-pointer transition-colors hover:bg-accent hover:text-accent-foreground aria-disabled:pointer-events-none aria-disabled:opacity-40"
+              >
                 {q}
-              </Button>
+              </Badge>
             ))}
           </div>
           <div className="flex items-end gap-2">
@@ -142,7 +147,7 @@ export function AskPanel({ reports, onCitation }: Props) {
                   submit()
                 }
               }}
-              className="min-h-16 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
+              className="min-h-16 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50"
             />
             <Button onClick={() => submit()} disabled={busy || !question.trim() || ids.length === 0}>
               Ask

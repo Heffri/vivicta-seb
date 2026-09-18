@@ -1,0 +1,107 @@
+{
+ "report_id": "boozt_2025",
+ "company": "Boozt",
+ "fiscal_year": 2025,
+ "currency": "SEK million",
+ "section": "debt_maturity",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 441,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "Lease liabilities",
+   "source": {
+    "page": 121,
+    "quote": "Lease liabilities 441 26 78 273 63 -"
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": null,
+   "unit": null,
+   "period": null,
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": 273,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "Lease liabilities",
+   "source": {
+    "page": 121,
+    "quote": "Lease liabilities 441 26 78 273 63 -"
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": 63,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "Lease liabilities",
+   "source": {
+    "page": 121,
+    "quote": "Lease liabilities 441 26 78 273 63 -"
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "detail": "missing: due_within_1_year"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [121, 122] selected from candidates [121, 122, 108, 98, 139]",
+  "due_within_1_year: 104 is printed on none of pages [121, 122]; dropped as computed, not read"
+ ],
+ "_calls": [
+  "page_select",
+  "extraction"
+ ],
+ "_candidates": [
+  121,
+  122,
+  108,
+  98,
+  139
+ ],
+ "_retry_prompt_fired": false,
+ "_seconds": 80.9
+}

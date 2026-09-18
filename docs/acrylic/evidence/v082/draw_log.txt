@@ -1,0 +1,39 @@
+seed1-7 exclude set size: 62
+seed1-7-overlap skip Öresund (oresund_2025)
+seed1-7-overlap skip Acast (acast_2025)
+picked Egetis Therapeutics -> egetis_therapeutics_2025 report_id=lib-egetis_therapeutics_2025
+picked Viaplay Group -> viaplay_2025 report_id=lib-viaplay_2025
+seed1-7-overlap skip Scandi Standard (scandi_standard_2025)
+picked Enity Holding -> enity_holding_2025 report_id=lib-enity_holding_2025
+picked Modern Times Group -> modern_times_2025 report_id=lib-modern_times_2025
+fetch-fail skip Silex Microsystems: 404 {'detail': 'no annual report found for Silex Microsystems 2025', 'tried': []}
+seed1-7-overlap skip BioInvent International (bioinvent_international_2025)
+seed1-7-overlap skip KABE Group (kabe_2025)
+seed1-7-overlap skip Meren Energy (meren_energy_2025)
+picked Salix Group -> salix_2025 report_id=lib-salix_2025
+picked Tången Industrikapital -> tangen_industrikapital_2025 report_id=lib-tangen_industrikapital_2025
+picked Instalco -> instalco_2025 report_id=lib-instalco_2025
+picked Hexatronic Group -> hexatronic_2025 report_id=lib-hexatronic_2025
+picked Byggmax Group -> byggmax_2025 report_id=lib-byggmax_2025
+picked Bonava -> bonava_2025 report_id=lib-bonava_2025
+picked 10/10 companies
+extract egetis_therapeutics_2025 pass1: status 200 in 82s
+extract egetis_therapeutics_2025 pass2: status 200 in 26s
+extract viaplay_2025 pass1: status 200 in 22s
+extract viaplay_2025 pass2: status 200 in 27s
+extract enity_holding_2025 pass1: status 200 in 141s
+extract enity_holding_2025 pass2: status 200 in 41s
+extract modern_times_2025 pass1: status 200 in 39s
+extract modern_times_2025 pass2: status 200 in 29s
+extract salix_2025 pass1: status 200 in 32s
+extract salix_2025 pass2: status 200 in 43s
+extract tangen_industrikapital_2025 pass1: status 200 in 96s
+extract tangen_industrikapital_2025 pass2: status 200 in 39s
+extract instalco_2025 pass1: status 200 in 43s
+extract instalco_2025 pass2: status 200 in 45s
+extract hexatronic_2025 pass1: status 200 in 31s
+extract hexatronic_2025 pass2: status 200 in 49s
+extract byggmax_2025 pass1: status 200 in 116s
+extract byggmax_2025 pass2: status 200 in 48s
+extract bonava_2025 pass1: status 200 in 73s
+extract bonava_2025 pass2: status 200 in 34s

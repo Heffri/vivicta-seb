@@ -1,0 +1,212 @@
+----- PAGE 64 -----
+The table below shows the movements in the allowance for
+expected credit losses on trade receivables:
+SEK thousand 2025 2024
+Balance 1.1. 15,138 30,046
+Confirmed bad debt loss -1,138 2,022
+Net remeasurement of loss allowance 6,319 -16,929
+Balance 31.12. 20,318 15,138
+Payment patterns vary between the different geographical
+markets but the trade receivables are expected to be paid
+based on historical payment patterns and the fact that
+confirmed bad debt losses have not historically been
+significant. Management does not believe that the group has
+any material credit risk with respect to accounts receivable.
+The company has a customer exposure that exceeds 10% of
+net sales for one customer. However, the risk is considered
+limited, as the counterparty is a platform that generates
+revenue from a number of end customers.
+Credit risk regarding cash and cash equivalents and short-
+term investments
+According to Acast's financial policy, excess cash may only be
+placed in liquid accounts or in short-term (<180 days) low-
+risk interest-bearing instruments issued by the Swedish
+government or Swedish commercial banks.
+On December 31, 2025, the Group's cash and cash
+equivalents amounted to SEK 589,334 thousand and 90%
+were placed in accounts with Swedish commercial banks.
+The table on the right shows deposits grouped by the credit
+rating of the counterparties from Moody's.
+SEK thousand Counterparty credit rating (Moody´s)
+Cash and cash
+equivalents 31.12.2025 31.12.2024 Short term Long term
+P1 / A1 2,343 1,992 P-1 A1
+P-1 / Aa1 29,065 21,392 P-1 Aa1
+P-1 / Aa2 529,872 676,324 P-1 Aa2
+P-2/A3 7,859 2,181 P-2 A3
+P-2/Baa2 1,226.7 — P-2 Baa1
+Other 18,967 11,815 - -
+Total 589,334 713,704
+Group Notes
+ACAST ANNUAL REPORT 2025 64
+
+----- PAGE 65 -----
+Group Notes
+Liquidity risk Carrying amount and fair value, financial instruments
+A consolidated cash flow model is used to identify liquidity needs and benefits that can be achieved by utilizing available funds. Financial assets and financial liabilities are initially
+As shown in note 19 , the Group's cash and cash equivalents consisted almost entirely of bank balances as of December 31, 2025. recognized at amortized cost.
+The table below shows the remaining maturity of the Group's financial liabilities. The financial lease asset relating to the sublease of office
+premises is considered to be a reasonable approximation
+The table below shows undiscounted values. of its fair value. The carrying amount of the current
+financial assets is considered to be a reasonable
+approximation of their fair value. This also applies to
+2025 accounts payable, other liabilities and accrued expenses
+which are also short-term.
+SEK thousand Carrying amount 2026 2027 2028 2029 After 2029 The carrying amounts of the Group's finance lease
+Deferred consideration WMN 6,901 6,901 — — — — liabilities are also considered to be reasonable
+Lease liabilitiies 135,382 36,710 34,980 33,467 21,826 19,250 approximations of their fair values as there has been no
+change in the comparable lease rate since initial
+Trade payables 261,334 261,334 — — — — recognition that would have a material impact on the fair
+Other liabilities 48,323 48,323 — — — — value of the lease liabilities. The deferred payment of the
+purchase price for Wonder Media Network is due in
+Accrued costs 238,846 238,846 — — — — January 2026, and is considered to be a reasonable
+Total 690,785 592,113 34,980 33,467 21,826 19,250 approximation of fair value.
+2024
+SEK thousand Carrying amount 2025 2026 2027 2028 After 2028
+Deferred consideration Podchaser 10,929 11,189 — — — —
+Lease liabilities 141,152 32,511 32,692 32,404 32,404 45,414
+Trade payables 174,727 174,727 — — — —
+Other liabilities 34,568 34,568 — — — —
+Accrued costs 193,995 193,995 — — — —
+Total 555,370 446,990 32,692 32,404 32,404 45,414
+ACAST ANNUAL REPORT 2025 65
+
+----- PAGE 66 -----
+The table below shows the carrying amount of financial assets and liabilities.
+SEK thousand
+Financial assets measured at
+amortized cost
+Financial liabilities
+measured at amortized cost Total carrying amount Dec 31
+Financial assets
+Financial assets 10,195 — 10,195
+Trade receivables 694,983 — 694,983
+Other receivables 35,728 — 35,728
+Accrued income 53,651 — 53,651
+Cash and cash equivalents 589,334 — 589,334
+Total 2025 1,383,890 — 1,383,890
+Financial liabilities
+Deferred consideration WMN — 6,901 6,901
+Trade payables — 261,334 261,334
+Other liabilities — 48,323 48,323
+Accrued costs — 238,846 238,846
+Total 2025 — 555,404 555,404
+Financial assets
+Financial assets 3,021 — 3,021
+Trade receivables 555,575 — 555,575
+Other receivables 11,267 — 11,267
+Accrued income 22,572 — 22,572
+Cash and cash equivalents 713,704 — 713,704
+Total 2024 1,306,139 — 1,306,139
+Financial liabilities
+Deferred consideration Podchaser — 10,929 10,929
+Trade payables — 174,727 174,727
+Other liabilities — 34,568 34,568
+Accrued costs — 193,995 193,995
+Total 2024 — 414,218 414,218
+Group Notes
+ACAST ANNUAL REPORT 2025 66
+
+----- PAGE 67 -----
+Financial instruments measured at fair value
+As of December 31, 2025, the company does not have any
+financial instruments measured at fair value.
+Interest rate risk
+As the Group does not have any significant loans, there is no
+significant interest rate risk to consider.
+Currency risk
+Currency risk is divided into two different types: Transactional
+risk, which arises when the Group invoices customers or pays
+costs in a currency that is not the reporting currency, and
+translation risk, which arises when converting income and
+expenses, assets and liabilities in non-SEK reporting
+currencies, into the Group's reporting currency (SEK).
+As the Group is a multinational company, the Group has
+both transactional and translational foreign currency
+exposures in its main foreign currencies GBP, USD, AUD, EUR,
+NOK, CAD, NZD and MXN. The Group is exposed to
+movements in currency exchange rates for revenue
+transactions in foreign currencies and the translation of net
+assets and profit and loss accounts of foreign subsidiaries.
+The Group seeks to minimize these movements by invoicing
+customers from the respective subsidiaries and paying
+suppliers from bank accounts that have the currency that
+matches that on the invoice. Since the first half of 2025,
+payments to our podcast creators are made to a greater
+extent from the respective subsidiaries to reduce this
+currency risk.
+The Group's main transaction exposure is related to intra-
+group transactions, and cash balances in Acast AB. During the
+second quarter of 2025, the group has updated its accounting
+policy regarding the reporting of its internal loans stemming
+from acquisitions where the parent company provides cash.
+Since settlement of these loans is neither planner nor likely to
+occur in the foreseeable future, they are accounted for in
+accordance with IAS 21 paragraph 15 and paragraph 32. The
+foreign exchange effect on these loans is therefore recognized
+in Other comprehensive income.
+The carrying amount as of December 31, 2025 and a
+sensitivity analysis illustrating the effect of a 10% change in
+GBP and USD respectively have been included.
+As at 31.12.2025
+GBP thousand USD thousand
+Acast AB
+Bank accounts foreign
+currency 1,824 9,030
+Intercompany carrying
+amount 7,817 29,322
+Intercompany carrying
+amount under IAS 21.15 and
+IAS 21.32 — 19,145
+Total 9,642 57,497
+Impact on Profit & Loss
+KSEK 10% gain 12,405 37,329
+KSEK 10% loss -12,405 -37,329
+Impact on Equity
+KSEK 10% gain 11,972 52,905
+KSEK 10% loss -11,972 -52,905
+Assets under management
+The Group has defined total equity as managed capital. Total
+equity for the Group amounted to SEK 1,181,277 thousand as
+of December 31, 2025. The Group was fully financed with
+equity as of December 31, 2025.
+According to the Group's financial policy, Acast intends to
+retain available funds and future revenues to support its
+operations and finance the company's organic and strategic
+growth and development. Acast does not expect to pay
+dividends in the foreseeable future.
+Future decisions on dividends will depend, among other
+things, on the business's financial performance, financial
+position, applicable laws and regulations, cash flows and
+working capital needs.
+The Group is not subject to externally imposed capital
+requirements.
+NOTE 29. LEASES
+This note provides information about leasing where the Group
+is both the lessee and the lessor.
+The balance sheet shows the following items related to
+leasing.
+SEK thousand 31.12.2025 31.12.2024
+Financial assets
+Financial leasing 9,077 —
+Right-of-use assets
+Buildings 116,449 133,277
+Total carrying amount 125,526 133,277
+Lease liabilities
+Current 32,052 23,443
+Non-current 103,330 117,709
+Total lease Liability 135,382 141,152
+Items reported in the income statement:
+SEK thousand 2025 2024
+Gain at sale 1,628 —
+Depreciation of right-of-use
+assets,
+Buildings -28,175 -27,815
+Interest expenses (incl in
+financial
+costs) -10,018 -5,377
+Interest income 293 —
+Total -36,271 -33,193
+Group Notes
+ACAST ANNUAL REPORT 2025 67
+

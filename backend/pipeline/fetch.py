@@ -1,6 +1,15 @@
 """Find + download a company's annual report PDF into data/reports/ (the cache) and register it in index.json.
 Sources, cheapest first: MFN feed (aggregates Cision too) and Nasdaq notices, then the web (DuckDuckGo html) when the
-feeds only carried press releases or ESEF zips (AstraZeneca, Lundin Gold, SkiStar).
+feeds only carried press releases or ESEF zips (AstraZeneca, Lundin Gold, SkiStar). Fourth (v074), only after all of
+those fail and a CLI model provider is configured: the model's own web search, asked for official annual-report PDF
+links for foreign companies the Swedish feeds never carry (Nestlé, Siemens, Shell ...). Fifth (v080), only after all
+of those fail too: crawl any page-shaped leftover from the earlier attempts -- a model reply that names the issuer's
+IR page instead of a direct PDF, a DDG hit that served a page, or the guessed investor-relations path for the domain
+of a direct link that 404d (Shell's stale asset-store URL) -- one hop deep, for the report PDF itself. If that still
+finds nothing, one more model call (v081) asks only for the IR/annual-report-archive page itself (never a PDF link),
+fed into the same crawl -- at most two model calls total. The fourth source also downloads every one of its own
+candidates rather than stopping at the first that validates, and keeps the most complete one, since the model is
+now asked to prefer the full report over a summary/highlights volume.
 CLI: python -m pipeline.fetch "Boliden" 2025"""
 import datetime as dt
 import io
@@ -16,8 +25,8 @@ from pathlib import Path
 
 import pymupdf as fitz
 
-REPORTS = Path(__file__).resolve().parents[2] / "data" / "reports"
-INDEX = REPORTS / "index.json"
+from . import llm, paths
+
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36"}
 MAX_TRIES = 6
 NOT_AR = re.compile(r"general meeting|st[äa]mma|notice|kallelse|nomination|valberedning|20-f|interim|delårs|quarter", re.I)
@@ -25,6 +34,141 @@ IS_AR = re.compile(r"annual|årsredovisning|års- och", re.I)
 # a PDF that is not *the* annual report even though the search matched: Nordea's Pillar 3 report, AGM decks, quarterlies
 BAD_URL = re.compile(r"interim|q[1-4]\b|quarter|delars|half-?year|risk|pillar|remuneration|ersattning|sustainab|hallbarhet|governance|bolagsstyrning|presentation|agm|stamma|prospect", re.I)
 NOT_REPORT = re.compile(r"capital and risk management|pillar 3|remuneration report|sustainability (report|statement)|corporate governance report|prospectus|interim report|half-year|year-end report|bokslutskommunik", re.I)
+
+# ---- fourth source (v074): the model's own web search, after feeds + crawl + DDG are exhausted ----
+
+MAX_MODEL_CANDIDATES = 3  # each one still goes through the same download + validation as every other source
+SEARCH_SCHEMA = {  # codex/claude ignore the schema (llm.py); it states the reply shape the prompt asks for
+    "type": "object",
+    "properties": {"candidates": {"type": "array", "items": {"type": "object", "properties": {
+        "url": {"type": "string"}, "title": {"type": "string"}, "reason": {"type": "string"}}}}},
+    "required": ["candidates"],
+}
+SEARCH_SYSTEM = (
+    "You are locating a company's official annual report PDF using web search. Reply with JSON only, no prose: "
+    '{"candidates": [{"url": "https://...", "title": "...", "reason": "..."}]}. '
+    "Rules: at most 3 candidates, best first; every URL must be a direct link to the annual report PDF itself for "
+    "the stated fiscal year, hosted on the company's own investor-relations site or an official regulatory filing "
+    "repository; exclude ESEF/xBRL zip packages, interim or quarterly reports, sustainability, remuneration, "
+    "governance or capital-markets reports, and press releases. Prefer the complete annual report (the full "
+    "document), not a summary, highlights, at-a-glance, or annual review excerpt. If you cannot find a direct PDF "
+    "link, a URL for the company's investor-relations or annual-report page is also acceptable."
+)
+# ---- second ask (v081): only after every fourth-source candidate and the fifth source's generic IR-path
+# guesses have both failed -- ask once more, this time only for the IR/annual-report-archive page itself ----
+MAX_IR_PAGE_CANDIDATES = 2
+IR_PAGE_SYSTEM = (
+    "A direct link to the company's official annual report PDF could not be found or downloaded. Reply with JSON "
+    'only, no prose: {"candidates": [{"url": "https://...", "title": "...", "reason": "..."}]}. '
+    "Rules: at most 2 candidates, best first; every URL must be an HTML page, never a PDF, on the company's own "
+    "site -- its investor-relations page or its annual-report archive/library page -- from which the official "
+    "annual report PDF for the stated fiscal year can be reached."
+)
+# the complete-report preference (v081): Nestle's real Annual Review is 67p, well under this floor; a summary/
+# highlights/at-a-glance/short/in-brief excerpt is accepted only when nothing among the candidates clears it
+FULL_REPORT_MIN_PAGES = 80
+SUMMARY_WORDS = re.compile(r"\bsummary\b|highlights|at[-_ ]a[-_ ]glance|\bshort\b|in[-_ ]brief", re.I)
+
+
+def websearch_provider() -> "str | None":
+    """The CLI provider a model search may use, or None: only codex/claude have a web-search tool
+    (llm.web_lookup raises for anything else), so an openai/fixture backend never reaches level 4."""
+    try:
+        p = llm.provider()
+    except ValueError:
+        return None
+    return p if p in ("codex", "claude") else None
+
+
+def _filename_clear(label, *patterns):
+    """True if none of `patterns` (BAD_URL, NOT_REPORT) should reject `label`, once a hit in its last
+    path segment -- the actual filename -- is treated as decisive: a hit *earlier* in the path is
+    ignored when the filename itself names an annual report (IS_AR) and is not itself flagged (Shell's
+    real annual-report PDF sits under a "sustainability/reporting-centre" IR section; BAD_URL's
+    "sustainab" term matches that section name, not the file, which is plainly shell-annual-report-
+    2025.pdf). A hit *in* the filename itself (interim-q3.pdf) still rejects outright, wherever it sits."""
+    fname = label.rsplit("/", 1)[-1].split("?", 1)[0]
+    if any(p.search(fname) for p in patterns):
+        return False
+    if IS_AR.search(fname):
+        return True
+    return not any(p.search(label) for p in patterns)
+
+
+def _model_candidates(company, year, country=None, hint=None):
+    """Ask the model for official annual-report PDF links. (urls, note): at most MAX_MODEL_CANDIDATES
+    cleaned URLs, best first, plus a short note for the eventual 404 detail -- the model being
+    unavailable or replying with something unparseable is not the same thing as "no links found"."""
+    user = f"Company: {company}\nFiscal year: {year}"
+    if country:
+        user += f"\nCountry: {country}"
+    if hint:
+        user += f"\nHint: {hint}"
+    try:
+        data = json.loads(llm.web_lookup(SEARCH_SYSTEM, user, SEARCH_SCHEMA))
+    except Exception as e:  # the CLI's RuntimeError, a timeout, or bad JSON -- one clear note either way
+        print(f"model search failed: {e}")
+        return [], f"model search ({llm.provider()}) failed: {str(e)[:200]}"
+    urls = []
+    for c in (data.get("candidates") or [])[:MAX_MODEL_CANDIDATES]:
+        u = str(c.get("url", "")).strip() if isinstance(c, dict) else ""
+        if not u.startswith(("http://", "https://")) or not _filename_clear(u, BAD_URL):
+            print(f"model candidate dropped: {u!r}")  # not a direct link, or an interim/risk/AGM URL by name
+            continue
+        urls.append(u)
+        # models hand back percent-encoded paths (Siemens' asset API: uuid%3A... -> 400s); the decoded
+        # twin is a free second try for servers that only accept the raw characters
+        if (dec := urllib.parse.unquote(u)) != u and _filename_clear(dec, BAD_URL):
+            urls.append(dec)
+    return urls, None
+
+
+def _ir_page_candidates(company, year, country=None, hint=None):
+    """The second model ask (v081): (urls, note) like _model_candidates, but only ever called once
+    every fourth-source candidate and the fifth source's own generic IR-path guesses have already
+    failed, asking this time only for the company's IR/annual-report-archive page -- never a PDF --
+    so v080's crawl (_ir_page_report) has a page the model actually named instead of only a guessed
+    generic path. At most MAX_IR_PAGE_CANDIDATES URLs; a candidate that is itself a PDF is dropped,
+    since that is exactly what the first ask already tried and failed at."""
+    user = f"Company: {company}\nFiscal year: {year}"
+    if country:
+        user += f"\nCountry: {country}"
+    if hint:
+        user += f"\nHint: {hint}"
+    try:
+        data = json.loads(llm.web_lookup(IR_PAGE_SYSTEM, user, SEARCH_SCHEMA))
+    except Exception as e:
+        print(f"model IR-page search failed: {e}")
+        return [], f"IR-page search ({llm.provider()}) failed: {str(e)[:200]}"
+    urls = []
+    for c in (data.get("candidates") or [])[:MAX_IR_PAGE_CANDIDATES]:
+        u = str(c.get("url", "")).strip() if isinstance(c, dict) else ""
+        if not u.startswith(("http://", "https://")) or u.lower().split("?", 1)[0].endswith(".pdf"):
+            print(f"model IR-page candidate dropped: {u!r}")  # not a link, or a PDF instead of a page
+            continue
+        urls.append(u)
+    return urls, None
+
+
+def _label_clean(url):
+    """True unless the URL's own filename reads like a summary/highlights/at-a-glance/short/in-brief
+    excerpt (v081) -- the model's title isn't kept past this call, so the filename is what's left to
+    check once every candidate has already downloaded and validated as a real annual report."""
+    fname = url.rsplit("/", 1)[-1].split("?", 1)[0]
+    return not SUMMARY_WORDS.search(fname)
+
+
+def _is_full_report(url, pages):
+    """The complete-report bar itself (v081): both the page-count floor and a clean filename."""
+    return pages >= FULL_REPORT_MIN_PAGES and _label_clean(url)
+
+
+def _best_model_candidate(hits):
+    """hits: (url, data, text, pages) for every model candidate that downloaded and validated.
+    Rank by (clears the full-report bar, a clean filename, page count) and take the first -- a
+    summary volume is only kept when nothing in `hits` clears the bar (Nestle's real Annual Review,
+    67p with an otherwise clean filename, is exactly that case)."""
+    return max(hits, key=lambda h: (h[3] >= FULL_REPORT_MIN_PAGES, _label_clean(h[0]), h[3]))
 
 
 def _get(url, timeout=60):
@@ -255,8 +399,16 @@ def _validate(data, company, year):
     return doc, text
 
 
-def _load_index():
-    return json.loads(INDEX.read_text(encoding="utf-8")) if INDEX.exists() else []
+def _load_index(dest_dir: Path) -> list:
+    p = dest_dir / "index.json"
+    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else []
+
+
+_IR_PATHS = ("/investor-relations/annual-report.html", "/investor-relations.html", "/en/investors", "/investors", "/")
+
+
+def _ir_guesses(hosts):
+    return [f"https://{h}{path}" for h in hosts for path in _IR_PATHS]
 
 
 def _stub_pages(data, toks):
@@ -273,18 +425,139 @@ def _stub_pages(data, toks):
         netloc = (urllib.parse.urlparse(m if "://" in m else "https://" + m).netloc or m).lower()
         if any(t in netloc for t in toks):
             hosts.add(netloc)
-    return [f"https://{h}{path}" for h in hosts for path in
-            ("/investor-relations/annual-report.html", "/investor-relations.html", "/en/investors", "/investors", "/")]
+    return _ir_guesses(hosts)
 
 
-def fetch_report(company: str, year: int, dest_dir=REPORTS) -> dict:
-    dest_dir = Path(dest_dir)
+# ---- fifth source (v080): crawl a page-shaped leftover from levels 1-4 for the report PDF, one hop deep ----
+
+MAX_CRAWL_SEEDS = 4        # candidate pages to start a crawl from
+MAX_CRAWL_CANDIDATES = 8   # harvested PDF links actually downloaded + validated
+CRAWL_TIMEOUT = 20         # seconds, per HTTP GET (a page, a hop, or a candidate PDF)
+CRAWL_BUDGET = 90          # seconds, wall-clock across the whole fifth-source attempt
+
+
+def _host_guesses(url, toks):
+    """IR-page path guesses for the domain of a direct link that failed outright (Shell's expired asset-store
+    URL): the same guesses _stub_pages makes from a stub PDF's own text, seeded from the dead URL's own host."""
+    netloc = urllib.parse.urlparse(url).netloc.lower()
+    return _ir_guesses({netloc}) if netloc and any(t in netloc for t in toks) else []
+
+
+def _ir_links(page_url, html, year):
+    """.pdf links on a page that pass the same IS_AR/BAD_URL/NOT_REPORT gate as every other source, scored by
+    year + annual-report wording + same-domain-as-the-page (issuers usually host the PDF next to the page that
+    links it). Page count -- what actually separates a summary volume from the full report -- only exists once
+    a candidate is downloaded; the caller compares that across every harvested survivor."""
+    domain = urllib.parse.urlparse(page_url).netloc
+    out = {}
+    for href, text in re.findall(r'href="([^"]+)"[^>]*>(.*?)</a>', html, re.I | re.S):
+        if ".pdf" not in href.lower():
+            continue
+        u = urllib.parse.urljoin(page_url, href)
+        label = (u + " " + re.sub(r"<[^>]+>", " ", text)).lower()
+        if not IS_AR.search(label) or not _filename_clear(label, BAD_URL, NOT_REPORT):
+            continue
+        out[u] = 2 * (str(year) in label) + bool(re.search(r"annual report|annual review|rsredovisning", label)) \
+            + (urllib.parse.urlparse(u).netloc == domain)
+    return out
+
+
+def _crawl_ir_page(start_url, year, deadline):
+    """Links scored for a single page, then -- only when the page itself carries nothing -- one hop into
+    same-domain sub-pages that read like a reports/investor-relations index (a landing page one click above
+    the actual per-year report link)."""
+    domain = urllib.parse.urlparse(start_url).netloc
+    try:
+        html = _get(start_url, timeout=CRAWL_TIMEOUT).decode("utf-8", "ignore")
+    except Exception as e:
+        return {}, f"IR page crawl {start_url} -> {e}"
+    found = _ir_links(start_url, html, year)
+    if found or time.time() > deadline:
+        return found, None
+    hops = []
+    for href, text in re.findall(r'href="([^"]+)"[^>]*>(.*?)</a>', html, re.I | re.S):
+        u = urllib.parse.urljoin(start_url, href)
+        if ".pdf" in u.lower() or urllib.parse.urlparse(u).netloc != domain or u in hops:
+            continue
+        if re.search(r"annual.?report|investor|\bir\b|rsredovisning", u + " " + text, re.I):
+            hops.append(u)
+    for page in hops[:3]:
+        if time.time() > deadline:
+            break
+        try:
+            html2 = _get(page, timeout=CRAWL_TIMEOUT).decode("utf-8", "ignore")
+        except Exception as e:
+            print(f"IR page crawl hop {page} -> {e}")
+            continue
+        found.update(_ir_links(page, html2, year))
+    return found, None
+
+
+def _ir_page_report(seeds, company, year, tried):
+    """Fifth source (v080): crawl candidate IR/report pages for the report PDF itself, at most one hop deep.
+    Every harvested link still runs the full download+validate chain, appended to `tried` like every other
+    candidate; unlike the earlier sources (first validated survivor wins) this one downloads every harvested
+    candidate within budget and keeps the one with the most pages, because the page linking a summary volume
+    often links the full report right next to it (Nestlé's Annual Review vs. its actual Annual Report)."""
+    deadline = time.time() + CRAWL_BUDGET
+    ranked = {}
+    for page in seeds[:MAX_CRAWL_SEEDS]:
+        if time.time() > deadline:
+            break
+        found, err = _crawl_ir_page(page, year, deadline)
+        if err:
+            print(err)
+            continue
+        for u, sc in found.items():
+            if u in ranked:
+                continue
+            ranked[u] = sc
+            if (dec := urllib.parse.unquote(u)) != u and dec not in ranked:
+                ranked[dec] = sc  # the same %-decoded-twin trick as the model candidates (v074)
+    ordered = [u for u, _ in sorted(ranked.items(), key=lambda x: -x[1])][:MAX_CRAWL_CANDIDATES]
+    best = None
+    for url in ordered:
+        if time.time() > deadline:
+            break
+        tried.append(url)
+        t0 = time.time()
+        try:
+            data = _unzip(_get(url, timeout=CRAWL_TIMEOUT))
+            doc, text = _validate(data, company, year)
+        except Exception as e:
+            print(f"{url} -> {e}")
+            continue
+        if not doc:
+            print(f"{url} -> {text}")
+            continue
+        print(f"{url} -> ok ({doc.page_count} pages, {time.time() - t0:.0f}s, IR page crawl)")
+        if not best or doc.page_count > best[3]:
+            best = (url, data, text, doc.page_count)
+    return best[:3] if best else None
+
+
+def _entry(fname, company, year, url, text, note=None, tags=("fetched",)):
+    low = text.lower()
+    return {"file": fname, "company": company, "fiscal_year": year,
+            "language": "sv" if low.count("årsredovisning") > low.count("annual report") else "en",
+            "source_url": url, "tags": list(tags), "note": note, "fetched_at": dt.date.today().isoformat()}
+
+
+def _write_index(dest_dir, index):
+    s = json.dumps(index, ensure_ascii=False, indent=2)
+    s = re.sub(r'\[\s+("[^\]]*?")\s+\]', lambda m: "[" + re.sub(r",\s+", ", ", m.group(1)) + "]", s)  # tags on one line
+    (dest_dir / "index.json").write_text(s + "\n", encoding="utf-8")
+
+
+def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, country: "str | None" = None, hint: "str | None" = None) -> dict:
+    """country/hint (v074) only feed the fourth source's prompt; levels 1-3 are name-driven already."""
+    dest_dir = Path(dest_dir) if dest_dir is not None else paths.reports_dir()
     fname = f"{slugify(company)}_{year}.pdf"
-    index = _load_index()
+    index = _load_index(dest_dir)
     for e in index:  # cache hit
         if e["file"] == fname and (dest_dir / fname).exists():
             return {**e, "tried": []}
-    tried, toks, stub_pages = [], _toks(company), []
+    tried, toks, stub_pages, page_seeds = [], _toks(company), [], []
     candidates = list(_candidates(company, year))
     i = 0
     while i < len(candidates):
@@ -297,11 +570,14 @@ def fetch_report(company: str, year: int, dest_dir=REPORTS) -> dict:
             doc, text = _validate(data, company, year)
         except Exception as e:
             print(f"{url} -> {e}")
+            page_seeds += [u for u in _host_guesses(url, toks) if u not in page_seeds]  # a dead link: guess its own IR page (v080)
             continue
         if not doc:
             print(f"{url} -> {text}")
             if data.startswith(b"%PDF"):  # not a download error: a page an RNS-style notice may name its own site on
                 stub_pages += [u for u in _stub_pages(data, toks) if u not in stub_pages]
+            elif url not in page_seeds:  # a page, not a PDF (a DDG hit that served an IR page): crawl it (v080)
+                page_seeds.append(url)
             if i == len(candidates) and stub_pages:  # every direct candidate failed: try the issuer's own site (AstraZeneca)
                 candidates += [u for u in _harvest(stub_pages, year) if u not in candidates]
                 stub_pages = []
@@ -309,16 +585,74 @@ def fetch_report(company: str, year: int, dest_dir=REPORTS) -> dict:
         print(f"{url} -> ok ({doc.page_count} pages, {time.time() - t0:.0f}s)")
         dest_dir.mkdir(parents=True, exist_ok=True)
         (dest_dir / fname).write_bytes(data)
-        low = text.lower()
-        entry = {"file": fname, "company": company, "fiscal_year": year,
-                 "language": "sv" if low.count("årsredovisning") > low.count("annual report") else "en",
-                 "source_url": url, "tags": ["fetched"], "note": None, "fetched_at": dt.date.today().isoformat()}
+        entry = _entry(fname, company, year, url, text)
         index = [e for e in index if e["file"] != fname] + [entry]
-        s = json.dumps(index, ensure_ascii=False, indent=2)
-        s = re.sub(r'\[\s+("[^\]]*?")\s+\]', lambda m: "[" + re.sub(r",\s+", ", ", m.group(1)) + "]", s)  # tags on one line
-        INDEX.write_text(s + "\n", encoding="utf-8")
+        _write_index(dest_dir, index)
         return {**entry, "tried": tried}
-    raise LookupError(tried)
+    # fourth source: only now, with every feed and web candidate exhausted, and only when the
+    # configured provider actually has a web-search tool (websearch_provider's codex/claude gate).
+    model_note = None
+    if p := websearch_provider():
+        urls, model_note = _model_candidates(company, year, country, hint)
+        hits = []  # (url, data, text, pages) for every candidate that downloads + validates (v081: rank, don't stop at the first)
+        for url in urls:
+            if url in tried:
+                continue
+            tried.append(url)
+            t0 = time.time()
+            try:
+                data = _unzip(_get(url))
+                doc, text = _validate(data, company, year)
+            except Exception as e:
+                print(f"{url} -> {e}")
+                page_seeds += [u for u in _host_guesses(url, toks) if u not in page_seeds]  # a dead link: guess its own IR page (v080)
+                continue
+            if not doc:  # no stub-page harvest here: the model was asked for direct PDF links only
+                print(f"{url} -> {text}")
+                if not data.startswith(b"%PDF") and url not in page_seeds:  # the model named a page, not a PDF (v080)
+                    page_seeds.append(url)
+                continue
+            print(f"{url} -> ok ({doc.page_count} pages, {time.time() - t0:.0f}s)")
+            hits.append((url, data, text, doc.page_count))
+        if hits:
+            # v081: prefer the complete report over a summary volume when more than one candidate
+            # validated; accept a summary only when nothing among them clears the full-report bar
+            url, data, text, pages = _best_model_candidate(hits)
+            note = f"model search ({p})" if _is_full_report(url, pages) else f"model search ({p}); summary volume"
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            (dest_dir / fname).write_bytes(data)
+            entry = _entry(fname, company, year, url, text, note=note, tags=["fetched", "foreign"])
+            index = [e for e in index if e["file"] != fname] + [entry]
+            _write_index(dest_dir, index)
+            return {**entry, "tried": tried}
+    # fifth source (v080): only now, with feeds/web/model all exhausted, crawl whatever page-shaped
+    # leftovers those attempts produced (an IR page the model named directly, a DDG hit that served a
+    # page instead of a PDF, or the guessed IR path for a direct link's own domain after it 404d).
+    if page_seeds and (found := _ir_page_report(page_seeds, company, year, tried)):
+        url, data, text = found
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        (dest_dir / fname).write_bytes(data)
+        entry = _entry(fname, company, year, url, text, note="IR page crawl", tags=["fetched", "foreign"])
+        index = [e for e in index if e["file"] != fname] + [entry]
+        _write_index(dest_dir, index)
+        return {**entry, "tried": tried}
+    # second ask (v081): only now, with the fourth source's direct links AND the fifth source's own
+    # generic IR-path guesses both exhausted, ask the model once more -- this time only for the IR/
+    # annual-report-archive page itself -- and crawl it the same way (at most 2 model calls total).
+    if p:
+        ir_urls, ir_note = _ir_page_candidates(company, year, country, hint)
+        new_seeds = [u for u in ir_urls if u not in page_seeds]
+        if new_seeds and (found := _ir_page_report(new_seeds, company, year, tried)):
+            url, data, text = found
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            (dest_dir / fname).write_bytes(data)
+            entry = _entry(fname, company, year, url, text, note="IR page crawl", tags=["fetched", "foreign"])
+            index = [e for e in index if e["file"] != fname] + [entry]
+            _write_index(dest_dir, index)
+            return {**entry, "tried": tried}
+        if ir_note:
+            model_note = f"{model_note}; {ir_note}" if model_note else ir_note
+    raise LookupError(tried, model_note)
 
 
 if __name__ == "__main__":

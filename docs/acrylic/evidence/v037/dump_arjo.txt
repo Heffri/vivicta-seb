@@ -1,0 +1,302 @@
+----- PAGE 108 -----
+16 Inventories
+Accounting policies
+Inventories are valued at the lower of cost on a first-in, first-out (FIFO)
+basis and the net realizable value. Inventories include a share of indi­
+rect costs related to this. The value of finished products includes raw
+materials, direct work, other direct costs and production-related
+expenses including depreciation. The net realizable value is calculated
+as the estimated sales price less estimated completion and selling
+expenses.
+Significant estimates and assumptions
+Obsolescence reserve: An assessment of obsolescence in inventories
+is conducted on an ongoing basis during the year. The value of invento­
+ries is adjusted for the estimated decrease in value attributable to
+products no longer sold, surplus inventories, physical damage, lead
+times for inventories, and handling and sales overheads. If the net real­
+izable value is lower than the cost, a valuation reserve is established
+for inventory obsolescence.
+SEK M 2025 2024
+Raw materials 560 646
+Work in progress 72 64
+Finished products 545 679
+Total 1,177 1,388
+Of the Group’s inventories, SEK 1,177 M (1,388) is measured at cost and
+SEK 0 M (0) at net realizable value. At December 31, 2025, the Group’s provi­
+sions for obsolescence totaled SEK 111 M (127).
+17 Accounts receivable
+Accounting policies
+For accounting policies, see Note 28 Financial instruments.
+SEK M 2025 2024
+Accounts receivable before provisions 1,679 1,869
+Provisions for doubtful receivables –62 –71
+Total 1,617 1,798
+Accounts receivable net, after provisions for expected credit losses, theoreti­
+cally constitutes the maximum exposure for the calculated risk of losses. It is
+the Group’s opinion that there is no significant concentration of accounts
+receivable to any single client.
+A maturity analysis of accounts receivable is presented below:
+SEK M 2025 2024
+Not fallen due 1,149 1,273
+Fallen due 1–5 days 123 116
+Fallen due 6–30 days 139 165
+Fallen due 31–60 days 92 146
+Fallen due 61–90 days 63 49
+Fallen due, more than 90 days 113 120
+Total 1,679 1,869
+At December 31, 2025, the Group’s provisions for expected credit losses
+totaled SEK –62 M (–71). A maturity analysis of these accounts receivable
+is presented below:
+SEK M 2025 2024
+Not fallen due –6 –7
+Fallen due 1–5 days 0 0
+Fallen due 6–30 days –3 –3
+Fallen due 31–60 days –1 –1
+Fallen due 61–90 days –1 –5
+Fallen due, more than 90 days –50 –56
+Total –62 –71
+Recognized amounts, by currency, for the Group’s accounts receivable
+are as follows:
+SEK M 2025 2024
+EUR 520 522
+USD 503 572
+GBP 196 242
+CAD 189 249
+SEK 8 8
+Other currencies 261 277
+Total 1,679 1,869
+Changes in provisions for expected credit losses are as follows:
+SEK M 2025 2024
+At beginning of the year –71 –64
+Provision for expected losses –18 –13
+Confirmed losses 8 –1
+Payment made for reserved receivable 12 10
+Translation differences 8 –3
+Amount at year-end –62 –71
+18 Prepaid expenses and
+accrued income
+SEK M 2025 2024
+Accrued income 63 125
+IT expenses 73 67
+Insurance expenses 25 34
+Bank charges 15 17
+Leasing expenses 14 15
+Other 82 83
+Total 272 343
+17 ACCOUNTS RECEIVABLE, CONT.
+106 ARJO 2025 ANNUAL AND SUSTAINABILITY REPORT
+OVERVIEW STRATEGY RISKS CORPORATE GOVERNANCE SUSTAINABILITY FINANCIALS
+NOTES FOR THE GROUP
+
+----- PAGE 109 -----
+19 Shareholders’ equity
+Specification of other reserves
+Hedge reserve Translation reserve
+Hedges of
+net investments Total
+SEK M 2025 2024 2025 2024 2025 2024 2025 2024
+Opening balance –2 — 1,993 1,450 –184 –135 1,807 1,315
+Change for the year 8 –2 — — 101 –62 109 –64
+Tax attributable to items that can be –2 1 70 –42 –21 13 48 –28
+restated in profit
+Translation difference for the year — — –1,131 585 — — –1,131 585
+Closing balance 5 –2 932 1,993 –104 –184 832 1,807
+In accordance with the Articles of Association, the company’s share capital
+amounts to not less than SEK 75 M and not more than SEK 300 M. Within
+these limits, the share capital can be raised or lowered without requiring an
+amendment to the Articles of Association. The maximum number of shares
+is 600 million. One series A share carries ten votes and one series B share
+­carries one vote.
+The registered share capital in Arjo AB (publ) amounted to SEK 90,789,858 on
+December 31, 2025, distributed over 272,369,573 shares with a quotient value
+of SEK 0.33 per share for both classes of shares. All shares are fully paid up.
+A dividend of SEK 258,751,094 (SEK 0.95 per share) was paid in 2025. The
+proposed dividend for 2026 amounts to SEK 258,751,094 (SEK 0.95 per share).
+Class of shares A B Total
+Quotient value per share 0.33 0.33
+December 31, 2024 18,217,200 254,152,373 272,369,573
+December 31, 2025 18,217,200 254,152,373 272,369,573
+Shares’ voting rights in % 41.8 58.2 100
+20 Consolidated interest-bearing net debt
+The Group’s interest-bearing net debt is presented in the table.
+Contracted, unutilized overdraft facilities totaled SEK 5,319 M (4,827) on
+December 31, 2025 of which, SEK 842 M (1,944) comprised back-up for the
+commercial paper program. There are also granted, unutilized overdraft facili­
+ties of SEK 197 M (204).
+Non-cash items
+SEK M Jan 1, 2025 Cash flows
+Other
+non-cash items
+Exchange rate
+differences Dec 31, 2025
+Non-current and current financial liabilities 4,139 49 3 –104 4,087
+Non-current and current lease liabilities 1,279 –449 574 –137 1,266
+Provisions for pensions, interest-bearing 36 1 –1 –2 34
+Total interest-bearing liabilities 5,453 –399 575 –242 5,387
+Non-current and current financial assets –141 60 –10 10 –82
+Pension assets –229 –9 –2 25 –214
+Cash and cash equivalents –892 0 — 56 –836
+Total interest-bearing assets –1,262 52 –12 91 –1,132
+Net interest-bearing liabilities 4,191 –347 563 –152 4,255
+Non-cash items
+SEK M Jan 1, 2024 Cash flows
+Other
+non-cash items
+Exchange rate
+differences Dec 31, 2024
+Non-current and current financial liabilities 4,325 –336 69 80 4,139
+Non-current and current lease liabilities 1,161 –431 486 63 1,279
+Provisions for pensions, interest-bearing 31 2 2 1 36
+Total interest-bearing liabilities 5,517 –765 557 144 5,453
+Non-current and current financial assets –91 17 –63 –5 –141
+Pension assets –183 –7 –21 –17 –229
+Cash and cash equivalents –923 26 — 5 –892
+Total interest-bearing assets –1,197 36 –84 –17 –1,262
+Net interest-bearing liabilities 4,320 –729 473 128 4,191
+ARJO 2025 ANNUAL AND SUSTAINABILITY REPORT 107
+OVERVIEW STRATEGY RISKS CORPORATE GOVERNANCE SUSTAINABILITY FINANCIALS
+NOTES FOR THE GROUP
+
+----- PAGE 110 -----
+21 Other provisions
+Accounting policies
+Provisions are recognized when Arjo has a legal or informal obligation as a result of past events and it is probable that payment will be required
+to fulfill the commitment and if a reliable estimation can be made of the amount to be paid. Restructuring measures, guarantee commitments and
+similar items are recognized in the balance sheet. Provisions are reviewed at the end of each accounting period. For information about restructur­
+ing costs, refer to Note 5 Exceptional items.
+SEK M Restructuring Guarantees Personnel Other Total
+Value according to opening balance 2025 16 28 16 76 136
+Provisions 14 12 4 38 68
+Used amount –9 –13 –4 –19 –46
+Unutilized funds restored 0 –1 0 –5 –6
+Translation differences –1 –3 –1 –6 –11
+Value according to closing balance 2025 19 23 15 84 142
+Of which, current provisions 19 21 8 9 56
+Of which, non-current provisions — 3 7 76 85
+Value according to opening balance 2024 17 30 16 63 126
+Provisions 14 19 2 29 64
+Used amount –15 –21 –3 –18 –57
+Unutilized funds restored 0 –1 0 –1 –2
+Translation differences 1 1 0 3 6
+Value according to closing balance 2024 16 28 16 76 136
+Of which, current provisions 16 23 9 13 61
+Of which, non-current provisions — 5 7 64 76
+Expected timing of outflow:
+SEK M 2025 2024
+Within 1 year 56 61
+Within 3 years 34 12
+Within 5 years 10 29
+> 5 years 40 34
+Total 142 136
+22 Provisions for pensions and similar obligations
+Accounting policies
+Pension commitments: Arjo has both defined-contribution and defined-benefit
+pension plans, of which some have assets in special funds or similar securities.
+The plans are usually financed by payments from the respective Group compa­
+nies and the employees. Arjo’s Swedish companies are generally covered by the
+ITP plan, which does not require any payments from employees.
+Defined-benefit plans: Pension expenses for defined-benefit plans are calculated
+using the Projected Unit Credit Method in a manner that distributes expenses
+over the employee’s working life. The calculation is performed annually by inde­
+pendent actuaries. These commitments are measured at the present value of
+expected future payments, with consideration for calculated future salary
+increases, utilizing a discount rate corresponding to the interest rate of first-
+class company or government bonds with a remaining term that is almost equiv­
+alent to the actual commitments. Arjo’s net liabilities for each defined-benefit
+plan (which is also recognized in the balance sheet), comprises the present value
+of the obligation less the fair value of the plan assets. If the value of the plan
+assets exceeds the value of the obligation, a surplus arises, which is recognized
+as an asset. The actuarial assumptions constitute the company’s best assess­
+ment of the different variables that determine the costs of providing the benefits.
+Arjo has defined-benefit pension plans in Sweden, Germany, the UK and Italy.
+The pension plans primarily comprise retirement pensions. Each employer nor­
+mally has an obligation to pay a lifelong pension. Vesting is based on the number
+of years of service. The employee must be affiliated with the plan for a certain
+number of years to achieve full retirement pension entitlement.
+Defined-contribution plans: Defined-contribution plans are plans in which the
+Group pays fixed fees to a separate legal entity, for example, an insurance com­
+pany, and does not have any legal or informal obligation to pay additional fees.
+In many countries, Arjo’s employees are covered by defined-contribution pen­
+sion plans. The pension plans primarily include retirement pensions. Payments
+for defined-contribution plans are normally based on a certain portion of the
+employee’s salary and are recognized as expenses during the period in which
+the employees perform the services that the fee covers.
+The part of the Swedish ITP plan concerning family pension, disability pen­
+sion, and employment group life insurance financed by insurance with Alecta is
+a defined-benefit pension multi-employer plan. For this pension scheme, accord­
+ing to IAS 19, a company is primarily to recognize its proportionate share of the
+defined-benefit pension commitment and the plan assets and expenses associ­
+ated with the pension plan. The financial statements are also to include disclo­
+sures required for defined-benefit pension plans. Alecta is currently unable to
+provide the necessary information and therefore the above pension plans are
+recognized as defined-contribution plans in accordance with item 30 of IAS 19.
+This means that premiums paid to Alecta will also be recognized on an ongoing
+basis as expenses in the period to which they pertain.
+Significant estimates and assumptions
+Pension commitments: Recognition of the expenses for defined-benefit pensions
+and other applicable retirement benefits is based on actuarial valuations, relying
+on assumptions for discount rates, future salary increases and expected inflation.
+In turn, the discount rate assumptions are based on rates for high-quality fixed
+interest investments with durations similar to the pension plans.
+108 ARJO 2025 ANNUAL AND SUSTAINABILITY REPORT
+OVERVIEW STRATEGY RISKS CORPORATE GOVERNANCE SUSTAINABILITY FINANCIALS
+NOTES FOR THE GROUP
+
+----- PAGE 111 -----
+OVERVIEW STRATEGY RISKS CORPORATE GOVERNANCE SUSTAINABILITY FINANCIALS
+NOTES FOR THE GROUP
+22 PROVISIONS FOR PENSIONS AND SIMILAR OBLIGATIONS, CONT.
+Specification of net value of defined-benefit commitments: Sensitivity of defined-benefit commitments to changes in the
+2025, SEK M 2024, SEK M ­significant assumptions, UK
+Funded Unfunded Funded Unfunded Expected
+pension plans pension plans Total pension plans pension plans Total value of Change compared
+pension with used calculation
+Present value of commitments –1,377 –34 –1,411 –1,587 –36 –1,623 2025, SEK M commitments assumptions
+Fair value of plan assets 1,592 — 1,592 1,816 — 1,816 Pension commitments accord­ –1,330
+Net asset/liability in the balance sheet 214 –34 181 229 –36 193 ing to original valuation
+Discount rate –1,181 149
++1 percentage point
+SEK M 2025 2024 The defined-benefit pension commitment and composition Inflation +1 percentage point –1,429 –99
+of plan assets
+Pension commitments The sensitivity analyses above are based on a change in one assumption, while
+Present Net provision/
+Opening balance –1,623 –1,658 value of Fair value of net receivable all other assumptions remain constant. It is unlikely that this will happen in
+Costs for service in the current year –3 –3 2025, SEK M commitments plan assets pensions practice, and changes in some of the assumptions may correlate. The calcula­
+tion of sensitivity in the defined-benefit commitments for material actuarial
+Interest expenses –78 –75 Sweden –48 481) 0 assumptions uses the same method (the present value of defined-benefit
+Paid benefits 84 79 Germany –7 — –7 commitments by applying the projected unit credit method at the end of the
+Exchange-rate differences 165 –132 UK –1,330 1,544 214 reporting period) as that used in the calculation of pension liabilities.
+Gain/(loss) attributable to changed 6 1 Italy –27 — –27
+demographic assumptions Composition of plan assets
+Total –1,411 1,592 181
+Gain/(loss) attributable to changed 48 170 SEK M 2025 2024
+financial assumptions 1. Of which restriction of surplus in the plan due to an asset ceiling of SEK –23 M. Securities 1,568 1,789
+Experience-based gains/(losses) –11 –5
+Present Net provision/ Properties 7 6
+Closing balance –1,411 –1,623 value of Fair value of net receivable
+Cash and cash equivalents and similar
+2024, SEK M commitments plan assets pensions assets 9 12
+SEK M 2025 2024 Other 8 8
+Sweden –46 461) 0
+Plan assets Germany –8 — –8 Total 1,592 1,816
+Opening balance 1,816 1,810 UK –1,540 1,769 229 The weighted average term of the pension commitments is 11 years (12).
+Interest income 87 79 Italy –28 — –28
+Fees paid by employer — 1 Total –1,623 1,816 193 Information regarding recognition of multi-employer
+defined-benefit pension plans, Alecta
+Paid benefits –81 –77 1. Of which restriction of surplus in the plan due to an asset ceiling of SEK –22 M. The commitment for retirement pensions and family pensions for salaried
+Exchange-rate differences –188 147 employees in Sweden is safeguarded through insurance with Alecta. Accord­
+Return on plan assets –41 –150 UK 2025 2024 ing to a statement from the Swedish Financial Reporting Board, UFR 10, this is
+Change in restriction in plan surpluses — 5 Significant actuarial assumptions, % a multi-employer defined-benefit plan. For the 2025 fiscal year, the company
+with regard to asset ceilings did not have access to such information that makes it possible to recognize
+Discount rate 5.5 5.4
+Closing balance 1,592 1,816 this plan as a defined-benefit plan. The pension plan in accordance with ITP,
+Expected salary increase rate1) — — which is safeguarded through insurance with Alecta, is thus recognized as a
+Expected inflation 2.4 2.7 defined-contribution plan. Fees for the year for pension insurance covered
+by Alecta amounted to SEK 6 M (4). Alecta’s surplus can be distributed to the
+1. The pension plan is closed which is why no expected salary increase rate is stated. insurers and/or the insured. At year-end 2025, Alecta’s surplus in the form
+of the collective consolidation level was approximately 167 percent (162). The
+collective consolidation level comprises the market value of Alecta’s assets as
+a percentage of the insurance commitment calculated in accordance with Alec­
+ta’s actuarial calculation assumption, which does not correspond with IAS 19.
+ARJO 2025 ANNUAL AND SUSTAINABILITY REPORT 109
+

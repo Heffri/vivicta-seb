@@ -1,7 +1,7 @@
 fastapi
 uvicorn[standard]
 python-multipart
-pymupdf
+pymupdf==1.27.2.3  # v049b: the Ependion stacked-header garble is fixed on both 1.27.2.3 and 1.28.2 (_group_blocks, parse.py), but 1.28.2 still reflows ~17% of the 35-PDF corpus's pages differently (pymupdf's own block split changed pervasively, beyond what _stack_cells's scope covers) -- pin held pending that follow-up, not because of the original bug
 openai
 python-dotenv
 python-pptx
