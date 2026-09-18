@@ -1866,6 +1866,9 @@ def demo():
     assert x._bucket_span("6 – 12 månader") == (6, 12) and x._bucket_span("1 – 5 år") == (12, 60)
     assert x._bucket_span("1–2 years") == (12, 24) and x._bucket_span("2–5 years") == (24, 60)
     assert x._bucket_span("between 1 and 2 years") == (12, 24) and x._bucket_span("mellan 1 och 5 år") == (12, 60)
+    assert x._bucket_span("mellan 1 år och 2 år") == (12, 24) and x._bucket_span("mellan 2 år och 5 år") == (24, 60)  # v104: Svedbergs' long forms, a unit per operand
+    assert x._bucket_span("mellan 3 månader och 1 år") == (3, 12) and x._bucket_span("mellan 18 månader och 2 år") == (18, 24)  # mixed units
+    assert x._bucket_span("högst 2 år") == (0, 24) and x._bucket_span("mellan 5 år och 2 år") is None  # reversed bounds name no interval
     assert x._bucket_span("later than 1 year but within 3 years") == (12, 36)
     assert x._bucket_span(">5 years") == (60, float("inf")) and x._bucket_span("mer än 5 år") == (60, float("inf"))
     assert x._bucket_span("Within one year") == (0, 12) and x._bucket_span("mindre än 3 månader") == (0, 3)
@@ -1951,6 +1954,55 @@ def demo():
         {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
         {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
     out = x.extract([straddle], [1], dm, {"fiscal_year": 2025})
+    assert all(f["value"] is None for f in out["fields"] if f["key"] != "total_debt"), (out["fields"], out["warnings"])
+    assert not any("finer-split" in w for w in out["warnings"]), out["warnings"]
+    # v104: the same derivation on a TORN side-by-side page -- Svedbergs p.132 prints the maturity table
+    # and the financing-changes note in two columns, and pymupdf glues the note's lines onto the maturity
+    # rows (the Summa row too), so _row_amounts' last-alpha read returns the OTHER table's figures and the
+    # walk reads each row's own four columns label-anchored (em-dash parent-company nils included). The
+    # labels are the Swedish long forms v097's seed-10 round watched the model sum correctly (1-5y
+    # 423,946 + 11,896 = 435,842) and then drop as computed-not-read: the finer rows live in the Koncernen
+    # 2025 column of "Koncernen Moderbolaget / 2025 2024 2025 2024", the parent pair dashes.
+    sved132 = ("Not 33 Räntebärande skulder\nKoncernen Moderbolaget Kassaflödespåverkande förändringar:\n"
+               "2025 2024 2025 2024 Förändringar övriga skulder –130 273 –188 385 –318 657 –121 155 — –121 155\n"
+               "3 månader eller mindre 26 733 213 095 5 153 12 186 Förändringar leasingskuld — –29 364 –29 364 — — —\n"
+               "Mellan 3 månader och 1 år 24 707 28 420 15 460 18 924 Ej kassaflödespåverkande förändringar:\n"
+               "Mellan 1 år och 2 år 423 946 614 610 412 211 578 370 Förändringar övriga skulder –23 579 19 869 –3 709 — — —\n"
+               "Mellan 2 år och 5 år 11 896 19 122 — — Förändringar leasingskuld 360 125 50 547 410 672 — — —\n"
+               "Mer än 5 år 9 124 11 230 — — Valutakursdifferenser –46 145 –13 437 –59 583 –45 004 –2 374 –47 378\n"
+               "Summa 496 405 886 478 432 824 609 480 Per 31 december 2025 865 828 101 399 967 226 412 211 20 613 432 824\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 496405, "unit": "Tkr", "period": "2025", "raw_label": "Summa",
+         "source": {"page": 1, "quote": "Summa 496 405 886 478 432 824 609 480 Per 31 december 2025 865 828 101 399 967 226 412 211 20 613 432 824"}},
+        {"key": "due_within_1_year", "value": 51440, "unit": "Tkr", "period": "2025",
+         "raw_label": "3 månader eller mindre; Mellan 3 månader och 1 år",
+         "source": {"page": 1, "quote": "Mellan 3 månader och 1 år 24 707 28 420 15 460 18 924 Ej kassaflödespåverkande förändringar:"}},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": 9124, "unit": "Tkr", "period": "2025", "raw_label": "Mer än 5 år",
+         "source": {"page": 1, "quote": "Mer än 5 år 9 124 11 230 — — Valutakursdifferenser –46 145 –13 437 –59 583 –45 004 –2 374 –47 378"}}]}
+    out = x.extract([sved132], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f for f in out["fields"]}
+    assert got["total_debt"]["value"] == 496405 and got["due_after_5_years"]["value"] == 9124, (got, out["warnings"])  # single-row bucket: the model's own read stands
+    w15 = got["due_1_to_5_years"]
+    assert w15["value"] == 435842 and "value_derived" in w15["evidence"], (w15, out["warnings"])
+    assert w15["source"]["quote"] == ("Mellan 1 år och 2 år 423 946 614 610 412 211 578 370 Förändringar övriga skulder –23 579 19 869 –3 709 — — —"
+                                      " Mellan 2 år och 5 år 11 896 19 122 — — Förändringar leasingskuld 360 125 50 547 410 672 — — —"), w15["source"]
+    assert w15["raw_label"] == "Mellan 1 år och 2 år + Mellan 2 år och 5 år", w15
+    w1 = got["due_within_1_year"]
+    assert w1["value"] == 51440 and "value_derived" in w1["evidence"], (w1, out["warnings"])  # the model's own sum, now provable from the printed rows
+    assert w1["source"]["quote"] == ("3 månader eller mindre 26 733 213 095 5 153 12 186 Förändringar leasingskuld — –29 364 –29 364 — — —"
+                                     " Mellan 3 månader och 1 år 24 707 28 420 15 460 18 924 Ej kassaflödespåverkande förändringar:"), w1["source"]
+    assert out["checks"][0]["passed"] and "abs((51440 + 435842 + 9124) - 496405) <= 2" in out["checks"][0]["detail"], out["checks"]
+    # ... and the straddle counter-example in the new form: "Mellan 3 år och 7 år" = [36,84] crosses the
+    # 5-year boundary, so the whole derivation is abandoned even though 150+500 would numerically close
+    straddle_sv = "Maturity analysis\nMSEK 2025 2024\n3 månader eller mindre 100 90\nMellan 3 år och 7 år 500 400\nSumma 650 640\n"
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 650, "unit": "MSEK", "period": "2025", "raw_label": "Summa",
+         "source": {"page": 1, "quote": "Summa 650 640"}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([straddle_sv], [1], dm, {"fiscal_year": 2025})
     assert all(f["value"] is None for f in out["fields"] if f["key"] != "total_debt"), (out["fields"], out["warnings"])
     assert not any("finer-split" in w for w in out["warnings"]), out["warnings"]
     # v101: a debt total/bucket printed under a liabilities-negative sign convention -- net-debt and
