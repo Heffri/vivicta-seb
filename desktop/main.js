@@ -7,6 +7,7 @@ const http = require('node:http')
 const net = require('node:net')
 const { spawn, spawnSync, execFile } = require('node:child_process')
 const settings = require('./settings')
+const { syncBundledData, syncLogLine } = require('./data-sync')
 
 const isDev = !app.isPackaged
 const isWindows = process.platform === 'win32'
@@ -137,39 +138,14 @@ function findRepoRoot() {
 }
 
 // ---------------------------------------------------------------------------
-// Bundled data (companies.json, reports/index.json, kb/) -> userData, once.
-// Same exclude list as the repo's own .gitignore for data/ (no PDFs, no
-// derived KB embeddings/tmp files, no ad-hoc up-* uploads).
+// Bundled data (companies.json, reports/index.json, kb/) -> userData. v107:
+// merged on every launch (desktop/data-sync.js) instead of copied once, so KB
+// entries bundled with a new app version reach installs created by older
+// versions — and nothing the user already has is ever overwritten (uploads,
+// reviewed extractions and the user's own report index always win).
 // ---------------------------------------------------------------------------
-function shouldSkipDataEntry(relPath) {
-  const p = relPath.replace(/\\/g, '/')
-  return (
-    /^reports\/.*\.pdf$/i.test(p) ||
-    /^kb\/[^/]+\/embeddings\.jsonl$/.test(p) ||
-    /^kb\/[^/]+\/.*\.tmp$/.test(p) ||
-    /^kb\/up-/.test(p)
-  )
-}
-
-async function copyDataDir(srcRoot, destRoot) {
-  await fsp.cp(srcRoot, destRoot, {
-    recursive: true,
-    filter: (source) => {
-      const rel = path.relative(srcRoot, source).replace(/\\/g, '/')
-      return rel === '' || !shouldSkipDataEntry(rel)
-    },
-  })
-}
-
 async function ensureUserData(userDataDir, bundledDataDir) {
-  const dest = path.join(userDataDir, 'data')
-  if (fs.existsSync(dest)) return dest
-  if (fs.existsSync(bundledDataDir)) {
-    await copyDataDir(bundledDataDir, dest)
-  } else {
-    await fsp.mkdir(dest, { recursive: true })
-  }
-  return dest
+  return syncBundledData(bundledDataDir, path.join(userDataDir, 'data'))
 }
 
 // ---------------------------------------------------------------------------
@@ -621,7 +597,9 @@ async function main() {
 
   const repoRoot = isDev ? findRepoRoot() : null
   const bundledDataDir = isDev ? path.join(repoRoot, 'data') : path.join(process.resourcesPath, 'data')
-  const dataDir = await ensureUserData(userDataDir, bundledDataDir)
+  const sync = await ensureUserData(userDataDir, bundledDataDir)
+  backendLogStream.write(`${syncLogLine(sync)}\n`)
+  const dataDir = sync.dataDir
   const frontendDistDir = isDev ? path.join(repoRoot, 'frontend', 'dist') : path.join(process.resourcesPath, 'frontend-dist')
 
   backendBaseEnv = {

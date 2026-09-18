@@ -130,10 +130,13 @@ its own (v085)):
 prerelease** on GitHub Releases, so a teammate can download and double-click without building
 anything. [v087](evidence/v087.md) The data
 directory (reports, KB, uploads, `backend.log`)
-lives under the user's own `app.getPath('userData')/data`, seeded once from the bundled repo data
-on first launch and left alone on later launches/upgrades; first launch has no model provider
+lives under the user's own `app.getPath('userData')/data`, seeded from the bundled repo data on
+first launch and merged on every launch after that (v107: bundled KB entries and report-index
+rows an upgrade ships are added to existing installs, while anything the user already has —
+uploads, reviewed extractions, their own fetched index rows — is never overwritten); first
+launch has no model provider
 configured, so it defaults to demo/fixture mode until Settings picks one (see "Model providers"
-below). [v029](evidence/v029.md), [v038](evidence/v038.md), [v032](evidence/v032.md)
+below). [v029](evidence/v029.md), [v038](evidence/v038.md), [v032](evidence/v032.md), [v107](evidence/v107.md)
 
 **Build** (full detail: [`desktop/README.md`](../../desktop/README.md)):
 
