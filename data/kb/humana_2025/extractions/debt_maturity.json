@@ -1,0 +1,81 @@
+{
+  "report_id": "lib-humana_2025",
+  "company": "Humana",
+  "fiscal_year": 2025,
+  "currency": "SEK million",
+  "section": "debt_maturity",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 4401,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "interest-bearing liabilities",
+      "source": {
+        "page": 149,
+        "quote": "amounted to SEK 4,401m (5,150) at the end of the year and consisted of Bank balances 365 583 income and relate to hedge accounting in EUR up until 15 July 2025. The"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 543,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "current liabilities",
+      "source": {
+        "page": 149,
+        "quote": "current liabilities of SEK 543m (594) and non-current liabilities of SEK Total 1,295 1,636 hedge becomes ineffective when the amount of the investment in foreign"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((543 + 0 (due_1_to_5_years null) + 0 (due_after_5_years null)) - 4401) <= 2"
+    }
+  ],
+  "warnings": [
+    "published: seed2 run replayed with extract.py @ 832bc526"
+  ]
+}
