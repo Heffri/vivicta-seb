@@ -1,5 +1,7 @@
 import { ExternalLink, ImageOff } from 'lucide-react'
-import { pageUrl, pdfUrl } from '@/api'
+import { useEffect, useState } from 'react'
+import { getKbPage, pageUrl, pdfUrl } from '@/api'
+import { fieldVerification } from './verification'
 import { highlightQuote } from '@/components/results/highlight'
 import { buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,6 +13,8 @@ export type Viewer = 'pdf' | 'image'
 
 type SourcePanelProps = {
   reportId: string
+  stem?: string
+  pdfAvailable?: boolean
   page: number | null // what the pane shows: askPage override or the selected field's page
   selected: Field | null
   askPage: number | null // citation chip override in effect
@@ -30,6 +34,8 @@ const VIEWER_OPTIONS: { value: Viewer; label: string }[] = [
  *  link the whole product rests on. */
 export function SourcePanel({
   reportId,
+  stem,
+  pdfAvailable = true,
   page,
   selected,
   askPage,
@@ -38,15 +44,24 @@ export function SourcePanel({
   brokenPage,
   onBrokenPage,
 }: SourcePanelProps) {
+  const [savedPage, setSavedPage] = useState<{page: number; stem: string; text: string} | null>(null)
+  const [pageError, setPageError] = useState<{page: number; stem: string; message: string} | null>(null)
+  useEffect(() => {
+    if (pdfAvailable || !stem || page === null) return
+    let stale = false
+    getKbPage(stem, page).then((result) => { if (!stale) { setSavedPage({...result, stem}); setPageError(null) } })
+      .catch((error: Error) => { if (!stale) setPageError({page, stem, message: error.message}) })
+    return () => { stale = true }
+  }, [pdfAvailable, stem, page])
   return (
-    <Card className="self-start">
+    <Card id="report-source" tabIndex={-1} className="self-start scroll-mt-4 focus-visible:outline-2 focus-visible:outline-ring">
       <CardHeader>
         <CardTitle className="flex flex-wrap items-center justify-between gap-2">
           <span>Source</span>
           {page !== null && (
             <span className="flex flex-wrap items-center gap-2 text-sm font-normal text-muted-foreground">
               <span className="mr-1">Page {page}</span>
-              <Segmented options={VIEWER_OPTIONS} value={viewer} onChange={onViewerChange} aria-label="Provenance viewer" />
+              {pdfAvailable && <><Segmented options={VIEWER_OPTIONS} value={viewer} onChange={onViewerChange} aria-label="Provenance viewer" />
               <a
                 href={pdfUrl(reportId, page)}
                 target="_blank"
@@ -54,21 +69,34 @@ export function SourcePanel({
                 className={buttonVariants({ size: 'xs', variant: 'ghost' })}
               >
                 Open PDF <ExternalLink />
-              </a>
+              </a></>}
             </span>
           )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {selected && askPage === null && (
+          <div className="text-sm" aria-live="polite">
+            <p className="font-medium">{selected.label}: {fieldVerification(selected).label}</p>
+            <p className="mt-1 text-muted-foreground">{fieldVerification(selected).detail}</p>
+          </div>
+        )}
         {page === null ? (
           <p className="text-sm text-muted-foreground">
             {selected && !selected.source
-              ? 'No source — value not found.'
+              ? 'No source reference is available for this figure.'
               : 'Select a row to see where the value comes from.'}
           </p>
         ) : (
           <>
-            {viewer === 'pdf' ? (
+            {!pdfAvailable ? (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">Saved page text. The original PDF is not available on this device.</p>
+                {pageError?.page === page && pageError.stem === stem ? <p role="alert" className="text-sm text-danger">{pageError.message}</p>
+                  : savedPage?.page === page && savedPage.stem === stem ? <pre className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap break-words rounded-lg border bg-background p-3 text-xs leading-relaxed">{savedPage.text}</pre>
+                  : <p className="text-sm text-muted-foreground">{stem ? 'Loading saved page…' : 'Saved page reference unavailable.'}</p>}
+              </div>
+            ) : viewer === 'pdf' ? (
               // ponytail: key={page} remounts the iframe — swapping only the #page= hash on the same src doesn't
               // reliably navigate in Chromium. PDF is browser-cached after the first load; pdf.js is the upgrade if
               // the remount flicker ever annoys.

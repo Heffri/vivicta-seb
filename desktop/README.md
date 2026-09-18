@@ -1,8 +1,8 @@
 # desktop — Electron shell for the Annual Report Parser
 
-Double-click app, not a browser tab. Launches the backend itself, loads the frontend, and on
-Windows 11 paints the window with real OS acrylic material (the desktop shows through, blurred)
-instead of the browser's painted wallpaper-and-glass fallback.
+Double-click app, not a browser tab. Launches the backend itself and loads the frontend.
+The window uses the app's painted light/dark background. Native Windows acrylic is disabled
+so switching focus to another app does not change the background.
 
 ## Dev mode
 
@@ -85,14 +85,12 @@ certificate, which is out of scope here.
 - Code signing / SmartScreen suppression.
 - Data directory override in the Settings UI (still only via `ARP_DEV_BACKEND_DIR`, a testing escape
   hatch — see "Settings" above for what the UI does cover: provider/model, not paths).
-- macOS/Linux packaging targets (`win` only in `electron-builder.yml`; the acrylic material itself
-  is Windows-11-only regardless — `supportsAcrylic()` in `main.js` degrades to an opaque window
-  everywhere else, including Windows 10).
+- macOS/Linux packaging targets (`win` only in `electron-builder.yml`).
 
 ## Files
 
 - `main.js` — main process: single-instance lock, backend launch + health check, window creation,
-  acrylic detection, titlebar-overlay tone sync, Settings IPC (get/set/test/codexStatus/claudeStatus)
+  stable window background, titlebar-overlay tone sync, Settings IPC (get/set/test/codexStatus/claudeStatus)
   and the backend-restart-on-save logic.
 - `settings.js` — `<userData>/config.json` load/save and its translation to the backend's `LLM_*` env
   vars; see "Settings" above.

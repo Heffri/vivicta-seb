@@ -11,7 +11,7 @@ import type { KbEntry, Result, Schema } from '@/types'
 type Props = { onOpen: (results: Result[]) => void }
 
 const NO_PDF_DESC_ID = 'kb-no-pdf-desc'
-const NO_PDF_TITLE = 'PDF not cached — fetch it from the Extract tab first'
+const NO_PDF_TITLE = 'Saved figures and page text are available; the original PDF is not cached'
 
 // Everything the parser has learnt so far: one row per report in data/kb, opened from disk without a model call.
 export function KbView({ onOpen }: Props) {
@@ -38,7 +38,7 @@ export function KbView({ onOpen }: Props) {
   }, [])
 
   // Same join the backend's own GET /api/kb/{stem}/{section} 409 check uses (app.py: file == f"{stem}.pdf").
-  const hasPdf = (stem: string) => !pdfFiles || pdfFiles.has(`${stem}.pdf`)
+  const hasPdf = (stem: string) => entries?.find((entry) => entry.stem === stem)?.pdf_available ?? (!pdfFiles || pdfFiles.has(`${stem}.pdf`))
 
   const title = (section: string) => schemas.find((s) => s.name === section)?.title ?? section
 
@@ -97,7 +97,7 @@ export function KbView({ onOpen }: Props) {
               : 'Reports'}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Stored page text, extractions and embeddings in <code>data/kb</code>. Opening a row reads the saved extraction — no model call.
+            Browse saved figures and source pages. Reports can be opened even when the original PDF is not on this device.
           </p>
         </div>
         <Button disabled={withSection.length < 2 || !!busy} onClick={() => open(withSection, section)}>
@@ -191,7 +191,7 @@ export function KbView({ onOpen }: Props) {
                         type="checkbox"
                         aria-label={`Select ${e.company ?? e.stem}`}
                         checked={isSelected}
-                        disabled={!e.sections.length || !available}
+                        disabled={!e.sections.length}
                         title={available ? undefined : NO_PDF_TITLE}
                         onChange={() => toggle(e.stem)}
                         className="size-3.5 accent-ring"
@@ -240,7 +240,7 @@ export function KbView({ onOpen }: Props) {
                           key={s}
                           size="xs"
                           variant="outline"
-                          disabled={!!busy || !available}
+                          disabled={!!busy}
                           title={available ? undefined : NO_PDF_TITLE}
                           aria-describedby={available ? undefined : NO_PDF_DESC_ID}
                           onClick={() => open([e.stem], s)}

@@ -31,6 +31,7 @@ export type IndexStatus = { report_id: string; chunks: number; embed_model: stri
 
 export type Citation = {
   report_id: string;
+  stem?: string;            // saved report source for text-only citations
   company: string | null;
   fiscal_year: number | null;
   page: number;
@@ -48,12 +49,14 @@ export type Answer = {
 
 export type KbEntry = {
   stem: string;             // data/kb/<stem>/, = report filename without .pdf
-  report_id: string | null; // set while the backend has it registered this run
+  report_id: string | null; // stable ID, restored after restart
   company: string | null;
   fiscal_year: number | null;
   pages: number;
   sections: string[];       // extractions present, e.g. ["income_statement"]
   indexed: boolean;         // embeddings cached
+  sector: string | null;
+  pdf_available: boolean;
 };
 
 export type Source = {
@@ -81,6 +84,8 @@ export type Check = {
 
 export type Extraction = {
   report_id: string;
+  stem?: string;            // saved source, provided when opening the knowledge base
+  pdf_available?: boolean; // false means use saved page text instead of the PDF
   company: string | null;
   fiscal_year: number | null;
   currency: string | null;  // dominant unit in the section

@@ -53,11 +53,11 @@ export const extractSection = (reportId: string, section: string) =>
 export const indexReport = (reportId: string) =>
   request<IndexStatus>(`/api/reports/${reportId}/index`, { method: 'POST' })
 
-export const ask = (question: string, reportIds: string[]) =>
+export const ask = (question: string, reportIds?: string[], reportStems?: string[]) =>
   request<Answer>('/api/ask', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question, report_ids: reportIds }),
+    body: JSON.stringify({ question, ...(reportIds === undefined ? {} : { report_ids: reportIds }), ...(reportStems === undefined ? {} : { report_stems: reportStems }) }),
   })
 
 export const pageUrl = (reportId: string, page: number) => `/api/reports/${reportId}/pages/${page}.png`
@@ -83,3 +83,6 @@ export const getKb = () => request<KbEntry[]>('/api/kb')
 // Stored extraction, no model call; the backend re-registers the PDF so pageUrl/csvUrl work.
 export const openKbExtraction = (stem: string, section: string) =>
   request<Extraction>(`/api/kb/${encodeURIComponent(stem)}/${encodeURIComponent(section)}`)
+
+export const getKbPage = (stem: string, page: number) =>
+  request<{ page: number; text: string }>(`/api/kb/${encodeURIComponent(stem)}/pages/${page}`)

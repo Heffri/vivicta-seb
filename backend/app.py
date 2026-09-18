@@ -59,7 +59,8 @@ class LibraryBody(BaseModel):
 
 class AskBody(BaseModel):
     question: str
-    report_ids: list[str]
+    report_ids: list[str] | None = None
+    report_stems: list[str] | None = None
 
 
 class FetchBody(BaseModel):
@@ -75,7 +76,12 @@ def pdf_path(report_id: str) -> Path:
 
 def report_texts(report_id: str) -> list[str]:
     if report_id not in texts_cache:
-        texts_cache[report_id] = parse.page_texts(pdf_path(report_id))
+        if pdf_path(report_id).is_file():
+            texts_cache[report_id] = parse.page_texts(pdf_path(report_id))
+        else:
+            report = get_report(report_id)
+            pages = kb._pages(report["stem"])
+            texts_cache[report_id] = [pages.get(n, "") for n in range(1, report["pages"] + 1)]
     return texts_cache[report_id]
 
 
@@ -87,8 +93,32 @@ def library_index() -> list[dict]:
 
 def get_report(report_id: str) -> dict:
     if report_id not in reports:
+        stem = report_id[4:] if report_id.startswith("lib-") else report_id
+        if re.fullmatch(r"[a-z0-9_-]+", stem) and report_id == saved_report_id(stem) and (kb.kb_dir() / stem / "meta.json").is_file() and (kb.kb_dir() / stem / "pages.jsonl").is_file():
+            meta = kb._meta(stem)
+            filename = meta.get("filename") or f"{stem}.pdf"
+            # Saved metadata is not allowed to choose a file outside the PDF cache.
+            if isinstance(filename, str) and Path(filename).name == filename and "/" not in filename and "\\" not in filename:
+                cached = LIBRARY / filename
+                if not stem.startswith("up-") and cached.is_file():
+                    library_paths[report_id] = cached
+            reports[report_id] = {"report_id": report_id, "filename": filename, "pages": meta.get("pages", 0),
+                                  "company": meta.get("company"), "fiscal_year": meta.get("fiscal_year"), "stem": stem}
+    if report_id not in reports:
         raise HTTPException(404, f"unknown report_id {report_id!r}")
     return reports[report_id]
+
+
+def saved_report_id(stem: str) -> str:
+    return stem if stem.startswith("up-") else "lib-" + stem
+
+
+def require_pdf(report_id: str) -> Path:
+    get_report(report_id)
+    path = pdf_path(report_id)
+    if not path.is_file():
+        raise HTTPException(409, "The PDF is no longer cached. Saved page text is available in the knowledge base; fetch the PDF again to view it.")
+    return path
 
 
 def load_schema(name: str) -> dict:
@@ -153,8 +183,10 @@ def list_library():
 def register_library(entry: dict) -> dict:
     """Register a cached PDF (curated or fetched) exactly like an upload; same file twice = same report_id."""
     report_id = "lib-" + Path(entry["file"]).stem
-    if report_id not in reports:
-        library_paths[report_id] = LIBRARY / entry["file"]
+    path = LIBRARY / entry["file"]
+    if report_id not in reports or library_paths.get(report_id) != path:
+        library_paths[report_id] = path
+        texts_cache.pop(report_id, None)  # a restored text-only report must now read the fetched PDF
         texts = report_texts(report_id)
         reports[report_id] = {"report_id": report_id, "filename": entry["file"], "pages": len(texts),
                               "company": entry["company"], "fiscal_year": entry["fiscal_year"], "stem": Path(entry["file"]).stem}  # curated beats guess_meta
@@ -211,7 +243,7 @@ def read_report(report_id: str):
 @app.get("/api/reports/{report_id}/pdf")
 def report_pdf(report_id: str):
     report = get_report(report_id)  # FileResponse handles Range, so the browser viewer can seek
-    return FileResponse(pdf_path(report_id), media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{report["filename"]}"'})
+    return FileResponse(require_pdf(report_id), media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{report["filename"]}"'})
 
 
 @app.get("/api/reports/{report_id}/pages/{n}.png")
@@ -219,7 +251,7 @@ def page_png(report_id: str, n: int):
     report = get_report(report_id)
     if not 1 <= n <= report["pages"]:
         raise HTTPException(404, f"page {n} out of range 1..{report['pages']}")
-    with pymupdf.open(pdf_path(report_id)) as doc:
+    with pymupdf.open(require_pdf(report_id)) as doc:
         png = doc[n - 1].get_pixmap(dpi=150).tobytes("png")
     return Response(png, media_type="image/png")
 
@@ -252,39 +284,70 @@ def index_report(report_id: str):
 
 @app.post("/api/ask")
 def ask(body: AskBody):
-    if not body.report_ids:
-        raise HTTPException(400, "report_ids is empty")
-    if len(body.question) > 2000:  # trust boundary: the question goes straight into the prompt
-        raise HTTPException(400, "question too long (max 2000 chars)")
-    ids = {get_report(r)["stem"]: r for r in body.report_ids}  # stem -> report_id; 404 on unknown ids
+    if not body.question.strip() or len(body.question) > 2000:
+        raise HTTPException(400, "question must contain 1–2000 characters")
+    supplied = body.model_fields_set
+    if "report_ids" in supplied and "report_stems" in supplied:
+        raise HTTPException(400, "choose report_ids or report_stems, not both")
+    if any(key in supplied and not getattr(body, key) for key in ("report_ids", "report_stems")):
+        raise HTTPException(400, "explicit report scope must not be empty or null")
+    if body.report_ids is not None:
+        ids = {get_report(r)["stem"]: r for r in body.report_ids}
+    else:
+        available = {e["stem"] for e in kb.entries()}
+        stems = body.report_stems if body.report_stems is not None else sorted(available)
+        if any(s not in available for s in stems):
+            raise HTTPException(404, "unknown report stem; see GET /api/kb")
+        ids = {s: saved_report_id(s) for s in stems}
+    if not ids:
+        return {"question": body.question, "answer": "The knowledge base has no parsed reports yet. Add a report first.",
+                "citations": [], "warnings": ["No saved report pages available; model not called."], "model": ""}
+    if not _llm_configured() and body.report_ids is None:
+        return {"question": body.question, "answer": "Connect a model in Settings to ask questions about saved reports.",
+                "citations": [], "warnings": ["No model configured; no answer was generated."], "model": ""}
     if not _llm_configured():  # frontend dev mode: canned Answer, one citation
         return {"question": body.question, "answer": "Fixture mode (LLM_BASE_URL unset). Revenue was 152 340 MSEK [Nordic Industrials p.64].",
                 "citations": [{"report_id": body.report_ids[0], "company": "Nordic Industrials AB (fictional fixture)", "fiscal_year": 2025,
                                "page": 64, "quote": "Intäkter 152 340 141 902", "score": 0.91}],
                 "warnings": ["fixture answer: LLM_BASE_URL unset"], "model": "fixture"}
     t0 = time.time()
-    answer = kb.ask(list(ids), body.question, ids=ids)  # retrieval (BM25 or hybrid) + a real model call
+    answer = kb.ask(list(ids), body.question, ids=ids, keyword_only=body.report_ids is None)
     print(f"[ask] {body.report_ids}: {len(answer['citations'])} citations, {len(answer['warnings'])} warnings in {time.time() - t0:.1f}s")
     return answer
 
 
 @app.get("/api/kb")
 def list_kb():
-    by_stem = {r["stem"]: rid for rid, r in reports.items()}
-    return [e | {"report_id": by_stem.get(e["stem"])} for e in kb.entries()]
+    normalize = lambda name: re.sub(r"[\W_]+", " ", name.casefold()).strip()
+    sectors = {normalize(c["name"]): c.get("sector") for c in COMPANIES}
+    out = []
+    for e in kb.entries():
+        report_id = saved_report_id(e["stem"])
+        get_report(report_id)
+        out.append(e | {"report_id": report_id, "pdf_available": pdf_path(report_id).is_file(),
+                        "sector": sectors.get(normalize(e.get("company") or ""))})
+    return out
+
+
+@app.get("/api/kb/{stem}/pages/{page}")
+def kb_page(stem: str, page: int):
+    if not re.fullmatch(r"[a-z0-9_-]+", stem) or not (kb.kb_dir() / stem / "pages.jsonl").is_file():
+        raise HTTPException(404, "unknown saved report")
+    text = kb._pages(stem).get(page)
+    if text is None:
+        raise HTTPException(404, "page not found in saved report")
+    return {"page": page, "text": text}
 
 
 @app.get("/api/kb/{stem}/{section}")
 def kb_extraction(stem: str, section: str):
     """Stored extraction from the knowledge base, re-attached to a live report_id so page images and CSV work. No model call."""
     path = kb.kb_dir() / stem / "extractions" / f"{section}.json"
-    if not re.fullmatch(r"[a-z0-9_]+", stem) or not re.fullmatch(r"[a-z0-9_]+", section) or not path.exists():
+    if not re.fullmatch(r"[a-z0-9_-]+", stem) or not re.fullmatch(r"[a-z0-9_]+", section) or not path.exists():
         raise HTTPException(404, f"no {section!r} extraction for {stem!r}; see GET /api/kb")
-    entry = next((e for e in library_index() if e["file"] == f"{stem}.pdf"), None)
-    if not entry:
-        raise HTTPException(409, f"the PDF for {stem!r} is no longer cached; fetch it again to open the pages")
-    report_id = register_library(entry)["report_id"]
-    extractions[report_id] = json.loads(path.read_text(encoding="utf-8")) | {"report_id": report_id}
+    report_id = get_report(saved_report_id(stem))["report_id"]
+    extractions[report_id] = json.loads(path.read_text(encoding="utf-8")) | {
+        "report_id": report_id, "stem": stem, "pdf_available": pdf_path(report_id).is_file()}
     return extractions[report_id]
 
 

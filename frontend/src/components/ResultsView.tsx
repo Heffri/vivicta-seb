@@ -7,6 +7,7 @@ import { MaturityChart } from '@/components/results/MaturityChart'
 import { SourcePanel, type Viewer } from '@/components/results/SourcePanel'
 import { StatusCards } from '@/components/results/StatusCards'
 import { Badge } from '@/components/ui/badge'
+import { fieldVerification } from '@/components/results/verification'
 import { Button, buttonVariants } from '@/components/ui/button'
 import type { Extraction, Field } from '@/types'
 
@@ -25,22 +26,6 @@ export const fmtValue = (v: Field['value']) =>
     : typeof v === 'number'
       ? v.toLocaleString('en-US', { maximumFractionDigits: 6 }).replaceAll(',', ' ')
       : v
-
-const EVIDENCE = ['quote_on_page', 'value_in_quote', 'arith_ok', 'label_known', 'period_ok', 'page_is_statement', 'unit_ok'] // docs/CONFIDENCE.md
-
-/** Tooltip for the confidence badge: which evidence the backend could not verify. */
-export const confidenceTitle = (f: { confidence: number; evidence?: string[] }) => {
-  const missing = EVIDENCE.filter((e) => !(f.evidence ?? []).includes(e))
-  return missing.length ? `missing: ${missing.join(', ')}` : 'all evidence verified'
-}
-
-// Status tokens from index.css (v001); CompareView rides along through this same function.
-export const confidenceClass = (c: number) =>
-  c >= 0.9
-    ? 'border-success/30 bg-success-muted text-success'
-    : c >= 0.7
-      ? 'border-warning/30 bg-warning-muted text-warning'
-      : 'border-danger/30 bg-danger-muted text-danger'
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
@@ -74,7 +59,7 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack, initial
     setSelectedKey(key)
     setAskPage(null)
   }
-  const failed = checks.filter((c) => !c.passed).length
+  const reviewCount = fields.filter((f) => ['Needs review', 'Not checked', 'Not found'].includes(fieldVerification(f).label)).length
 
   const exportJson = () => {
     // ponytail: Blob URL + synthetic click, fine for a single JSON. Upgrade: File System Access API if size ever matters.
@@ -106,13 +91,9 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack, initial
             <span>FY {fiscal_year ?? '—'}</span>
             <span aria-hidden>·</span>
             <span>{currency ?? '—'}</span>
-            {checks.length === 0 ? (
-              <Badge variant="outline">No checks</Badge>
-            ) : failed === 0 ? (
-              <Badge variant="success">{`${checks.length}/${checks.length} checks passed`}</Badge>
-            ) : (
-              <Badge variant="danger">{`${failed} failed`}</Badge>
-            )}
+            <Badge variant={reviewCount ? 'warning' : 'secondary'}>
+              {reviewCount ? `${reviewCount} figures to review` : 'Source checks recorded'}
+            </Badge>
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -139,11 +120,13 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack, initial
             buckets, the same rule ppt.py uses to pick chart over table. */}
         <MaturityChart extraction={extraction} selectedKey={selectedKey} onSelect={selectField} />
 
-        <FieldsTable fields={fields} warnings={warnings} selectedKey={selectedKey} onSelect={selectField} />
+        <FieldsTable fields={fields} selectedKey={selectedKey} onSelect={selectField} />
 
         {/* ponytail: no longer sticky — it would slide over the Ask panel below it. */}
         <SourcePanel
           reportId={report_id}
+          stem={extraction.stem}
+          pdfAvailable={extraction.pdf_available}
           page={page}
           selected={selected}
           askPage={askPage}
@@ -153,7 +136,12 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack, initial
           onBrokenPage={setBrokenPage}
         />
 
-        <StatusCards checks={checks} warnings={warnings} />
+        <StatusCards checks={checks} warnings={warnings} fields={fields} onSelect={(key) => {
+          selectField(key)
+          const source = document.getElementById('report-source')
+          source?.focus({ preventScroll: true })
+          source?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }} />
 
         <AskPanel reports={[{ report_id, label: company ?? 'This report' }]} onCitation={(_id, p) => setAskPage(p)} />
       </div>

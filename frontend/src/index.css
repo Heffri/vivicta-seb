@@ -93,7 +93,7 @@
     --foreground: var(--fg-0);
     --card: var(--bg-3);
     --card-foreground: var(--fg-0);
-    --popover: var(--bg-4);
+    --popover: #27272f;
     --popover-foreground: var(--fg-0);
     /* Never a flat accent fill (reads as a sticker glued to the glass) — a
        tint of the accent hue mixed into the ground, the way UAW's .btn.primary
@@ -132,60 +132,58 @@
     --radius: 0.875rem;
 }
 
+/* Light mode uses opaque surfaces so desktop colours and focus cannot wash it out. */
 [data-tone="light"] {
-    /* v006b: 90% -> 76% for the same reason as the dark tone; 72% was the
-       visibility optimum but no badge tint cleared 4.5:1 on the card ground
-       there (success topped out at 4.49), so the tone settles at 76%. */
-    --bg-0: rgb(252 252 254 / 76%);
-    --bg-1: rgb(0 0 0 / 2.5%);
-    --bg-2: rgb(0 0 0 / 4%);
-    --bg-3: rgb(0 0 0 / 6%);
-    --bg-4: rgb(0 0 0 / 10%);
-    --line-0: rgb(0 0 0 / 7%);
-    --line-1: rgb(0 0 0 / 12%);
-    --line-2: rgb(0 0 0 / 20%);
-    --fg-0: #16161a;
-    --fg-1: #3e3e47;
-    --fg-2: #4e4e58;
-    --fg-3: #60606b;
-    --glass-hi: rgb(255 255 255 / 65%);
-    --glass-shadow: 0 22px 60px rgb(40 44 60 / 22%);
-    /* Same construction as the dark wallpaper: creamy white -> pale
-       blue-violet, blue glow top-left, lavender bottom-right. */
-    --wallpaper:
-        radial-gradient(90% 75% at 14% 0%, rgb(168 190 235 / 40%) 0%, transparent 62%),
-        radial-gradient(75% 65% at 88% 100%, rgb(196 178 228 / 28%) 0%, transparent 60%),
-        linear-gradient(168deg, #f7f3e9 0%, #ececf6 45%, #e6e6f2 100%);
+    --bg-0: #f5f7fb;
+    --bg-1: #ffffff;
+    --bg-2: #eef2f7;
+    --bg-3: #ffffff;
+    --bg-4: #e3eaf3;
+    --line-0: #e8edf4;
+    --line-1: #d8e0eb;
+    --line-2: #9ba9bd;
+    --fg-0: #17243a;
+    --fg-1: #36465e;
+    --fg-2: #526179;
+    --fg-3: #65748a;
+    --glass-hi: transparent;
+    --glass-shadow: none;
+    --blur: none;
+    --wallpaper: none;
     color-scheme: light;
 
     --background: var(--bg-1);
     --foreground: var(--fg-0);
     --card: var(--bg-3);
     --card-foreground: var(--fg-0);
-    --popover: var(--bg-4);
+    --popover: #ffffff;
     --popover-foreground: var(--fg-0);
-    --primary: color-mix(in srgb, #2b5cb4 16%, transparent);
-    --primary-hover: color-mix(in srgb, #2b5cb4 24%, transparent);
-    --primary-foreground: #12305e;
+    --primary: #2458d3;
+    --primary-hover: #1c46b0;
+    --primary-foreground: #ffffff;
     --secondary: var(--bg-2);
     --secondary-foreground: var(--fg-1);
     --muted: var(--bg-2);
     --muted-foreground: var(--fg-2);
-    --accent: var(--bg-3);
-    --accent-foreground: var(--fg-0);
-    --destructive: #a23a32;
-    --success: #276f47;
-    --success-foreground: #eafff2;
-    --success-muted: color-mix(in srgb, #276f47 5%, transparent);
+    --accent: #e8efff;
+    --accent-foreground: #1945a3;
+    --destructive: #b42332;
+    --success: #216b46;
+    --success-foreground: #ffffff;
+    --success-muted: #eaf6ee;
     --warning: #805208;
-    --warning-foreground: #fff6e6;
-    --warning-muted: color-mix(in srgb, #805208 5%, transparent);
-    --danger: #a23a32;
-    --danger-foreground: #fff1ee;
-    --danger-muted: color-mix(in srgb, #a23a32 5%, transparent);
+    --warning-foreground: #ffffff;
+    --warning-muted: #fff5df;
+    --danger: #b42332;
+    --danger-foreground: #ffffff;
+    --danger-muted: #fff0f1;
     --border: var(--line-1);
-    --input: var(--line-1);
-    --ring: #2b5cb4;
+    --input: #bac6d8;
+    --ring: #2458d3;
+}
+
+[data-tone="light"] :is(.app-titlebar, .app-rail) {
+    background: var(--background);
 }
 
 /* Real Windows acrylic (desktop/, BrowserWindow backgroundMaterial: 'acrylic') replaces the
@@ -204,7 +202,7 @@
 }
 
 [data-tone="light"][data-material="on"] {
-  --bg-0: rgb(252 252 254 / 62%);
+  --bg-0: #f5f7fb;
 }
 
 [data-material="on"] body {
@@ -212,9 +210,9 @@
 }
 
 /* The one shell material: translucent ground + blur + a specular top edge +
-   a contact shadow. Applied once, to the app shell — and to floating popups
-   (the select dropdown), which UAW also lets keep their own thin glass since
-   they are not part of the one window pane. Never on cards/rows/tables: those
+   a contact shadow. Applied to the app shell and floating glass chips.
+   Dropdowns use opaque --popover backgrounds to hide underlying content.
+   Never on cards/rows/tables: those
    stay flat --bg-1..4 steps, per the "one material" rule in DESIGN.md. */
 @utility glass {
     background: var(--bg-0);

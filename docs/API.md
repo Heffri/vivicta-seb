@@ -18,8 +18,10 @@ Backend runs on `http://localhost:8000`, frontend dev server proxies `/api` to i
 | `POST` | `/api/reports/fetch` | `{ "company": "<Company.name>", "year": 2025, "country"?, "hint"? }` | `Report` — finds the company's annual report for that year on the web, downloads it into the cache (`data/reports/`), registers it like an upload. 10–90 s. Any company name is accepted — not just directory entries; `country`/`hint` are optional context for the model search (v074). `404` with `{detail, tried: string[]}` when nothing usable was found (a failed model search says so in `detail`). Cached = instant |
 | `GET`  | `/api/library` | – | `LibraryEntry[]` — the report **cache** in `data/reports/` (only files present on disk). Populated by `/fetch`; hand-curated entries also live in `index.json` |
 | `POST` | `/api/reports/{report_id}/index` | – | `IndexStatus` — chunk + embed the report into the knowledge base (idempotent, cached on disk). ~10–30 s per report locally |
-| `POST` | `/api/ask` | `{ "question": string, "report_ids": string[] }` | `Answer` — RAG over the selected reports (page texts + prior extractions). Indexes on demand if `/index` was not called |
+| `POST` | `/api/ask` | `{ "question": string, "report_ids"?: string[], "report_stems"?: string[] }` | `Answer` — omit both scopes to search all saved reports. Explicit scopes must be non-empty and mutually exclusive; unknown entries fail rather than widening the search. Global retrieval uses BM25 with bounded context, without embedding the entire library |
 | `GET`  | `/api/kb` | – | `KbEntry[]` — what is in `data/kb/` (one per parsed report: pages indexed, sections extracted) |
+| `GET` | `/api/kb/{stem}/pages/{page}` | – | `{ page: number, text: string }` — saved page text, available even without the PDF; exact known stem and valid page required |
+| `GET` | `/api/kb/{stem}/{section}` | – | Saved `Extraction`, no model call, available without the original PDF |
 | `GET`  | `/api/config` | – | `{ model, embed_model, base_url, llm, provider, retrieval }` — what the backend runs with; `retrieval` is `"hybrid"` (cosine+BM25) \| `"bm25"` (keyword-only, e.g. codex/claude subscription with no embeddings endpoint) \| `"fixture"` |
 | `POST` | `/api/reports/from-library` | `{ "file": "<LibraryEntry.file>" }` | `Report` — registers a bundled report exactly like an upload would. Same file twice = same `report_id` |
 
@@ -59,6 +61,7 @@ type IndexStatus = { report_id: string; chunks: number; embed_model: string; cac
 
 type Citation = {
   report_id: string;
+  stem?: string;            // exact saved report for source text, also disambiguates fiscal years
   company: string | null;
   fiscal_year: number | null;
   page: number;
@@ -76,12 +79,14 @@ type Answer = {
 
 type KbEntry = {
   stem: string;             // data/kb/<stem>/, = report filename without .pdf
-  report_id: string | null; // set while the backend has it registered this run
+  report_id: string | null; // stable ID restored from saved metadata after restart
   company: string | null;
   fiscal_year: number | null;
   pages: number;
   sections: string[];       // extractions present, e.g. ["income_statement"]
   indexed: boolean;         // embeddings cached
+  sector: string | null;    // company directory sector, exact normalized name match; unknown stays null
+  pdf_available: boolean;   // whether the source PDF currently exists
 };
 
 type Source = {
@@ -109,6 +114,8 @@ type Check = {
 
 type Extraction = {
   report_id: string;
+  stem?: string;            // saved source, provided when opening the knowledge base
+  pdf_available?: boolean; // false means use saved page text instead of the PDF
   company: string | null;
   fiscal_year: number | null;
   currency: string | null;  // dominant unit in the section
@@ -222,3 +229,17 @@ KB_DIR=../data/kb                        # optional override
 ```
 
 Same variables point at Azure OpenAI / OpenAI / OpenRouter with no code change.
+
+## Global Ask and company map
+
+Ask searches saved page text and extracted facts. `@Company` is a UI scope selector, resolved
+against the parsed-company catalogue to exact `report_stems` across available years. Unknown or
+unfinished mentions must be corrected before submission. No mentions means the entire saved library.
+Question length is limited to 2,000 characters. The UI shows the effective company/report scope.
+
+The knowledge map groups real saved reports by company-directory sector, then company and fiscal
+year. Edges represent membership, not embedding similarity or inferred business relationships.
+Unknown sectors remain unclassified. Company actions open saved extractions or prefill a scoped Ask.
+Source PDFs are optional: page-text citations remain available, while PDF/image requests return an
+explicit missing-PDF response when the original file is absent. The existing selected-report Ask
+continues to accept `report_ids` and retains its retrieval mode.

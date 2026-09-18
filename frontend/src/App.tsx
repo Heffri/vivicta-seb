@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { type Config, getConfig } from './api'
 import { AskView } from './components/AskView'
 import { CompareView } from './components/CompareView'
+import { KnowledgeMap } from './components/KnowledgeMap'
 import { KbView } from './components/KbView'
 import { Rail } from './components/shell/Rail'
 import { SkipLink } from './components/shell/SkipLink'
@@ -21,6 +22,7 @@ export default function App() {
   const [results, setResults] = useState<Result[]>([])
   const [detail, setDetail] = useState<number | null>(null) // index into results shown on the Results tab
   const [detailPage, setDetailPage] = useState<number | null>(null) // page a citation chip asked for, if any
+  const [askCompany, setAskCompany] = useState<string | undefined>()
   const [config, setConfig] = useState<Config | null>(null)
 
   useEffect(() => {
@@ -42,13 +44,13 @@ export default function App() {
   }
 
   const shown = results[detail ?? 0]
-  const reports = results.flatMap((r) => (r.extraction ? [{ report_id: r.extraction.report_id, label: r.label }] : []))
   const enabled: Record<Tab, boolean> = {
     extract: true,
     results: !!shown?.extraction,
     compare: results.length > 1,
-    ask: reports.length > 0,
+    ask: true,
     kb: true,
+    map: true,
     settings: true,
   }
 
@@ -57,7 +59,7 @@ export default function App() {
       <SkipLink />
       <Titlebar subtitle="PDF annual report in → structured, source-linked data out → JSON/CSV for downstream banking systems." />
       <div className="flex min-h-0 flex-1">
-        <Rail active={tab} enabled={enabled} compareCount={results.length} onSelect={setTab} tone={tone} onToneChange={setTone} />
+        <Rail active={tab} enabled={enabled} compareCount={results.length} onSelect={(next) => { setAskCompany(undefined); setTab(next) }} tone={tone} onToneChange={setTone} />
         <main id="content" tabIndex={-1} className="min-w-0 flex-1 overflow-y-auto">
           <div className="mx-auto max-w-6xl px-6 py-10">
             {tab === 'extract' && <UploadView onDone={done} />}
@@ -82,8 +84,9 @@ export default function App() {
                 onReset={reset}
               />
             )}
-            {tab === 'ask' && <AskView reports={reports} />}
+            {tab === 'ask' && <AskView key={askCompany ?? 'global'} initialCompany={askCompany} />}
             {tab === 'kb' && <KbView onOpen={done} />}
+            {tab === 'map' && <KnowledgeMap onOpen={done} onAsk={(company) => { setAskCompany(company); setTab('ask') }} />}
             {/* v065: a Save restarts the backend, leaving this mount-time `config` stale until
                 relaunch (v061 §6-5) -- SettingsView hands the post-restart config back so StatusBar
                 follows the save without one. */}

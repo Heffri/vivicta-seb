@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { pdfUrl } from '@/api'
 import { Badge } from '@/components/ui/badge'
 import type { Citation } from '@/types'
-import { type AnswerBlock, type InlineNode, renderAnswer } from './renderAnswer'
+import { type AnswerBlock, type InlineNode, matchCitation, renderAnswer } from './renderAnswer'
 
 type OnCitation = (reportId: string, page: number) => void
 
@@ -59,22 +59,6 @@ function renderInline(nodes: InlineNode[], citations: Citation[], onCitation?: O
   })
 }
 
-const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ')
-
-// The model doesn't always echo the registered company name verbatim inline (e.g. the fixture
-// answer cites "[Nordic Industrials p.64]" but answer.citations[].company is "Nordic Industrials
-// AB (fictional fixture)" — same reconciliation problem the backend already solves for its own
-// citations[] via substring containment + a single-citation fallback (pipeline/kb.py's `ask`); mirrored here.
-function matchCitation(company: string, page: number, citations: Citation[]): Citation | undefined {
-  const target = norm(company)
-  const byName = citations.filter((c) => {
-    if (!c.company) return false
-    const n = norm(c.company)
-    return n === target || n.includes(target) || target.includes(n)
-  })
-  return byName.find((c) => c.page === page) ?? byName[0] ?? (citations.length === 1 ? citations[0] : undefined)
-}
-
 function CitationChip({
   company,
   page,
@@ -87,7 +71,7 @@ function CitationChip({
   onCitation?: OnCitation
 }) {
   const match = matchCitation(company, page, citations)
-  const label = `${match?.company ?? company} · p.${page}`
+  const label = `${match?.company ?? company}${match?.fiscal_year ? ` · ${match.fiscal_year}` : ''} · p.${page}`
 
   if (!match) {
     return (

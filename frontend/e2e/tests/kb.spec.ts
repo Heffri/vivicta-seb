@@ -5,14 +5,13 @@ import { railTab } from '../support/nav'
 import { trackPageErrors } from '../support/page-errors'
 import { gotoWithTone, TONES } from '../support/tone'
 
-// Same gate as extract-cached.spec.ts: opening a KB row needs its PDF cached on disk, or the
-// Open button is disabled (KbView.tsx's hasPdf/NO_PDF_TITLE) rather than 409ing.
-const ATLAS_PDF = path.resolve(import.meta.dirname, '../../../data/reports/atlas_copco_2025.pdf')
-const REASON = 'data/reports/atlas_copco_2025.pdf not present — copy the shared report in first (see common.md)'
+// The real-library smoke case requires the Atlas saved extraction.
+const ATLAS_EXTRACTION = path.resolve(import.meta.dirname, '../../../data/kb/atlas_copco_2025/extractions/income_statement.json')
+const REASON = 'Atlas Copco saved income statement is not present'
 
 for (const tone of TONES) {
   test(`kb: filter "atlas" -> Open -> Results [${tone}]`, async ({ page }) => {
-    test.skip(!existsSync(ATLAS_PDF), REASON)
+    test.skip(!existsSync(ATLAS_EXTRACTION), REASON)
     const errors = trackPageErrors(page)
     await gotoWithTone(page, tone)
 
@@ -31,7 +30,7 @@ for (const tone of TONES) {
     expect(errors).toEqual([])
   })
 
-  test(`kb: a row with no cached PDF has a disabled Open button [${tone}]`, async ({ page }) => {
+  test(`kb: a saved extraction without its PDF can still open [${tone}]`, async ({ page }) => {
     const errors = trackPageErrors(page)
     await gotoWithTone(page, tone)
 
@@ -40,7 +39,9 @@ for (const tone of TONES) {
 
     const noPdfRow = page.locator('tbody tr', { has: page.getByText('no PDF', { exact: true }) }).first()
     await expect(noPdfRow).toBeVisible()
-    await expect(noPdfRow.getByRole('button', { name: 'Open' })).toBeDisabled()
+    await expect(noPdfRow.getByRole('button', { name: 'Open' })).toBeEnabled()
+    await noPdfRow.getByRole('button', { name: 'Open' }).click()
+    await expect(page.getByText('Saved page text. The original PDF is not available on this device.')).toBeVisible()
 
     expect(errors).toEqual([])
   })

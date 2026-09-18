@@ -1,4 +1,4 @@
-import { Check, X } from 'lucide-react'
+import { Check, Minus, X } from 'lucide-react'
 import { useState } from 'react'
 import { fmtValue } from '@/components/ResultsView'
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -79,6 +79,7 @@ export function MaturityChart({ extraction, selectedKey, onSelect }: Props) {
   const byKey = new Map(extraction.fields.map((f) => [f.key, f]))
   const total = byKey.get('total_debt') ?? null
   const check = extraction.checks.find((c) => c.name === IDENTITY_CHECK) ?? null
+  const missing = check?.detail.startsWith('missing:') ?? false
   const unit = extraction.currency ?? ''
 
   const step = niceStep(Math.max(...slots.map(numeric).map((v) => v ?? 0)) / TICKS)
@@ -98,11 +99,11 @@ export function MaturityChart({ extraction, selectedKey, onSelect }: Props) {
             </span>
             {check && (
               <span
-                className={`flex items-center gap-1.5 ${check.passed ? 'text-success' : 'text-danger'}`}
+                className={`flex items-center gap-1.5 ${missing ? 'text-muted-foreground' : check.passed ? 'text-success' : 'text-danger'}`}
                 title={check.detail}
               >
-                {check.passed ? <Check className="size-4" aria-label="passed" /> : <X className="size-4" aria-label="failed" />}
-                buckets sum = total
+                {missing ? <Minus className="size-4" aria-hidden /> : check.passed ? <Check className="size-4" aria-hidden /> : <X className="size-4" aria-hidden />}
+                {missing ? 'Not enough data to check the total' : check.passed ? 'Repayments add up to total debt (within rounding)' : 'Repayments do not add up to total debt'}
               </span>
             )}
           </div>

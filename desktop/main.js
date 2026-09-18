@@ -55,23 +55,6 @@ if (!gotLock) {
   })
 }
 
-// ---------------------------------------------------------------------------
-// Windows acrylic material detection — same build-number gate UAW's main.ts
-// uses (process.getSystemVersion() is "10.0.<build>" even on Windows 11).
-// ---------------------------------------------------------------------------
-function supportsAcrylic() {
-  if (!isWindows || typeof BrowserWindow.prototype.setBackgroundMaterial !== 'function') return false
-  try {
-    const [major, , build] = process
-      .getSystemVersion()
-      .split('.')
-      .map((part) => Number.parseInt(part, 10))
-    return major !== undefined && build !== undefined && (major > 10 || (major === 10 && build >= 22_000))
-  } catch {
-    return false
-  }
-}
-
 function findFreePort() {
   return new Promise((resolve, reject) => {
     const srv = net.createServer()
@@ -525,7 +508,7 @@ function toneOverlayOptions(tone) {
     : { color: '#14141b', symbolColor: '#f4f4f7', height: 44 }
 }
 
-function createWindow(acrylic) {
+function createWindow() {
   const options = {
     width: 1440,
     height: 900,
@@ -533,18 +516,19 @@ function createWindow(acrylic) {
     minHeight: 700,
     show: false,
     title: 'Annual Report Parser',
-    backgroundColor: acrylic ? '#00000000' : '#0a0a12',
+    // Native acrylic changes on focus loss. Use the renderer's stable painted background.
+    backgroundColor: '#0a0a12',
     icon: path.join(__dirname, 'icons', 'icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      additionalArguments: [`--arp-material=${acrylic ? 'acrylic' : 'none'}`],
+      additionalArguments: ['--arp-material=none'],
     },
   }
-  if (acrylic) options.backgroundMaterial = 'acrylic'
   if (isWindows) {
+    options.backgroundMaterial = 'none'
     options.titleBarStyle = 'hidden'
     options.titleBarOverlay = toneOverlayOptions('dark') // useTone.ts's own default before the renderer reports in
   }
@@ -646,9 +630,7 @@ async function main() {
     }
   }
 
-  const acrylic = supportsAcrylic()
-  backendLogStream.write(`windows version: ${isWindows ? process.getSystemVersion() : 'n/a'}; acrylic material: ${acrylic}\n`)
-  mainWindow = createWindow(acrylic)
+  mainWindow = createWindow()
 
   ipcMain.on('arp:tone-changed', (_event, tone) => {
     if (!isWindows || !mainWindow || mainWindow.isDestroyed()) return
