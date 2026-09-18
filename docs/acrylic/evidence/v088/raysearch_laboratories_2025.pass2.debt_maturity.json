@@ -1,0 +1,81 @@
+{
+ "report_id": "lib-raysearch_laboratories_2025",
+ "company": "RaySearch Laboratories",
+ "fiscal_year": 2025,
+ "currency": "SEK M",
+ "section": "debt_maturity",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 394.9,
+   "unit": "SEK M",
+   "period": "2025",
+   "raw_label": "Total interest-bearing liabilities",
+   "source": {
+    "page": 72,
+    "quote": "Total interest-bearing liabilities 471.9 3.5 -76.7 4.4 -0.2 -8.0 - 394.9"
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "label_known",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": 77.5,
+   "unit": "SEK M",
+   "period": "2025",
+   "raw_label": "Current lease liabilities",
+   "source": {
+    "page": 83,
+    "quote": "Current lease liabilities 77.5 77.1"
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "period_ok",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": null,
+   "unit": "SEK M",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": null,
+   "unit": "SEK M",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((77.5 + 0 (due_1_to_5_years null) + 0 (due_after_5_years null)) - 394.9) <= 2"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [72, 73] selected from candidates [72, 73, 82, 83]"
+ ]
+}

@@ -1,0 +1,64 @@
+{
+ "report_id": "lib-note_2025",
+ "company": "NOTE",
+ "fiscal_year": 2025,
+ "currency": null,
+ "section": "debt_maturity",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": null,
+   "unit": null,
+   "period": null,
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": null,
+   "unit": null,
+   "period": null,
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": null,
+   "unit": null,
+   "period": null,
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": null,
+   "unit": null,
+   "period": null,
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "detail": "missing: due_within_1_year"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [107, 108] selected from candidates [107, 108, 88, 109]",
+  "llm: TimeoutExpired: Command '['C:\\Users\\<masked>\\\\AppData\\\\Local\\\\Programs\\\\OpenAI\\\\Codex\\\\bin\\\\codex.EXE', 'exec', '-m', 'gpt-5.6-terra', '-s', 'read-only', '-C', 'C:\\Users\\<masked>\\\\AppData\\\\Local\\\\Temp\\\\vivicta-codex-57tigx3i', '--skip-git-repo-check', '--json', '-o', 'C:\\Users\\<masked>\\\\AppData\\\\Local\\\\Temp\\\\vivicta-codex-57tigx3i\\\\last-message.txt', '-']' timed out after 120.0 seconds (pages [107, 108])"
+ ]
+}

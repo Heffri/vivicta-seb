@@ -1,0 +1,73 @@
+{
+ "report_id": "lib-inwido_2025",
+ "company": "Inwido",
+ "fiscal_year": 2025,
+ "currency": "SEKm",
+ "section": "debt_maturity",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 1796,
+   "unit": "SEKm",
+   "period": "2025",
+   "raw_label": "interest-bearing liabilities",
+   "source": {
+    "page": 143,
+    "quote": "credit, both short and long-term, are available. Efforts shall be made to main­ 643 million (935). The Group’s cash and equivalents are deposited in banks with leasing and overdraft facilities, amounted to SEK 1,796 million (1,253) and"
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": null,
+   "unit": "SEKm",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": null,
+   "unit": "SEKm",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": null,
+   "unit": "SEKm",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "detail": "missing: due_within_1_year"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [143, 144] selected from candidates [143, 144]"
+ ]
+}
