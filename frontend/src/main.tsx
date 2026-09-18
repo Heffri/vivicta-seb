@@ -41,6 +41,9 @@ export type DesktopConfig = {
   // EXTRACT_TWO_PASS passthrough (v047) -- ignored by desktop/settings.js's envForConfig() for
   // 'ollama' (always forced off, see its own comment) and 'fixture' (no model call either way).
   extractTwoPass: boolean
+  // DEBT_BASIS passthrough (v089) -- unlike two-pass this is model-independent, so every provider
+  // card shows the control and every non-fixture provider passes it through.
+  maturityBasis: 'carrying' | 'undiscounted'
 }
 
 export type SetSettingsResult =
