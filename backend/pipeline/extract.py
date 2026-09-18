@@ -1002,6 +1002,149 @@ def _date_bucket_derive(schema: dict, fields: list[dict], texts: list[str], fisc
     return {k: (v, quote, page, " + ".join(_row_label(r) for _, r in contrib[k])) for k, v in sums.items()}
 
 
+_SPAN_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+               "ett": 1, "två": 2, "tre": 3, "fyra": 4, "fem": 5}  # the small number words real tables print
+_SPAN_NUM = r"(\d{1,3}|one|two|three|four|five|ett|två|tre|fyra|fem)"
+_SPAN_UNIT = r"(years?|år|months?|månader|mån)"
+
+
+def _bucket_span(label) -> tuple[int, float] | None:
+    """(lo_months, hi_months) for a maturity row label that names its own interval -- "0–6 months",
+    "7–12 months", "6 months or less", "6 månader eller mindre", "6 – 12 månader", "1–2 years",
+    "2–5 years", "1 – 5 år", "between 1 and 2 years", "later than 1 year but within 3 years",
+    ">5 years", "mer än 5 år" -- or None when the label names no interval, never a guess. An
+    unbounded upper bound is inf. Used by _finer_split_rows only; interval GEOMETRY, not the bucket
+    vocabulary -- v088's rejected schema fix proved these wordings must not enter the synonym lists
+    the column scanner also reads ("0-6 months" in due_within_1_year.synonyms leaks into
+    _bucket_synonym_hits and changes _bucket_header's read), so this parser shares nothing with it.
+    Deliberately not units: bare "y"/"yr" (Stillfront's component wording "Repayment within 2–5 yr."
+    is a duration label, not a maturity interval) and day wording like "-30 dgr" (XANO's finer
+    day/month columns are the subtotal-column mechanism's territory, v078)."""
+    t = " ".join(str(label or "").strip().lower().translate(_DASHES).split())
+
+    def months(tok, unit) -> int:
+        return (int(tok) if tok.isdigit() else _SPAN_WORDS[tok]) * (1 if re.fullmatch(r"months?|månader|mån", unit) else 12)
+
+    m = re.fullmatch(rf"{_SPAN_NUM}\s*-\s*{_SPAN_NUM}\s+{_SPAN_UNIT}", t)  # "0-6 months", "1 - 5 år"
+    if m:
+        return (months(m.group(1), m.group(3)), months(m.group(2), m.group(3))) \
+            if months(m.group(1), m.group(3)) <= months(m.group(2), m.group(3)) else None
+    m = re.fullmatch(rf"(?:between|mellan)\s+{_SPAN_NUM}\s+(?:and|och)\s+{_SPAN_NUM}\s+{_SPAN_UNIT}", t)
+    if m:
+        return (months(m.group(1), m.group(3)), months(m.group(2), m.group(3))) \
+            if months(m.group(1), m.group(3)) <= months(m.group(2), m.group(3)) else None
+    m = re.fullmatch(rf"(?:later than|senare än)\s+{_SPAN_NUM}\s*{_SPAN_UNIT}?\s+(?:but|men)\s+(?:within|inom)\s+{_SPAN_NUM}\s+{_SPAN_UNIT}", t)
+    if m:  # "later than 1 year but within 3 years": both ends named, units may differ
+        return (months(m.group(1), m.group(2) or m.group(4)), months(m.group(3), m.group(4)))
+    for pat, open_low in ((rf"(?:less than|under|mindre än|<)\s*{_SPAN_NUM}\s+{_SPAN_UNIT}", True),  # "< 1 år", "mindre än 3 månader"
+                          (rf"(?:within|inom)\s+{_SPAN_NUM}\s+{_SPAN_UNIT}", True),  # "Within one year"
+                          (rf"{_SPAN_NUM}\s+{_SPAN_UNIT}\s+(?:or less|eller mindre)", True),  # "6 månader eller mindre"
+                          (rf"(?:more than|over|later than|after|mer än|senare än|efter|över|>)\s*{_SPAN_NUM}\s+{_SPAN_UNIT}", False),
+                          (rf"{_SPAN_NUM}\s+{_SPAN_UNIT}\s+(?:or more|eller mer)", False)):
+        m = re.fullmatch(pat, t)
+        if m:  # open-ended: the closed end is 0 below / inf above the named bound
+            n = months(m.group(1), m.group(2))
+            return (0, n) if open_low else (n, float("inf"))
+    return None
+
+
+def _span_bucket(span: tuple[int, float]) -> str | None:
+    """Which debt_maturity bucket a label's whole interval falls inside: [0,12] months = within 1
+    year, [12,60] = 1–5 years, [60,inf) = after 5 -- the schema's own value_convention ("sum
+    whichever of the report's own columns fall entirely inside a bucket's range"). None when the
+    span crosses a boundary ("3–7 years" is [36,84]): the table's own granularity cannot decide
+    which side of 5 years that debt sits on, and the caller abandons the whole derivation."""
+    lo, hi = span
+    if hi <= 12:
+        return "due_within_1_year"
+    if lo >= 12 and hi <= 60:
+        return "due_1_to_5_years"
+    if lo >= 60:
+        return "due_after_5_years"
+    return None
+
+
+def _finer_split_rows(fields: list[dict], schema: dict, texts: list[str], fiscal_year,
+                      warnings: list[str], values: dict, filled: set) -> None:
+    """A maturity note that prints one row per FINER interval (Rusta Note 11: "0–6 months 523 /
+    7–12 months 516 / 1–2 years 969 / 2–5 years 2,184 / >5 years 2,431 / Total 6,624") splits a
+    bucket over several sibling rows no existing repair sums: _statement_row deliberately declines
+    two rows matching one field (v058), _between_rows' window stops at any row another bucket field
+    labels ("1–2 years" is a due_1_to_5_years synonym, so the guard fires -- exactly why Rusta
+    stayed "missing" through v088), and _fill_bucket_columns reads one row's columns, not rows.
+
+    Scope: the contiguous interval-labelled rows directly above total_debt's own verified row --
+    the walk stops at the first row that names no interval, so a table stacked above (Rusta's own
+    right-of-use table, a parent-company note) is never reached. Each row's amount is its fiscal-
+    year column (_row_year_column on the total's own row, page-level _year_column when that table
+    prints no parseable year header -- Rusta's "30 Apr 2026 30 Apr 2025" is not a _year_run).
+    Rows are bucketed by the whole span of their label (_bucket_span); a boundary-crossing span
+    aborts everything. Adoption is identity-gated, the _date_bucket_derive rule: only when the
+    three bucket sums close maturity_sums_to_total within _check's own tolerance (Rusta: 523+516
+    + 969+2,184 + 2,431 = 6,623 ≈ 6,624 -- the identity, not any label vocabulary, decides; the
+    wrong column would sum 975+3,062+2,633 = 6,670 and fail it). A bucket with a single row is
+    that row's literal figure, left to the existing single-row paths (no new behaviour); a bucket
+    the table prints no row for stays null (schema: "null if the table has no such row", and
+    _check's require_explicit_values keeps it honestly "missing"); a field whose current value
+    already matches its sum keeps the model's own evidence."""
+    ident = _identity_parts(schema)
+    if not ident or not fiscal_year or set(ident[1]) != _DATE_BUCKET_KEYS:
+        return
+    total_key, part_keys = ident
+    sc = next((c for c in schema.get("checks", []) if c.get("identity") and re.search(rf"\b{re.escape(total_key)}\b", c["expr"])), None)
+    if not sc:
+        return
+    by_key = {f["key"]: f for f in fields}
+    total = by_key.get(total_key) or {}
+    src = total.get("source") or {}
+    page = src.get("page")
+    if not isinstance(total.get("value"), (int, float)) or isinstance(total["value"], bool) \
+            or not isinstance(page, int) or not (0 < page <= len(texts)) or not src.get("quote"):
+        return
+    text = texts[page - 1]
+    rows = _page_rows(text)
+    if src["quote"] not in rows:
+        return
+    ti = rows.index(src["quote"])
+    header = _row_year_column(rows, ti, fiscal_year) or _year_column(text, fiscal_year)
+    if not header or len(_row_amounts(rows[ti], header[1])) != header[1]:
+        return  # no column the fiscal year is provably in, or the total row itself does not line up with it
+    col, ncols = header
+    idxs: dict[str, list[int]] = {}
+    for i in range(ti - 1, -1, -1):
+        span = _bucket_span(_row_label(rows[i]))
+        if span is None:
+            break  # the first row that names no interval ends this table's data rows
+        bucket = _span_bucket(span)
+        if bucket is None:
+            return  # a span crossing a bucket boundary ("3-7 years"): no safe split of ANY row here
+        amounts = _row_amounts(rows[i], ncols)
+        if len(amounts) != ncols:
+            break  # a wrapped header line or a note row: not a data row of this table
+        idxs.setdefault(bucket, []).append(i)
+    sums = {k: round(sum(_row_amounts(rows[i], ncols)[col] for i in ii), 2) for k, ii in idxs.items()}
+    if not sums or not _check(sc, {**values, total_key: total["value"], **{k: sums.get(k, 0) for k in part_keys}})["passed"]:
+        return
+    for key in part_keys:
+        rs = [rows[i] for i in sorted(idxs.get(key, []))]  # print order: the quote is the siblings joined as printed
+        if len(rs) < 2:
+            continue
+        value = sums[key]
+        current = by_key[key]["value"]
+        if isinstance(current, (int, float)) and not isinstance(current, bool) and abs(current - value) <= 2:
+            continue  # agrees with the model's own read: its evidence already covers it
+        quote = " ".join(rs)
+        if not quote_on_page(quote, text):
+            return  # non-contiguous siblings: no verbatim quote, no adoption
+        label = " + ".join(_row_label(r) for r in rs)
+        prefix = "model returned null" if current is None else f"{current} reads one finer-split row and misses its siblings"
+        warnings.append(f"{key}: {prefix}; the rows above the total ({label}) sum to {value} in the {fiscal_year} column, closing {sc['name']}")
+        by_key[key].update(value=value, period=str(fiscal_year), raw_label=label, source={"page": page, "quote": quote},
+                           evidence=["quote_on_page"] if _value_in_quote(value, quote) else ["quote_on_page", "value_derived"])
+        values[key] = value
+        filled.add(key)
+
+
 _BUCKET_BOUNDARY = {  # the schema's own synonyms cover most of this (dash-normalised below, so "1–2 years" matches
     # the schema's "1-2 years"); these patch gaps a plain header_synonyms literal-substring entry (case-
     # insensitive, no word boundary, scanned over the whole 25-row window _bucket_header searches, not just the
@@ -2000,6 +2143,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             f.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
             values.pop(sf["key"], None)
     _fill_bucket_columns(fields, sfs, schema, texts, pages, fiscal_year, warnings, values, filled, basis)
+    _finer_split_rows(fields, schema, texts, fiscal_year, warnings, values, filled)  # the bucket-ROW finer split (Rusta), beside the bucket-column reader above
     checks = [_check(c, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema, stated_zeros=stated_zeros) for c in schema.get("checks", [])]
     for c, sc in zip(checks, schema.get("checks", [])):
         if not c["passed"] or not sc.get("identity"):
