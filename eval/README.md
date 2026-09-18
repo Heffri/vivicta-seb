@@ -19,7 +19,9 @@ Columns: `report_file,section,key,expected_value,expected_page,notes`.
   --stored-kb dir2 ...`) — one report is printed per directory, so the same `report_file` scored
   against several snapshots (e.g. one per hardening seed) shows up once per snapshot, not merged. A
   label row whose `(report_file, section)` has no stored extraction file at all scores `-` (not
-  counted as a miss) rather than a value mismatch.
+  counted as a miss) rather than a value mismatch. `--stored-kb data/kb` now covers the Mid Cap
+  `debt_maturity` labels too: the 72 hardening-seed entries published by `scripts/publish_kb.py`
+  (v093) live there beside the 102 Large Cap entries.
 
 ## Reading output
 Per-row ✓/✗ for value and page match plus confidence, then value accuracy %, page hit-rate %,
