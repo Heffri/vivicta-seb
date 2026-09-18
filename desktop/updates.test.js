@@ -33,6 +33,8 @@ test('main and demo have separate update feeds and installed identities', () => 
     return require('./release-config.cjs')
   }
   const main = config('main'), demo = config('demo')
+  assert.match(main.nsis.artifactName, /^annual-report-parser-main-setup-1\.5\.1\.exe$/)
+  assert.match(demo.nsis.artifactName, /^annual-report-parser-demo-setup-1\.5\.1\.exe$/)
   assert.notEqual(main.appId, demo.appId)
   assert.notEqual(main.extraMetadata.name, demo.extraMetadata.name)
   assert.match(main.publish[0].url, /desktop-main\/$/)

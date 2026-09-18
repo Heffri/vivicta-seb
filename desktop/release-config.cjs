@@ -5,6 +5,7 @@ if (!/^1\.\d+\.\d+$/.test(version || '')) throw new Error('RELEASE_VERSION must 
 module.exports = {
   extends: './electron-builder.yml',
   appId: channel === 'demo' ? 'com.vivicta.annual-report-parser' : 'com.vivicta.annual-report-parser.main',
+  nsis: { artifactName: `annual-report-parser-${channel}-setup-${version}.exe` },
   productName: channel === 'demo' ? 'Annual Report Parser Demo' : 'Annual Report Parser',
   extraMetadata: {
     version,
