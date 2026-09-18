@@ -36,6 +36,8 @@ def main():
     ap.add_argument("--market", default="Large Cap", help="substring of the market field; '' for all")
     ap.add_argument("--exclude-sector", action="append", default=[],
                     help="drop companies whose sector contains this substring, e.g. 'Real Estate'; repeatable")
+    ap.add_argument("--sector", action="append", default=[],
+                    help="keep only companies whose sector contains this substring, e.g. 'Financials'; repeatable")
     ap.add_argument("--only", nargs="*", default=[], help="re-check only companies whose name contains one of these")
     ap.add_argument("--api", default="http://localhost:8000", help="backend base URL")
     a = ap.parse_args()
@@ -44,6 +46,7 @@ def main():
     known = {line.split("_")[0] for line in (ROOT / "eval" / "labels.csv").read_text("utf-8").splitlines()[1:]}
     pool = [c for c in companies if a.market.lower() in c.get("market", "").lower()
             and not any(s.lower() in c.get("sector", "").lower() for s in a.exclude_sector)
+            and (not a.sector or any(s.lower() in c.get("sector", "").lower() for s in a.sector))
             and c["name"].split()[0].lower() not in known]
     random.Random(a.seed).shuffle(pool)
     if a.only:
