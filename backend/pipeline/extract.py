@@ -1336,11 +1336,23 @@ def _bucket_total_row(rows: list[str], total_sf: dict, bucket_sfs: dict | None =
     purpose -- only known_total (the model's own already-sourced total_debt, if any) narrows next -- the row that
     itself prints that figure wins (Ework p.70: only the short-term interest-bearing liabilities row prints
     156,410; the page's own "Lease liabilities" row and the prior-year block's rows don't). Still ambiguous after
-    both is not a guess this function will make -- dropped, with a warning, not a pick."""
+    both is not a guess this function will make -- dropped, with a warning, not a pick.
+
+    v095: a bare Total/Totalt/Summa row is the table's grand total of whatever the table sums -- Karnell's
+    all-liabilities "Total 72.2 354.4 107.0 533.5" includes earn-outs, put/call options and accounts payable --
+    while a row named by the total field's own wording ("Total interest-bearing liabilities") or a debt-row
+    candidate names the borrowing scope itself. When both kinds survive, the debt-scoped rows are tried first
+    and the bare table totals last; with no debt-scoped row the order (and behaviour) is exactly today's. The
+    scope of a bare Total row is this function's question precisely because no schema key can express it: v088's
+    own experiment (claiming ">3 years" for due_after_5_years) opened Karnell's header and filled 533.5 with the
+    identity check passing -- a wrong-scope value endorsed by its own check -- until this rule put the
+    interest-bearing row (397.2) ahead of it."""
     hits = [i for i, r in enumerate(rows) if len(_row_amounts(r)) >= 2
             and (_label_known(_row_label(r), total_sf) or _clean_label(_row_label(r)) in ("total", "totalt", "summa"))]
     if not bucket_sfs:
         return hits
+    proper = [i for i in hits if _label_known(_row_label(rows[i]), total_sf)]  # the total field's own wording
+    bare = [i for i in hits if i not in proper]  # a bare table total, whatever the table sums
     debt_sf = {"synonyms": total_sf.get("row_synonyms", [])}
     candidates = []
     for i, r in enumerate(rows):
@@ -1362,7 +1374,7 @@ def _bucket_total_row(rows: list[str], total_sf: dict, bucket_sfs: dict | None =
             warnings.append(f"{total_sf['key']}: {len(candidates)} candidate debt rows for the bucket table "
                              f"({', '.join(repr(_row_label(rows[i])) for i in candidates)}) -- ambiguous, none used")
         candidates = []
-    return hits + candidates
+    return proper + candidates + bare  # v095: debt-scoped rows outrank bare table totals, see docstring
 
 
 def _bucket_assign(amounts: list, col_keys: list[str]) -> dict[str, float | None]:

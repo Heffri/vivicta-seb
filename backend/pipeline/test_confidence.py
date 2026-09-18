@@ -1200,6 +1200,34 @@ def demo():
     out = x.extract([ce1], [1], dm, {"fiscal_year": 2025})
     assert all(f["value"] is None for f in out["fields"]), (out["fields"], out["warnings"])
     assert any("'>3 years' 173 straddles the 5-year boundary" in w for w in out["warnings"]), out["warnings"]
+    # v095 rule 2, the row picker: a debt-scoped row (the total field's own wording or a row_synonyms hit)
+    # outranks a bare table Total whose scope is only "whatever this table sums" (Karnell's 533.5 includes
+    # earn-outs, put/call options and accounts payable). Only-bare-Totals pages keep today's order exactly.
+    warnings: list = []
+    order = x._bucket_total_row(kr, dmf["total_debt"], bucket_sfs, 2025, None, warnings)
+    assert order == [debt_i, kr.index("Total 72.2 354.4 107.0 533.5"), kr.index("Total 115.1 382.7 92.5 590.3")], order
+    assert warnings == [], warnings  # one surviving debt row (the 2024 one never aligns: both headers in its window)
+    ce2 = karnell106.replace("Liabilities to credit institutions 43.5 353.7 - 397.2",
+                             "Other financial liabilities 43.5 353.7 - 397.2")
+    warnings = []
+    assert x._bucket_total_row(x._page_rows(ce2), dmf["total_debt"], bucket_sfs, 2025, None, warnings) == \
+        [x._page_rows(ce2).index("Total 72.2 354.4 107.0 533.5"), x._page_rows(ce2).index("Total 115.1 382.7 92.5 590.3")]
+    assert warnings == [], warnings
+    out = x.extract([ce2], [1], dm, {"fiscal_year": 2025})
+    assert all(f["value"] is None for f in out["fields"]), (out["fields"], out["warnings"])  # no debt candidate: bare Totals only, today's order, declined on their valued ">3 years" -- baseline values
+    # rule 2's own proof is v088's rejected experiment flipped harmless: claim ">3 years" for
+    # due_after_5_years (schema copy, test-only) and the header opens either way -- before the reorder that
+    # filled the bare Total 533.5 with the identity passing (the wrong-scope value endorsed by its own
+    # check); now the debt row outranks it and the same claim fills 397.2, the dash now the bucket's own
+    # column (v078's printed_nil, not value_derived)
+    dm95 = json.loads(json.dumps(dm))
+    next(f for f in dm95["fields"] if f["key"] == "due_after_5_years")["synonyms"].append(">3 years")
+    out = x.extract([karnell106], [1], dm95, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 397.2, "due_within_1_year": 43.5, "due_1_to_5_years": 353.7, "due_after_5_years": 0} \
+        and out["checks"][0]["passed"], (got, out["checks"], out["warnings"])
+    after5 = next(f for f in out["fields"] if f["key"] == "due_after_5_years")
+    assert "printed_nil" in after5["evidence"] and "value_derived" not in after5["evidence"], after5
 
     qcalls = []
     # v054: EXTRACT_QUOTE_RETRY (default off) -- one follow-up call for the fields whose answer cites a quote
