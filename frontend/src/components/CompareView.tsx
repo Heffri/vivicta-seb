@@ -130,7 +130,7 @@ export function CompareView({ results, onSelect, onReset }: Props) {
                       </Button>
                       {/* ponytail: one CSV per column; a merged CSV isn't in the API and isn't worth inventing client-side. */}
                       <a
-                        href={csvUrl(r.extraction.report_id)}
+                        href={csvUrl(r.extraction.report_id, r.extraction.stem ? r.extraction.section : undefined)}
                         download
                         className={buttonVariants({ size: 'xs', variant: 'outline' })}
                       >
