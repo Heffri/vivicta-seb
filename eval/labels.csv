@@ -114,7 +114,7 @@ apotea_2025.pdf,debt_maturity,total_debt,21.6,113,"Note 29 Borrowings, 'Total se
 apotea_2025.pdf,debt_maturity,due_within_1_year,21.6,113,same row ('Current: Overdraft facility'); text states 'no long-term borrowings'
 apotea_2025.pdf,debt_maturity,due_1_to_5_years,null,113,no such row; only bucket is the current overdraft facility
 apotea_2025.pdf,debt_maturity,due_after_5_years,null,113,same
-catella_2025.pdf,debt_maturity,total_debt,-1474,108,"Note 3, 'Total interest-bearing liabilities' row, SEK M, sign as printed; v035/v036/v050 replay -1474"
+catella_2025.pdf,debt_maturity,total_debt,1474,108,"Note 3, 'Total interest-bearing liabilities' row, SEK M; printed -1,474 in a liabilities-negative net-debt presentation (p.107 liquidity table: every debt row negative), magnitude recorded positive (v101 sign_normalized); v035/v036/v050 replay -1474"
 catella_2025.pdf,debt_maturity,due_within_1_year,null,108,no maturity table for this total (p.107's liquidity table is a broader/undiscounted scope)
 catella_2025.pdf,debt_maturity,due_1_to_5_years,null,108,same
 catella_2025.pdf,debt_maturity,due_after_5_years,null,108,same
@@ -228,7 +228,7 @@ synsam_2025.pdf,debt_maturity,total_debt,2718,122,"refinancing-risk prose: 'Loan
 synsam_2025.pdf,debt_maturity,due_within_1_year,0,122,same sentence: 'of which current liabilities amounted to SEK 0 million (0)' -- printed digit 0
 synsam_2025.pdf,debt_maturity,due_1_to_5_years,2718,122,"same paragraph: 'The loans are payable in full upon maturity and run for five years' (facilities refinanced Q2 2025, five-year terms); 0+2,718+0=2,718"
 vbg_2025.pdf,debt_maturity,total_debt,1504774,133,"Note 29 maturity table 'Liabilities to credit institutions ... Carrying amount 1,504,774'; lease liability 247,001 prints as its own row; native SEK thousand (= 1,504.8 MSEK); buckets disputed -- the table's bucket columns are contractual incl calculated interest (sum 1,712,314)"
-scandi_standard_2025.pdf,debt_maturity,total_debt,-2307,134,"financing reconciliation: 'Gross debt December 31 2025 (Note 21) ... Total -2,307', carrying, sign as printed (net-debt context; catella-style); = credit institutions 2,021 + leases 286; Note 21's own subtotals (2,243/73) include derivatives, not used; MSEK"
+scandi_standard_2025.pdf,debt_maturity,total_debt,2307,134,"financing reconciliation: 'Gross debt December 31 2025 (Note 21) ... Total -2,307', carrying; every debt row of the reconciliation prints negative (outflow-negative presentation), magnitude recorded positive (v101 sign_normalized); = credit institutions 2,021 + leases 286; Note 21's own subtotals (2,243/73) include derivatives, not used; MSEK"
 scandi_standard_2025.pdf,debt_maturity,due_within_1_year,70,102,"balance sheet: 'Current leasing liabilities 21, 22, 25 70'; = p.134 NIBD row 'repayable within one year -70'; credit institutions all non-current; MSEK"
 duni_2025.pdf,debt_maturity,total_debt,1498,181,"Note 30: 'Total borrowing 1,498' carrying (amortised cost), Group; leases 313 nominal reported separately under 'Current financing'; SEK m"
 duni_2025.pdf,debt_maturity,due_within_1_year,0,181,'Total short-term borrowing 0' (2025 column) -- printed digit 0; the p.181 interest-renegotiation table (6 months or less / 6-12 months / More than one year) is not a principal maturity table and was not used
