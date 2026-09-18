@@ -21,8 +21,10 @@ Columns: `report_file,section,key,expected_value,expected_page,notes`.
   label row whose `(report_file, section)` has no stored extraction file at all scores `-` (not
   counted as a miss) rather than a value mismatch. `--stored-kb data/kb` now covers the Mid Cap
   `debt_maturity` labels too: the 72 hardening-seed entries published by `scripts/publish_kb.py`
-  (v093) live there beside the 102 Large Cap entries. `labels.csv` itself now holds 181 hand-verified
-  rows across 62 companies (v057's seeds-1–4 set plus v094's seeds-5–8 rows).
+  (v093) live there beside the 102 Large Cap entries. `labels.csv` itself now holds 231 hand-verified
+  `debt_maturity` rows across 87 companies (v057's seeds-1–4 set, v094's seeds-5–8 rows, v099's
+  seed-9 + Financials rows and v105's seed-10 rows) — 327 scored rows with the 96 income rows (the 3
+  `nordic_industrials` example rows have no KB stem and never score).
 
 ## Reading output
 Per-row ✓/✗ for value and page match plus confidence, then value accuracy %, page hit-rate %,
