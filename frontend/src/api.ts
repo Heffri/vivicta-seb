@@ -81,6 +81,7 @@ export type Config = {
 }
 export const getConfig = () => request<Config>('/api/config')
 export const getKb = () => request<KbEntry[]>('/api/kb')
-// Stored extraction, no model call; the backend re-registers the PDF so pageUrl/csvUrl work.
+// Stored extraction, no model call; the backend re-attaches it to a live report_id — PDF-backed when the
+// file is cached (pageUrl works), KB-only otherwise (v092: tables/csvUrl/pptxUrl work, page images 404).
 export const openKbExtraction = (stem: string, section: string) =>
   request<Extraction>(`/api/kb/${encodeURIComponent(stem)}/${encodeURIComponent(section)}`)
