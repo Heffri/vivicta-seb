@@ -303,7 +303,9 @@ matching after the re-parse.
   coupling" for bucket keys is now a coupling between two files. [v009](evidence/v009.md).
 - **KB open fails whole, not per-field, when the PDF isn't on disk.** A stem whose PDF isn't in
   `data/reports/` 409s the entire open, not just the page images — right now only Atlas Copco is
-  openable offline. [v003](evidence/v003.md).
+  openable offline. [v003](evidence/v003.md). — **fixed in v092**: the open no longer needs the PDF;
+  stored extractions, CSV, PPTX and Compare work for every KB entry, and only the page-image and
+  PDF endpoints 404 with a fetch-it-from-Extract hint. [v092](evidence/v092.md)
 
 ## Assumptions to confirm with Kristian / SEB
 

@@ -19,7 +19,8 @@ Backend runs on `http://localhost:8000`, frontend dev server proxies `/api` to i
 | `GET`  | `/api/library` | – | `LibraryEntry[]` — the report **cache** in `data/reports/` (only files present on disk). Populated by `/fetch`; hand-curated entries also live in `index.json` |
 | `POST` | `/api/reports/{report_id}/index` | – | `IndexStatus` — chunk + embed the report into the knowledge base (idempotent, cached on disk). ~10–30 s per report locally |
 | `POST` | `/api/ask` | `{ "question": string, "report_ids": string[] }` | `Answer` — RAG over the selected reports (page texts + prior extractions). Indexes on demand if `/index` was not called |
-| `GET`  | `/api/kb` | – | `KbEntry[]` — what is in `data/kb/` (one per parsed report: pages indexed, sections extracted) |
+| `GET`  | `/api/kb` | – | `KbEntry[]` — what is in `data/kb/` (one per parsed report: pages indexed, sections extracted; `pdf_cached` says whether its PDF is in `data/reports/` right now) |
+| `GET`  | `/api/kb/{stem}/{section}` | – | `Extraction` — the stored extraction for that stem/section, re-attached to a live `report_id`. No model call. With the PDF cached that is a full re-registration (page images work); without it (v092) the report registers **KB-only** (`kb-<stem>`, meta from `meta.json`): tables, `/extraction.csv`, `/extraction.pptx` and Compare all work, and only `/pdf` and `/pages/{n}.png` 404 with a `the PDF … is not cached; fetch it from Extract (directory search)` detail. This endpoint never 409s. 404 when the stem/section has no stored extraction |
 | `GET`  | `/api/config` | – | `{ model, embed_model, base_url, llm, provider, retrieval }` — what the backend runs with; `retrieval` is `"hybrid"` (cosine+BM25) \| `"bm25"` (keyword-only, e.g. codex/claude subscription with no embeddings endpoint) \| `"fixture"` |
 | `POST` | `/api/reports/from-library` | `{ "file": "<LibraryEntry.file>" }` | `Report` — registers a bundled report exactly like an upload would. Same file twice = same `report_id` |
 
@@ -76,12 +77,13 @@ type Answer = {
 
 type KbEntry = {
   stem: string;             // data/kb/<stem>/, = report filename without .pdf
-  report_id: string | null; // set while the backend has it registered this run
+  report_id: string | null; // set while the backend has it registered this run (the PDF-backed id once the PDF arrives)
   company: string | null;
   fiscal_year: number | null;
   pages: number;
   sections: string[];       // extractions present, e.g. ["income_statement"]
   indexed: boolean;         // embeddings cached
+  pdf_cached: boolean;      // v092: the PDF is in data/reports/ right now — false means a KB-only open (no page images)
 };
 
 type Source = {
