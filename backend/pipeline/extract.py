@@ -1012,7 +1012,8 @@ _SPAN_UNIT = r"(years?|år|months?|månader|mån)"
 def _bucket_span(label) -> tuple[int, float] | None:
     """(lo_months, hi_months) for a maturity row label that names its own interval -- "0–6 months",
     "7–12 months", "6 months or less", "6 månader eller mindre", "6 – 12 månader", "1–2 years",
-    "2–5 years", "1 – 5 år", "between 1 and 2 years", "later than 1 year but within 3 years",
+    "2–5 years", "1 – 5 år", "between 1 and 2 years", "mellan 1 år och 2 år" (each operand its own
+    unit, v104: "mellan 3 månader och 1 år"), "later than 1 year but within 3 years", "högst 2 år",
     ">5 years", "mer än 5 år" -- or None when the label names no interval, never a guess. An
     unbounded upper bound is inf. Used by _finer_split_rows only; interval GEOMETRY, not the bucket
     vocabulary -- v088's rejected schema fix proved these wordings must not enter the synonym lists
@@ -1030,14 +1031,15 @@ def _bucket_span(label) -> tuple[int, float] | None:
     if m:
         return (months(m.group(1), m.group(3)), months(m.group(2), m.group(3))) \
             if months(m.group(1), m.group(3)) <= months(m.group(2), m.group(3)) else None
-    m = re.fullmatch(rf"(?:between|mellan)\s+{_SPAN_NUM}\s+(?:and|och)\s+{_SPAN_NUM}\s+{_SPAN_UNIT}", t)
-    if m:
-        return (months(m.group(1), m.group(3)), months(m.group(2), m.group(3))) \
-            if months(m.group(1), m.group(3)) <= months(m.group(2), m.group(3)) else None
+    m = re.fullmatch(rf"(?:between|mellan)\s+{_SPAN_NUM}\s*(?:{_SPAN_UNIT})?\s+(?:and|och)\s+{_SPAN_NUM}\s+{_SPAN_UNIT}", t)
+    if m:  # "between 1 and 2 years", "mellan 1 och 5 år" -- and Svedbergs p.132's long forms, where EACH
+        # operand names its own unit ("mellan 3 månader och 1 år" = [3,12], "mellan 2 år och 5 år" = [24,60])
+        lo, hi = months(m.group(1), m.group(2) or m.group(4)), months(m.group(3), m.group(4))
+        return (lo, hi) if lo <= hi else None
     m = re.fullmatch(rf"(?:later than|senare än)\s+{_SPAN_NUM}\s*{_SPAN_UNIT}?\s+(?:but|men)\s+(?:within|inom)\s+{_SPAN_NUM}\s+{_SPAN_UNIT}", t)
     if m:  # "later than 1 year but within 3 years": both ends named, units may differ
         return (months(m.group(1), m.group(2) or m.group(4)), months(m.group(3), m.group(4)))
-    for pat, open_low in ((rf"(?:less than|under|mindre än|<)\s*{_SPAN_NUM}\s+{_SPAN_UNIT}", True),  # "< 1 år", "mindre än 3 månader"
+    for pat, open_low in ((rf"(?:less than|under|mindre än|högst|<)\s*{_SPAN_NUM}\s+{_SPAN_UNIT}", True),  # "< 1 år", "mindre än 3 månader", "högst 2 år"
                           (rf"(?:within|inom)\s+{_SPAN_NUM}\s+{_SPAN_UNIT}", True),  # "Within one year"
                           (rf"{_SPAN_NUM}\s+{_SPAN_UNIT}\s+(?:or less|eller mindre)", True),  # "6 månader eller mindre"
                           (rf"(?:more than|over|later than|after|mer än|senare än|efter|över|>)\s*{_SPAN_NUM}\s+{_SPAN_UNIT}", False),
@@ -1065,6 +1067,11 @@ def _span_bucket(span: tuple[int, float]) -> str | None:
     return None
 
 
+_TORN_DASHES = {**_DASHES, ord("—"): "-"}  # Svedbergs' torn maturity rows print the parent-company nils as em dashes ("11 896 19 122 — —")
+_TORN_GROUP = re.compile(r"(?<![\d,.])\d{1,3}[ ]\d{3}(?![.'\d]|,\d{3})")  # ONE space-group per match, not _SPACE_GROUPS' greedy run: the
+# torn rows' own cells are adjacent 3-digit groups ("Summa 496 405 886 478 432 824 609 480"), and a greedy degroup would fuse all eight into one number
+
+
 def _finer_split_rows(fields: list[dict], schema: dict, texts: list[str], fiscal_year,
                       warnings: list[str], values: dict, filled: set) -> None:
     """A maturity note that prints one row per FINER interval (Rusta Note 11: "0–6 months 523 /
@@ -1078,7 +1085,9 @@ def _finer_split_rows(fields: list[dict], schema: dict, texts: list[str], fiscal
     the walk stops at the first row that names no interval, so a table stacked above (Rusta's own
     right-of-use table, a parent-company note) is never reached. Each row's amount is its fiscal-
     year column (_row_year_column on the total's own row, page-level _year_column when that table
-    prints no parseable year header -- Rusta's "30 Apr 2026 30 Apr 2025" is not a _year_run).
+    prints no parseable year header -- Rusta's "30 Apr 2026 30 Apr 2025" is not a _year_run); a
+    torn side-by-side page (Svedbergs p.132, the maturity table and the financing-changes note
+    printed in two columns) reads each row's own columns label-anchored (row_amounts below).
     Rows are bucketed by the whole span of their label (_bucket_span); a boundary-crossing span
     aborts everything. Adoption is identity-gated, the _date_bucket_derive rule: only when the
     three bucket sums close maturity_sums_to_total within _check's own tolerance (Rusta: 523+516
@@ -1108,22 +1117,57 @@ def _finer_split_rows(fields: list[dict], schema: dict, texts: list[str], fiscal
         return
     ti = rows.index(src["quote"])
     header = _row_year_column(rows, ti, fiscal_year) or _year_column(text, fiscal_year)
-    if not header or len(_row_amounts(rows[ti], header[1])) != header[1]:
-        return  # no column the fiscal year is provably in, or the total row itself does not line up with it
+    if not header:
+        return  # no column the fiscal year is provably in
     col, ncols = header
+
+    def row_amounts(row: str, label: str) -> list:
+        """The row's own `ncols` amounts: the ordinary last-alpha read (_row_amounts) first -- byte-
+        identical on clean pages -- falling to the label-anchored read for a TORN page. Svedbergs
+        p.132 prints the maturity table and the financing-changes note side by side, and pymupdf
+        glues the note's lines onto the maturity rows ("Mellan 2 år och 5 år 11 896 19 122 — —
+        Förändringar leasingskuld 360 125 ...", the Summa row too), so the last alpha token sits
+        inside the glued text and the ordinary read returns the OTHER table's figures (or none).
+        With the label known (_row_label), this table's own columns are what prints between the
+        label and the next label word: amounts left to right, a lone dash as the printed nil (the
+        _row_amounts convention, em dashes included), the first lettered token ending the row, and
+        anything else unparseable ending it too -- no guessing past it."""
+        am = _row_amounts(row, ncols)
+        if len(am) == ncols:
+            return am
+        cells: list = []
+        for tok in _TORN_GROUP.sub(lambda m: m.group(0).replace(" ", ""),
+                                   row.translate(_TORN_DASHES)[len(label):].lstrip(" ,.:;*")).split():
+            if re.search(r"[^\W\d_]", tok):
+                break  # the next label's first word: this table's columns are over
+            if tok == "-":
+                cells.append(0)
+                continue
+            m = _AMOUNT.fullmatch(tok)
+            if not m:
+                break
+            v = int(re.sub(r"\D", "", m.group(1))) + (float(f"0.{m.group(3)}") if m.group(3) else 0)
+            cells.append(-v if tok[0] in "-(" else v)
+        return cells
+
+    if len(row_amounts(rows[ti], _row_label(rows[ti]))) != ncols:
+        return  # the total row itself does not line up with the year header
     idxs: dict[str, list[int]] = {}
+    read: dict[int, list] = {}
     for i in range(ti - 1, -1, -1):
-        span = _bucket_span(_row_label(rows[i]))
+        label = _row_label(rows[i])
+        span = _bucket_span(label)
         if span is None:
             break  # the first row that names no interval ends this table's data rows
         bucket = _span_bucket(span)
         if bucket is None:
             return  # a span crossing a bucket boundary ("3-7 years"): no safe split of ANY row here
-        amounts = _row_amounts(rows[i], ncols)
+        amounts = row_amounts(rows[i], label)
         if len(amounts) != ncols:
             break  # a wrapped header line or a note row: not a data row of this table
+        read[i] = amounts
         idxs.setdefault(bucket, []).append(i)
-    sums = {k: round(sum(_row_amounts(rows[i], ncols)[col] for i in ii), 2) for k, ii in idxs.items()}
+    sums = {k: round(sum(read[i][col] for i in ii), 2) for k, ii in idxs.items()}
     if not sums or not _check(sc, {**values, total_key: total["value"], **{k: sums.get(k, 0) for k in part_keys}})["passed"]:
         return
     for key in part_keys:
