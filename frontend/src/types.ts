@@ -54,6 +54,7 @@ export type KbEntry = {
   pages: number;
   sections: string[];       // extractions present, e.g. ["income_statement"]
   indexed: boolean;         // embeddings cached
+  pdf_cached?: boolean;     // v092: the PDF is in data/reports/ (page images will work). Absent on a pre-v092 backend — KbView then falls back to GET /api/library
 };
 
 export type Source = {

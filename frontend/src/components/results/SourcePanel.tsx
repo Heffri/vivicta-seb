@@ -81,7 +81,9 @@ export function SourcePanel({
             ) : brokenPage === page ? (
               <div className="flex aspect-[1/1.3] flex-col items-center justify-center gap-2 rounded-lg border bg-muted/40 text-sm text-muted-foreground">
                 <ImageOff className="size-5" />
-                Page preview unavailable
+                <span>Page preview unavailable</span>
+                {/* v092: a KB-only report's pages 404 until the PDF is fetched — same hint the backend's detail carries */}
+                <span>Fetch the PDF from Extract (directory search) to see the pages.</span>
               </div>
             ) : (
               <img
