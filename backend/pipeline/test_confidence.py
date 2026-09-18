@@ -1388,6 +1388,70 @@ def demo():
     total = next(f for f in out["fields"] if f["key"] == "total_debt")
     bucket15 = next(f for f in out["fields"] if f["key"] == "due_1_to_5_years")
     assert (total["value"], total["confidence"]) == (718.7, 0.9) and (bucket15["value"], bucket15["confidence"]) == (616.5, 1.0), (total, bucket15)
+    # v102: a date-form year header ("SEK million 31 Dec 2025 31 Dec 2024", Ambea p.119 Note G18) names its
+    # year columns: each year may carry its balance-date wording (day + month name, either order, "31 Dec" /
+    # "31 dec." / "31 december" / "Dec 31,"; the ISO and slash spellings the _year_run subs already reduce),
+    # the day/month tokens are neither amount columns nor run-breakers, and the years keep print order -- the
+    # first column is the first year printed. Before, the day digit broke the gap rule, the header formed no
+    # run at all, and the page scan fell through to a bare-year pair in prose ("... issued in 2024 or 2025",
+    # the note's own last sentence) -- which named 2025 as the SECOND column, so the year correction rewrote
+    # the model's correct first-column figures into the prior-year comparatives (12,643 -> 10,757,
+    # 2,308 -> 1,879; docs/acrylic/evidence/v099.md Finding 1, v088's own false "year-column corrected").
+    # The reduction lives in _year_column/_row_year_column only: _year_run itself (and _segment_column,
+    # _bucket_row_prior_year, _operand_table_rows through it) keep seeing the header as printed.
+    assert x._year_run("SEK million 31 Dec 2025 31 Dec 2024") == []  # unchanged, by design: the selectors reduce, not the scan
+    assert x._year_column("SEK million 31 Dec 2025 31 Dec 2024", 2025) == (0, 2)
+    assert x._row_year_column(x._page_rows("SEK million 31 Dec 2025 31 Dec 2024\nTotal interest-bearing liabilities 12,643 10,757\n"), 1, 2025) == (0, 2)
+    assert x._year_column("MSEK 31 december 2024 31 december 2025", 2025) == (1, 2)  # prior year printed first: order is print order
+    assert x._year_column("USD million Dec 31, 2025 Dec 31, 2024", 2025) == (0, 2)  # month-first spelling
+    assert x._year_column("MSEK per 31 Dec. 2025 per 31 Dec. 2024", 2025) == (0, 2)  # per/at prefixes ride the one-word gap rule, digits were the only breaker
+    assert x._year_column("SEK 000 31 Dec. 2025 31 Dec. 2024", 2025) == (0, 2)  # Ependion p.155's dotted abbreviation
+    # counterexamples, unchanged: a bare-year header, a lone year (no run -- "Note 20 2025" is one column),
+    # Cloetta's single-date bucket note (one date, one column, still the bucket-column mechanism's own page),
+    # and a non-December balance date, which stays a non-run because its calendar year is NOT the fiscal year:
+    # Rusta's FY2025 ends 30 Apr 2026, so "30 Apr 2025" names the PRIOR year and the report's own fiscal-year
+    # header ("2025/26 2024/25", the _SPLIT_YEAR rule) remains the authority (docs/acrylic/evidence/v096.md).
+    assert x._year_column("Note 20 Borrowings\nMSEK\n2025 2024", 2025) == (0, 2)
+    assert x._year_column("Note 20 Borrowings\nMSEK\n2025", 2025) is None
+    assert x._year_column("Note 21 Borrowings 31 Dec 2025", 2025) is None
+    assert x._year_column("Maturity analysis 30 Apr 2026 30 Apr 2025", 2025) is None
+    # repeated date-form pairs (Proact p.103 prints Group | Parent side by side) flow into the v052 machinery
+    # unchanged: the page-level default declines a repeated fiscal year, and the row-anchored header takes the
+    # Group side when Group is named before Parent on the run's row or the one above it
+    proact_hdr = x._page_rows("Other financial liabilities Group Parent company\n"
+                              "acquisition value 31 Dec 2025 31 Dec 2024 31 Dec 2025 31 Dec 2024\n"
+                              "Total interest-bearing 478,611 483,465 216,360 229,730\n")
+    proact_page = "\n".join(proact_hdr)
+    assert x._year_column(proact_page, 2025) is None
+    assert x._row_year_column(proact_hdr, 2, 2025) == (0, 4)
+    # ... end to end on Ambea's real p.119 (trimmed to Note G18; the model answer is v088 pass 1's correct
+    # read): the figures stay in the first column -- no "is not the 2025 column" correction, period_ok and
+    # value_in_quote on both fields -- and the current/non-current shape leaves the buckets honestly missing.
+    # Runs on the SHIPPED schema (require_explicit_values on: a null bucket stays "missing", the stored
+    # extraction's own convention), not the flag-off copy `dm` above.
+    ambea119 = ("NOTE G18 Interest-bearing liabilities\nSEK million 31 Dec 2025 31 Dec 2024\n"
+                "Non-current liabilities\nLiabilities to credit institutions 2,115 1,087\n"
+                "Non-current lease liabilities 8,220 7,791\nTotal non-current interest-bearing liabilities 10,335 8,878\n"
+                "Current liabilities\nCommercial paper 1,232 1,039\nCurrent lease liabilities 1,076 840\n"
+                "Total current interest-bearing liabilities 2,308 1,879\nTotal interest-bearing liabilities 12,643 10,757\n"
+                "rate fluctuations as well as payback periods are presented in Note G26\n"
+                "company's participations in subsidiaries was issued in 2024 or 2025.\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 12643, "unit": "SEK million", "period": "2025", "raw_label": "Total interest-bearing liabilities",
+         "source": {"page": 1, "quote": "Total interest-bearing liabilities 12,643 10,757"}},
+        {"key": "due_within_1_year", "value": 2308, "unit": "SEK million", "period": "2025", "raw_label": "Total current interest-bearing liabilities",
+         "source": {"page": 1, "quote": "Total current interest-bearing liabilities 2,308 1,879"}},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    dm_ship = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
+    out = x.extract([ambea119], [1], dm_ship, {"fiscal_year": 2025})
+    got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
+    assert got == {"total_debt": (12643, 1.0), "due_within_1_year": (2308, 0.9),
+                   "due_1_to_5_years": (None, 0.0), "due_after_5_years": (None, 0.0)}, (got, out["warnings"], out["checks"])
+    assert not any("is not the 2025 column" in w for w in out["warnings"]), out["warnings"]
+    td = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert "value_in_quote" in td["evidence"] and "period_ok" in td["evidence"], td
+    assert out["checks"][0]["detail"] == "missing: due_1_to_5_years", out["checks"]
     # v051 (seed 5's live Codex rerun of this same page): a related but distinct gap from the fabricated-quote
     # case just above. There, the model's quote never verifies at all (no "+"/"=" arithmetic notation is
     # printed), so due_within_1_year is null by the time the "missing:"-driven repair loop runs, and the

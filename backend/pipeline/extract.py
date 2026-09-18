@@ -420,13 +420,18 @@ _AMOUNT = re.compile(r"[-(]?(\d{1,3}(?:[ ,.']\d{3})*|\d+)(?:([.,])(\d{1,4}))?\)?
 
 _SPLIT_YEAR = re.compile(r"\b(20\d\d)/(?:20)?\d\d\b")
 _MONTH_RANGE = re.compile(r"(?i)\b(?:jan|feb|mar|apr|maj|may|jun|jul|aug|sep|okt|oct|nov|dec)[a-z]*\.? ?((?:20)?\d\d)\s*[-\u2013]\s*(?:jan|feb|mar|apr|maj|may|jun|jul|aug|sep|okt|oct|nov|dec)[a-z]*\.? ?(?:20)?\d\d\b")
+_DEC_DATE = re.compile(r"(?i)\b(?:\d{1,2}[.:]?\s?dec[a-z]*\.?\s?,?\s?|dec[a-z]*\.?\s?\d{1,2}\s?,?\s?)(20\d\d)\b")  # December only: a fiscal year ending in December is named by that calendar year
 
 
 def _year_column(text: str, fiscal_year) -> tuple[int, int] | None:
     """(position of the fiscal year, number of year columns) from the table's year header ("Note 2024 2025" -> (1, 2)).
     None without a header, when the fiscal year is not in it, or when it repeats (Volvo prints "2025 2024" per segment:
-    Industrial Operations ... Volvo Group; which pair is the group is not knowable here, see _segment_column)."""
-    run = _year_run(text)
+    Industrial Operations ... Volvo Group; which pair is the group is not knowable here, see _segment_column).
+    A December balance date names its year ("SEK million 31 Dec 2025 31 Dec 2024", Ambea): reduced to the bare year
+    before the scan, so its day/month tokens are neither amount columns nor run-breakers, and the years keep print
+    order -- the first column is the first year printed (v102; a non-December date stays as printed, its calendar
+    year is not the fiscal year: Rusta's FY2025 ends "30 Apr 2026", the report's own "2025/26" header rules there)."""
+    run = _year_run(_DEC_DATE.sub(lambda m: m.group(1), text))
     return (run.index(str(fiscal_year)), len(run)) if run.count(str(fiscal_year)) == 1 else None
 
 
@@ -453,12 +458,13 @@ def _row_year_column(rows: list[str], i: int, fiscal_year) -> tuple[int, int] | 
     """The year header of the table the row rows[i] belongs to: the nearest year run ABOVE it (_year_run over the
     rows[j:i] window, j walked upward from just above the row), not the page's first. A note page can stack a second
     table above the statement's (MedCap p.101: a receivables-ageing table over the maturity table), and the page's
-    first header then names 2 columns for 4-amount rows, so every row derivation bails. The fiscal year once in that
-    run -> (pos, len(run)); twice and the run's row or the one above it names Group before Parent ("Koncernen
+    first header then names 2 columns for 4-amount rows, so every row derivation bails. December balance dates are
+    reduced to their year first, exactly as _year_column does ("31 Dec 2025 31 Dec 2024", Ambea). The fiscal year
+    once in that run -> (pos, len(run)); twice and the run's row or the one above it names Group before Parent ("Koncernen
     Moderbolaget" / "Group Parent Company") -> the first pair, Parent first -> the last; anything else -> None, the
     shape _year_column declines (Volvo's four segment pairs stay unknowable here)."""
     for j in range(i - 1, -1, -1):  # windows grow upward, so the nearest run wins: the row's own header is found before any higher table's
-        run = _year_run(" ".join(rows[j:i]))
+        run = _year_run(_DEC_DATE.sub(lambda m: m.group(1), " ".join(rows[j:i])))
         if not run:
             continue
         if run.count(str(fiscal_year)) == 1:
