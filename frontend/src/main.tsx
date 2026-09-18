@@ -24,6 +24,11 @@ declare global {
       platform: string
       version: string
       settings: ArpSettingsApi
+      // v100: Settings' Theme select — persists config.json and switches the live window material
+      // without the backend restart a settings Save would do (desktop only; a browser tab has no
+      // window.arp and keeps the theme in localStorage alone). Optional so an older desktop build
+      // serving a newer frontend degrades to the restart hint instead of a crash.
+      setTheme?: (theme: 'solid' | 'acrylic') => Promise<{ appliedNow: boolean; material: 'acrylic' | 'none' }>
     }
   }
 }
@@ -44,6 +49,11 @@ export type DesktopConfig = {
   // DEBT_BASIS passthrough (v089) -- unlike two-pass this is model-independent, so every provider
   // card shows the control and every non-fixture provider passes it through.
   maturityBasis: 'carrying' | 'undiscounted'
+  // v100: visual theme -- Solid (default, Sebastijan's 09-18 opaque surfaces) or Acrylic
+  // (v001-v006b glass + the desktop shell's real Windows material). Persisted in config.json like
+  // maturityBasis but never an env var: desktop/main.js reads it to build the window with the
+  // right background material, the renderer keeps the live choice in localStorage `arp-theme`.
+  theme: 'solid' | 'acrylic'
 }
 
 export type SetSettingsResult =
@@ -60,6 +70,14 @@ export type TestConnectionResult =
 
 if (window.arp?.material === 'acrylic') {
   document.documentElement.dataset.material = 'on'
+}
+
+// v100: the theme choice from Settings' Theme select (Solid default / Acrylic glass), restored
+// here before the first render so a reload never flashes the wrong skin. Solid is the absence of
+// the attribute -- index.css's default tables are Solid, the Acrylic token scope only matches
+// when this is set. Written by SettingsView's ThemeSelect, same localStorage as the tone.
+if (localStorage.getItem('arp-theme') === 'acrylic') {
+  document.documentElement.dataset.theme = 'acrylic'
 }
 
 createRoot(document.getElementById('root')!).render(
