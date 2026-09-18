@@ -58,7 +58,7 @@ export function AskPanel({ reports, catalog, initialCompany, onCitation }: Props
     if (!q || busy || blocked) return
     const parsed = global ? companyMentions(q, companies) : null
     if (parsed?.unknown.length) return
-    const stems = parsed?.selected.length ? catalog!.filter((entry) => entry.company && parsed.selected.includes(entry.company)).map((entry) => entry.stem) : undefined
+    const stems = parsed?.selected.length ? catalog!.filter((entry) => entry.company && parsed.selected.includes(entry.company)).map((entry) => entry.stem) : global ? catalog!.map((entry) => entry.stem) : undefined
     setBusy(true)
     setDismissed(true)
     try {

@@ -21,7 +21,7 @@ export function AskView({ initialCompany }: Props) {
       <header className="border-b pb-5">
         <p className="text-xs text-muted-foreground uppercase tracking-wide">Ask</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">Ask your saved reports</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Search all saved reports, or type @ and choose companies to narrow your question. Answers link to their sources.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Search saved reports in the Wallenberg collection, or type @ and choose companies. Answers link to their sources.</p>
       </header>
       {error ? <div className="space-y-2"><ErrorBlock>Could not load saved reports: {error}</ErrorBlock><Button onClick={() => { setError(null); setCatalog(null); setRetry((n) => n + 1) }}>Retry</Button></div>
         : catalog === null ? <LoadingLine>Loading saved reports…</LoadingLine>

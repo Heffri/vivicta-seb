@@ -97,7 +97,7 @@ export function KnowledgeMap({ onAsk, onOpenReport }: Props) {
   const edge = (from: string, to: string, color: string, selectedEdge = false) => <line key={`${from}-${to}`} x1={positions[from].x} y1={positions[from].y} x2={positions[to].x} y2={positions[to].y} stroke={color} strokeOpacity={selectedEdge ? 0.7 : 0.2} strokeWidth={selectedEdge ? 2 : 1} />
 
   return <div className="space-y-5">
-    <header><p className="text-xs uppercase tracking-widest text-muted-foreground">Explore your reports</p><h1 className="mt-1 text-2xl font-semibold">Knowledge map</h1><p className="mt-2 text-sm text-muted-foreground">Explore connected sectors, companies and reports. Drag nodes or the background. Scroll to zoom.</p></header>
+    <header><p className="text-xs uppercase tracking-widest text-muted-foreground">Wallenberg collection</p><h1 className="mt-1 text-2xl font-semibold">Knowledge map</h1><p className="mt-2 text-sm text-muted-foreground">Explore connected sectors, companies and reports. Drag nodes or the background. Scroll to zoom.</p></header>
     {error && <ErrorBlock>{error}</ErrorBlock>}
     {!entries && !error && <LoadingLine>Mapping your stored reports…</LoadingLine>}
     {entries?.length === 0 && <p>Your map starts with a report. Extract or index one to get started.</p>}

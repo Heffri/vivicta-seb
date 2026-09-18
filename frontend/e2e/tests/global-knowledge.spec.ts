@@ -55,7 +55,7 @@ for (const tone of ['dark','light']) {
     await expect.poll(()=>submitted.length).toBe(1)
     expect(submitted[0].question).toBe('What changed in revenue?')
     expect(submitted[0]).not.toHaveProperty('report_ids')
-    expect(submitted[0]).not.toHaveProperty('report_stems')
+    expect(submitted[0].report_stems).toEqual(catalog.map(entry => entry.stem))
     expect(indexed).toBe(0)
     await page.getByRole('button',{name:/Atlas Copco.*2025.*p\.3/}).first().click()
     await expect(page.getByRole('region',{name:'Saved source text'})).toContainText('Revenue 100. Saved report page.')

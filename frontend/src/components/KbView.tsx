@@ -90,7 +90,7 @@ export function KbView({ onOpen, onOpenReport }: Props) {
     <div className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-5">
         <div>
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">Knowledge base</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wide">Wallenberg collection · Knowledge base</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">
             {entries
               ? `${entries.length} reports${pdfFiles ? ` · ${entries.filter((e) => hasPdf(e.stem)).length} with PDF` : ''}`

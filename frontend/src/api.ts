@@ -23,7 +23,7 @@ export function uploadReport(file: File) {
   return request<Report>('/api/reports', { method: 'POST', body })
 }
 
-export const getLibrary = () => request<LibraryEntry[]>('/api/library')
+export const getLibrary = () => request<LibraryEntry[]>('/api/library?collection_name=wallenberg')
 
 export const registerLibraryReport = (file: string) =>
   request<Report>('/api/reports/from-library', {
@@ -32,11 +32,11 @@ export const registerLibraryReport = (file: string) =>
     body: JSON.stringify({ file }),
   })
 
-export const getCompanies = (q: string) => request<Company[]>(`/api/companies?q=${encodeURIComponent(q)}`)
+export const getCompanies = (q: string) => request<Company[]>(`/api/companies?q=${encodeURIComponent(q)}&collection_name=wallenberg`)
 
 // v074: country/hint are optional context for the backend's model search (its fourth fetch source,
 // used when the directory has no hit); they are ignored by the feed levels.
-export const fetchReport = (company: string, year: number, opts?: { country?: string; hint?: string }) =>
+export const fetchReport = (company: string, year: number, opts?: { country?: string; hint?: string; download_pdf?: boolean }) =>
   request<Report>('/api/reports/fetch', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -47,7 +47,7 @@ export const extractSection = (reportId: string, section: string) =>
   request<Extraction>(`/api/reports/${reportId}/extract`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ section }),
+    body: JSON.stringify({ section, reuse_saved: true }),
   })
 
 export const indexReport = (reportId: string) =>
@@ -79,7 +79,7 @@ export type Config = {
   retrieval?: 'hybrid' | 'bm25' | 'fixture'
 }
 export const getConfig = () => request<Config>('/api/config')
-export const getKb = () => request<KbEntry[]>('/api/kb')
+export const getKb = () => request<KbEntry[]>('/api/kb?collection_name=wallenberg')
 // Stored extraction, no model call; the backend re-registers the PDF so pageUrl/csvUrl work.
 export const openKbExtraction = (stem: string, section: string) =>
   request<Extraction>(`/api/kb/${encodeURIComponent(stem)}/${encodeURIComponent(section)}`)

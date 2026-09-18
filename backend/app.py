@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field, FiniteFloat
 from typing import Literal
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from pipeline import extract as extract_mod, fetch, kb, llm, locate, parse, paths, ppt
+from pipeline import extract as extract_mod, fetch, kb, llm, locate, parse, paths, ppt, collection
 
 load_dotenv()
 UPLOADS = paths.uploads_dir()
@@ -54,6 +54,7 @@ texts_cache: dict[str, list[str]] = {}  # ponytail: page texts per report, unbou
 
 
 class ExtractBody(BaseModel):
+    reuse_saved: bool = False
     section: str
 
 
@@ -83,6 +84,7 @@ class AskBody(BaseModel):
 
 
 class FetchBody(BaseModel):
+    download_pdf: bool = False
     company: str
     year: int
     country: str | None = None  # v074: optional context for the model search when the directory has no hit ("Switzerland")
@@ -189,9 +191,11 @@ async def upload_report(file: UploadFile = File(...)):
 
 
 @app.get("/api/library")
-def list_library():
+def list_library(collection_name: Literal["all", "wallenberg"] = "all"):
     out = []
     for e in library_index():
+        if collection_name == "wallenberg" and not collection.member(e.get("company")):
+            continue
         if e["file"] not in library_pages:
             with pymupdf.open(LIBRARY / e["file"]) as doc:
                 library_pages[e["file"]] = doc.page_count
@@ -223,14 +227,15 @@ def report_from_library(body: LibraryBody):
 
 
 @app.get("/api/companies")
-def list_companies(q: str = ""):
+def list_companies(q: str = "", collection_name: Literal["all", "wallenberg"] = "all"):
     cached: dict[str, list[int]] = {}
     for e in library_index():
-        cached.setdefault(fetch.slugify(e["company"]), []).append(e["fiscal_year"])
+        cached.setdefault(collection.identity(e["company"]), []).append(e["fiscal_year"])
     q = q.strip().lower()
-    hits = [c for c in COMPANIES if q in c["name"].lower() or q in c["ticker"].lower()]
+    directory = collection.directory(COMPANIES) if collection_name == "wallenberg" else COMPANIES
+    hits = [c for c in directory if q in c["name"].lower() or q in c["ticker"].lower()]
     hits.sort(key=lambda c: (not c["name"].lower().startswith(q), c["name"]))  # prefix matches first
-    return [c | {"cached_years": sorted(set(cached.get(fetch.slugify(c["name"]), [])))} for c in hits[:50]]
+    return [c | {"cached_years": sorted(set(cached.get(collection.identity(c["name"]), [])))} for c in hits[:50]]
 
 
 @app.post("/api/reports/fetch")
@@ -238,8 +243,15 @@ def fetch_report(body: FetchBody):
     if not (1990 <= body.year <= 2100) or len(body.company) > 100 or (body.country and len(body.country) > 60) or (body.hint and len(body.hint) > 300):
         raise HTTPException(400, "bad company/year")
     slug = fetch.slugify(body.company)
-    entry = next((e for e in library_index() if e["fiscal_year"] == body.year and fetch.slugify(e["company"]) == slug), None)
+    if not body.download_pdf:
+        saved = [e for e in kb.entries() if e.get("fiscal_year") == body.year and collection.identity(e.get("company")) == collection.identity(body.company)]
+        if saved:
+            saved.sort(key=lambda e: (e["stem"] != f"{slug}_{body.year}", e["stem"]))
+            return get_report(saved_report_id(saved[0]["stem"]))
+    entry = next((e for e in library_index() if e["fiscal_year"] == body.year and collection.identity(e["company"]) == collection.identity(body.company)), None)
     if not entry:
+        if not body.download_pdf:
+            raise HTTPException(409, "No saved report text or local PDF for this company and year. Enable PDF download explicitly or upload your own report.")
         t0 = time.time()
         try:
             # 10-90 s: MFN -> Nasdaq -> DuckDuckGo, then -- only with a codex/claude provider -- the
@@ -280,6 +292,8 @@ def run_extract(report_id: str, body: ExtractBody):
     report = get_report(report_id)
     schema = load_schema(body.section)
     saved = kb.kb_dir() / report["stem"] / "extractions" / f"{body.section}.json"
+    if body.reuse_saved and saved.exists():
+        return kb_extraction(report["stem"], body.section)
     if saved.exists() and any(f.get("review_history") for f in json.loads(saved.read_text(encoding="utf-8"))["fields"]):
         raise HTTPException(409, "This section has human reviews. Keep the reviewed extraction instead of replacing it.")
     if not _llm_configured():  # frontend dev mode: no model configured
@@ -289,6 +303,7 @@ def run_extract(report_id: str, body: ExtractBody):
         pages = locate.candidate_pages(texts, schema)
         print(f"[extract] {report_id} {body.section}: candidate pages {pages}")
         result = extract_mod.extract(texts, pages, schema, report)
+        result.update(stem=report["stem"], pdf_available=pdf_path(report_id).is_file())
         with review_lock:
             if saved.exists() and any(f.get("review_history") for f in json.loads(saved.read_text(encoding="utf-8"))["fields"]):
                 raise HTTPException(409, "A human review was saved during extraction. The reviewed result was preserved.")
@@ -342,11 +357,13 @@ def ask(body: AskBody):
 
 
 @app.get("/api/kb")
-def list_kb():
+def list_kb(collection_name: Literal["all", "wallenberg"] = "all"):
     normalize = lambda name: re.sub(r"[\W_]+", " ", name.casefold()).strip()
     sectors = {normalize(c["name"]): c.get("sector") for c in COMPANIES}
     out = []
     for e in kb.entries():
+        if collection_name == "wallenberg" and not collection.member(e.get("company")):
+            continue
         report_id = saved_report_id(e["stem"])
         get_report(report_id)
         out.append(e | {"report_id": report_id, "pdf_available": pdf_path(report_id).is_file(),
