@@ -1906,5 +1906,5 @@ def test_confidence_never_exceeds_one():
 
 
 if __name__ == "__main__":
-    demo()
     test_confidence_never_exceeds_one()
+    demo()
