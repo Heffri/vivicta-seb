@@ -163,6 +163,19 @@ def register_library(entry: dict) -> dict:
     return reports[report_id]
 
 
+def register_kb_only(stem: str) -> dict:
+    """Register a KB entry whose PDF is not cached, from its stored meta.json (v092): the stored extraction,
+    CSV, PPTX and Compare all work; only page images and /pdf 404 with a fetch-it hint. Once the PDF
+    arrives, kb_extraction takes the register_library path instead — both ids may coexist, and list_kb
+    points at the real one. Never parses or writes anything, unlike its sibling above."""
+    report_id = "kb-" + stem
+    if report_id not in reports:
+        m = json.loads((kb.kb_dir() / stem / "meta.json").read_text(encoding="utf-8"))
+        reports[report_id] = {"report_id": report_id, "filename": m.get("filename") or f"{stem}.pdf", "pages": m.get("pages", 0),
+                              "company": m.get("company"), "fiscal_year": m.get("fiscal_year"), "stem": stem}
+    return reports[report_id]
+
+
 @app.post("/api/reports/from-library")
 def report_from_library(body: LibraryBody):
     entry = next((e for e in library_index() if e["file"] == body.file), None)
@@ -211,6 +224,8 @@ def read_report(report_id: str):
 @app.get("/api/reports/{report_id}/pdf")
 def report_pdf(report_id: str):
     report = get_report(report_id)  # FileResponse handles Range, so the browser viewer can seek
+    if not pdf_path(report_id).exists():  # KB-only report (v092): registered from meta.json, no PDF behind it
+        raise HTTPException(404, f"the PDF for {report['stem']!r} is not cached; fetch it from Extract (directory search) to see the pages")
     return FileResponse(pdf_path(report_id), media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{report["filename"]}"'})
 
 
@@ -219,6 +234,8 @@ def page_png(report_id: str, n: int):
     report = get_report(report_id)
     if not 1 <= n <= report["pages"]:
         raise HTTPException(404, f"page {n} out of range 1..{report['pages']}")
+    if not pdf_path(report_id).exists():  # KB-only report (v092): pages exist (meta.json says so), the PDF does not
+        raise HTTPException(404, f"the PDF for {report['stem']!r} is not cached; fetch it from Extract (directory search) to see the pages")
     with pymupdf.open(pdf_path(report_id)) as doc:
         png = doc[n - 1].get_pixmap(dpi=150).tobytes("png")
     return Response(png, media_type="image/png")
@@ -270,20 +287,23 @@ def ask(body: AskBody):
 
 @app.get("/api/kb")
 def list_kb():
-    by_stem = {r["stem"]: rid for rid, r in reports.items()}
-    return [e | {"report_id": by_stem.get(e["stem"])} for e in kb.entries()]
+    kb_only = {r["stem"]: rid for rid, r in reports.items() if rid.startswith("kb-")}
+    real = {r["stem"]: rid for rid, r in reports.items() if not rid.startswith("kb-")}
+    by_stem = {**kb_only, **real}  # once the PDF is cached, its real registration outranks the KB-only one
+    cached = {e["file"] for e in library_index()}
+    return [e | {"report_id": by_stem.get(e["stem"]), "pdf_cached": f"{e['stem']}.pdf" in cached} for e in kb.entries()]
 
 
 @app.get("/api/kb/{stem}/{section}")
 def kb_extraction(stem: str, section: str):
-    """Stored extraction from the knowledge base, re-attached to a live report_id so page images and CSV work. No model call."""
+    """Stored extraction from the knowledge base, re-attached to a live report_id. With the PDF cached that is
+    a full re-registration (page images work); without it (v092) a KB-only report serves the stored extraction,
+    CSV, PPTX and Compare, and only the page/PDF endpoints 404 with a fetch hint. No model call either way."""
     path = kb.kb_dir() / stem / "extractions" / f"{section}.json"
     if not re.fullmatch(r"[a-z0-9_]+", stem) or not re.fullmatch(r"[a-z0-9_]+", section) or not path.exists():
         raise HTTPException(404, f"no {section!r} extraction for {stem!r}; see GET /api/kb")
     entry = next((e for e in library_index() if e["file"] == f"{stem}.pdf"), None)
-    if not entry:
-        raise HTTPException(409, f"the PDF for {stem!r} is no longer cached; fetch it again to open the pages")
-    report_id = register_library(entry)["report_id"]
+    report_id = (register_library(entry) if entry else register_kb_only(stem))["report_id"]
     extractions[report_id] = json.loads(path.read_text(encoding="utf-8")) | {"report_id": report_id}
     return extractions[report_id]
 
