@@ -73,6 +73,7 @@ export default function App() {
               <ResultsView
                 key={shown.extraction.report_id}
                 extraction={shown.extraction}
+                onUpdated={extraction => setResults(previous => previous.map((result, i) => i === (detail ?? 0) ? { ...result, extraction } : result))}
                 sectionTitle={shown.sectionTitle}
                 onReset={reset}
                 onBack={results.length > 1 ? () => setTab('compare') : undefined}

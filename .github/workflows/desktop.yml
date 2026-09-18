@@ -49,6 +49,7 @@ jobs:
           python -m pipeline.test_global_ask
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m pipeline.test_kb
+          python test_human_review.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python build_exe.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

@@ -8,6 +8,7 @@ const CHECKS: Record<string, { title: string; explanation: string }> = {
 }
 
 export function explainCheck(check: Check) {
+  if (check.stale) return { title: CHECKS[check.name]?.title ?? check.name.replaceAll('_', ' '), status: 'Needs recalculation', explanation: 'A figure was corrected by a person. The calculation below predates that correction and is no longer valid.', unavailable: true }
   const known = CHECKS[check.name]
   const missing = check.detail.startsWith('missing:')
   const error = /^[A-Za-z]+Error:/.test(check.detail)

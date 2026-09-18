@@ -2,6 +2,7 @@ import { ArrowLeft, Download } from 'lucide-react'
 import { useState } from 'react'
 import { csvUrl, pptxUrl } from '@/api'
 import { AskPanel } from '@/components/AskPanel'
+import { HumanReviewForm } from '@/components/results/HumanReviewForm'
 import { FieldsTable } from '@/components/results/FieldsTable'
 import { MaturityChart } from '@/components/results/MaturityChart'
 import { SourcePanel, type Viewer } from '@/components/results/SourcePanel'
@@ -14,6 +15,7 @@ import type { Extraction, Field } from '@/types'
 type Props = {
   extraction: Extraction
   sectionTitle: string
+  onUpdated: (result: Extraction) => void
   onReset: () => void
   onBack?: () => void
   initialPage?: number | null // from a citation chip on the compare view
@@ -38,7 +40,7 @@ const loadViewer = (): Viewer => {
   }
 }
 
-export function ResultsView({ extraction, sectionTitle, onReset, onBack, initialPage }: Props) {
+export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBack, initialPage }: Props) {
   const { report_id, company, fiscal_year, currency, section, fields, checks, warnings } = extraction
   const [selectedKey, setSelectedKey] = useState<string | null>(() => fields.find((f) => f.source)?.key ?? null)
   const [brokenPage, setBrokenPage] = useState<number | null>(null)
@@ -120,7 +122,10 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack, initial
             buckets, the same rule ppt.py uses to pick chart over table. */}
         <MaturityChart extraction={extraction} selectedKey={selectedKey} onSelect={selectField} />
 
-        <FieldsTable fields={fields} selectedKey={selectedKey} onSelect={selectField} />
+        <div className="space-y-4">
+          <FieldsTable fields={fields} selectedKey={selectedKey} onSelect={selectField} />
+          {selected && <HumanReviewForm key={`${selected.key}:${selected.human_review?.at ?? ''}`} extraction={extraction} field={selected} onSaved={onUpdated} />}
+        </div>
 
         {/* ponytail: no longer sticky — it would slide over the Ask panel below it. */}
         <SourcePanel

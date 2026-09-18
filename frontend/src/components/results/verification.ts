@@ -1,12 +1,16 @@
 import type { Field } from '@/types'
 
 type Verification = {
-  label: 'Not found' | 'Not checked' | 'Needs review' | 'Calculated from report' | 'Checks passed'
+  label: 'Human confirmed' | 'Human corrected' | 'Not found' | 'Not checked' | 'Needs review' | 'Calculated from report' | 'Checks passed'
   variant: 'secondary' | 'warning' | 'success'
   detail: string
 }
 
 export function fieldVerification(field: Field): Verification {
+  if (field.human_review) {
+    const r = field.human_review
+    return { label: r.decision === 'unresolved' ? 'Needs review' : r.decision === 'corrected' ? 'Human corrected' : 'Human confirmed', variant: r.decision === 'unresolved' ? 'warning' : 'success', detail: `${r.reviewer} · ${r.at}: ${r.note || 'Confirmed against the source.'} Human review is separate from automated checks.` }
+  }
   if (field.value === null) return { label: 'Not found', variant: 'secondary', detail: 'No figure was extracted. This does not mean zero.' }
   const evidence = field.evidence ?? []
   if (!evidence.length) return { label: 'Not checked', variant: 'secondary', detail: `No automated checks were recorded. Check ${field.value} against the report row, its ${field.period || 'year'} column and ${field.unit || 'currency/unit'}, then compare the related totals.` }

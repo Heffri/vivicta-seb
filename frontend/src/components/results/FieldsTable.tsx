@@ -17,7 +17,7 @@ type FieldsTableProps = {
 export function FieldsTable({ fields, selectedKey, onSelect }: FieldsTableProps) {
   return (
     <Card className="py-0">
-      <p className="px-4 pt-4 text-xs text-muted-foreground">Select a figure to see its source and verification details.</p>
+      <p className="px-4 pt-4 text-xs text-muted-foreground">Select a figure to see its source and add a human review below the table.</p>
       <Table>
         <TableHeader>
           <TableRow>

@@ -1,5 +1,8 @@
 """SEB annual-report parser, backend. The contract is docs/API.md; change it there first."""
 import argparse
+import copy
+import datetime
+import threading
 import csv
 import io
 import json
@@ -18,7 +21,8 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, FiniteFloat
+from typing import Literal
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from pipeline import extract as extract_mod, fetch, kb, llm, locate, parse, paths, ppt
@@ -51,6 +55,21 @@ texts_cache: dict[str, list[str]] = {}  # ponytail: page texts per report, unbou
 
 class ExtractBody(BaseModel):
     section: str
+
+
+class ReviewBody(BaseModel):
+    section: str = Field(pattern=r"^[a-z0-9_]+$")
+    key: str
+    expected: dict
+    decision: Literal["confirmed", "corrected", "unresolved"]
+    reviewer: str = Field(min_length=1, max_length=120)
+    note: str = Field(default="", max_length=2000)
+    value: FiniteFloat | str | None = None
+    unit: str | None = Field(default=None, max_length=80)
+    period: str | None = Field(default=None, max_length=80)
+
+
+review_lock = threading.Lock()  # Local file store: serialize review read/modify/write.
 
 
 class LibraryBody(BaseModel):
@@ -260,6 +279,9 @@ def page_png(report_id: str, n: int):
 def run_extract(report_id: str, body: ExtractBody):
     report = get_report(report_id)
     schema = load_schema(body.section)
+    saved = kb.kb_dir() / report["stem"] / "extractions" / f"{body.section}.json"
+    if saved.exists() and any(f.get("review_history") for f in json.loads(saved.read_text(encoding="utf-8"))["fields"]):
+        raise HTTPException(409, "This section has human reviews. Keep the reviewed extraction instead of replacing it.")
     if not _llm_configured():  # frontend dev mode: no model configured
         result = json.loads(FIXTURE.read_text(encoding="utf-8")) | {"report_id": report_id}
     else:
@@ -267,7 +289,10 @@ def run_extract(report_id: str, body: ExtractBody):
         pages = locate.candidate_pages(texts, schema)
         print(f"[extract] {report_id} {body.section}: candidate pages {pages}")
         result = extract_mod.extract(texts, pages, schema, report)
-        kb.save_extraction(report["stem"], body.section, result)  # fixture results never enter the KB
+        with review_lock:
+            if saved.exists() and any(f.get("review_history") for f in json.loads(saved.read_text(encoding="utf-8"))["fields"]):
+                raise HTTPException(409, "A human review was saved during extraction. The reviewed result was preserved.")
+            kb.save_extraction(report["stem"], body.section, result)  # fixture results never enter the KB
     extractions[report_id] = result
     return result
 
@@ -351,6 +376,47 @@ def kb_extraction(stem: str, section: str):
     return extractions[report_id]
 
 
+@app.post("/api/reports/{report_id}/review")
+def review_field(report_id: str, body: ReviewBody):
+    report = get_report(report_id)
+    stem = report["stem"]
+    if not re.fullmatch(r"[a-z0-9_-]+", stem):
+        raise HTTPException(400, "Invalid report identifier")
+    reviewer = body.reviewer.strip()
+    if not reviewer or (body.decision != "confirmed" and not body.note.strip()):
+        raise HTTPException(422, "Enter your name and a note for corrections or unresolved reviews")
+    if body.decision == "corrected" and not {"value", "unit", "period"} <= body.model_fields_set:
+        raise HTTPException(422, "Corrections require value, unit and period")
+    with review_lock:
+        path = kb.kb_dir() / stem / "extractions" / f"{body.section}.json"
+        if not path.is_file():
+            raise HTTPException(409, "Only saved extractions can be reviewed. Extract with a configured model first.")
+        result = json.loads(path.read_text(encoding="utf-8"))
+        field = next((f for f in result["fields"] if f["key"] == body.key), None)
+        if field is None:
+            raise HTTPException(404, "Figure not found")
+        if field != body.expected:
+            raise HTTPException(409, "This figure changed. Reopen the report before reviewing it.")
+        if body.decision == "corrected" and isinstance(body.value, str) and not isinstance(field.get("value"), str):
+            raise HTTPException(422, "Enter a finite number with a decimal point, or leave the value blank")
+        previous = copy.deepcopy({k: v for k, v in field.items() if k != "review_history"})
+        review = {"decision": body.decision, "reviewer": reviewer, "note": body.note.strip(),
+                  "at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+        if body.decision == "corrected":
+            field.update(value=body.value, unit=body.unit, period=body.period, evidence=[], confidence=0)
+            for check in result.get("checks", []):
+                check["stale"] = True
+                check["passed"] = False
+            for other in result["fields"]:
+                other["evidence"] = [e for e in other.get("evidence", []) if e != "arith_ok"]
+        field["human_review"] = review
+        field.setdefault("review_history", []).append({**review, "previous": previous})
+        kb.save_extraction(stem, body.section, result)
+        result.update(report_id=report_id, stem=stem, pdf_available=pdf_path(report_id).is_file())
+        extractions[report_id] = result
+        return result
+
+
 @app.get("/api/config")
 def config():
     # codex/claude defaults live in llm.py; not "fixture" only for a provider _llm_configured() already accepts without LLM_MODEL
@@ -368,11 +434,11 @@ def extraction_csv(report_id: str):
         raise HTTPException(404, "no extraction yet; POST /extract first")
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(CSV_HEADER)
+    w.writerow(CSV_HEADER + ["human_review", "reviewer", "reviewed_at", "review_note"])
     for f in x["fields"]:
         src = f.get("source") or {}
         w.writerow([x["report_id"], x["company"], x["fiscal_year"], x["section"], f["key"], f["label"], f["value"],
-                    f["unit"], f["period"], f["raw_label"], src.get("page"), src.get("quote"), f["confidence"]])
+                    f["unit"], f["period"], f["raw_label"], src.get("page"), src.get("quote"), f["confidence"], *[(f.get("human_review") or {}).get(k, "") for k in ("decision", "reviewer", "at", "note")]])
     return Response(buf.getvalue(), media_type="text/csv; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="{report_id}_{x["section"]}.csv"'})
 

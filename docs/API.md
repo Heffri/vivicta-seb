@@ -243,3 +243,7 @@ Unknown sectors remain unclassified. Company actions open saved extractions or p
 Source PDFs are optional: page-text citations remain available, while PDF/image requests return an
 explicit missing-PDF response when the original file is absent. The existing selected-report Ask
 continues to accept `report_ids` and retains its retrieval mode.
+
+
+### Human review
+`POST /api/reports/{report_id}/review` accepts `section`, `key`, `expected` (the complete field last read), `decision` (`confirmed`, `corrected`, `unresolved`), `reviewer` (self-reported name), `note`, and optional `value`, `unit`, `period` for corrections. Returns the updated Extraction. Requires a saved extraction. Stale fields return 409. Reviews persist inside each field as `human_review` and append-only `review_history` with the previous field snapshot and a UTC timestamp. Corrections retain source provenance, clear the changed field's automated evidence, and mark calculation checks `stale: true`. Review does not certify automated checks. Re-extraction of a reviewed section is rejected (409) to prevent loss of reviews. JSON export includes the full history; CSV includes current review status, name, time, and note.

@@ -15,6 +15,7 @@ EMBED_MODEL that built it (first line) and is rebuilt wholesale when that change
 Next for a teammate: (2) embed the page *before/after* a hit for table context.
 """
 import hashlib
+import tempfile
 import json
 import math
 import os
@@ -99,7 +100,13 @@ def save_report(stem: str, meta: dict, texts: list[str]) -> Path:
 def save_extraction(stem: str, section: str, extraction: dict) -> Path:
     p = kb_dir() / stem / "extractions" / f"{section}.json"
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(extraction, ensure_ascii=False, indent=2), encoding="utf-8")
+    serialized = json.dumps(extraction, ensure_ascii=False, indent=2, allow_nan=False)
+    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=p.parent, suffix=".tmp", delete=False) as tmp:
+        tmp.write(serialized)
+    try:
+        Path(tmp.name).replace(p)
+    finally:
+        Path(tmp.name).unlink(missing_ok=True)
     return p
 
 

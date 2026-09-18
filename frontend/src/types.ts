@@ -64,7 +64,10 @@ export type Source = {
   quote: string;            // verbatim text from that page that supports the value
 };
 
+export type HumanReview = { decision: 'confirmed' | 'corrected' | 'unresolved'; reviewer: string; note: string; at: string };
 export type Field = {
+  human_review?: HumanReview;
+  review_history?: (HumanReview & { previous: Omit<Field, 'review_history'> })[];
   key: string;              // canonical key from the schema, e.g. "revenue"
   label: string;            // human label from the schema
   value: number | string | null;  // null = not found
@@ -77,6 +80,7 @@ export type Field = {
 };
 
 export type Check = {
+  stale?: boolean;
   name: string;             // from schema.checks[].name
   passed: boolean;
   detail: string;           // human-readable, e.g. "152340 + -88120 = 64220 == 64220"
