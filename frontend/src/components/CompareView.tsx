@@ -111,6 +111,7 @@ export function CompareView({ results, onSelect, onReset }: Props) {
                           {verification.label}
                         </Badge>
                       )}
+                      {verification && ['Needs review', 'Not checked', 'Not found'].includes(verification.label) && <details className="mt-2 max-w-sm whitespace-normal text-xs text-muted-foreground"><summary className="cursor-pointer">What to review</summary><p className="mt-2 leading-relaxed">{verification.detail}</p></details>}
                     </TableCell>
                   )
                 })}

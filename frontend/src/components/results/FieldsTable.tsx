@@ -53,10 +53,13 @@ export function FieldsTable({ fields, selectedKey, onSelect }: FieldsTableProps)
                 </TableCell>
                 <TableCell className="text-muted-foreground">{f.unit ?? '—'}</TableCell>
                 <TableCell className="text-muted-foreground">{f.period ?? '—'}</TableCell>
-                <TableCell>
+                <TableCell className="min-w-52 max-w-sm whitespace-normal align-top">
                   <Badge variant={verification.variant} title={verification.detail}>
                     {verification.label}
                   </Badge>
+                  {['Needs review', 'Not checked', 'Not found'].includes(verification.label) && (
+                    <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{verification.detail}</p>
+                  )}
                 </TableCell>
               </TableRow>
             )

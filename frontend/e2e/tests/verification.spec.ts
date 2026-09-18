@@ -37,7 +37,7 @@ for (const tone of ['dark', 'light']) {
     await page.getByRole('main').getByRole('button', {name:/^Extract/}).click()
     await expect(page.getByRole('columnheader', {name:'Verification'})).toBeVisible()
     await expect(page.getByRole('columnheader', {name:'Confidence'})).toHaveCount(0)
-    await expect(page.getByRole('cell', {name:'Not checked', exact:true})).toHaveCount(8)
+    await expect(page.getByRole('cell').filter({has: page.getByText('Not checked', {exact:true})})).toHaveCount(8)
     await page.getByRole('row').filter({has:page.getByRole('cell',{name:'EPS, basic',exact:true})}).click()
     await expect(page.getByText('EPS, basic: Not checked', {exact:true})).toBeVisible()
     await expect(page.getByRole('button', {name:'Which page is the income statement on?'})).toHaveCount(0)

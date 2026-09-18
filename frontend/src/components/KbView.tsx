@@ -8,13 +8,13 @@ import { ErrorBlock, LoadingLine } from '@/components/ui/state'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { KbEntry, Result, Schema } from '@/types'
 
-type Props = { onOpen: (results: Result[]) => void }
+type Props = { onOpen: (results: Result[]) => void; onOpenReport: (report: KbEntry) => void }
 
 const NO_PDF_DESC_ID = 'kb-no-pdf-desc'
 const NO_PDF_TITLE = 'Saved figures and page text are available; the original PDF is not cached'
 
 // Everything the parser has learnt so far: one row per report in data/kb, opened from disk without a model call.
-export function KbView({ onOpen }: Props) {
+export function KbView({ onOpen, onOpenReport }: Props) {
   const [entries, setEntries] = useState<KbEntry[] | null>(null)
   const [schemas, setSchemas] = useState<Schema[]>([])
   const [config, setConfig] = useState<Config | null>(null) // retrieval mode decides what the Embeddings column says
@@ -235,20 +235,9 @@ export function KbView({ onOpen }: Props) {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      {e.sections.map((s) => (
-                        <Button
-                          key={s}
-                          size="xs"
-                          variant="outline"
-                          disabled={!!busy}
-                          title={available ? undefined : NO_PDF_TITLE}
-                          aria-describedby={available ? undefined : NO_PDF_DESC_ID}
-                          onClick={() => open([e.stem], s)}
-                        >
-                          {busy === e.stem ? <Loader2 className="animate-spin" /> : null}
-                          Open
-                        </Button>
-                      ))}
+                      <Button size="xs" variant="outline" disabled={!!busy} onClick={() => onOpenReport(e)}>
+                        Open
+                      </Button>
                     </TableCell>
                   </TableRow>
                 )

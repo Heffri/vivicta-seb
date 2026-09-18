@@ -14,11 +14,14 @@ import { useTone } from './components/shell/useTone'
 import { ResultsView } from './components/ResultsView'
 import { SettingsView } from './components/SettingsView'
 import { UploadView } from './components/UploadView'
-import type { Result } from './types'
+import { SavedReportView } from './components/SavedReportView'
+import type { KbEntry, Result } from './types'
 
 export default function App() {
   const [tone, setTone] = useTone()
   const [tab, setTab] = useState<Tab>('extract')
+  const [savedReport, setSavedReport] = useState<KbEntry | null>(null)
+  const [reportOrigin, setReportOrigin] = useState<'kb' | 'map'>('kb')
   const [results, setResults] = useState<Result[]>([])
   const [detail, setDetail] = useState<number | null>(null) // index into results shown on the Results tab
   const [detailPage, setDetailPage] = useState<number | null>(null) // page a citation chip asked for, if any
@@ -32,12 +35,14 @@ export default function App() {
   useHeadingFocus(tab)
 
   const done = (rs: Result[]) => {
+    setSavedReport(null)
     setResults(rs)
     setDetail(null)
     setDetailPage(null)
     setTab(rs.length > 1 ? 'compare' : 'results')
   }
   const reset = () => {
+    setSavedReport(null)
     setResults([])
     setDetail(null)
     setTab('extract')
@@ -46,7 +51,7 @@ export default function App() {
   const shown = results[detail ?? 0]
   const enabled: Record<Tab, boolean> = {
     extract: true,
-    results: !!shown?.extraction,
+    results: !!savedReport || !!shown?.extraction,
     compare: results.length > 1,
     ask: true,
     kb: true,
@@ -63,7 +68,8 @@ export default function App() {
         <main id="content" tabIndex={-1} className="min-w-0 flex-1 overflow-y-auto">
           <div className="mx-auto max-w-6xl px-6 py-10">
             {tab === 'extract' && <UploadView onDone={done} />}
-            {tab === 'results' && shown?.extraction && (
+            {tab === 'results' && savedReport && <SavedReportView key={savedReport.stem} report={savedReport} onBack={() => setTab(reportOrigin)} onReset={reset} />}
+            {tab === 'results' && !savedReport && shown?.extraction && (
               <ResultsView
                 key={shown.extraction.report_id}
                 extraction={shown.extraction}
@@ -77,6 +83,7 @@ export default function App() {
               <CompareView
                 results={results}
                 onSelect={(i, page) => {
+                  setSavedReport(null)
                   setDetail(i)
                   setDetailPage(page ?? null)
                   setTab('results')
@@ -85,8 +92,8 @@ export default function App() {
               />
             )}
             {tab === 'ask' && <AskView key={askCompany ?? 'global'} initialCompany={askCompany} />}
-            {tab === 'kb' && <KbView onOpen={done} />}
-            {tab === 'map' && <KnowledgeMap onOpen={done} onAsk={(company) => { setAskCompany(company); setTab('ask') }} />}
+            {tab === 'kb' && <KbView onOpen={done} onOpenReport={report => { setSavedReport(report); setReportOrigin('kb'); setTab('results') }} />}
+            {tab === 'map' && <KnowledgeMap onOpenReport={report => { setSavedReport(report); setReportOrigin('map'); setTab('results') }} onAsk={(company) => { setAskCompany(company); setTab('ask') }} />}
             {/* v065: a Save restarts the backend, leaving this mount-time `config` stale until
                 relaunch (v061 §6-5) -- SettingsView hands the post-restart config back so StatusBar
                 follows the save without one. */}

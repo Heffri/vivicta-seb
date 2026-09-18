@@ -1,32 +1,45 @@
-import { Building2, ChevronRight, FileText, GitBranch, MessageCircle, Search } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { getKb, getSchemas, openKbExtraction } from '@/api'
+import { FileText, MessageCircle, Minus, Plus, RotateCcw, Search } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { getKb } from '@/api'
 import { Button } from '@/components/ui/button'
 import { ErrorBlock, LoadingLine } from '@/components/ui/state'
-import type { KbEntry, Result, Schema } from '@/types'
+import type { KbEntry } from '@/types'
 
-type Props = { onAsk: (company: string) => void; onOpen: (results: Result[]) => void }
-const countLabel = (count: number, singular: string, plural = `${singular}s`) => `${count} ${count === 1 ? singular : plural}`
+type Props = { onAsk: (company: string) => void; onOpenReport: (report: KbEntry) => void }
+type Point = { x: number; y: number }
 const COLORS = ['#3b82f6', '#a855f7', '#14b8a6', '#f59e0b', '#ec4899', '#6366f1', '#84cc16']
-const nodeClass = 'rounded-xl border bg-background p-4 text-left transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
+const polar = (angle: number, radius: number): Point => ({ x: Math.cos(angle) * radius, y: Math.sin(angle) * radius })
 
-export function KnowledgeMap({ onAsk, onOpen }: Props) {
+export function KnowledgeMap({ onAsk, onOpenReport }: Props) {
   const [entries, setEntries] = useState<KbEntry[] | null>(null)
-  const [schemas, setSchemas] = useState<Schema[]>([])
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [sector, setSector] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
-  const [busy, setBusy] = useState<string | null>(null)
+  const [hovered, setHovered] = useState<string | null>(null)
+  const [zoom, setZoom] = useState(1)
+  const [pan, setPan] = useState<Point>({ x: 0, y: 0 })
+  const [moved, setMoved] = useState<Record<string, Point>>({})
+  const svg = useRef<SVGSVGElement>(null)
+  const drag = useRef<{ id?: string; last: Point; moved: boolean } | null>(null)
+  const suppressClick = useRef(false)
 
   useEffect(() => {
-    let active = true
-    getKb().then((data) => { if (active) setEntries(data) }).catch((e: Error) => { if (active) setError(e.message) })
-    getSchemas().then((data) => { if (active) setSchemas(data) }).catch(() => {})
-    return () => { active = false }
+    let stale = false
+    getKb().then(data => { if (!stale) setEntries(data) }).catch((e: Error) => { if (!stale) setError(e.message) })
+    return () => { stale = true }
   }, [])
+  useEffect(() => {
+    const element = svg.current
+    if (!element) return
+    const wheel = (event: WheelEvent) => {
+      event.preventDefault()
+      setZoom(z => Math.max(0.4, Math.min(4, z * (event.deltaY > 0 ? 0.9 : 1.1))))
+    }
+    element.addEventListener('wheel', wheel, { passive: false })
+    return () => element.removeEventListener('wheel', wheel)
+  }, [entries])
 
-  // Unnamed reports stay separate: a missing company name does not establish a relationship.
   const groups = new Map<string, { name: string; company: string | null; sector: string; reports: KbEntry[] }>()
   for (const report of entries ?? []) {
     const company = report.company?.trim() || null
@@ -40,103 +53,112 @@ export function KnowledgeMap({ onAsk, onOpen }: Props) {
   const companies = [...groups.entries()].sort((a, b) => a[1].name.localeCompare(b[1].name))
   const sectors = [...new Set(companies.map(([, c]) => c.sector))].sort()
   const q = query.trim().toLocaleLowerCase()
-  const filtered = companies.filter(([, c]) => (!sector || c.sector === sector) && (!q || c.name.toLocaleLowerCase().includes(q) || c.reports.some((r) => r.stem.toLocaleLowerCase().includes(q))))
+  const filtered = companies.filter(([, c]) => (!sector || c.sector === sector) && (!q || c.name.toLocaleLowerCase().includes(q) || c.reports.some(r => r.stem.toLocaleLowerCase().includes(q))))
   const current = filtered.find(([key]) => key === selected) ?? filtered[0]
   const company = current?.[1]
-  const companyCount = companies.filter(([, c]) => c.company !== null).length
-  const unnamedCount = companies.length - companyCount
   const colorFor = (s: string) => COLORS[sectors.indexOf(s) % COLORS.length]
-  const sectionTitle = (name: string) => schemas.find((s) => s.name === name)?.title ?? name.replaceAll('_', ' ')
+  const reset = () => { setZoom(1); setPan({ x: 0, y: 0 }); setMoved({}) }
 
-  const open = async (report: KbEntry, section: string) => {
-    setBusy(`${report.stem}:${section}`)
-    setError(null)
-    try {
-      const extraction = await openKbExtraction(report.stem, section)
-      onOpen([{ label: report.company ?? report.stem, sectionTitle: sectionTitle(section), extraction }])
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setBusy(null)
-    }
+  // Fixed radial clusters keep the map stable when selecting a company. Dragging adjusts only
+  // display positions; edges represent recorded sector membership and report ownership.
+  const positions: Record<string, Point> = { root: { x: 0, y: 0 } }
+  sectors.forEach((s, i) => {
+    const angle = -Math.PI / 2 + i * 2 * Math.PI / sectors.length
+    positions[`sector:${s}`] = polar(angle, sectors.length === 1 ? 150 : 240)
+    const members = companies.filter(([, c]) => c.sector === s)
+    members.forEach(([key], j) => {
+      const spread = Math.min(1.4, 2 * Math.PI / sectors.length * 0.85)
+      positions[key] = polar(angle + ((j + 0.5) / members.length - 0.5) * spread, 365 + (j % 3) * 48)
+    })
+  })
+  Object.assign(positions, moved)
+  if (current) company?.reports.forEach((report, i) => {
+    const offset = polar(Math.PI / 4 + i * 2 * Math.PI / company.reports.length, 140)
+    positions[`page:${report.stem}`] = moved[`page:${report.stem}`] ?? { x: positions[current[0]].x + offset.x, y: positions[current[0]].y + offset.y }
+  })
+  const point = (clientX: number, clientY: number) => {
+    const matrix = svg.current?.getScreenCTM()?.inverse()
+    return matrix ? new DOMPoint(clientX, clientY).matrixTransform(matrix) : { x: clientX, y: clientY }
   }
+  const node = (id: string, label: string, caption: string, radius: number, color: string, active: boolean, activate: () => void, showLabel = true) => {
+    const p = positions[id]
+    return <g key={id} data-node-id={id} role="button" tabIndex={0} aria-label={label} aria-pressed={active}
+      transform={`translate(${p.x} ${p.y})`} className="cursor-pointer outline-none [&:focus-visible>circle]:stroke-foreground [&:focus-visible>circle]:stroke-[4px]"
+      onPointerEnter={() => setHovered(id)} onPointerLeave={() => setHovered(null)}
+      onClick={() => { if (!suppressClick.current) activate() }}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate() } }}>
+      <title>{label}</title>
+      <circle r={radius + 9} fill="transparent" />
+      {active && <circle r={radius + 6} fill="none" stroke={color} strokeOpacity="0.35" strokeWidth="3" />}
+      <circle r={radius} fill={color} stroke="var(--background)" strokeWidth="2" />
+      {(showLabel || hovered === id || active) && <text y={radius + 20} textAnchor="middle" fill="var(--foreground)" stroke="var(--background)" strokeWidth="4" paintOrder="stroke" fontSize="20" fontWeight={active ? 600 : 400} className="pointer-events-none select-none">{caption.length > 28 ? caption.slice(0, 26) + '…' : caption}</text>}
+    </g>
+  }
+  const edge = (from: string, to: string, color: string, selectedEdge = false) => <line key={`${from}-${to}`} x1={positions[from].x} y1={positions[from].y} x2={positions[to].x} y2={positions[to].y} stroke={color} strokeOpacity={selectedEdge ? 0.7 : 0.2} strokeWidth={selectedEdge ? 2 : 1} />
 
-  return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-widest text-muted-foreground">Explore your reports</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Knowledge map</h1>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Follow a sector to its companies, then explore the reports behind the numbers.</p>
-        </div>
-        {entries && <p className="text-sm text-muted-foreground">{countLabel(companyCount, 'company', 'companies')} · {countLabel(entries.length, 'report')} · {entries.reduce((n, e) => n + e.pages, 0).toLocaleString()} pages</p>}
-      </header>
-      {error && <ErrorBlock>{error}</ErrorBlock>}
-      {!entries && !error && <LoadingLine>Mapping your stored reports…</LoadingLine>}
-      {!entries && error && <Button variant="outline" onClick={() => { setError(null); getKb().then(setEntries).catch((e: Error) => setError(e.message)) }}>Try again</Button>}
-      {entries?.length === 0 && <div className="rounded-2xl border bg-background p-10 text-center"><GitBranch className="mx-auto mb-3 size-8 text-muted-foreground" /><h2 className="font-medium">Your map starts with a report</h2><p className="mt-2 text-sm text-muted-foreground">Extract or index a report to add its company and source material here.</p></div>}
-      {entries && entries.length > 0 && <>
-        <section aria-label="Sector map" className="rounded-2xl border bg-background/70 p-5 sm:p-6">
-          <div className="flex justify-center">
-            <button type="button" aria-pressed={sector === null} onClick={() => setSector(null)} className={`${nodeClass} flex items-center gap-3 border-primary/40 shadow-sm`}>
-              <span className="rounded-lg bg-primary/10 p-2 text-foreground"><GitBranch className="size-5" aria-hidden /></span>
-              <span><span className="block font-semibold">All knowledge</span><span className="block text-xs text-muted-foreground">{countLabel(sectors.length, 'sector group')} · {countLabel(companyCount, 'company', 'companies')}{unnamedCount ? ` · ${countLabel(unnamedCount, 'unnamed report')}` : ''}</span></span>
-            </button>
+  return <div className="space-y-5">
+    <header><p className="text-xs uppercase tracking-widest text-muted-foreground">Explore your reports</p><h1 className="mt-1 text-2xl font-semibold">Knowledge map</h1><p className="mt-2 text-sm text-muted-foreground">Explore connected sectors, companies and reports. Drag nodes or the background. Scroll to zoom.</p></header>
+    {error && <ErrorBlock>{error}</ErrorBlock>}
+    {!entries && !error && <LoadingLine>Mapping your stored reports…</LoadingLine>}
+    {entries?.length === 0 && <p>Your map starts with a report. Extract or index one to get started.</p>}
+    {!!entries?.length && <>
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="relative min-w-52 flex-1"><Search className="absolute left-3 top-3 size-4 text-muted-foreground" aria-hidden /><input type="search" aria-label="Search companies or reports" placeholder="Find a company or report…" value={query} onChange={e => setQuery(e.target.value)} className="h-10 w-full rounded-lg border bg-background pl-9 pr-3 text-sm" /></label>
+        <select aria-label="Select company" value={current?.[0] ?? ''} onChange={e => setSelected(e.target.value)} className="h-10 max-w-full rounded-lg border bg-background px-3 text-sm"><option value="" disabled>{filtered.length ? 'Select company' : 'No matches'}</option>{filtered.map(([key, c]) => <option key={key} value={key}>{c.name}</option>)}</select>
+        {sector && <Button variant="outline" onClick={() => setSector(null)}>Show all sectors</Button>}
+        <span className="text-xs text-muted-foreground">{companies.length} companies · {entries.length} reports</span>
+      </div>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
+        <section aria-label="Interactive company graph" className="relative min-w-0 overflow-hidden rounded-2xl border bg-background">
+          <div className="absolute left-3 top-3 z-10 flex items-center gap-1 rounded-lg border bg-card p-1">
+            <Button size="icon" variant="ghost" aria-label="Zoom in" onClick={() => setZoom(z => Math.min(4, z * 1.25))}><Plus /></Button>
+            <Button size="icon" variant="ghost" aria-label="Zoom out" onClick={() => setZoom(z => Math.max(0.4, z / 1.25))}><Minus /></Button>
+            <Button size="icon" variant="ghost" aria-label="Reset graph view" onClick={reset}><RotateCcw /></Button>
+            <span className="px-2 text-xs tabular-nums" aria-live="polite">{Math.round(zoom * 100)}%</span>
           </div>
-          <div aria-hidden className="mx-auto h-7 w-px bg-border" />
-          <div className="relative grid gap-3 border-t pt-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {sectors.map((name) => {
-              const members = companies.filter(([, c]) => c.sector === name)
-              return <button key={name} type="button" aria-pressed={sector === name} onClick={() => { setSector(sector === name ? null : name); setSelected(null) }} className={`${nodeClass} relative border-l-4 ${sector === name ? 'ring-2 ring-ring' : ''}`} style={{ borderLeftColor: colorFor(name) }}>
-                <span aria-hidden className="absolute -top-5 left-1/2 h-5 w-px bg-border" />
-                <span className="flex items-start justify-between gap-2"><span className="font-medium">{name}</span><ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden /></span>
-                <span className="mt-1 block text-xs text-muted-foreground">{countLabel(members.filter(([, c]) => c.company).length, 'company', 'companies')} · {countLabel(members.reduce((n, [, c]) => n + c.reports.length, 0), 'report')}</span>
-              </button>
-            })}
-          </div>
-          <p className="mt-4 text-xs text-muted-foreground">Branches show sector membership and report ownership. Unclassified means no sector is recorded.</p>
+          <svg ref={svg} viewBox="-600 -550 1200 1100" className="h-[65vh] min-h-96 w-full touch-none select-none" aria-label="Sectors connected to companies and their reports" role="group"
+            onPointerDown={e => {
+              if (e.button !== 0) return
+              const id = (e.target as Element).closest('[data-node-id]')?.getAttribute('data-node-id') ?? undefined
+              drag.current = { id, last: point(e.clientX, e.clientY), moved: false }
+              suppressClick.current = false
+            }}
+            onPointerMove={e => {
+              const d = drag.current
+              if (!d) return
+              const next = point(e.clientX, e.clientY), dx = next.x - d.last.x, dy = next.y - d.last.y
+              if (Math.abs(dx) + Math.abs(dy) < 2 && !d.moved) return
+              if (!d.moved) e.currentTarget.setPointerCapture(e.pointerId)
+              d.moved = true; d.last = next
+              if (d.id) { const id = d.id; setMoved(old => ({ ...old, [id]: { x: (old[id] ?? positions[id]).x + dx / zoom, y: (old[id] ?? positions[id]).y + dy / zoom } })) }
+              else setPan(old => ({ x: old.x + dx, y: old.y + dy }))
+            }}
+            onPointerUp={e => { suppressClick.current = drag.current?.moved ?? false; drag.current = null; if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId) }}
+            onPointerCancel={() => { drag.current = null }}>
+            <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
+              {sectors.map(s => edge('root', `sector:${s}`, colorFor(s), sector === s))}
+              {filtered.map(([key, c]) => edge(`sector:${c.sector}`, key, colorFor(c.sector), current?.[0] === key))}
+              {current && company?.reports.map(r => edge(current[0], `page:${r.stem}`, colorFor(company.sector), true))}
+              {node('root', 'All knowledge', 'All knowledge', 18, 'var(--primary)', false, () => { setSector(null); setQuery(''); reset() })}
+              {sectors.map(s => node(`sector:${s}`, `${s} · ${companies.filter(([, c]) => c.sector === s).length} companies`, s, 13, colorFor(s), sector === s, () => { setSector(sector === s ? null : s); setSelected(null) }))}
+              {filtered.map(([key, c]) => node(key, `${c.name} ${c.sector} ${c.reports.length} reports`, c.name, current?.[0] === key ? 10 : 6, colorFor(c.sector), current?.[0] === key, () => setSelected(key), filtered.length <= 25 || zoom > 1.5 || !!q))}
+              {company?.reports.map(r => node(`page:${r.stem}`, `Open ${company.name} ${r.fiscal_year ?? 'undated'} report`, `${r.fiscal_year ?? 'Undated'} report`, 5, 'var(--muted-foreground)', false, () => onOpenReport(r)))}
+            </g>
+          </svg>
+          <p className="px-4 pb-4 text-xs text-muted-foreground">Lines show recorded sector membership and report ownership, not business relationships. Select a company to reveal its reports.</p>
+          {!filtered.length && <p role="status" className="absolute inset-x-0 bottom-16 text-center text-sm">No matching companies. Clear the search or choose another sector.</p>}
         </section>
-        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.75fr)]">
-          <section aria-label="Companies" className="min-w-0 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="font-semibold">{sector ?? 'All companies'} <span className="font-normal text-muted-foreground">({filtered.length})</span></h2>
-              {sector && <Button variant="ghost" size="sm" onClick={() => setSector(null)}>Show all sectors</Button>}
-            </div>
-            <label className="relative block">
-              <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-              <input type="search" aria-label="Search companies or reports" placeholder="Find a company or report…" value={query} onChange={(e) => setQuery(e.target.value)} className="h-10 w-full rounded-xl border border-input bg-background pr-3 pl-10 text-sm focus-visible:outline-2 focus-visible:outline-ring" />
-            </label>
-            <div className="grid max-h-[65vh] gap-3 overflow-y-auto p-1 sm:grid-cols-2">
-              {filtered.map(([key, c]) => <button key={key} type="button" aria-pressed={current?.[0] === key} onClick={() => setSelected(key)} className={`${nodeClass} border-t-2 ${current?.[0] === key ? 'ring-2 ring-ring' : ''}`} style={{ borderTopColor: colorFor(c.sector) }}>
-                <Building2 className="mb-3 size-4 text-muted-foreground" aria-hidden />
-                <span className="block break-words font-medium">{c.name}</span>
-                {!c.company && <span className="block text-xs text-muted-foreground">Company not identified</span>}
-                <span className="mt-1 block text-xs text-muted-foreground">{c.sector}</span>
-                <span className="mt-3 block text-xs text-muted-foreground">{countLabel(c.reports.length, 'report')} · {[...new Set(c.reports.map((r) => r.fiscal_year ?? 'Year unknown'))].sort().join(', ')}</span>
-              </button>)}
-            </div>
-            {filtered.length === 0 && <p className="rounded-xl border p-6 text-sm text-muted-foreground">No matching companies in {sector ?? 'your reports'}. Clear the search or choose another sector.</p>}
-          </section>
-          {company && <aside aria-label="Company reports" className="min-w-0 rounded-2xl border bg-background p-5 lg:sticky lg:top-5">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">{company.sector}</p>
-            <h2 className="mt-2 break-words text-xl font-semibold">{company.name}</h2>
-            <p className="mt-2 text-sm text-muted-foreground">{countLabel(company.reports.length, 'report')} · {company.reports.reduce((n, r) => n + r.pages, 0).toLocaleString()} stored pages</p>
-            {company.company && <Button className="mt-4" onClick={() => onAsk(company.company!)}><MessageCircle aria-hidden />Ask about company</Button>}
-            <div className="mt-6 space-y-4 border-l pl-4">
-              {[...company.reports].sort((a, b) => (b.fiscal_year ?? 0) - (a.fiscal_year ?? 0)).map((report) => <article key={report.stem} className="relative rounded-xl border bg-muted/30 p-4">
-                <span aria-hidden className="absolute top-6 -left-4 w-4 border-t" />
-                <h3 className="flex items-center gap-2 font-medium"><FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden />{report.fiscal_year ?? 'Year unknown'} report</h3>
-                <p className="mt-3 text-xs text-muted-foreground">{report.pages.toLocaleString()} pages · {report.pdf_available ? 'PDF available' : 'Saved text only'}</p>
-                {!report.pdf_available && <p className="mt-1 text-xs text-muted-foreground">The original PDF is not cached. Saved figures are still available.</p>}
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {report.sections.map((section) => <Button key={section} variant="outline" size="sm" className="h-auto min-h-7 whitespace-normal py-1 text-left" disabled={busy !== null} onClick={() => open(report, section)}>{busy === `${report.stem}:${section}` ? 'Opening…' : sectionTitle(section)}<ChevronRight aria-hidden /></Button>)}
-                  {report.sections.length === 0 && <p className="text-xs text-muted-foreground">No saved figures yet. Ask a question to explore the stored report text.</p>}
-                </div>
-              </article>)}
-            </div>
-          </aside>}
-        </div>
-      </>}
-    </div>
-  )
+        {company && <aside aria-label="Company reports" className="min-w-0 rounded-2xl border bg-card p-5">
+          <p className="text-xs uppercase text-muted-foreground">{company.sector}</p><h2 className="mt-2 break-words text-xl font-semibold">{company.name}</h2>
+          <p className="mt-2 text-sm text-muted-foreground">{company.reports.length} {company.reports.length === 1 ? 'report' : 'reports'} · {company.reports.reduce((n, r) => n + r.pages, 0).toLocaleString()} stored pages</p>
+          {company.company && <Button className="mt-4" onClick={() => onAsk(company.company!)}><MessageCircle />Ask about company</Button>}
+          <div className="mt-5 space-y-3">{[...company.reports].sort((a, b) => (b.fiscal_year ?? 0) - (a.fiscal_year ?? 0)).map(report => <article key={report.stem} className="rounded-xl border p-3">
+            <h3 className="flex items-center gap-2 text-sm font-medium"><FileText className="size-4" />{report.fiscal_year ?? 'Year unknown'} report</h3>
+            <p className="my-2 text-xs text-muted-foreground">{report.pages} pages · {report.pdf_available ? 'PDF available' : 'Saved text only'}</p>
+            <Button size="sm" variant="outline" onClick={() => onOpenReport(report)}>Open report</Button>
+          </article>)}</div>
+        </aside>}
+      </div>
+    </>}
+  </div>
 }
