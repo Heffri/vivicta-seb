@@ -188,3 +188,94 @@ storytel_2025.pdf,debt_maturity,total_debt,550,114,"prose: the Groups total loan
 storytel_2025.pdf,debt_maturity,due_within_1_year,550,114,same sentence: entire loan classified as current
 storytel_2025.pdf,debt_maturity,due_1_to_5_years,null,114,none -- entire loan is current per the reports own statement
 storytel_2025.pdf,debt_maturity,due_after_5_years,null,114,same
+biogaia_2025.pdf,debt_maturity,total_debt,0,153,"Note 27 p.153: 'The group has no external loans.' (v062's sentence; also printed p.130); zero_if_stated; buckets not written per work order (p.154 age analysis bundles payables+acquisition liability, undiscounted)"
+ctt_systems_2025.pdf,debt_maturity,total_debt,35.5,52,"Note 26: 'Interest-bearing liabilities to credit institutions 35.5 - - - - - 35.5'; principal row = carrying (ties to Note 27 financing reconciliation 35.5, same page); native MSEK"
+ctt_systems_2025.pdf,debt_maturity,due_within_1_year,35.5,52,"same row, 'Within 1 year' column -- the entire liability matures within 1 year; the separate 'Interest rates 1.8' row is future interest, not included; MSEK"
+ctt_systems_2025.pdf,debt_maturity,due_1_to_5_years,null,52,"table prints dashes in the 1-2/2-3/3-4/4-5-year columns -- nil marker, unprinted not 0"
+ctt_systems_2025.pdf,debt_maturity,due_after_5_years,null,52,same: 'Later than 5 years' column prints a dash
+fasadgruppen_2025.pdf,debt_maturity,total_debt,2194.0,136,"Not 23: 'Totala raentebaerande skulder 2 207,7 2 194,0' -- Redovisat vaerde (carrying) column, 2025 first; leases 180.1 sit outside this note (p.30 prose); MSEK"
+fasadgruppen_2025.pdf,debt_maturity,due_within_1_year,159.5,136,"'Summa kortfristiga raentebaerande skulder 165,9 159,5', carrying; the three items mature 2026-12-31; MSEK"
+fasadgruppen_2025.pdf,debt_maturity,due_1_to_5_years,2034.5,136,"'Summa laangfristiga raentebaerande skulder 2 041,8 2 034,5', carrying; every dated facility prints Foerfall 2027-07-31 (1-5y window; undated 16.6 row also long-term); MSEK"
+fasadgruppen_2025.pdf,debt_maturity,due_after_5_years,null,136,note prints no maturity beyond 2027-07-31
+fm_mattsson_2025.pdf,debt_maturity,total_debt,89532,141,"Not 37 financing reconciliation: 'Per 31 december 2025 1 580 87 952 89 532', carrying; ties to p.124 'Raentebaerande skulder (not 37) -89 532'; native TSEK (= 89.5 MSEK); the p.123 maturity table is undiscounted, buckets not written"
+fm_mattsson_2025.pdf,debt_maturity,due_within_1_year,30610,110,"balance sheet: 'Kortfristiga skulder Leasingskuld 20, 25 30 610 24 246' -- the only current interest-bearing line (oevriga 1,580 has no printed current split); TSEK (= 30.6 MSEK)"
+itab_2025.pdf,debt_maturity,total_debt,3369,125,"Note 4 interest-risk prose: 'The Group's interest-bearing liabilities excluding lease liabilities amounted to MSEK 3,369 (648)'; carrying; = BS 2,979+372+18 (p.113); leases 687 outside this figure; buckets disputed (Note 21 time analysis is undiscounted incl accrued interest)"
+smartcraft_2025.pdf,debt_maturity,total_debt,28248,58,"Note 24 lease roll-forward: 'Balance at the end of the period 28 248', carrying; leases are the whole interest-bearing debt (p.32 'no financial liabilities to lenders which bear an interest'); native NOK thousand (= 28.2 MNOK)"
+smartcraft_2025.pdf,debt_maturity,due_within_1_year,13439,58,'Current lease liabilities 13 439'; NOK thousand
+smartcraft_2025.pdf,debt_maturity,due_1_to_5_years,14809,58,"'Non-current lease liabilites 14 809', carrying; p.31 prose: non-current lease liabilities 'have a maturity of up to 4 years'; NOK thousand"
+smartcraft_2025.pdf,debt_maturity,due_after_5_years,null,58,nothing beyond 4 years per p.31 prose; p.59 undiscounted table prints 'More than 5 years -'
+traction_2025.pdf,debt_maturity,total_debt,0,32,"Raenterisk section p.32: 'Det finns inga raentebaerande skulder i den konsoliderade Tractionkoncernen' (wraps across two lines); zero_if_stated, v051 live-tested end to end; buckets not written per work order"
+vef_2025.pdf,debt_maturity,total_debt,25721,23,"Note 10 by category: 'Current liabilities 25 721 / Total financial liabilities 25 721', amortised cost; = outstanding sustainability bonds SEK 240 m; native USD thousand (= 25.7 mUSD)"
+vef_2025.pdf,debt_maturity,due_within_1_year,null,23,all long-term: Note 13 'Reclassified as short term liabilities -25 721' did NOT happen -- note prose: 'Det fanns ingen omklassificering av laangfristiga skulder till kortfristiga skulder'; bonds 'are due in December 2026'; 2025 Leasingskulder prints '-' (nil)
+vicore_pharma_holding_2025.pdf,debt_maturity,total_debt,0,46,Refinancing risk p.46: 'the group is financed by shareholders' equity and is therefore not exposed to risks related to external loan financing' (v062's sentence); p.45 adds 'does not currently have any loans'; buckets not written per work order
+xvivo_perfusion_2025.pdf,debt_maturity,total_debt,124721,92,"Note 25 roll-forward 'Total 124 721', carrying; = BS non-current 113,165 + current lease 11,556 (p.65) exactly; native SEK thousand (= 124.7 MSEK)"
+xvivo_perfusion_2025.pdf,debt_maturity,due_within_1_year,11556,65,balance sheet: 'Lease liabilities 9 11 556 10 917' -- the only current interest-bearing line (utilised RCF is all non-current); SEK thousand
+net_insight_2025.pdf,debt_maturity,total_debt,39415,91,"'Lease maturity structure ... Total 39,415' = BS lease liabilities 31,110 + 8,305 (p.67), carrying; leases are the whole debt (overdraft unused, p.61/p.100); native SEK thousand (= 39.4 MSEK)"
+net_insight_2025.pdf,debt_maturity,due_within_1_year,8305,91,"'<1 year 8,305' (= BS current lease line, p.67)"
+net_insight_2025.pdf,debt_maturity,due_1_to_5_years,31110,91,"'1-5 yeas 31,110' (the report's own typo; = BS non-current lease line)"
+net_insight_2025.pdf,debt_maturity,due_after_5_years,null,91,'>5 years -' dash column
+proact_it_2025.pdf,debt_maturity,total_debt,478611,103,"Note 24: 'Total interest-bearing 478,611' carrying (= accrued acquisition value); native SEK thousand (= 478.6 MSEK)"
+proact_it_2025.pdf,debt_maturity,due_within_1_year,312458,103,"date-shaped maturity table: 'Bank loan, Svensk Exportkredit ... 16 Jul 2026 216,360' + 'Lease liability ... 2026 96,098' = 312,458 (v066/v073 hand-verified; 312,458+166,153=478,611 exactly); SEK thousand"
+proact_it_2025.pdf,debt_maturity,due_1_to_5_years,166153,103,"'Lease liability ... 2027-2030 166,153'; SEK thousand"
+proact_it_2025.pdf,debt_maturity,due_after_5_years,null,103,no row beyond 2027-2030
+cellavision_2025.pdf,debt_maturity,total_debt,25651,92,"Note C9 financing reconciliation: 'As of December 31, 2025 ... Total 25,651', carrying; = BS 11,971+13,680; cross-checked p.35 prose 'SEK 305.6 million' style -- here '25,651'; native SEK thousand (= 25.7 MSEK); corrects v063's lease-only read (23,300) which missed the 3,821 credit-institution liabilities"
+cellavision_2025.pdf,debt_maturity,due_within_1_year,13680,92,"Note C9 prose: 'The part that falls due for payment within: 1 year amounts to SEK 13,680 thousand (14,171)'"
+cellavision_2025.pdf,debt_maturity,due_1_to_5_years,8768,92,"same sentence: '1-5 years SEK 8,768 thousand (12,237)'"
+cellavision_2025.pdf,debt_maturity,due_after_5_years,3203,92,"same sentence: 'after 5 years SEK 3,203 thousand (442)'; 13,680+8,768+3,203 = 25,651 exact"
+vnv_global_2025.pdf,debt_maturity,total_debt,46246,37,"Not 15: 'Upplåning 46 246 / Leasingskulder - / Totalt 46 246', carrying; = BS 'Långfristiga skulder och leasingskulder 46 246' (p.19); native USD thousand (= 46.2 mUSD); obligation 2024/27"
+vnv_global_2025.pdf,debt_maturity,due_within_1_year,null,37,"no current interest-bearing line anywhere; note prose: 'Det fanns ingen omklassificering av långfristiga skulder till kortfristiga skulder' (ncab-shaped: everything long-term, nothing printed for current)"
+synsam_2025.pdf,debt_maturity,total_debt,2718,122,"refinancing-risk prose: 'Loans from financial institutions amounted to SEK 2,718 million (2,608) on 31 December 2025'; carrying; leases 796 reported separately (p.34); MSEK"
+synsam_2025.pdf,debt_maturity,due_within_1_year,0,122,same sentence: 'of which current liabilities amounted to SEK 0 million (0)' -- printed digit 0
+synsam_2025.pdf,debt_maturity,due_1_to_5_years,2718,122,"same paragraph: 'The loans are payable in full upon maturity and run for five years' (facilities refinanced Q2 2025, five-year terms); 0+2,718+0=2,718"
+vbg_2025.pdf,debt_maturity,total_debt,1504774,133,"Note 29 maturity table 'Liabilities to credit institutions ... Carrying amount 1,504,774'; lease liability 247,001 prints as its own row; native SEK thousand (= 1,504.8 MSEK); buckets disputed -- the table's bucket columns are contractual incl calculated interest (sum 1,712,314)"
+scandi_standard_2025.pdf,debt_maturity,total_debt,-2307,134,"financing reconciliation: 'Gross debt December 31 2025 (Note 21) ... Total -2,307', carrying, sign as printed (net-debt context; catella-style); = credit institutions 2,021 + leases 286; Note 21's own subtotals (2,243/73) include derivatives, not used; MSEK"
+scandi_standard_2025.pdf,debt_maturity,due_within_1_year,70,102,"balance sheet: 'Current leasing liabilities 21, 22, 25 70'; = p.134 NIBD row 'repayable within one year -70'; credit institutions all non-current; MSEK"
+duni_2025.pdf,debt_maturity,total_debt,1498,181,"Note 30: 'Total borrowing 1,498' carrying (amortised cost), Group; leases 313 nominal reported separately under 'Current financing'; SEK m"
+duni_2025.pdf,debt_maturity,due_within_1_year,0,181,'Total short-term borrowing 0' (2025 column) -- printed digit 0; the p.181 interest-renegotiation table (6 months or less / 6-12 months / More than one year) is not a principal maturity table and was not used
+bioinvent_international_2025.pdf,debt_maturity,total_debt,8527,66,"Note 22: 'Lease liabilities included in statement of financial position for the Group 8,527', carrying; leases are the only interest-bearing debt (no bank loans anywhere); native SEK thousand (= 8.5 MSEK)"
+bioinvent_international_2025.pdf,debt_maturity,due_within_1_year,7370,66,"'Short term 7,370'"
+bioinvent_international_2025.pdf,debt_maturity,due_1_to_5_years,1157,66,"'Long term 1,157', carrying; the note's own prose: leases 'generally have a term of 3 years'; the p.65 maturity structure is undiscounted and was not used"
+bioinvent_international_2025.pdf,debt_maturity,due_after_5_years,null,66,p.65 maturity table's last column is '1-5 year'; no >5y column; lease terms 3 years
+enea_2025.pdf,debt_maturity,total_debt,305555,76,"sum of Note 23's own printed subtotals 'Total non-current liabilities, interest-bearing 169,152' + 'Total current liabilities, interest-bearing 136,403'; prose cross-check p.35: 'Total interest-bearing liabilities amounted to SEK 305.6 million'; native SEK thousand (= 305.6 MSEK)"
+enea_2025.pdf,debt_maturity,due_within_1_year,136403,76,"maturity analysis: 'Within 1 year after the balance sheet date 136,403'"
+enea_2025.pdf,debt_maturity,due_1_to_5_years,169152,76,"'Later than 1 year but within 3 years after the balance sheet date 169,152'; the 'Later than 3 years but within 5' row prints a dash"
+enea_2025.pdf,debt_maturity,due_after_5_years,null,76,the maturity analysis table's last bucket is 3-5 years; no >5y row
+stillfront_2025.pdf,debt_maturity,total_debt,5887,109,"Note 21: 'Total 5,887' carrying (incl contingent considerations 1,294 + leases 103 + other 22 per the note's own total); MSEK"
+stillfront_2025.pdf,debt_maturity,due_within_1_year,710,109,maturity structure current rows: Contingent considerations 'Current liability 675' + Other non-current/lease 'Current liability 35' (bond and credit-institution current rows print dashes)
+stillfront_2025.pdf,debt_maturity,due_1_to_5_years,5152,109,"sum of the five 'Repayment within 2-5 yr.' rows: 620+2,835+984+649+64 (contingent/bond/credit institutions/term loan/other); all carrying"
+stillfront_2025.pdf,debt_maturity,due_after_5_years,4,109,"Other non-current liabilities and non-current lease liabilities: 'Repayment after more than 5 yr. 4'; buckets cover 5,866 of 5,887 -- the 22 'other interest-bearing liabilities' row has no maturity entry"
+meren_energy_2025.pdf,debt_maturity,total_debt,333.8,73,"Note 15: 'At December 31, 2025 ... Total 333.8' carrying (RBL 330.0 + lease 3.8); US$m; the p.82 maturity table includes estimated interest (undiscounted) and was not used"
+meren_energy_2025.pdf,debt_maturity,due_within_1_year,68.6,73,Note 15 split: 'Current 67.7 | 0.9 | 68.6' (RBL current portion + current leases); US$m
+hanza_2025.pdf,debt_maturity,total_debt,1444,132,"Not 23 Foerfallotidpunkt table: 'Summa 1 444' carrying; = roll-forward 'Skulder till kreditinstitut 1 444' (BS: 1,384 long + 60 short); leases 573 + oevra raentebaerande 84 sit outside the maturity table; MSEK"
+hanza_2025.pdf,debt_maturity,due_within_1_year,60,132,'Mindre aen 6 maanader 33' + 'Mellan 6 maanader och 1 aar 27'; ties to 'Varav - kortfristiga 60'
+hanza_2025.pdf,debt_maturity,due_1_to_5_years,1382,132,"'Mellan 1 och 5 aar' column, 1,382"
+hanza_2025.pdf,debt_maturity,due_after_5_years,2,132,"'Senare aen 5 aar' column, 2"
+sdiptech_2025.pdf,debt_maturity,total_debt,4495,110,"Note 24: non-current 'Total 4,049' + current 'Total 446', carrying, both printed; incl contingent considerations + leases per the note's own totals; MSEK; the same page's 'Repayment periods, contractual values' table was not used"
+sdiptech_2025.pdf,debt_maturity,due_within_1_year,446,110,'Current liabilities ... Total 446' (credit institutions 10 + leases 119 + contingent 317 + other 1)
+kabe_2025.pdf,debt_maturity,total_debt,50,93,"Not 23 financing-debt roll-forward: 'Total finansiell skuld' closing 50, carrying; cross-verified p.94 prose: 'raentebaerande skuld uppgick per balansdagen till 50 Mkr (62)'; Mkr"
+kabe_2025.pdf,debt_maturity,due_within_1_year,30,79,balance sheet current lines: 'Skulder till kreditinstitut 23 22' + 'Kortfristiga leaseskulder 23 8'; Mkr
+nederman_holding_2025.pdf,debt_maturity,total_debt,2475.3,150,"Note 21: 'Total interest-bearing liabilities 2,475.3' carrying; = long-term 2,358.0 + short-term 117.3; SEKm"
+nederman_holding_2025.pdf,debt_maturity,due_within_1_year,117.3,150,'Short-term liabilities ... Total 117.3' (current bank 20.8 + current leases 96.5); the CNY loan prints due 5 Dec 2028 but is classified current by the report itself
+oresund_2025.pdf,debt_maturity,total_debt,13425,47,Note 6 Foerfallanalys: 'Foerfall av leasingavgifter (nominellt) haenfoerligt till leasingskuld 4 002 9 423 -' + balance sheet 'Laangfristiga ... Leasingskulder 9 423' + 'Kortfristiga ... 4 002' (p.36); carrying; leases are the only interest-bearing debt; native TSEK (= 13.4 MSEK)
+oresund_2025.pdf,debt_maturity,due_within_1_year,4002,47,"same table, '2026' column 4 002 (= BS current lease line)"
+egetis_therapeutics_2025.pdf,debt_maturity,total_debt,76.5,74,"amortised-cost table: 'Upplåning 45,0 | 31,5 | 76,5' (Laangfristiga/Kortfristiga/Total); leases 8,5 print as their own row; MSEK"
+egetis_therapeutics_2025.pdf,debt_maturity,due_within_1_year,31.5,74,"same row, Kortfristiga column 31,5"
+viaplay_2025.pdf,debt_maturity,total_debt,6422,113,"Note 23: 'Total financial borrowings 6,422' and 'Debt by due date ... Total 6,422', carrying; = BS 5,502+920 (p.85); leases 334 outside; SEK million"
+viaplay_2025.pdf,debt_maturity,due_within_1_year,920,113,'Amount due for settlement within 12 months 920'
+viaplay_2025.pdf,debt_maturity,due_1_to_5_years,5502,113,"'Amount due for settlement within 13 to 38 months 5,502' -- inside the 1-5y window"
+viaplay_2025.pdf,debt_maturity,due_after_5_years,null,113,the due-date table stops at 38 months; no >5y bucket exists
+salix_2025.pdf,debt_maturity,total_debt,3246,177,"Note 18 financing reconciliation closing '31 December 3,246', carrying; = Note 17 non-current 3,053 + current 192 (1 rounding); MSEK; corrects v082 pass-1's 3,053 (the non-current subtotal only)"
+salix_2025.pdf,debt_maturity,due_within_1_year,192,177,"Note 17: 'Current liabilities ... Total 192' (leases 180 + credit institutions 12); v082's verified 87 was Note 19 contract liabilities (customer advances), not debt"
+tangen_industrikapital_2025.pdf,debt_maturity,total_debt,588199,62,"balance-sheet-linked maturity table: 'Laan Kreditinstitut 141 734 137 898 251 081 57 486 588 199', carrying; leases 154,854 print as their own row; native KSEK (= 588.2 MSEK); v083/v084 hand-verified"
+tangen_industrikapital_2025.pdf,debt_maturity,due_within_1_year,141734,62,"'Mindre aen 12 maanader' column, 141,734"
+tangen_industrikapital_2025.pdf,debt_maturity,due_1_to_5_years,388979,62,"'Mellan 1 och 2 aar' 137,898 + 'Mellan 3 och 5 aar' 251,081 summed per the schema's finer-split rule"
+tangen_industrikapital_2025.pdf,debt_maturity,due_after_5_years,57486,62,"'Senare aen 5 aar' column, 57,486"
+instalco_2025.pdf,debt_maturity,total_debt,3122,128,"Note 27 liquidity table: 'Liabilities to credit institutions ... Carrying amount 3,122'; MSEK; buckets disputed -- the same row's bucket columns are contractual incl interest (1-5y prints 3,209 > carrying 3,122), the v085 finding"
+hexatronic_2025.pdf,debt_maturity,total_debt,2243,160,"borrowing table: 'Total borrowing 2,243' carrying (senior bank loan 1,181 + RCF 1,057 + other 5, all 'Due 2028'); = BS 2,181 + 62 (p.114); MSEK"
+hexatronic_2025.pdf,debt_maturity,due_within_1_year,62,114,balance sheet current: 'Liabilities to credit institutions 30 | 62'
+hexatronic_2025.pdf,debt_maturity,due_1_to_5_years,2181,160,"BS non-current 2,181 (p.114); every facility in the note prints Due 2028, inside the 1-5y window"
+hexatronic_2025.pdf,debt_maturity,due_after_5_years,null,160,no maturity beyond 2028 anywhere in the note
+byggmax_2025.pdf,debt_maturity,total_debt,2021,99,"Note 25: 'Total borrowing 2,021' carrying -- the note's own total includes leases (non-current 1,242 + current 413) per its structure; = Note 23 'Borrowing 366' + 'Lease liability 1,655' (p.98); SEK M"
+byggmax_2025.pdf,debt_maturity,due_within_1_year,779,99,'Current ... Total 779' (credit institutions 200 + overdraft facilities 166 + current leases 413)
+bonava_2025.pdf,debt_maturity,total_debt,3639,152,"Note 17: 'Total interest-bearing liabilities 3,639' carrying; v082 pass-1's 3,592 is the nominal gross debt excl leases (p.156 prose 'total interest-bearing gross debt was SEK 3,592 M'), not the carrying total"
+bonava_2025.pdf,debt_maturity,due_within_1_year,804,152,'Current liabilities ... Total 804' (credit institutions 450 + project financing 317 + leases 38)
