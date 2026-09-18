@@ -6,7 +6,7 @@ on:
     branches: [main, demo]
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 concurrency:
   group: desktop-${{ github.ref_name }}
   cancel-in-progress: false
@@ -17,7 +17,6 @@ jobs:
     env:
       RELEASE_CHANNEL: ${{ github.base_ref || github.ref_name }}
       RELEASE_VERSION: 1.${{ github.run_number }}.${{ github.run_attempt }}
-      GH_TOKEN: ${{ github.token }}
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
     steps:
       - uses: actions/checkout@v4
@@ -67,8 +66,21 @@ jobs:
             desktop/dist/*.exe
             desktop/dist/*.blockmap
             desktop/dist/latest.yml
+  publish:
+    if: github.event_name != 'pull_request' && (github.ref_name == 'main' || github.ref_name == 'demo')
+    needs: windows
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      RELEASE_CHANNEL: ${{ github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: desktop-${{ env.RELEASE_CHANNEL }}
+          path: desktop/dist
       - name: Publish branch update
-        if: github.event_name != 'pull_request'
         shell: pwsh
         run: |
           $tag = "desktop-$env:RELEASE_CHANNEL"
