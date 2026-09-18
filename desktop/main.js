@@ -383,6 +383,19 @@ function codexExecutable() {
     : [path.join(home, '.codex', 'bin', 'codex')]
   const found = roots.find((candidate) => fs.existsSync(candidate))
   if (found) return found
+  // The desktop installer keeps the CLI in bin/<version>/codex.exe.
+  if (isWindows) {
+    for (const candidate of roots) {
+      const dir = path.dirname(candidate)
+      if (!fs.existsSync(dir)) continue
+      const versions = fs.readdirSync(dir, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => path.join(dir, entry.name, 'codex.exe'))
+        .filter((file) => fs.existsSync(file) && fs.statSync(file).isFile())
+        .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)
+      if (versions.length) return versions[0]
+    }
+  }
   throw new Error('codex executable not found (PATH, or the usual OpenAI Codex install dirs); set CODEX_BIN to override')
 }
 
@@ -651,4 +664,9 @@ async function main() {
 
   const shellUrl = isDev ? 'http://127.0.0.1:5173' : `http://127.0.0.1:${backend.port}/`
   mainWindow.loadURL(shellUrl)
+  require('./updates').startUpdates(app, require('electron-updater').autoUpdater, {
+    info: (message) => backendLogStream.write(`[update] ${message}\n`),
+    warn: (message) => backendLogStream.write(`[update] ${message}\n`),
+    error: (message) => backendLogStream.write(`[update] ${message}\n`),
+  })
 }
