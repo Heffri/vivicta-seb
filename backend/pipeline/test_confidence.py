@@ -1141,6 +1141,94 @@ def demo():
         and not out["warnings"], (got, out["warnings"])  # untouched: no candidate ever reaches the write step
     x.debt_basis = basis_saved  # restore: every later case runs on the default carrying basis
 
+    # v095 (Karnell, seed9-kb, v088 Finding 1, real p.106 text): the maturity table's own header prints
+    # "<1 year 1-3 years >3 years Total" -- "<1 year" is a bucket word, "1-3 years" a finer split of
+    # due_1_to_5_years, but ">3 years" ([36 months, infinity)) is off the schema's 1/5-year grid: it crosses
+    # the 5-year boundary without naming it, so 3 header keys stood against the row's 4 printed amounts and
+    # the length valve declined everything (v088: four nulls on both passes of a real, well-formed table).
+    # The off-grid column is now counted (4 keys, 4 amounts, alignment restored) and never assigned: on the
+    # interest-bearing row its cell prints "-", which resolves the windows it covers outright -- the whole of
+    # due_after_5_years sits inside the nil ">3 years" column, so it is 0, and 43.5 + 353.7 + 0 == 397.2
+    # closes exactly.
+    karnell106 = ("NOTE 47 - FINANCIAL LIABILITIES\n"
+                  "Maturity analysis liabilities, 2025 <1 year 1-3 years >3 years Total\n"
+                  "Liabilities to credit institutions 43.5 353.7 - 397.2\n"
+                  "Contingent earn-outs 27.4 0.7 - 28.1\nPut/call options - - 107.0 107.0\n"
+                  "Accounts payable 1.2 - - 1.2\nTotal 72.2 354.4 107.0 533.5\n"
+                  "Maturity analysis liabilities, 2024 <1 year 1-3 years >3 years Total\n"
+                  "Liabilities to credit institutions 71.4 351.7 - 423.2\n"
+                  "Contingent earn-outs 3.9 31.0 - 34.9\nPut/call options 38.9 - 92.5 131.4\n"
+                  "Accounts payable 0.8 - - 0.8\nTotal 115.1 382.7 92.5 590.3\n")
+    # the scan claims only what no bucket word did: on-grid phrases ("> 5 years", "mer än 5 år", "1-5 years")
+    # and finer splits the schema already owns ("1-3 years") stay untouched; bounds land in months, open-ended hi empty
+    hline = "Maturity analysis liabilities, 2025 <1 year 1-3 years >3 years Total"
+    syn = x._bucket_synonym_hits(hline, bucket_sfs, dmf["total_debt"], dm["ignore_header_synonyms"])
+    assert [k for _, _, k in x._offgrid_hits(hline, [(s, e) for s, e, _ in syn])] == ["offgrid:36-|>3 years"], syn
+    assert x._offgrid_hits("mer än 5 år > 5 years 1-5 years", []) == []
+    assert [k for _, _, k in x._offgrid_hits("over 2 years 1-4 years", [])] == \
+        ["offgrid:24-|over 2 years", "offgrid:12-48|1-4 years"]
+    kr = x._page_rows(karnell106)
+    debt_i = kr.index("Liabilities to credit institutions 43.5 353.7 - 397.2")
+    assert x._bucket_header(kr, debt_i, bucket_sfs, 2025, total_sf=dmf["total_debt"]) == \
+        ["due_within_1_year", "due_1_to_5_years", "offgrid:36-|>3 years", "total"]
+    # the off-grid column never becomes one of the >=2 distinct bucket keys the header valve requires: prose
+    # mentioning one bucket word plus ">3 years" is still not a bucket-column table
+    assert x._bucket_header(x._page_rows("The loans mature over 3 years.\nWithin 1 year 5 7\n"), 1, bucket_sfs, 2025) is None
+    # end to end, the model all-null exactly as v088's two passes answered: the debt row (a row_synonyms hit)
+    # fills all four fields, the identity passes on explicit values, and the derived 0 carries value_derived --
+    # the dash is in a column of the table's own naming (">3 years"), not the bucket's own column, so it is a
+    # derived 0, not v078's printed_nil
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([karnell106], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 397.2, "due_within_1_year": 43.5, "due_1_to_5_years": 353.7, "due_after_5_years": 0} \
+        and out["checks"][0]["passed"], (got, out["checks"], out["warnings"])
+    total = next(f for f in out["fields"] if f["key"] == "total_debt")
+    after5 = next(f for f in out["fields"] if f["key"] == "due_after_5_years")
+    assert total["raw_label"] == "Liabilities to credit institutions" and after5["raw_label"] == total["raw_label"]
+    assert "value_derived" in after5["evidence"] and "printed_nil" not in after5["evidence"], after5
+    assert any("the row prints a dash in its '>3 years' column" in w for w in out["warnings"]), out["warnings"]
+    # counterfactual (v095 CE1): the same table with a valued ">3 years" cell on the debt row stays honest --
+    # four nulls and a warning naming the boundary straddled; the split (1-5-years money vs after-5-years
+    # money) is a guess neither the check nor this file can arbitrate
+    ce1 = karnell106.replace("Liabilities to credit institutions 43.5 353.7 - 397.2",
+                             "Liabilities to credit institutions 43.5 353.7 173.0 570.2")
+    out = x.extract([ce1], [1], dm, {"fiscal_year": 2025})
+    assert all(f["value"] is None for f in out["fields"]), (out["fields"], out["warnings"])
+    assert any("'>3 years' 173 straddles the 5-year boundary" in w for w in out["warnings"]), out["warnings"]
+    # v095 rule 2, the row picker: a debt-scoped row (the total field's own wording or a row_synonyms hit)
+    # outranks a bare table Total whose scope is only "whatever this table sums" (Karnell's 533.5 includes
+    # earn-outs, put/call options and accounts payable). Only-bare-Totals pages keep today's order exactly.
+    warnings: list = []
+    order = x._bucket_total_row(kr, dmf["total_debt"], bucket_sfs, 2025, None, warnings)
+    assert order == [debt_i, kr.index("Total 72.2 354.4 107.0 533.5"), kr.index("Total 115.1 382.7 92.5 590.3")], order
+    assert warnings == [], warnings  # one surviving debt row (the 2024 one never aligns: both headers in its window)
+    ce2 = karnell106.replace("Liabilities to credit institutions 43.5 353.7 - 397.2",
+                             "Other financial liabilities 43.5 353.7 - 397.2")
+    warnings = []
+    assert x._bucket_total_row(x._page_rows(ce2), dmf["total_debt"], bucket_sfs, 2025, None, warnings) == \
+        [x._page_rows(ce2).index("Total 72.2 354.4 107.0 533.5"), x._page_rows(ce2).index("Total 115.1 382.7 92.5 590.3")]
+    assert warnings == [], warnings
+    out = x.extract([ce2], [1], dm, {"fiscal_year": 2025})
+    assert all(f["value"] is None for f in out["fields"]), (out["fields"], out["warnings"])  # no debt candidate: bare Totals only, today's order, declined on their valued ">3 years" -- baseline values
+    # rule 2's own proof is v088's rejected experiment flipped harmless: claim ">3 years" for
+    # due_after_5_years (schema copy, test-only) and the header opens either way -- before the reorder that
+    # filled the bare Total 533.5 with the identity passing (the wrong-scope value endorsed by its own
+    # check); now the debt row outranks it and the same claim fills 397.2, the dash now the bucket's own
+    # column (v078's printed_nil, not value_derived)
+    dm95 = json.loads(json.dumps(dm))
+    next(f for f in dm95["fields"] if f["key"] == "due_after_5_years")["synonyms"].append(">3 years")
+    out = x.extract([karnell106], [1], dm95, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 397.2, "due_within_1_year": 43.5, "due_1_to_5_years": 353.7, "due_after_5_years": 0} \
+        and out["checks"][0]["passed"], (got, out["checks"], out["warnings"])
+    after5 = next(f for f in out["fields"] if f["key"] == "due_after_5_years")
+    assert "printed_nil" in after5["evidence"] and "value_derived" not in after5["evidence"], after5
+
     qcalls = []
     # v054: EXTRACT_QUOTE_RETRY (default off) -- one follow-up call for the fields whose answer cites a quote
     # that is not printed on the page it names: the cited page's own _page_rows go out numbered, and the model

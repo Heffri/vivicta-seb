@@ -1021,6 +1021,20 @@ _YEAR_TAIL = re.compile(r"(?i)\b(?:later|thereafter|senare|övriga år)\b")
 _SUBTOTAL_PHRASES = {"summa inom 1 år", "total within 1 year"}  # a printed within-1-year subtotal column
 # (XANO p.84's "Summa inom 1 år"): its own finer day/month sub-columns to its left must not also be summed in
 
+# v095: the schema's own three-bucket grid in months -- the same fixed 1/5-year semantics _bucket_year_hits
+# states in year positions ("1 year out = due_within_1_year, 2-5 years out = due_1_to_5_years, further out =
+# due_after_5_years"). A maturity column whose bounds are not these (Karnell's ">3 years") crosses a bucket
+# boundary somewhere its header does not name, so no bucket can claim it without guessing the split.
+_OFFGRID_OPEN_HI = re.compile(r"(?i)(?:>|över|over|mer än|more than|senare än|later than|efter|after)\s*(\d{1,2})\s*(?:years?|år)\b")
+_OFFGRID_OPEN_LO = re.compile(r"(?i)(?:<|under|mindre än|less than|fewer than)\s*(\d{1,2})\s*(?:years?|år)\b")
+_OFFGRID_RANGE = re.compile(r"(?i)(?<![\d.,])(\d{1,2})\s*-\s*(\d{1,2})\s*(?:years?|år)\b")
+_BUCKET_WINDOW = {  # (lo, hi) months, hi None = open-ended; keys without a window simply never take an off-grid 0
+    "due_within_1_year": (0, 12),
+    "due_1_to_5_years": (12, 60),
+    "due_after_5_years": (60, None),
+}
+_BUCKET_GRID = tuple(sorted({b for lo, hi in _BUCKET_WINDOW.values() for b in (lo, hi) if b is not None}))  # (12, 60)
+
 
 def _identity_parts(schema: dict) -> tuple[str, list[str]] | None:
     """(total_key, part_keys) read from the schema's own identity check ("parts sum to total") via null_as_zero
@@ -1104,6 +1118,36 @@ def _bucket_synonym_hits(text: str, bucket_sfs: dict, total_sf: dict | None = No
     return hits
 
 
+def _offgrid_hits(text: str, taken: list[tuple[int, int]]) -> list[tuple[int, int, str]]:
+    """[(start, end, tag)] for maturity-window header wording no bucket word claimed -- ">3 years", "over 2
+    years", "1-4 years", "mer än 3 år" -- whose bounds (in months) sit off the schema's own 1/5-year bucket
+    grid (_BUCKET_WINDOW): a real column of this table that no bucket can claim without guessing where the
+    boundary it straddles splits it. Tagged "offgrid:<lo>-<hi>|<phrase>" (hi empty = open-ended); _bucket_header
+    counts the tag as a column of its own -- the 3-header-keys-vs-4-printed-amounts length valve Karnell's p.106
+    died on -- and _bucket_assign never assigns it, exactly like _ignore. The one thing such a column can still
+    prove is its own nil (v078's dash convention, one level up): no debt is due in that window at all, so every
+    bucket the window covers outright is a 0 and the straddled boundary stops being uncertain
+    (_fill_bucket_columns); a printed value there is an honest decline, never a guess. A phrase whose span a
+    bucket word already matched (the schema's own "1-3 years" finer split of due_1_to_5_years, "> 5 years" via
+    _BUCKET_BOUNDARY) belongs to that word, and so does any phrase whose bounds land exactly on the grid
+    ("mer än 5 år" IS due_after_5_years' own window): whatever today's reading of those is, it stands."""
+    htext = text.translate(_DASHES)
+    found = [(m.start(), m.end(), int(m.group(1)) * 12, None) for m in _OFFGRID_OPEN_HI.finditer(htext)]
+    found += [(m.start(), m.end(), 0, int(m.group(1)) * 12) for m in _OFFGRID_OPEN_LO.finditer(htext)]
+    found += [(m.start(), m.end(), int(m.group(1)) * 12, int(m.group(2)) * 12) for m in _OFFGRID_RANGE.finditer(htext)]
+    found.sort()
+    out = []
+    spans = list(taken)
+    for s, e, lo, hi in found:
+        if lo in _BUCKET_GRID and (hi is None or hi in _BUCKET_GRID):
+            continue
+        if any(s < te and ts < e for ts, te in spans):  # a bucket word's span, or an earlier phrase's
+            continue
+        out.append((s, e, f"offgrid:{lo}-{'' if hi is None else hi}|{htext[s:e].strip()}"))
+        spans.append((s, e))
+    return out
+
+
 def _drop_nested_hits(hits: list[tuple[int, int, str]]) -> list[tuple[int, int, str]]:
     """Drop any (start, end, key) hit whose span sits entirely inside another hit's own, strictly wider span in
     the same list -- one printed header phrase matched by two overlapping synonyms (or a bare Total/Summa word
@@ -1184,7 +1228,14 @@ def _bucket_header(rows: list[str], idx: int, bucket_sfs: dict, fiscal_year, max
     _bucket_total_row's own column-count valve still has the final say).
 
     v089: `basis` (debt_basis()) only re-tags which word group is the total slot and which is ignored
-    (_bucket_synonym_hits); every rule here is basis-symmetric and reads unchanged."""
+    (_bucket_synonym_hits); every rule here is basis-symmetric and reads unchanged.
+
+    v095: a maturity-window phrase no bucket word matched and off the 1/5-year grid (">3 years", _offgrid_hits)
+    is counted as a column of its own -- the alignment the 3-vs-4 length valve denied Karnell -- but never as
+    one of the >=2 distinct bucket keys this function requires (a page mentioning one bucket word plus ">3
+    years" in prose is still not a bucket-column table), and never assigned a bucket (_bucket_assign skips the
+    tag). Only amount-free rows contribute one (the bare-Total rule, v060: a row printing "1-3 years 523" is a
+    row-per-bucket table's own data row, not this table's column header)."""
     window = rows[max(0, idx - max_back):idx]
     per_row = []
     row_ci = []  # v085: this row's own total:carrying/_ignore hits, kept aside because it names no bucket of
@@ -1197,6 +1248,8 @@ def _bucket_header(rows: list[str], idx: int, bucket_sfs: dict, fiscal_year, max
         # prints "Total 96 173" is another table's own data row (Boozt p.121's earlier receivables-ageing
         # note, still inside the 25-row window), not a column header wrapped above idx (v060)
         row_hits = _bucket_synonym_hits(row, bucket_sfs, total_sf, ignore_syns, basis)
+        if not amounts_present[pos]:  # v095: the off-grid phrase is a header column only on an amount-free row --
+            row_hits += _offgrid_hits(row, [(s, e) for s, e, _ in row_hits])  # the bare-Total rule (v060), see docstring
         if any(k.split(":")[0] not in ("total", "_ignore") for _, _, k in row_hits):
             bucket_pos.append(pos)
             row_ci.append([])
@@ -1238,7 +1291,9 @@ def _bucket_header(rows: list[str], idx: int, bucket_sfs: dict, fiscal_year, max
         hits.extend(key for _, _, key in sorted(_drop_nested_hits(row_hits + bare_total)))
     hits.extend(hits_tail)
     hits = ["total" if k == "total:carrying" else k for k in hits]
-    if len({k.split(":")[0] for k in hits if k.split(":")[0] not in ("total", "_ignore")}) < 2:
+    # v095: an offgrid column counts toward the column list (alignment) but never toward the >=2 distinct bucket
+    # keys this valve requires -- one bucket word plus ">3 years" in prose is not a bucket-column table
+    if len({k.split(":")[0] for k in hits if k.split(":")[0] not in ("total", "_ignore", "offgrid")}) < 2:
         year_hits = None
         for row in window:
             yh = _bucket_year_hits(row, fiscal_year)
@@ -1281,11 +1336,23 @@ def _bucket_total_row(rows: list[str], total_sf: dict, bucket_sfs: dict | None =
     purpose -- only known_total (the model's own already-sourced total_debt, if any) narrows next -- the row that
     itself prints that figure wins (Ework p.70: only the short-term interest-bearing liabilities row prints
     156,410; the page's own "Lease liabilities" row and the prior-year block's rows don't). Still ambiguous after
-    both is not a guess this function will make -- dropped, with a warning, not a pick."""
+    both is not a guess this function will make -- dropped, with a warning, not a pick.
+
+    v095: a bare Total/Totalt/Summa row is the table's grand total of whatever the table sums -- Karnell's
+    all-liabilities "Total 72.2 354.4 107.0 533.5" includes earn-outs, put/call options and accounts payable --
+    while a row named by the total field's own wording ("Total interest-bearing liabilities") or a debt-row
+    candidate names the borrowing scope itself. When both kinds survive, the debt-scoped rows are tried first
+    and the bare table totals last; with no debt-scoped row the order (and behaviour) is exactly today's. The
+    scope of a bare Total row is this function's question precisely because no schema key can express it: v088's
+    own experiment (claiming ">3 years" for due_after_5_years) opened Karnell's header and filled 533.5 with the
+    identity check passing -- a wrong-scope value endorsed by its own check -- until this rule put the
+    interest-bearing row (397.2) ahead of it."""
     hits = [i for i, r in enumerate(rows) if len(_row_amounts(r)) >= 2
             and (_label_known(_row_label(r), total_sf) or _clean_label(_row_label(r)) in ("total", "totalt", "summa"))]
     if not bucket_sfs:
         return hits
+    proper = [i for i in hits if _label_known(_row_label(rows[i]), total_sf)]  # the total field's own wording
+    bare = [i for i in hits if i not in proper]  # a bare table total, whatever the table sums
     debt_sf = {"synonyms": total_sf.get("row_synonyms", [])}
     candidates = []
     for i, r in enumerate(rows):
@@ -1307,7 +1374,7 @@ def _bucket_total_row(rows: list[str], total_sf: dict, bucket_sfs: dict | None =
             warnings.append(f"{total_sf['key']}: {len(candidates)} candidate debt rows for the bucket table "
                              f"({', '.join(repr(_row_label(rows[i])) for i in candidates)}) -- ambiguous, none used")
         candidates = []
-    return hits + candidates
+    return proper + candidates + bare  # v095: debt-scoped rows outrank bare table totals, see docstring
 
 
 def _bucket_assign(amounts: list, col_keys: list[str]) -> dict[str, float | None]:
@@ -1322,6 +1389,9 @@ def _bucket_assign(amounts: list, col_keys: list[str]) -> dict[str, float | None
         if key == "_ignore":  # v076: a counted-but-unassigned total-shaped column (undiscounted beside carrying).
             continue  # Skipping it here also keeps it out of the caller's over valve -- with future interest an
         # undiscounted total exceeds the carrying total, which is ordinary, never grounds to reject the row.
+        if key.startswith("offgrid:"):  # v095: a counted column whose window no bucket claims exactly (">3
+            continue  # years"); its nil is resolved by the caller's span logic, never assigned here -- and kept
+        # out of the over valve the same way _ignore is.
         vals = [amounts[i] for i, k in enumerate(col_keys) if k == key and amounts[i] is not None]
         out[key] = round(sum(vals), 2) if vals else None
     return out
@@ -1358,7 +1428,16 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
     text itself, so this reads the shape in general, not one company's table: find the header (_bucket_header),
     zip the row's own numbers to it (_bucket_assign), and either fill a null field or -- if the model's own
     answer disagrees by more than the check's own rounding tolerance -- let the page win, exactly like every
-    other repair in this file (Pandox, Getinge, ...)."""
+    other repair in this file (Pandox, Getinge, ...).
+
+    v095: a header column whose maturity window is off the schema's 1/5-year grid (Karnell's ">3 years",
+    _offgrid_hits) is counted for the alignment but never assigned. Its nil on the operand row resolves the
+    windows it covers outright (">3 years" = [36 months, infinity) printing "-" => due_after_5_years, whose
+    whole window it spans, is the report's 0; due_1_to_5_years keeps the "1-3 years" column it already read),
+    written only when the row's own arithmetic closes -- v078's dash gate, one level up from the bucket's own
+    column to a column the table named its own way. A value in that column is an honest decline with a warning
+    that names the boundary straddled; a wrong guess there would be endorsed by the very identity check that
+    should be catching it (v088's ">3 years" experiment filled the all-liabilities Total 533.5 and passed)."""
     ident = _identity_parts(schema)
     if not ident:
         return
@@ -1387,7 +1466,42 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
             amounts = _row_amounts(rows[idx], len(col_keys), nil=None)
             if len(amounts) != len(col_keys):
                 continue
+            # v095: the off-grid columns this header printed (">3 years") -- counted for the alignment above,
+            # never assigned. A value in one is an honest decline: where its window crosses the 1/5-year
+            # boundaries the split is a guess no check can verify (a counterfactual Karnell printing 173 under
+            # ">3 years" is 1-5-years money or after-5-years money with equal right). A nil (the dash) resolves
+            # exactly the windows it covers outright -- handled after _bucket_assign, with the same arithmetic
+            # gate v078's own dash-to-0 answers to.
+            off_cols = []
+            for j, k in enumerate(col_keys):
+                if not k.startswith("offgrid:"):
+                    continue
+                span, phrase = k[len("offgrid:"):].split("|", 1)
+                lo_s, hi_s = span.split("-")
+                off_cols.append((int(lo_s), int(hi_s) if hi_s else None, phrase, amounts[j]))
+            valued = [c for c in off_cols if c[3] is not None]
+            if valued:
+                named = []
+                for lo, hi, phrase, amt in valued:
+                    straddled = [b // 12 for b in _BUCKET_GRID if lo < b < (hi if hi is not None else 1 << 30)]
+                    where = (f"straddles the {' and '.join(f'{y}-year' for y in straddled)} boundar{'y' if len(straddled) == 1 else 'ies'}"
+                             if straddled else "is not on the 1/5-year bucket boundaries")
+                    named.append(f"'{phrase}' {amt} {where}")
+                warnings.append(f"{total_key}: column reading of {rows[idx]!r} declined -- {', '.join(named)}")
+                continue
             derived = _bucket_assign(amounts, [total_key if k == "total" else k for k in col_keys])
+            og_cover = {}  # v095: key -> the nil off-grid column whose window covers the bucket whole
+            for key in part_keys:
+                if key in derived:
+                    continue  # the bucket has columns of its own; its all-dash case is v078's question, not this one
+                w = _BUCKET_WINDOW.get(key)
+                if w is None:
+                    continue
+                cover = next((c for c in off_cols if c[3] is None and c[0] <= w[0]
+                              and (w[1] is None if c[1] is None else w[1] is not None and c[1] >= w[1])), None)
+                if cover is not None:
+                    derived[key] = 0
+                    og_cover[key] = cover
             if sum(v is not None for v in derived.values()) < 2:
                 continue  # one recognised column proves nothing about the row's shape
             total_val = derived.get(total_key)
@@ -1425,9 +1539,17 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
             # "nothing to sum", and _check's null-bucket guards never see a translated value. A bucket this
             # table prints no column for at all (key absent from derived) is not a dash: stays null.
             nil_keys = [k for k in part_keys if k in derived and derived[k] is None]
-            if nil_keys and not (isinstance(total_val, (int, float))
-                                 and abs(round(sum(v for k, v in derived.items() if k != total_key and v is not None), 2) - total_val) <= 2):
+            # v095: an off-grid-covered 0 is exactly as provisional as v078's dash-to-0 -- written only when the
+            # row's own arithmetic proves it, the same closure gate; the zeros join the sum (43.5 + 353.7 + 0 ==
+            # 397.2 IS the proof of the 0, Karnell). Unproven, the covered bucket keeps its null.
+            closes = isinstance(total_val, (int, float)) and abs(round(sum(v for k, v in derived.items()
+                                                                          if k != total_key and v is not None), 2) - total_val) <= 2
+            if nil_keys and not closes:
                 nil_keys = []
+            if og_cover and not closes:
+                for k in og_cover:
+                    del derived[k]
+                og_cover = {}
             acted = False
             for key in (total_key, *part_keys):
                 value = derived.get(key)
@@ -1441,6 +1563,10 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
                 if nil:
                     warnings.append(f"{key}: {prefix}; a dash is printed in the row's own column for it ({rows[idx]!r}) -- "
                                     f"no debt due in that window, the report's explicit 0")
+                elif key in og_cover:  # v095: the 0 is derived from a dash, but in a column of the table's own
+                    # naming, not the bucket's (no "> 5 years" column exists) -- so value_derived, not printed_nil
+                    warnings.append(f"{key}: {prefix}; no debt due in that window -- the row prints a dash in its "
+                                    f"'{og_cover[key][2]}' column ({rows[idx]!r}), which spans it whole")
                 else:
                     warnings.append(f"{key}: {prefix}; {value} read from {rows[idx]!r} by its column order")
                 # score_field derives value_in_quote itself from quote_on_page; only value_derived (a sum with no
@@ -1448,6 +1574,7 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
                 by_key[key].update(value=value, period=str(fiscal_year) if fiscal_year else by_key[key]["period"],
                                     raw_label=_row_label(rows[idx]), source={"page": page, "quote": rows[idx]},
                                     evidence=(["quote_on_page", "printed_nil"] if nil else
+                                              ["quote_on_page", "value_derived"] if key in og_cover else
                                               ["quote_on_page"] if _value_in_quote(value, rows[idx]) else
                                               ["quote_on_page", "value_derived"]))
                 values[key] = value
