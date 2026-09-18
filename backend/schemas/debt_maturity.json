@@ -2,6 +2,7 @@
   "name": "debt_maturity",
   "title": "Debt maturity structure",
   "description": "Total interest-bearing debt and when it falls due, as printed in the borrowings note (often 'Note 20' but the number varies by issuer). Amounts only — no interest rates, no covenants. Some reports print two maturity tables on nearby pages: the borrowings note's carrying amounts, and a liquidity-risk note's contractual undiscounted cash flows (includes future interest, a higher total). Read the carrying-amount table — the one whose total ties to interest-bearing borrowings on the balance sheet.",
+  "description_undiscounted": "Total interest-bearing debt and when it falls due, as printed in the report (often 'Note 20' but the number varies by issuer). Amounts only — no interest rates, no covenants. Some reports print two maturity tables on nearby pages: the borrowings note's carrying amounts, and a liquidity-risk note's contractual undiscounted cash flows (includes future interest, a higher total). Read the contractual undiscounted cash flows table — the liquidity-risk note's maturity table, whose total includes future interest — not the borrowings note's carrying-amount table.",
   "keywords": [
     "borrowings",
     "loans and borrowings",
@@ -49,6 +50,7 @@
       "key": "total_debt",
       "label": "Total borrowings",
       "description": "Total interest-bearing debt / borrowings, the row the maturity table sums to (or the note's own total if the maturity table has no total row). Must be a carrying amount that reconciles to interest-bearing borrowings on the balance sheet, not an undiscounted contractual cash-flow total. Include lease liabilities (IFRS 16) only if the report's own note includes them in this total — do not add or remove leases yourself; keep the row's own wording in raw_label so the choice is traceable. 0 if the report states in plain words that it has no interest-bearing debt/borrowings (e.g. an investment company's note saying it holds none) — a sentence, not a numeric row, still makes the value 0, not null.",
+      "description_undiscounted": "Total interest-bearing debt / borrowings on the contractual undiscounted basis: the maturity table's own undiscounted contractual cash-flow total (its total column or total row). It includes future interest and is typically higher than the carrying amount — take it, not the carrying-amount column; on this basis the total deliberately does not reconcile to interest-bearing borrowings on the balance sheet, it reconciles to the undiscounted table's own bucket columns. Include lease liabilities (IFRS 16) only if the report's own note includes them in this total — do not add or remove leases yourself; keep the row's own wording in raw_label so the choice is traceable. 0 if the report states in plain words that it has no interest-bearing debt/borrowings (e.g. an investment company's note saying it holds none) — a sentence, not a numeric row, still makes the value 0, not null.",
       "unit_hint": "currency_millions",
       "synonyms": [
         "total borrowings", "total borrowing", "total loans", "total interest-bearing liabilities", "total debt",

@@ -81,13 +81,34 @@ RESPONSE_SCHEMA = {
 _SAFE_BUILTINS = {"abs": abs, "min": min, "max": max}
 
 
+def debt_basis() -> str:
+    """DEBT_BASIS=carrying (default) | undiscounted -- which of debt_maturity's two maturity tables
+    total_debt and the buckets are read from: the borrowings note's carrying amounts (v028's basis,
+    the total that ties to the balance sheet) or the liquidity-risk note's contractual undiscounted
+    cash flows (includes future interest, a higher total; v089's user option). Anything but
+    "undiscounted" reads "carrying", so a typo can never silently flip the basis. The schema carries
+    both prompt wordings (description_undiscounted beside description) and the bucket-column reader
+    swaps its two total-shaped word groups to match -- see _bucket_synonym_hits."""
+    return "undiscounted" if os.getenv("DEBT_BASIS", "").strip().lower() in ("undiscounted", "contractual") else "carrying"
+
+
+def _basis_text(entity: dict, basis: str) -> str:
+    """The entity's description in the selected basis: a schema (or field) that opts in carries a
+    "description_undiscounted" beside its "description" (debt_maturity, v089); anything else keeps
+    the one description, so every other section's prompt is untouched."""
+    if basis == "undiscounted" and entity.get("description_undiscounted"):
+        return entity["description_undiscounted"]
+    return entity.get("description", "")
+
+
 def system_prompt(schema: dict, exclude_stem: str | None = None) -> str:
+    basis = debt_basis()
     lines = "\n".join(
-        f"- {f['key']} | {f['label']} | {f.get('description', '')} | {f.get('unit_hint', '')}" for f in schema["fields"]
+        f"- {f['key']} | {f['label']} | {_basis_text(f, basis)} | {f.get('unit_hint', '')}" for f in schema["fields"]
     )
     prompt = SYSTEM_PROMPT_TEMPLATE.format(
         title=schema.get("title", schema["name"]),
-        description=schema.get("description", ""),
+        description=_basis_text(schema, basis),
         value_convention=schema.get("value_convention", ""),
         exclude=", ".join(schema.get("exclude_keywords", [])) or "-",
         field_lines=lines,
@@ -1035,7 +1056,7 @@ def _identity_closes(key: str, value, values: dict, defaults: dict, schema: dict
 
 
 def _bucket_synonym_hits(text: str, bucket_sfs: dict, total_sf: dict | None = None,
-                         ignore_syns: list | None = None) -> list[tuple[int, int, str]]:
+                         ignore_syns: list | None = None, basis: str = "carrying") -> list[tuple[int, int, str]]:
     """[(start, end, key)] for every maturity-bucket synonym of every field in bucket_sfs found in text, dash-
     normalised (so "1–2 years" matches the schema's "1-2 years"), plus _BUCKET_BOUNDARY's English-symbol patch.
     A finer split that maps to the same key twice (Cloetta: "1–2 years" and "2–5 years" are both due_1_to_5_years)
@@ -1052,7 +1073,15 @@ def _bucket_synonym_hits(text: str, bucket_sfs: dict, total_sf: dict | None = No
     column of that wording is the total column itself (the report's stated total_debt basis), tagged apart from a
     bare Total word as "total:carrying" so _bucket_header can prefer it when both shapes appear on one line; the
     schema's ignore_header_synonyms (undiscounted/contractual total wording, printed beside the carrying column)
-    tag "_ignore" -- a real, counted column that is never assigned."""
+    tag "_ignore" -- a real, counted column that is never assigned.
+
+    v089: which word group fills which tag follows the basis (debt_basis()): under the default "carrying" it is
+    exactly as above; under "undiscounted" the two groups swap -- "total:carrying" is the *total-slot* tag whatever
+    wording fills it, so the ignore_header_synonyms wording (the liquidity note's own undiscounted/contractual
+    total) claims the total slot and the carrying wording becomes the ignored column. Everything downstream of the
+    tags (_bucket_header's slot preference and bare-Total demotion, the v085 contiguous-run fallback, _bucket_
+    assign's _ignore skip) is basis-symmetric and reads unchanged; the over valve and the dash-to-0 gate then
+    compare buckets against the slot's figure, which is the identity's basis by construction."""
     htext = text.translate(_DASHES)
     hits = []
     for key, sf in bucket_sfs.items():
@@ -1062,9 +1091,15 @@ def _bucket_synonym_hits(text: str, bucket_sfs: dict, total_sf: dict | None = No
         if key in _BUCKET_BOUNDARY:
             hits.extend((m.start(), m.end(), key) for m in _BUCKET_BOUNDARY[key].finditer(htext))
     if total_sf:
-        hits.extend((m.start(), m.end(), "total:carrying") for syn in total_sf.get("header_synonyms", [])
+        basis_total_syns = total_sf.get("header_synonyms", [])
+        ignored_syns = list(ignore_syns or [])
+        if basis == "undiscounted":  # the liquidity note's own undiscounted total is the basis here
+            basis_total_syns, ignored_syns = ignored_syns, basis_total_syns
+        hits.extend((m.start(), m.end(), "total:carrying") for syn in basis_total_syns
                     for m in re.finditer(re.escape(syn.translate(_DASHES)), htext, re.I))
-    for syn in ignore_syns or []:
+    else:
+        ignored_syns = list(ignore_syns or [])
+    for syn in ignored_syns:
         hits.extend((m.start(), m.end(), "_ignore") for m in re.finditer(re.escape(syn.translate(_DASHES)), htext, re.I))
     return hits
 
@@ -1102,7 +1137,7 @@ def _bucket_year_hits(text: str, fiscal_year) -> list[tuple[int, str]]:
 
 
 def _bucket_header(rows: list[str], idx: int, bucket_sfs: dict, fiscal_year, max_back: int = 25,
-                   total_sf: dict | None = None, ignore_syns: list | None = None) -> list[str] | None:
+                   total_sf: dict | None = None, ignore_syns: list | None = None, basis: str = "carrying") -> list[str] | None:
     """The ordered column keys of the maturity-bucket table whose grand-total sits on rows[idx]: each bucket hit
     above it, in print order, plus a "total" slot wherever a bare Total/Summa/Totalt column header is seen. A
     due_within_1_year subtotal column (_SUBTOTAL_PHRASES, e.g. XANO's "Summa inom 1 år") overrides, not adds to,
@@ -1146,7 +1181,10 @@ def _bucket_header(rows: list[str], idx: int, bucket_sfs: dict, fiscal_year, max
     before this lane (a bare Total/Summa row's own scope is _bucket_total_row's question, not this function's
     -- left declined here, not silently handed a column reading it was never entitled to). Appended after
     every bucket-naming line's own hits (every table seen so far prints its total-shaped columns last, and
-    _bucket_total_row's own column-count valve still has the final say)."""
+    _bucket_total_row's own column-count valve still has the final say).
+
+    v089: `basis` (debt_basis()) only re-tags which word group is the total slot and which is ignored
+    (_bucket_synonym_hits); every rule here is basis-symmetric and reads unchanged."""
     window = rows[max(0, idx - max_back):idx]
     per_row = []
     row_ci = []  # v085: this row's own total:carrying/_ignore hits, kept aside because it names no bucket of
@@ -1158,7 +1196,7 @@ def _bucket_header(rows: list[str], idx: int, bucket_sfs: dict, fiscal_year, max
         # a bare Total/Summa only marks a header column when its own row carries no amounts -- a row that
         # prints "Total 96 173" is another table's own data row (Boozt p.121's earlier receivables-ageing
         # note, still inside the 25-row window), not a column header wrapped above idx (v060)
-        row_hits = _bucket_synonym_hits(row, bucket_sfs, total_sf, ignore_syns)
+        row_hits = _bucket_synonym_hits(row, bucket_sfs, total_sf, ignore_syns, basis)
         if any(k.split(":")[0] not in ("total", "_ignore") for _, _, k in row_hits):
             bucket_pos.append(pos)
             row_ci.append([])
@@ -1220,7 +1258,8 @@ def _bucket_header(rows: list[str], idx: int, bucket_sfs: dict, fiscal_year, max
 
 
 def _bucket_total_row(rows: list[str], total_sf: dict, bucket_sfs: dict | None = None, fiscal_year=None,
-                       known_total=None, warnings: list[str] | None = None, ignore_syns: list | None = None) -> list[int]:
+                       known_total=None, warnings: list[str] | None = None, ignore_syns: list | None = None,
+                       basis: str = "carrying") -> list[int]:
     """Indices of rows that could be a maturity table's grand-total row: the total field's own synonym ("Summa
     räntebärande skulder"), or a bare Total/Totalt/Summa -- a schema's total-field synonyms are themselves
     phrased as row labels ("total borrowings"), but plenty of reports print just the bare word on the total row
@@ -1252,7 +1291,7 @@ def _bucket_total_row(rows: list[str], total_sf: dict, bucket_sfs: dict | None =
     for i, r in enumerate(rows):
         if i in hits or len(_row_amounts(r)) < 2 or not _label_known(_row_label(r), debt_sf):
             continue
-        col_keys = _bucket_header(rows, i, bucket_sfs, fiscal_year, total_sf=total_sf, ignore_syns=ignore_syns)
+        col_keys = _bucket_header(rows, i, bucket_sfs, fiscal_year, total_sf=total_sf, ignore_syns=ignore_syns, basis=basis)
         if col_keys and len(_row_amounts(r, len(col_keys), nil=None)) == len(col_keys):
             candidates.append(i)
     if len(candidates) > 1:
@@ -1310,7 +1349,7 @@ def _bucket_row_prior_year(rows: list[str], idx: int, fiscal_year) -> bool:
 
 
 def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, texts: list[str], pages: list[int],
-                          fiscal_year, warnings: list[str], values: dict, filled: set) -> None:
+                          fiscal_year, warnings: list[str], values: dict, filled: set, basis: str = "carrying") -> None:
     """A maturity-bucket note that prints on one row, columns = buckets, instead of one row per bucket (Cloetta's
     borrowings note: "Total 197 22 1,377 9 1,605" under a header of "< 1 year / 1-2 years / 2-5 years / > 5 years
     / Total") -- a shape none of this file's other repairs cover, since _year_column finds no year in a bucket
@@ -1329,18 +1368,20 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
     if len(bucket_sfs) != len(part_keys) or not total_sf:
         return
     ignore_syns = schema.get("ignore_header_synonyms", [])  # v076: undiscounted/contractual total wording
+    # (which of the two total-shaped word groups is the total slot and which is ignored follows the
+    # basis -- v089's debt_basis(), threaded down to _bucket_synonym_hits through the calls below)
     by_key = {f["key"]: f for f in fields}
     cited = {by_key[k]["source"]["page"] for k in (total_key, *part_keys) if by_key[k]["source"]}
     for page in dict.fromkeys([p for p in pages[:2] if p] + sorted(cited)):
         if not (0 < page <= len(texts)):
             continue
         rows = _page_rows(texts[page - 1])
-        candidates = _bucket_total_row(rows, total_sf, bucket_sfs, fiscal_year, by_key[total_key]["value"], warnings, ignore_syns)
+        candidates = _bucket_total_row(rows, total_sf, bucket_sfs, fiscal_year, by_key[total_key]["value"], warnings, ignore_syns, basis)
         if not candidates:
             continue
         matched = [i for i in candidates if fiscal_year and str(fiscal_year) in " ".join(rows[max(0, i - 25):i])]
         for idx in (matched or candidates):
-            col_keys = _bucket_header(rows, idx, bucket_sfs, fiscal_year, total_sf=total_sf, ignore_syns=ignore_syns)
+            col_keys = _bucket_header(rows, idx, bucket_sfs, fiscal_year, total_sf=total_sf, ignore_syns=ignore_syns, basis=basis)
             if not col_keys:
                 continue
             amounts = _row_amounts(rows[idx], len(col_keys), nil=None)
@@ -1466,6 +1507,7 @@ def score_field(field: dict, sf: dict, checks: list[dict], schema: dict, currenc
 
 def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict) -> dict:
     fiscal_year = report_meta.get("fiscal_year")
+    basis = debt_basis()  # v089: which maturity table total_debt and the buckets are read from
     system, warnings, raw = system_prompt(schema, report_meta.get("stem")), [], []
     nonnull = lambda fs: sum(isinstance(f, dict) and f.get("value") is not None for f in fs)
     windows = [tuple(pages[:2])]  # the statement spread first: a quick call (four pages timed out on NOBA / Nordnet)
@@ -1830,7 +1872,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             warnings.append(f"{sf['key']}: {f.get('raw_label')!r} {f['value']} dropped: not a known {sf['label'].lower()} label and the statement has no {req}")
             f.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
             values.pop(sf["key"], None)
-    _fill_bucket_columns(fields, sfs, schema, texts, pages, fiscal_year, warnings, values, filled)
+    _fill_bucket_columns(fields, sfs, schema, texts, pages, fiscal_year, warnings, values, filled, basis)
     checks = [_check(c, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema, stated_zeros=stated_zeros) for c in schema.get("checks", [])]
     for c, sc in zip(checks, schema.get("checks", [])):
         if not c["passed"] or not sc.get("identity"):
@@ -1876,6 +1918,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
         "fiscal_year": fiscal_year,
         "currency": currency,
         "section": schema["name"],
+        "basis": basis,  # v089: the maturity basis these fields were read on (debt_maturity only uses it today)
         "fields": fields,
         "checks": checks,
         "warnings": warnings,

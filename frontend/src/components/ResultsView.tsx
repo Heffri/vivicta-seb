@@ -54,7 +54,7 @@ const loadViewer = (): Viewer => {
 }
 
 export function ResultsView({ extraction, sectionTitle, onReset, onBack, initialPage }: Props) {
-  const { report_id, company, fiscal_year, currency, section, fields, checks, warnings } = extraction
+  const { report_id, company, fiscal_year, currency, section, basis, fields, checks, warnings } = extraction
   const [selectedKey, setSelectedKey] = useState<string | null>(() => fields.find((f) => f.source)?.key ?? null)
   const [brokenPage, setBrokenPage] = useState<number | null>(null)
   const [askPage, setAskPage] = useState<number | null>(initialPage ?? null) // citation chip override; a row click clears it
@@ -106,6 +106,14 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack, initial
             <span>FY {fiscal_year ?? '—'}</span>
             <span aria-hidden>·</span>
             <span>{currency ?? '—'}</span>
+            {/* v089: debt_maturity extractions name the basis their fields were read on; older or
+                non-debt extractions carry no basis and show nothing, exactly as before. */}
+            {basis && (
+              <>
+                <span aria-hidden>·</span>
+                <span>basis: {basis === 'undiscounted' ? 'contractual undiscounted' : 'carrying amount'}</span>
+              </>
+            )}
             {checks.length === 0 ? (
               <Badge variant="outline">No checks</Badge>
             ) : failed === 0 ? (

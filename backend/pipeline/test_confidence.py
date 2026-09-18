@@ -1077,6 +1077,64 @@ def demo():
     assert got == {"total_debt": 583531, "due_within_1_year": 167546, "due_1_to_5_years": 415984, "due_after_5_years": None}, (got, out["warnings"])
     assert out["checks"][0]["passed"], out["checks"]
 
+    # v089: the maturity basis is a user choice, not a hardcode -- DEBT_BASIS=carrying (default;
+    # everything above, byte for byte, and the extraction now says so in its own top-level "basis")
+    # or "undiscounted": the same bucket columns read as always, but total_debt comes from the
+    # contractual undiscounted total column -- the schema's ignore_header_synonyms wording (v076)
+    # becomes the total slot and the carrying wording becomes the ignored column -- so the identity
+    # closes against the undiscounted total, and Instalco's 3,209-vs-3,122 gap, which the carrying
+    # basis' over valve correctly rejects above, is on this basis the report's own read.
+    assert x.debt_basis() == "carrying"  # default: no env set, no behaviour change anywhere
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 3122, "unit": "SEK m", "period": "2025", "raw_label": "Liabilities to credit institutions",
+         "source": {"page": 1, "quote": "Liabilities to credit institutions – – 3,209 – 3,209 3,122"}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([instalco128], [1], dm, {"fiscal_year": 2025})
+    assert out["basis"] == "carrying" and out["checks"][0]["passed"] is False, (out["basis"], out["checks"])
+    # the prompt names the basis (the schema carries both wordings; the carrying one is the one
+    # every extraction has carried since v028, unchanged)
+    sp = x.system_prompt(dm)
+    assert "Read the carrying-amount table" in sp, sp[:200]
+    basis_saved = x.debt_basis
+    x.debt_basis = lambda: "undiscounted"
+    assert x.system_prompt(dm) != sp and "Read the carrying-amount table" not in x.system_prompt(dm)
+    assert "Read the contractual undiscounted cash flows table" in x.system_prompt(dm), x.system_prompt(dm)[:200]
+    # header level: the two total-shaped columns swap slots
+    assert x._bucket_header(instalco_rows, instalco_idx, bucket_sfs, 2025, total_sf=dmf["total_debt"],
+                            ignore_syns=dm["ignore_header_synonyms"], basis="undiscounted") == \
+        ["due_within_1_year", "due_within_1_year", "due_1_to_5_years", "due_after_5_years", "total", "_ignore"]
+    assert x._bucket_header(ework_rows, ework_idx, bucket_sfs, 2025, total_sf=dmf["total_debt"],
+                            ignore_syns=dm["ignore_header_synonyms"], basis="undiscounted") == \
+        ["due_within_1_year", "due_within_1_year", "due_within_1_year", "due_within_1_year",
+         "due_1_to_5_years", "due_after_5_years", "total", "_ignore"]
+    # end to end, Instalco under undiscounted: total_debt 3,122 (the model's own carrying read) is
+    # overwritten with the row's own contractual total 3,209, the dash buckets are the report's 0,
+    # and 0 + 3,209 + 0 closes against 3,209 exactly -- passed, for the first time on this table.
+    out = x.extract([instalco128], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 3209, "due_within_1_year": 0, "due_1_to_5_years": 3209, "due_after_5_years": 0} \
+        and out["checks"][0]["passed"] and out["basis"] == "undiscounted", (got, out["checks"], out["warnings"])
+    assert any("total_debt: 3122 disagrees with the maturity table" in w for w in out["warnings"]), out["warnings"]
+    nilw = next(f for f in out["fields"] if f["key"] == "due_after_5_years")
+    assert nilw["confidence"] == 0.5 and "printed_nil" in nilw["evidence"], nilw  # the dash, still the report's own 0
+    # Ework under undiscounted: the row prints the same figure in both total columns (156,410), so the
+    # four fields land as under carrying -- now proven against the *undiscounted* column. The ragged
+    # real p.70 header (neither phrase contiguous, v085's own guard shape) still declines on this
+    # basis too: no basis column anywhere in it, no fill, no warning, both bases alike.
+    x.call_llm = lambda *a, **k: {"fields": json.loads(json.dumps(ework_answer))}
+    out = x.extract([ework_real], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 156410, "due_within_1_year": 156409, "due_1_to_5_years": 0, "due_after_5_years": 0} \
+        and out["checks"][0]["passed"] and out["basis"] == "undiscounted", (got, out["checks"], out["warnings"])
+    x.call_llm = lambda *a, **k: {"fields": json.loads(json.dumps(ework_answer))}
+    out = x.extract([ework_real70], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 156410, "due_within_1_year": None, "due_1_to_5_years": None, "due_after_5_years": None} \
+        and not out["warnings"], (got, out["warnings"])  # untouched: no candidate ever reaches the write step
+    x.debt_basis = basis_saved  # restore: every later case runs on the default carrying basis
+
     qcalls = []
     # v054: EXTRACT_QUOTE_RETRY (default off) -- one follow-up call for the fields whose answer cites a quote
     # that is not printed on the page it names: the cited page's own _page_rows go out numbered, and the model

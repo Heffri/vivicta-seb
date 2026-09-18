@@ -237,6 +237,24 @@ does nothing (a v046/v060 split, deliberate, not an oversight) or, worse, loosen
   dropped by `_bucket_assign` -- present in the column count so the real columns still line up, absent from
   every field's own value.
 
+## Maturity basis (`DEBT_BASIS`) -- v089
+
+Default **carrying**: debt_maturity reads the borrowings note's carrying-amount table, exactly as every
+round since v028 has (the total that ties to the balance sheet; a liquidity note's undiscounted total is
+counted as a column and ignored -- the v076 split above). `DEBT_BASIS=undiscounted` flips the basis to the
+liquidity-risk note's contractual undiscounted cash flows: the same bucket columns are read the same way,
+but the two total-shaped word groups swap roles -- `ignore_header_synonyms` wording becomes the total slot
+(total_debt = the contractual cash-flow total, future interest included, so Instalco's buckets summing to
+3,209 against a carrying total of 3,122 is no longer an over-valve rejection but the report's own read) and
+`total_debt`'s carrying `header_synonyms` become the ignored column. The identity check then closes against
+the undiscounted total by construction. The prompt follows the basis: the schema carries a
+`description_undiscounted` beside its `description` (schema top level and `total_debt`), and
+`system_prompt` picks the one matching `debt_basis()`; anything but `undiscounted` in the env reads
+`carrying`, so a typo can never flip it. Every extraction reports the basis it was read on in its
+top-level `basis` field, and `GET /api/config` mirrors the live value as `maturity_basis`. The desktop
+Settings cards carry the matching two-choice control that writes this env var on Save. See
+`pipeline/extract.py`'s `debt_basis()` and `docs/acrylic/evidence/v089.md`.
+
 ## Checks
 
 - `python ../scripts/smoke_api.py` — every endpoint in `docs/API.md` against a running backend (`--llm` adds extract/index/ask,

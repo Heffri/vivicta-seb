@@ -20,6 +20,7 @@ const DEFAULT_CONFIG: DesktopConfig = {
   codexModel: 'gpt-5.6-terra',
   claudeModel: 'claude-sonnet-5',
   extractTwoPass: true, // matches desktop/settings.js's own DEFAULTS -- see its comment for why
+  maturityBasis: 'carrying', // v089, same -- the backend's own default since v028
 }
 
 // Ollama has no toggle for this (see the Local (Ollama) card below) and desktop/settings.js's
@@ -85,6 +86,14 @@ function StatusRow({ status, error, twoPass }: { status: Config | null; error: s
                 two-pass <span className="text-foreground">{twoPass ? 'on' : 'off'}</span>
               </span>
             )}
+            {status.maturity_basis && (
+              // v089: /api/config carries the backend's live DEBT_BASIS, so unlike two-pass (which
+              // lives only in the desktop's config.json) this segment renders in the plain-browser
+              // mirror too -- "Running now" showing what the backend would actually read.
+              <span className="text-muted-foreground">
+                basis <span className="text-foreground">{status.maturity_basis === 'undiscounted' ? 'contractual undiscounted' : 'carrying amount'}</span>
+              </span>
+            )}
           </>
         ) : (
           <span className="text-muted-foreground">{error ?? 'loading…'}</span>
@@ -128,6 +137,46 @@ function TwoPassToggle({ checked, onChange }: { checked: boolean; onChange: (val
   )
 }
 
+// v089: which maturity table the debt_maturity section reads — the borrowings note's carrying
+// amounts (the backend's default since v028, total ties to the balance sheet) or the liquidity
+// note's contractual undiscounted cash flows (future interest included, higher total). Unlike
+// TwoPassToggle this is model-independent, so every provider card carries it, Ollama included.
+// Same Select as the model picker above.
+function MaturityBasisSelect({
+  value,
+  onChange,
+}: {
+  value: DesktopConfig['maturityBasis']
+  onChange: (value: DesktopConfig['maturityBasis']) => void
+}) {
+  const options: Record<DesktopConfig['maturityBasis'], string> = {
+    carrying: 'Carrying amount (default)',
+    undiscounted: 'Contractual undiscounted',
+  }
+  return (
+    <Field caption="Maturity basis">
+      <Select
+        value={value}
+        onValueChange={(v) => {
+          if (v === 'carrying' || v === 'undiscounted') onChange(v)
+        }}
+        items={options}
+      >
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {(Object.keys(options) as (keyof typeof options)[]).map((k) => (
+            <SelectItem key={k} value={k}>
+              {options[k]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </Field>
+  )
+}
+
 // Shared by the Codex and Claude cards (v033 owner follow-up added Claude, same shape as Codex): a
 // model dropdown, an optional base URL for embeddings/Ask with an optional key for it, and a status
 // badge from the CLI-specific *Status() check. `info` is whatever that check last returned.
@@ -142,6 +191,8 @@ function SubscriptionCliFields({
   onApiKeyChange,
   twoPass,
   onTwoPassChange,
+  maturityBasis,
+  onMaturityBasisChange,
   info,
 }: {
   cliName: string
@@ -154,6 +205,8 @@ function SubscriptionCliFields({
   onApiKeyChange: (value: string) => void
   twoPass: boolean
   onTwoPassChange: (value: boolean) => void
+  maturityBasis: DesktopConfig['maturityBasis']
+  onMaturityBasisChange: (value: DesktopConfig['maturityBasis']) => void
   info: TestConnectionResult | null
 }) {
   return (
@@ -173,6 +226,7 @@ function SubscriptionCliFields({
         </Select>
       </Field>
       <TwoPassToggle checked={twoPass} onChange={onTwoPassChange} />
+      <MaturityBasisSelect value={maturityBasis} onChange={onMaturityBasisChange} />
       <TextField caption="Base URL (optional)" value={baseUrl} onChange={(e) => onBaseUrlChange(e.target.value)} placeholder="http://127.0.0.1:11434/v1" />
       <p className="text-xs text-muted-foreground">Without a base URL, Ask retrieves with keyword search (BM25) instead of embeddings — Extract still works.</p>
       {baseUrl.trim() && (
@@ -365,6 +419,7 @@ function DesktopSettings({ api, onConfigChange }: { api: ArpSettingsApi; onConfi
               <TextField caption="Base URL" value={form.baseUrl} onChange={(e) => update({ baseUrl: e.target.value })} placeholder="http://127.0.0.1:11434/v1" />
               <TextField caption="Model" value={form.model} onChange={(e) => update({ model: e.target.value })} placeholder="qwen3:8b" />
               <TextField caption="Embed model" value={form.embedModel} onChange={(e) => update({ embedModel: e.target.value })} placeholder="bge-m3" />
+              <MaturityBasisSelect value={form.maturityBasis} onChange={(v) => update({ maturityBasis: v })} />
             </ProviderCard>
 
             <ProviderCard
@@ -379,6 +434,7 @@ function DesktopSettings({ api, onConfigChange }: { api: ArpSettingsApi; onConfi
               <TextField caption="API key" type="password" autoComplete="off" value={form.apiKey} onChange={(e) => update({ apiKey: e.target.value })} placeholder="sk-…" />
               <TextField caption="Embed model (optional, for Ask)" value={form.embedModel} onChange={(e) => update({ embedModel: e.target.value })} placeholder="bge-m3" />
               <TwoPassToggle checked={form.extractTwoPass} onChange={(v) => update({ extractTwoPass: v })} />
+              <MaturityBasisSelect value={form.maturityBasis} onChange={(v) => update({ maturityBasis: v })} />
             </ProviderCard>
 
             <ProviderCard
@@ -399,6 +455,8 @@ function DesktopSettings({ api, onConfigChange }: { api: ArpSettingsApi; onConfi
                 onApiKeyChange={(v) => update({ apiKey: v })}
                 twoPass={form.extractTwoPass}
                 onTwoPassChange={(v) => update({ extractTwoPass: v })}
+                maturityBasis={form.maturityBasis}
+                onMaturityBasisChange={(v) => update({ maturityBasis: v })}
                 info={codexInfo}
               />
             </ProviderCard>
@@ -421,6 +479,8 @@ function DesktopSettings({ api, onConfigChange }: { api: ArpSettingsApi; onConfi
                 onApiKeyChange={(v) => update({ apiKey: v })}
                 twoPass={form.extractTwoPass}
                 onTwoPassChange={(v) => update({ extractTwoPass: v })}
+                maturityBasis={form.maturityBasis}
+                onMaturityBasisChange={(v) => update({ maturityBasis: v })}
                 info={claudeInfo}
               />
             </ProviderCard>

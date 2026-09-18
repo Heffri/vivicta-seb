@@ -85,6 +85,7 @@ export type Extraction = {
   fiscal_year: number | null;
   currency: string | null;  // dominant unit in the section
   section: string;          // schema name
+  basis?: 'carrying' | 'undiscounted'; // v089, debt_maturity only: which maturity table total_debt + the buckets were read from
   fields: Field[];          // one entry per schema field, in schema order (value null if missing)
   checks: Check[];
   warnings: string[];       // free text, e.g. "revenue: quote not found on page 64"

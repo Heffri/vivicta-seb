@@ -77,6 +77,7 @@ export type Config = {
   llm: boolean
   provider: string
   retrieval?: 'hybrid' | 'bm25' | 'fixture'
+  maturity_basis?: 'carrying' | 'undiscounted' // v089: the backend's live DEBT_BASIS; absent in older stored payloads
 }
 export const getConfig = () => request<Config>('/api/config')
 export const getKb = () => request<KbEntry[]>('/api/kb')
