@@ -1889,6 +1889,79 @@ def demo():
     out = x.extract([straddle], [1], dm, {"fiscal_year": 2025})
     assert all(f["value"] is None for f in out["fields"] if f["key"] != "total_debt"), (out["fields"], out["warnings"])
     assert not any("finer-split" in w for w in out["warnings"]), out["warnings"]
+    # v101: a debt total/bucket printed under a liabilities-negative sign convention -- net-debt and
+    # capital-management presentations print cash positive and every debt row negative -- carries its
+    # magnitude with a minus, and the fields (semantics: a carrying amount of borrowings) must record
+    # the magnitude. Catella p.108 and Scandi Standard p.134 real table text (trimmed; the stored
+    # baseline red -- -1,474@1.0 / -2,307 / -70 passing every gate -- is in docs/acrylic/evidence/v101.md).
+    assert x._NET_DEBT_LABEL.search(x._clean_label("Net debt")) and x._NET_DEBT_LABEL.search(x._clean_label("Nettoskuld")) \
+        and x._NET_DEBT_LABEL.search(x._clean_label("Net interest-bearing debt")) and x._NET_DEBT_LABEL.search(x._clean_label("Nettokassa / nettoskuld (-)"))
+    assert not x._NET_DEBT_LABEL.search(x._clean_label("Gross debt December 31 2025 (Note 21)")) \
+        and not x._NET_DEBT_LABEL.search(x._clean_label("Total interest-bearing liabilities")) \
+        and not x._NET_DEBT_LABEL.search(x._clean_label("- repayable within one year"))
+    cat108 = ("Information on the Group's net debt profile and a sensitivity analysis are presented below, with informa-\n"
+              "tion on fixed interest periods.\n"
+              "SEK M 31 Dec 31 Dec\n"
+              "EUR liabilities −82 −135\n"
+              "SEK liabilities −1,242 −1,342\n"
+              "GBP liabilities −146 −150\n"
+              "DKK liabilities −2 −1,105\n"
+              "Liabilities in other currencies - -\n"
+              "Total interest-bearing liabilities −1,474 −2,735\n"
+              "Term (days) 91 90\n"
+              "Total interest-bearing assets 2,164 1,472\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": -1474, "unit": "SEK M", "period": "2025", "raw_label": "Total interest-bearing liabilities",
+         "source": {"page": 1, "quote": "Total interest-bearing liabilities −1,474 −2,735"}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([cat108], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f for f in out["fields"]}
+    assert got["total_debt"]["value"] == 1474, (got["total_debt"], out["warnings"])
+    assert "sign_normalized" in got["total_debt"]["evidence"] and got["total_debt"]["confidence"] == 1.0, got["total_debt"]
+    assert any("total_debt: -1474 printed with a liabilities-negative sign convention; recorded as 1474" in w for w in out["warnings"]), out["warnings"]
+    # Scandi Standard p.134: the financing reconciliation prints every debt row negative, buckets included
+    ss134 = ("4) Reconciliation of Net interest-bearing debt\n"
+             "Net interest-bearing debt1),\nMSEK 2025 2024\n"
+             "Cash and cash equivalents 279 109\n"
+             "Interest-bearing liabilities\n– repayable within one year –70 –64\n"
+             "Interest-bearing liabilities\n– repayable after one year –2,238 –1,982\n"
+             "Net interest-bearing debt –2,032 –1,935\n"
+             "Gross debt – variable interest rates –2,307 –2,046\n"
+             "Liabilities from financing activities\nChanges in gross debt, MSEK\n"
+             "Gross debt December 31, 2024\n(Note 21) –1,733 –313 –2,046\n"
+             "new loans –338 –53 –391\n"
+             "repayments 97 69 165\n"
+             "Gross debt December 31 2025\n(Note 21) –2,021 –286 –2,307\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": -2307, "unit": "MSEK", "period": "2025", "raw_label": "Gross debt December 31 2025 (Note 21)",
+         "source": {"page": 1, "quote": "(Note 21) –2,021 –286 –2,307"}},
+        {"key": "due_within_1_year", "value": -70, "unit": "MSEK", "period": "2025", "raw_label": "– repayable within one year",
+         "source": {"page": 1, "quote": "– repayable within one year –70 –64"}},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([ss134], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f for f in out["fields"]}
+    assert got["total_debt"]["value"] == 2307 and got["due_within_1_year"]["value"] == 70, (got, out["warnings"])
+    assert "sign_normalized" in got["total_debt"]["evidence"] and "sign_normalized" in got["due_within_1_year"]["evidence"], (got["total_debt"], got["due_within_1_year"])
+    assert sum("printed with a liabilities-negative sign convention" in w for w in out["warnings"]) == 2, out["warnings"]
+    # counter-example: a row labelled as net debt is a different shape -- its negative can be a genuine
+    # net-cash position, and total_debt must not point there at all. Left exactly as printed, shape named.
+    netdebt = ("Capital management\nMSEK\n2025 2024\n"
+               "Borrowings -600 -550\n"
+               "Cash and bank deposits 100 90\n"
+               "Net debt (nettoskuld) -500 -460\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": -500, "unit": "MSEK", "period": "2025", "raw_label": "Net debt (nettoskuld)",
+         "source": {"page": 1, "quote": "Net debt (nettoskuld) -500 -460"}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([netdebt], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f for f in out["fields"]}
+    assert got["total_debt"]["value"] == -500 and "sign_normalized" not in got["total_debt"]["evidence"], (got["total_debt"], out["warnings"])
+    assert any("net-debt label" in w for w in out["warnings"]), out["warnings"]
     print("confidence self-check ok")
 
 
