@@ -55,6 +55,25 @@ if (!gotLock) {
   })
 }
 
+// ---------------------------------------------------------------------------
+// Windows acrylic material detection — same build-number gate UAW's main.ts
+// uses (process.getSystemVersion() is "10.0.<build>" even on Windows 11).
+// v029 shipped this unconditionally; v100 gates it behind the theme setting
+// (Solid, the default, keeps the opaque window the 09-18 refresh chose).
+// ---------------------------------------------------------------------------
+function supportsAcrylic() {
+  if (!isWindows || typeof BrowserWindow.prototype.setBackgroundMaterial !== 'function') return false
+  try {
+    const [major, , build] = process
+      .getSystemVersion()
+      .split('.')
+      .map((part) => Number.parseInt(part, 10))
+    return major !== undefined && build !== undefined && (major > 10 || (major === 10 && build >= 22_000))
+  } catch {
+    return false
+  }
+}
+
 function findFreePort() {
   return new Promise((resolve, reject) => {
     const srv = net.createServer()
@@ -301,6 +320,34 @@ async function applySettings(cfg) {
   }
 }
 
+/** v100: a theme switch from Settings' Theme select — deliberately NOT the applySettings path
+ *  (that one restarts the backend, which a visual change doesn't need). Persists theme into
+ *  config.json immediately — merged over the stored file, so apiKey & friends survive and a
+ *  later Save writes the same value the user already picked — then switches the live window's
+ *  material when the platform can, so the change lands without a relaunch. `appliedNow: false`
+ *  tells the renderer to show the restart hint instead; `material` tells it whether to flip
+ *  <html data-material> (the CSS branch that swaps painted wallpaper for the OS blur). */
+function applyTheme(theme) {
+  const wanted = theme === 'acrylic' ? 'acrylic' : 'solid'
+  const wantAcrylic = wanted === 'acrylic' && supportsAcrylic()
+  const userDataDir = app.getPath('userData')
+  const clean = settings.saveConfig(userDataDir, { ...settings.loadConfig(userDataDir), theme: wanted })
+  let appliedNow = false
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (typeof mainWindow.setBackgroundMaterial === 'function') {
+      try {
+        mainWindow.setBackgroundColor(wantAcrylic ? '#00000000' : '#0a0a12')
+        mainWindow.setBackgroundMaterial(wantAcrylic ? 'acrylic' : 'none')
+        appliedNow = true
+      } catch (err) {
+        backendLogStream.write(`theme switch to ${wanted}: live material change failed: ${err.message}\n`)
+      }
+    }
+  }
+  backendLogStream.write(`theme set: ${clean.theme}; live material switch: ${appliedNow}\n`)
+  return { appliedNow, material: wantAcrylic ? 'acrylic' : 'none' }
+}
+
 async function fetchWithTimeout(url, options, timeoutMs) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
@@ -508,7 +555,7 @@ function toneOverlayOptions(tone) {
     : { color: '#14141b', symbolColor: '#f4f4f7', height: 44 }
 }
 
-function createWindow() {
+function createWindow(acrylic) {
   const options = {
     width: 1440,
     height: 900,
@@ -516,19 +563,21 @@ function createWindow() {
     minHeight: 700,
     show: false,
     title: 'Annual Report Parser',
-    // Native acrylic changes on focus loss. Use the renderer's stable painted background.
-    backgroundColor: '#0a0a12',
+    // Solid keeps the renderer's stable painted background (native acrylic changes on focus
+    // loss); Acrylic asks for the real OS material and clears the native fill behind it so the
+    // desktop itself shows through -- the v029/v100 trade-off the theme setting exposes.
+    backgroundColor: acrylic ? '#00000000' : '#0a0a12',
     icon: path.join(__dirname, 'icons', 'icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      additionalArguments: ['--arp-material=none'],
+      additionalArguments: [`--arp-material=${acrylic ? 'acrylic' : 'none'}`],
     },
   }
   if (isWindows) {
-    options.backgroundMaterial = 'none'
+    options.backgroundMaterial = acrylic ? 'acrylic' : 'none'
     options.titleBarStyle = 'hidden'
     options.titleBarOverlay = toneOverlayOptions('dark') // useTone.ts's own default before the renderer reports in
   }
@@ -630,7 +679,14 @@ async function main() {
     }
   }
 
-  mainWindow = createWindow()
+  // v100: the window is built for the configured theme — only Acrylic asks for the real OS
+  // material (v029's detection + transparent fill, restored from 263f8eb); Solid keeps the
+  // 09-18 opaque window. The log line is the evidence trail for which one this launch used.
+  const acrylic = llmConfig.theme === 'acrylic' && supportsAcrylic()
+  backendLogStream.write(
+    `windows version: ${isWindows ? process.getSystemVersion() : 'n/a'}; theme: ${llmConfig.theme}; acrylic material: ${acrylic}\n`,
+  )
+  mainWindow = createWindow(acrylic)
 
   ipcMain.on('arp:tone-changed', (_event, tone) => {
     if (!isWindows || !mainWindow || mainWindow.isDestroyed()) return
@@ -640,6 +696,7 @@ async function main() {
 
   ipcMain.handle('arp:settings:get', () => settings.loadConfig(app.getPath('userData')))
   ipcMain.handle('arp:settings:set', (_event, cfg) => applySettings(cfg))
+  ipcMain.handle('arp:theme:set', (_event, theme) => applyTheme(theme)) // v100, see applyTheme
   ipcMain.handle('arp:settings:test', (_event, cfg) => testConnection(cfg))
   ipcMain.handle('arp:settings:codex-status', () => testCodex())
   ipcMain.handle('arp:settings:claude-status', () => testClaude())

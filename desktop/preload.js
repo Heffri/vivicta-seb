@@ -23,6 +23,10 @@ contextBridge.exposeInMainWorld('arp', {
     codexStatus: () => ipcRenderer.invoke('arp:settings:codex-status'),
     claudeStatus: () => ipcRenderer.invoke('arp:settings:claude-status'),
   },
+  // v100: Settings' Theme select — persists config.json + switches the live window material
+  // without the backend restart arp:settings:set would do. Returns { appliedNow, material };
+  // appliedNow=false means this window can't switch live and the UI shows a restart hint.
+  setTheme: (theme) => ipcRenderer.invoke('arp:theme:set', theme),
 })
 
 // The native titleBarOverlay buttons are drawn by the OS outside the DOM, so main.js can only

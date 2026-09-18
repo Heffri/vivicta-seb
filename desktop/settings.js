@@ -27,6 +27,11 @@ const DEFAULTS = {
   // Unlike two-pass this is model-independent, so every provider card carries the control and
   // every non-fixture provider passes DEBT_BASIS through (backend/pipeline/extract.py's debt_basis()).
   maturityBasis: 'carrying',
+  // v100: visual theme for the whole app -- 'solid' (default: the 09-18 opaque surfaces) or
+  // 'acrylic' (the v001-v006b glass + this shell's real Windows material). Like maturityBasis a
+  // plain config key, but unlike it never an env var: main.js reads it when building the window,
+  // the renderer keeps the live choice in localStorage 'arp-theme'. envForConfig ignores it.
+  theme: 'solid',
 }
 
 function sanitize(raw) {
@@ -41,6 +46,7 @@ function sanitize(raw) {
     claudeModel: CLAUDE_MODELS.includes(cfg.claudeModel) ? cfg.claudeModel : DEFAULTS.claudeModel,
     extractTwoPass: typeof cfg.extractTwoPass === 'boolean' ? cfg.extractTwoPass : DEFAULTS.extractTwoPass,
     maturityBasis: ['carrying', 'undiscounted'].includes(cfg.maturityBasis) ? cfg.maturityBasis : DEFAULTS.maturityBasis,
+    theme: ['solid', 'acrylic'].includes(cfg.theme) ? cfg.theme : DEFAULTS.theme,
   }
 }
 
