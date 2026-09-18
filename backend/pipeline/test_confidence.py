@@ -1892,5 +1892,19 @@ def demo():
     print("confidence self-check ok")
 
 
+def test_confidence_never_exceeds_one():
+    """v097 found 1.2: a derived value whose stitched quote also contained the number earned value_in_quote AND
+    value_derived. score_field keeps the derived marker only and clamps the sum at 1.0."""
+    from . import extract as x
+    f = {"key": "due_within_1_year", "value": 1039, "unit": "MSEK", "period": "2025", "raw_label": "0-6 months + 7-12 months",
+         "source": {"page": 1, "quote": "0-6 months 523 7-12 months 516 1039"}, "evidence": ["quote_on_page", "value_derived"], "confidence": 0.0}
+    sf = {"key": "due_within_1_year", "synonyms": ["0-6 months + 7-12 months"], "unit_hint": "MSEK"}
+    x.score_field(f, sf, [], {"checks": []}, "MSEK", 2025, {1})
+    assert "value_in_quote" not in f["evidence"] and "value_derived" in f["evidence"], f["evidence"]
+    assert 0 < f["confidence"] <= 1.0, f["confidence"]
+    print("confidence clamp ok")
+
+
 if __name__ == "__main__":
     demo()
+    test_confidence_never_exceeds_one()
