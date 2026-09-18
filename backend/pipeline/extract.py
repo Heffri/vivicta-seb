@@ -410,7 +410,8 @@ WEIGHTS = {"quote_on_page": 0.35, "value_in_quote": 0.20, "arith_ok": 0.20, "lab
            "stated_zero": 0.20,  # stands in for value_in_quote when the figure is never printed: the report says 0 in words (v050)
            "identity_all_columns": 0.0,  # a marker: an unknown label whose identity holds in every column earns label_known
            "identity_kept": 0.0,  # a marker: a column guard's own re-read lost to a value that closes the identity exactly (v066)
-           "printed_nil": 0.0}  # a marker: the bucket's own cell prints a dash -- the report's explicit 0 for that window (v078)
+           "printed_nil": 0.0,  # a marker: the bucket's own cell prints a dash -- the report's explicit 0 for that window (v078)
+           "sign_normalized": 0.0}  # a marker: a liabilities-negative printed sign (net-debt display); the magnitude is recorded (v101)
 
 
 _DASHES = str.maketrans({"–": "-", "−": "-", " ": " "})
@@ -1744,6 +1745,63 @@ def _statement_row(rows: list[str], sf: dict, ncols: int) -> str | None:
     return cands[0] if len(cands) == 1 else None
 
 
+_NET_DEBT_LABEL = re.compile(r"(?i)\bnet(?:to)?[\s-]*(?:interest[ -]bearing[\s-]*)?(?:debt|skuld(?:er)?|liabilit\w*)")
+
+
+def _normalize_sign(fields, sfs, schema, texts, warnings, values):
+    """v101: a debt total or bucket printed under a liabilities-negative sign convention -- net-debt and
+    capital-management presentations print cash positive and every debt row negative (Catella's
+    "Total interest-bearing liabilities −1,474 −2,735" net-debt profile, Scandi Standard's "Gross debt
+    December 31 2025 (Note 21) −2,021 −286 −2,307" financing reconciliation, FM Mattsson's
+    "Räntebärande skulder (not 37) -89 532 -93 727" capital-risk note) -- carries its magnitude with a
+    minus, and a quote-verified negative passes every gate as-is. These fields' semantics is a carrying
+    amount of borrowings, so when the sign is the table's presentation rather than the debt's -- the
+    quoted row holds other negative amounts beside the field's own, or the rows of the same table
+    (the contiguous amount-bearing run around the quote row) do -- the field records the magnitude:
+    value flipped, evidence `sign_normalized` (a 0-weight marker, like identity_kept), one warning.
+    Called before the final checks recompute, so the identity closes on carrying positives (a
+    mixed-sign table's printed rows would close on their printed signs only when every operand flips
+    together -- the normalization, not the identity's tolerance, decides here).
+
+    NOT flipped: a row labelled as net debt ("Net debt", "Nettoskuld", "Net interest-bearing debt") --
+    there the negative can be a genuine net-cash position, and total_debt must not point at a net-debt
+    row at all. The shape is recorded in a warning and left as printed, never repaired here (the label
+    vocabulary of v048/v083 judges what points there)."""
+    ident = _identity_parts(schema)
+    if not ident or set(ident[1]) != _DATE_BUCKET_KEYS:
+        return
+    total_key, part_keys = ident
+    for sf, f in zip(sfs, fields):
+        if sf["key"] != total_key and sf["key"] not in part_keys:
+            continue
+        v = f.get("value")
+        src = f.get("source") or {}
+        page = src.get("page")
+        if not isinstance(v, (int, float)) or isinstance(v, bool) or v >= 0 \
+                or "quote_on_page" not in f.get("evidence", []) \
+                or not src.get("quote") or not isinstance(page, int) or not 0 < page <= len(texts):
+            continue
+        if _NET_DEBT_LABEL.search(_clean_label(f.get("raw_label"))):
+            warnings.append(f"{sf['key']}: {v} is printed under a net-debt label ({f.get('raw_label')!r}); left as printed -- a negative there can be a genuine net-cash position, and {total_key} does not point at a net-debt row")
+            continue
+        same_row = any(a < 0 for a in _row_amounts(src["quote"]) if a != v)
+        if not same_row:
+            rows = _page_rows(texts[page - 1])
+            qi = next((i for i, r in enumerate(rows) if r == src["quote"] or quote_on_page(src["quote"], r)), None)
+            if qi is not None:  # the quote row's own table: the contiguous run of amount-bearing rows around it
+                lo = hi = qi
+                while lo - 1 >= 0 and _row_amounts(rows[lo - 1]):
+                    lo -= 1
+                while hi + 1 < len(rows) and _row_amounts(rows[hi + 1]):
+                    hi += 1
+                same_row = any(a < 0 for j in range(lo, hi + 1) if j != qi for a in _row_amounts(rows[j]))
+        if not same_row:
+            continue
+        warnings.append(f"{sf['key']}: {v} printed with a liabilities-negative sign convention; recorded as {-v}")
+        f["value"] = values[sf["key"]] = -v
+        f["evidence"].append("sign_normalized")
+
+
 def score_field(field: dict, sf: dict, checks: list[dict], schema: dict, currency, fiscal_year, statement_pages: set[int]) -> None:
     """Fill field["evidence"] and field["confidence"] from what the backend itself verified. Never the model's opinion."""
     ev = field["evidence"]  # may already hold quote_on_page
@@ -2144,6 +2202,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             values.pop(sf["key"], None)
     _fill_bucket_columns(fields, sfs, schema, texts, pages, fiscal_year, warnings, values, filled, basis)
     _finer_split_rows(fields, schema, texts, fiscal_year, warnings, values, filled)  # the bucket-ROW finer split (Rusta), beside the bucket-column reader above
+    _normalize_sign(fields, sfs, schema, texts, warnings, values)  # v101: liabilities-negative printed totals/buckets record their magnitude; the identity below closes on carrying positives
     checks = [_check(c, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema, stated_zeros=stated_zeros) for c in schema.get("checks", [])]
     for c, sc in zip(checks, schema.get("checks", [])):
         if not c["passed"] or not sc.get("identity"):
