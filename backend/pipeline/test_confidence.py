@@ -1141,6 +1141,94 @@ def demo():
         and not out["warnings"], (got, out["warnings"])  # untouched: no candidate ever reaches the write step
     x.debt_basis = basis_saved  # restore: every later case runs on the default carrying basis
 
+    # v095 (Karnell, seed9-kb, v088 Finding 1, real p.106 text): the maturity table's own header prints
+    # "<1 year 1-3 years >3 years Total" -- "<1 year" is a bucket word, "1-3 years" a finer split of
+    # due_1_to_5_years, but ">3 years" ([36 months, infinity)) is off the schema's 1/5-year grid: it crosses
+    # the 5-year boundary without naming it, so 3 header keys stood against the row's 4 printed amounts and
+    # the length valve declined everything (v088: four nulls on both passes of a real, well-formed table).
+    # The off-grid column is now counted (4 keys, 4 amounts, alignment restored) and never assigned: on the
+    # interest-bearing row its cell prints "-", which resolves the windows it covers outright -- the whole of
+    # due_after_5_years sits inside the nil ">3 years" column, so it is 0, and 43.5 + 353.7 + 0 == 397.2
+    # closes exactly.
+    karnell106 = ("NOTE 47 - FINANCIAL LIABILITIES\n"
+                  "Maturity analysis liabilities, 2025 <1 year 1-3 years >3 years Total\n"
+                  "Liabilities to credit institutions 43.5 353.7 - 397.2\n"
+                  "Contingent earn-outs 27.4 0.7 - 28.1\nPut/call options - - 107.0 107.0\n"
+                  "Accounts payable 1.2 - - 1.2\nTotal 72.2 354.4 107.0 533.5\n"
+                  "Maturity analysis liabilities, 2024 <1 year 1-3 years >3 years Total\n"
+                  "Liabilities to credit institutions 71.4 351.7 - 423.2\n"
+                  "Contingent earn-outs 3.9 31.0 - 34.9\nPut/call options 38.9 - 92.5 131.4\n"
+                  "Accounts payable 0.8 - - 0.8\nTotal 115.1 382.7 92.5 590.3\n")
+    # the scan claims only what no bucket word did: on-grid phrases ("> 5 years", "mer än 5 år", "1-5 years")
+    # and finer splits the schema already owns ("1-3 years") stay untouched; bounds land in months, open-ended hi empty
+    hline = "Maturity analysis liabilities, 2025 <1 year 1-3 years >3 years Total"
+    syn = x._bucket_synonym_hits(hline, bucket_sfs, dmf["total_debt"], dm["ignore_header_synonyms"])
+    assert [k for _, _, k in x._offgrid_hits(hline, [(s, e) for s, e, _ in syn])] == ["offgrid:36-|>3 years"], syn
+    assert x._offgrid_hits("mer än 5 år > 5 years 1-5 years", []) == []
+    assert [k for _, _, k in x._offgrid_hits("over 2 years 1-4 years", [])] == \
+        ["offgrid:24-|over 2 years", "offgrid:12-48|1-4 years"]
+    kr = x._page_rows(karnell106)
+    debt_i = kr.index("Liabilities to credit institutions 43.5 353.7 - 397.2")
+    assert x._bucket_header(kr, debt_i, bucket_sfs, 2025, total_sf=dmf["total_debt"]) == \
+        ["due_within_1_year", "due_1_to_5_years", "offgrid:36-|>3 years", "total"]
+    # the off-grid column never becomes one of the >=2 distinct bucket keys the header valve requires: prose
+    # mentioning one bucket word plus ">3 years" is still not a bucket-column table
+    assert x._bucket_header(x._page_rows("The loans mature over 3 years.\nWithin 1 year 5 7\n"), 1, bucket_sfs, 2025) is None
+    # end to end, the model all-null exactly as v088's two passes answered: the debt row (a row_synonyms hit)
+    # fills all four fields, the identity passes on explicit values, and the derived 0 carries value_derived --
+    # the dash is in a column of the table's own naming (">3 years"), not the bucket's own column, so it is a
+    # derived 0, not v078's printed_nil
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([karnell106], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 397.2, "due_within_1_year": 43.5, "due_1_to_5_years": 353.7, "due_after_5_years": 0} \
+        and out["checks"][0]["passed"], (got, out["checks"], out["warnings"])
+    total = next(f for f in out["fields"] if f["key"] == "total_debt")
+    after5 = next(f for f in out["fields"] if f["key"] == "due_after_5_years")
+    assert total["raw_label"] == "Liabilities to credit institutions" and after5["raw_label"] == total["raw_label"]
+    assert "value_derived" in after5["evidence"] and "printed_nil" not in after5["evidence"], after5
+    assert any("the row prints a dash in its '>3 years' column" in w for w in out["warnings"]), out["warnings"]
+    # counterfactual (v095 CE1): the same table with a valued ">3 years" cell on the debt row stays honest --
+    # four nulls and a warning naming the boundary straddled; the split (1-5-years money vs after-5-years
+    # money) is a guess neither the check nor this file can arbitrate
+    ce1 = karnell106.replace("Liabilities to credit institutions 43.5 353.7 - 397.2",
+                             "Liabilities to credit institutions 43.5 353.7 173.0 570.2")
+    out = x.extract([ce1], [1], dm, {"fiscal_year": 2025})
+    assert all(f["value"] is None for f in out["fields"]), (out["fields"], out["warnings"])
+    assert any("'>3 years' 173 straddles the 5-year boundary" in w for w in out["warnings"]), out["warnings"]
+    # v095 rule 2, the row picker: a debt-scoped row (the total field's own wording or a row_synonyms hit)
+    # outranks a bare table Total whose scope is only "whatever this table sums" (Karnell's 533.5 includes
+    # earn-outs, put/call options and accounts payable). Only-bare-Totals pages keep today's order exactly.
+    warnings: list = []
+    order = x._bucket_total_row(kr, dmf["total_debt"], bucket_sfs, 2025, None, warnings)
+    assert order == [debt_i, kr.index("Total 72.2 354.4 107.0 533.5"), kr.index("Total 115.1 382.7 92.5 590.3")], order
+    assert warnings == [], warnings  # one surviving debt row (the 2024 one never aligns: both headers in its window)
+    ce2 = karnell106.replace("Liabilities to credit institutions 43.5 353.7 - 397.2",
+                             "Other financial liabilities 43.5 353.7 - 397.2")
+    warnings = []
+    assert x._bucket_total_row(x._page_rows(ce2), dmf["total_debt"], bucket_sfs, 2025, None, warnings) == \
+        [x._page_rows(ce2).index("Total 72.2 354.4 107.0 533.5"), x._page_rows(ce2).index("Total 115.1 382.7 92.5 590.3")]
+    assert warnings == [], warnings
+    out = x.extract([ce2], [1], dm, {"fiscal_year": 2025})
+    assert all(f["value"] is None for f in out["fields"]), (out["fields"], out["warnings"])  # no debt candidate: bare Totals only, today's order, declined on their valued ">3 years" -- baseline values
+    # rule 2's own proof is v088's rejected experiment flipped harmless: claim ">3 years" for
+    # due_after_5_years (schema copy, test-only) and the header opens either way -- before the reorder that
+    # filled the bare Total 533.5 with the identity passing (the wrong-scope value endorsed by its own
+    # check); now the debt row outranks it and the same claim fills 397.2, the dash now the bucket's own
+    # column (v078's printed_nil, not value_derived)
+    dm95 = json.loads(json.dumps(dm))
+    next(f for f in dm95["fields"] if f["key"] == "due_after_5_years")["synonyms"].append(">3 years")
+    out = x.extract([karnell106], [1], dm95, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 397.2, "due_within_1_year": 43.5, "due_1_to_5_years": 353.7, "due_after_5_years": 0} \
+        and out["checks"][0]["passed"], (got, out["checks"], out["warnings"])
+    after5 = next(f for f in out["fields"] if f["key"] == "due_after_5_years")
+    assert "printed_nil" in after5["evidence"] and "value_derived" not in after5["evidence"], after5
+
     qcalls = []
     # v054: EXTRACT_QUOTE_RETRY (default off) -- one follow-up call for the fields whose answer cites a quote
     # that is not printed on the page it names: the cited page's own _page_rows go out numbered, and the model
@@ -1698,6 +1786,109 @@ def demo():
         out = x.extract([text], [1], dm, {"fiscal_year": 2025})
         assert all(f["value"] is None for f in out["fields"] if f["key"] != "total_debt"), (name, out["fields"])
         assert out["checks"][0]["detail"] == "missing: due_within_1_year", (name, out["checks"])
+    # v096: the bucket-ROW finer split (Rusta Note 11, docs/acrylic/evidence/v088.md findings 2 and 3):
+    # a maturity table whose rows are finer intervals than the three buckets -- "0–6 months 523 /
+    # 7–12 months 516 / 1–2 years 969 / 2–5 years 2,184 / >5 years 2,431 / Total 6,624" -- needs the
+    # sibling rows of one bucket SUMMED (within1y = 523+516 = 1,039; 1-5y = 969+2,184 = 3,153;
+    # 1,039+3,153+2,431 = 6,623 ≈ 6,624), which no existing repair does: _statement_row declines two
+    # rows matching one field (v058), _between_rows' window stops at "1–2 years" (a due_1_to_5_years
+    # synonym, so its other-field guard fires -- exactly why Rusta stayed "missing" through v088), and
+    # _fill_bucket_columns reads one row's columns, not rows. v088's schema decision also proved these
+    # wordings must never join the synonym lists the column scanner reads ("0-6 months" in
+    # due_within_1_year.synonyms leaks into _bucket_synonym_hits and changes _bucket_header's read),
+    # so _bucket_span parses interval GEOMETRY, sharing nothing with that vocabulary. On the label:
+    assert x._bucket_span("0–6 months") == (0, 6) and x._bucket_span("7–12 months") == (7, 12)
+    assert x._bucket_span("6 months or less") == (0, 6) and x._bucket_span("6 månader eller mindre") == (0, 6)
+    assert x._bucket_span("6 – 12 månader") == (6, 12) and x._bucket_span("1 – 5 år") == (12, 60)
+    assert x._bucket_span("1–2 years") == (12, 24) and x._bucket_span("2–5 years") == (24, 60)
+    assert x._bucket_span("between 1 and 2 years") == (12, 24) and x._bucket_span("mellan 1 och 5 år") == (12, 60)
+    assert x._bucket_span("later than 1 year but within 3 years") == (12, 36)
+    assert x._bucket_span(">5 years") == (60, float("inf")) and x._bucket_span("mer än 5 år") == (60, float("inf"))
+    assert x._bucket_span("Within one year") == (0, 12) and x._bucket_span("mindre än 3 månader") == (0, 3)
+    assert x._bucket_span("6-10 years") == (72, 120)  # the schema's own value_convention finer split of >5y
+    assert x._bucket_span("3–7 years") == (36, 84)  # parses fine -- crossing a boundary is the caller's abort, not a parse failure
+    assert x._bucket_span("Maturity analysis – lease liabilities") is None and x._bucket_span("Total") is None
+    assert x._bucket_span("Lease liabilities") is None and x._bucket_span("Repayment within 2–5 yr.") is None  # duration wording, not a maturity interval
+    assert x._bucket_span("-30 dgr") is None  # day wording is the subtotal-column mechanism's own territory (XANO, v078)
+    assert x._span_bucket((7, 12)) == "due_within_1_year" and x._span_bucket((24, 60)) == "due_1_to_5_years"
+    assert x._span_bucket((72, 120)) == "due_after_5_years" and x._span_bucket((36, 84)) is None  # crosses the 5-year boundary
+    assert x._span_bucket((12, float("inf"))) is None  # ">1 year" spans 1-5y AND >5y: no safe split of the three buckets
+    # ... end to end on Rusta's own page 115 (real text, trimmed to the leasing note; the model answer
+    # is v088 pass 1 reconstructed from the stored warnings: total 6,669 year-corrected to 6,624, the
+    # model's own bucket sums 975/3,062 computed-not-read, the repair locking the single "2–5 years"
+    # row's 2,184 -- the stored red, byte-matched in docs/acrylic/evidence/v096.md). The page-level
+    # year header is the P&L table's "2025/26 2024/25" below the maturity table (Rusta's own maturity
+    # header "30 Apr 2026 30 Apr 2025" is not a _year_run), which is why the fixture keeps it.
+    rusta115 = ("Lease liabilities\nGroup\nMaturity analysis – lease liabilities 30 Apr 2026 30 Apr 2025\n"
+                "0–6 months 523 490\n7–12 months 516 485\n1–2 years 969 932\n2–5 years 2,184 2,130\n"
+                ">5 years 2,431 2,633\nTotal 6,624 6,669\nGroup\n"
+                "Amounts recognised in profit or loss 2025/26 2024/25\nDepreciation of right-of-use assets –798 –784\n"
+                "Interest on lease liabilities –236 –242\nParent Company\n30 Apr 2026 30 Apr 2025\n"
+                "Within one year 607 590\nBetween 1 and 5 years 1,924 1,949\nLater than 5 years 2,016 2,231\n"
+                "Total 4,547 4,769\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 6669, "unit": "MSEK", "period": "2025", "raw_label": "Total",
+         "source": {"page": 1, "quote": "Total 6,624 6,669"}},
+        {"key": "due_within_1_year", "value": 975, "unit": "MSEK", "period": "2025", "raw_label": "Within 1 year",
+         "source": {"page": 1, "quote": "Within 1 year 975"}},
+        {"key": "due_1_to_5_years", "value": 3062, "unit": "MSEK", "period": "2025", "raw_label": "1–2 years; 2–5 years",
+         "source": {"page": 1, "quote": "2–5 years 2,184 2,130"}},
+        {"key": "due_after_5_years", "value": 2633, "unit": "MSEK", "period": "2025", "raw_label": ">5 years",
+         "source": {"page": 1, "quote": ">5 years 2,431 2,633"}}]}
+    out = x.extract([rusta115], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f for f in out["fields"]}
+    assert got["total_debt"]["value"] == 6624, (got, out["warnings"])
+    w1 = got["due_within_1_year"]
+    assert w1["value"] == 1039 and w1["confidence"] == 1.0 and "value_derived" in w1["evidence"], (w1, out["warnings"])
+    assert w1["source"]["quote"] == "0–6 months 523 490 7–12 months 516 485" and w1["raw_label"] == "0–6 months + 7–12 months", w1
+    w15 = got["due_1_to_5_years"]
+    assert w15["value"] == 3153 and w15["source"]["quote"] == "1–2 years 969 932 2–5 years 2,184 2,130", (w15, out["warnings"])
+    assert any("2184 reads one finer-split row" in w for w in out["warnings"]), out["warnings"]  # the replaced partial read is named
+    assert got["due_after_5_years"]["value"] == 2431 and got["due_after_5_years"]["source"]["quote"] == ">5 years 2,431 2,633", got["due_after_5_years"]  # one row: untouched, status quo
+    assert out["checks"][0]["passed"] and "abs((1039 + 3153 + 2431) - 6624) <= 2" in out["checks"][0]["detail"], out["checks"]
+    # single-row buckets keep today's behaviour: the same page's parent-company table prints one row
+    # per bucket ("Within one year" / "Between 1 and 5 years" / "Later than 5 years", real text) -- every
+    # bucket's "sum" is one row's own literal figure, so the finer-split derivation writes nothing and
+    # the fields are exactly what the single-row paths already produce (statement-spread fills 607 and
+    # 2,016 off their own printed rows, _between_rows closes 1,924 between them -- all pre-v096
+    # machinery, every quote a single row, no sibling join anywhere).
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 4547, "unit": "MSEK", "period": "2025", "raw_label": "Total",
+         "source": {"page": 1, "quote": "Total 4,547 4,769"}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([rusta115], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: (f["value"], f["source"]["quote"]) for f in out["fields"]}
+    assert got == {"total_debt": (4547, "Total 4,547 4,769"), "due_within_1_year": (607, "Within one year 607 590"),
+                   "due_1_to_5_years": (1924, "Between 1 and 5 years 1,924 1,949"),
+                   "due_after_5_years": (2016, "Later than 5 years 2,016 2,231")}, (got, out["warnings"])
+    assert out["checks"][0]["passed"] and not any("finer-split" in w for w in out["warnings"]), (out["checks"], out["warnings"])  # all buckets single-row: the derivation stayed silent
+    # counter-example 1: sibling rows whose sums do NOT close the identity (100+50 vs Total 200) --
+    # nothing adopted, fields exactly as before: the identity gate is the whole decision, no plausibility
+    badsum = "Maturity analysis\nMSEK 2025 2024\n0–6 months 100 90\n7–12 months 50 40\nTotal 200 190\n"
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 200, "unit": "MSEK", "period": "2025", "raw_label": "Total",
+         "source": {"page": 1, "quote": "Total 200 190"}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([badsum], [1], dm, {"fiscal_year": 2025})
+    assert all(f["value"] is None for f in out["fields"] if f["key"] != "total_debt"), (out["fields"], out["warnings"])
+    assert not any("finer-split" in w for w in out["warnings"]) and out["checks"][0]["detail"].startswith("missing:"), out["checks"]
+    # counter-example 2: an interval CROSSING a bucket boundary ("3–7 years" = [36,84] months) aborts
+    # the whole derivation, even though 150+500 would numerically close -- the table's own granularity
+    # cannot decide which side of 5 years that row's debt sits on, so no row here is safely bucketed
+    straddle = "Maturity analysis\nMSEK 2025 2024\n0–6 months 100 90\n7–12 months 50 40\n3–7 years 500 400\nTotal 650 640\n"
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 650, "unit": "MSEK", "period": "2025", "raw_label": "Total",
+         "source": {"page": 1, "quote": "Total 650 640"}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([straddle], [1], dm, {"fiscal_year": 2025})
+    assert all(f["value"] is None for f in out["fields"] if f["key"] != "total_debt"), (out["fields"], out["warnings"])
+    assert not any("finer-split" in w for w in out["warnings"]), out["warnings"]
     print("confidence self-check ok")
 
 
