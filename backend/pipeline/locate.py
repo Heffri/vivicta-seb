@@ -48,6 +48,7 @@ TOC_LINE = re.compile(r"(?:[_.]\s*){3,}\d{1,3}\s*$")  # AAK's nav bar "Financial
 
 
 PROMPT_BUDGET = 14000  # chars of page text per LLM call; qwen3:8b runs with a 16k context and thinks out loud before the JSON
+WINDOW_PAGES = 4  # the deepest full-text read extract() makes of this list (the widen window pages[:4])
 
 TOC_PAGES = 8  # front-matter contents (AAK's is pdf p.6); note-level indexes live deeper in the report
 TOC_MARK = re.compile(r"\bcontents\b|innehåll", re.I)  # the word on a contents page, not the entries
@@ -151,9 +152,11 @@ def toc_targets(texts: list[str], schema: dict) -> dict[int, str]:
     return hits
 
 
-def candidate_pages(texts: list[str], schema: dict, top_n: int = 8) -> list[int]:
-    """1-based page numbers, best first. The page after the best one is always second (statements span two
-    pages: EPS sits on the second), then pages are dropped from the tail until the text fits PROMPT_BUDGET."""
+def scored_pages(texts: list[str], schema: dict) -> list[tuple[float, int]]:
+    """Every page matching at least one keyword, (score, 1-based pdf page), best first -- the full ranking
+    candidate_pages cuts its window from. Exposed for measurement (scripts/locate_reach.py: where a label
+    page sits in the ranking when it is not a candidate); candidate_pages itself is the only production
+    consumer."""
     keywords = [k.lower() for k in schema.get("keywords", [])]
     excluded = [k.lower() for k in schema.get("exclude_keywords", [])]  # "parent company", "five-year summary"
     synonyms = sorted({s.lower() for f in schema.get("fields", []) for s in f.get("synonyms", [])})
@@ -176,9 +179,23 @@ def candidate_pages(texts: list[str], schema: dict, top_n: int = 8) -> list[int]
         penalty = 0.1 if summary or parent else 1  # Vitrolife prints "Group | Parent Company" columns on one page: group first, so not a parent page
         scored.append(((distinct + 5 * heading + fields + 5 * (i + 1 in toc)) * (1 + 5 * density) * penalty, i + 1))
     scored.sort(key=lambda s: (-s[0], s[1]))
-    pages = [page for _, page in scored[:top_n]]
+    return scored
+
+
+def candidate_pages(texts: list[str], schema: dict, top_n: int = 10) -> list[int]:
+    """1-based page numbers, best first. The page after the best one is always second (statements span two
+    pages: EPS sits on the second). PROMPT_BUDGET bounds only the list's first WINDOW_PAGES pages -- the
+    deepest full-text read extract() ever makes of it (the widen window pages[:4]); pages beyond that are
+    seen by two-pass page selection as ~1200-char snippets only (extract's PAGE_SELECT_SNIPPET), so they
+    are kept for it rather than trimmed: v123 measured 13/87 debt-label pages ranking #2-#8 being dropped
+    by a whole-list budget trim that no full-text reader was ever going to read. top_n 10 (was 8): the one
+    debt-label page ranking #9 (Inwido's Note 21) became a candidate with no other company moving on
+    either section; the cost is pass-1 snippets for up to two more pages."""
+    pages = [page for _, page in scored_pages(texts, schema)[:top_n]]
     if pages and pages[0] < len(texts):
         pages = [pages[0], pages[0] + 1] + [p for p in pages[1:] if p != pages[0] + 1]
-    while len(pages) > 2 and sum(len(texts[p - 1]) for p in pages) > PROMPT_BUDGET:
-        pages.pop()
+    i = min(len(pages), WINDOW_PAGES)
+    while i > 2 and sum(len(texts[p - 1]) for p in pages[:i]) > PROMPT_BUDGET:
+        pages.append(pages.pop(i - 1))  # demote the window's last page to the snippet-only tail, never drop it
+        i -= 1
     return pages

@@ -18,7 +18,10 @@
     "förfallostruktur",
     "återstående löptid",
     "förfallotidpunkt",
-    "liquidity risk"
+    "förfall",
+    "liquidity risk",
+    "loans from banks",
+    "credit institutions"
   ],
   "exclude_keywords": [
     "five-year summary",
