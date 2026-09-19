@@ -1,0 +1,66 @@
+{
+ "report_id": "lib-smartcraft_2025",
+ "company": "SmartCraft Group",
+ "fiscal_year": 2025,
+ "currency": null,
+ "section": "debt_maturity",
+ "maturity_basis": "carrying",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": null,
+   "unit": null,
+   "period": null,
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": null,
+   "unit": null,
+   "period": null,
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": null,
+   "unit": null,
+   "period": null,
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": null,
+   "unit": null,
+   "period": null,
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "detail": "missing: due_within_1_year"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [59, 60] selected from candidates [59, 60, 31]",
+  "due_within_1_year: model returned null, fill from page 59 row 'Less than 1 year 13 825 13 825' refused -- table 'Total undiscounted lease liabilities' is undiscounted",
+  "due_after_5_years: model returned null, fill from page 59 row 'More than 5 years - -' refused -- table 'Total undiscounted lease liabilities' is undiscounted"
+ ]
+}

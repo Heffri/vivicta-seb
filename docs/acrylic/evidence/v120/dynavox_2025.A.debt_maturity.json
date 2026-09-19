@@ -1,0 +1,103 @@
+{
+ "report_id": "lib-dynavox_2025",
+ "company": "Dynavox Group",
+ "fiscal_year": 2025,
+ "currency": "MSEK",
+ "section": "debt_maturity",
+ "maturity_basis": "carrying",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 896.2,
+   "unit": "MSEK",
+   "period": "2025",
+   "raw_label": "Interest-bearing loans",
+   "source": {
+    "page": 134,
+    "quote": "Interest-bearing loans 67.5 828.8 - 896.2"
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": 67.5,
+   "unit": "MSEK",
+   "period": "2025",
+   "raw_label": "Interest-bearing loans",
+   "source": {
+    "page": 134,
+    "quote": "Interest-bearing loans 67.5 828.8 - 896.2"
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": 828.8,
+   "unit": "MSEK",
+   "period": "2025",
+   "raw_label": "Interest-bearing loans",
+   "source": {
+    "page": 134,
+    "quote": "Interest-bearing loans 67.5 828.8 - 896.2"
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": 0,
+   "unit": "MSEK",
+   "period": "2025",
+   "raw_label": "Interest-bearing loans",
+   "source": {
+    "page": 134,
+    "quote": "Interest-bearing loans 67.5 828.8 - 896.2"
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": true,
+   "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((67.5 + 828.8 + 0) - 896.2) <= 2"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [133, 134] selected from candidates [134, 135]"
+ ]
+}

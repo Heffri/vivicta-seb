@@ -1,0 +1,74 @@
+{
+ "report_id": "lib-tangen_industrikapital_2025",
+ "company": "Tången Industrikapital",
+ "fiscal_year": 2025,
+ "currency": "KSEK",
+ "section": "debt_maturity",
+ "maturity_basis": "carrying",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 915454,
+   "unit": "KSEK",
+   "period": "2025",
+   "raw_label": "Total upplåning (inkl leasingskulder)",
+   "source": {
+    "page": 57,
+    "quote": "Total upplåning (inkl leasingskulder) 915 454 530 245"
+   },
+   "confidence": 0.95,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "label_known",
+    "period_ok",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": null,
+   "unit": "KSEK",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": null,
+   "unit": "KSEK",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": null,
+   "unit": "KSEK",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "detail": "missing: due_within_1_year"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [63, 64] selected from candidates [57, 58, 63, 60]"
+ ]
+}
