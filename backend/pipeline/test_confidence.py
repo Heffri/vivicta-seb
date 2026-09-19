@@ -2395,6 +2395,142 @@ def demo():
         {"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None} for k in dmf]}
     out = x.extract([tangen_bad], [1], dm, {"fiscal_year": 2025})
     assert "prior_year" not in out, out.get("prior_year")  # 90,970 + 257,532 + 4,520 != 999,999: no key, not a failing one
+    # v110: a borrowings note split into a non-current and a current section, each closed by its own
+    # Summa row, with NO third grand-total row in the block (NOTE's Not 19, real p.107 text trimmed
+    # to the note; the model answer is v088 pass 2's shape -- within1y 595,420 quote-verified,
+    # total_debt 824,281 dropped as computed-not-read, the round's named failure). The two Summa rows
+    # sum to 824,281 (228,861 + 595,420), each section closing on its own rows in both columns; the
+    # report's own total is printed only as p.109's prose "räntebärande skulder 824,2 (630,0) MSEK" --
+    # the thousands-to-millions conversion _value_in_quote structurally cannot see (v099 finding 4).
+    # total_debt is written value_derived (the sum is printed nowhere); the quote is the contiguous
+    # span from Summa A through Summa B, carrying both Summa rows verbatim -- a two-row join of
+    # non-adjacent rows is not a page substring under quote_on_page's gap discipline, and the span is
+    # the _between_rows precedent. due_within_1_year already equals the current section's own Summa,
+    # so the model's own evidence stands untouched; the two finer buckets stay honestly missing.
+    note107 = ("Not 19. Räntebärande skulder\n"
+               "Långfristiga skulder 2025-12-31 2024-12-31\n"
+               "Banklån 7 241 9 112\n"
+               "Leasingskulder hänförlig till materiella anläggningstillgångar 118 027 134 803\n"
+               "Leasingskulder hänförlig till nyttjanderättstillgångar för hyrda fastigheter 103 593 106 108\n"
+               "Summa 228 861 250 023\n"
+               "Kortfristiga skulder\n"
+               "Checkräkningskredit 135 399 -\n"
+               "Factoring (fakturabelåning) 322 054 316 185\n"
+               "Kortfristig del av banklån 375 375\n"
+               "Kortfristig del av leasingskulder hänförliga till materiella anläggningstillgångar 41 070 38 064\n"
+               "Kortfristig del av leasingskulder hänförlig till nyttjanderättstillgångar\n"
+               "för hyrda fastigheter 23 992 25 484\n"
+               "Tilläggsköpeskilling 72 530 -\n"
+               "Summa 595 420 380 108\n"
+               "Ställda säkerheter\n"
+               "Säkerhet för banklån, leasingskulder och checkräkningskrediter är utställda med ett belopp av 15 833 (16 812) i företa­\n"
+               "gets mark och byggnader (se även not 13) samt 198 176 (198 539) i rörelsen.\n")
+    note109 = ("Likviditetsrisker\n"
+               "Med likviditetsrisk avses risken att inte kunna uppfylla betalningsförpliktelser till följd av otillräcklig likviditet eller\n"
+               "svårigheter att uppta externa lån. Verksamheten finansieras bland annat genom eget kapital 1 648,2 (1 638,5) MSEK\n"
+               "och räntebärande skulder 824,2 (630,0) MSEK, utnyttjad checkräkningskredit ingår med 135,4 (0) MSEK.\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 824281, "unit": "TSEK", "period": "2025", "raw_label": "Räntebärande skulder",
+         "source": {"page": 1, "quote": "Räntebärande skulder 824 281 630 023"}},
+        {"key": "due_within_1_year", "value": 595420, "unit": "TSEK", "period": "2025", "raw_label": "Summa",
+         "source": {"page": 1, "quote": "Summa 595 420 380 108"}},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([note107, note109], [1, 2], dm_ship, {"fiscal_year": 2025})
+    got = {f["key"]: f for f in out["fields"]}
+    td = got["total_debt"]
+    assert td["value"] == 824281 and td["confidence"] == 1.0 and "value_derived" in td["evidence"] \
+        and "value_in_quote" not in td["evidence"], td
+    assert td["raw_label"] == "Summa (Långfristiga skulder) + Summa (Kortfristiga skulder)", td
+    assert td["source"] == {"page": 1, "quote": "Summa 228 861 250 023 Kortfristiga skulder Checkräkningskredit 135 399 - "
+                                                "Factoring (fakturabelåning) 322 054 316 185 Kortfristig del av banklån 375 375 "
+                                                "Kortfristig del av leasingskulder hänförliga till materiella anläggningstillgångar 41 070 38 064 "
+                                                "Kortfristig del av leasingskulder hänförlig till nyttjanderättstillgångar för hyrda fastigheter 23 992 25 484 "
+                                                "Tilläggsköpeskilling 72 530 - Summa 595 420 380 108"}, td["source"]
+    w1 = got["due_within_1_year"]
+    assert w1["value"] == 595420 and w1["confidence"] == 0.9 and "value_in_quote" in w1["evidence"] \
+        and "value_derived" not in w1["evidence"] and w1["source"] == {"page": 1, "quote": "Summa 595 420 380 108"}, w1
+    assert got["due_1_to_5_years"]["value"] is None and got["due_after_5_years"]["value"] is None
+    assert out["checks"][0]["detail"] == "missing: due_1_to_5_years", out["checks"]
+    assert any("sum to 824281 (228861 + 595420)" in w and "corroborated by page 2 prose" in w for w in out["warnings"]), out["warnings"]
+    # counter-example 1 (Karnov p.135, real text trimmed to the table): current / non-current / total
+    # are three COLUMNS of one row, not two sectioned subtotals -- no section headings anywhere, so
+    # the walk never starts. v088 pass 1's own read stands, byte-identically.
+    karnov135 = ("* at December 31\nType of borrowing Interest rate* Currency\nNominal value\nin currency\n"
+                 "Carrying amount,\ncurrent\nCarrying amount,\nnon-current\nTotal, carrying\namount\n"
+                 "Borrowings from credit institutions December 31, 2025\n"
+                 "Facility Agreement, Facility A Loan 1,7% + EURIBOR EUR 12.5 135.2 - 135.2\n"
+                 "Facility Agreement, Facility B Loan 1,7% + EURIBOR EUR 170.0 - 1,839.0 1,839.0\n"
+                 "Other Loan N/A EUR 0.2 - 1.7 1.7\nAmortised loan costs - -10.9 -10.9\n"
+                 "Total, carrying amount 135.2 1,829.8 1,965.0\n"
+                 "Borrowings from credit institutions December 31, 2024\n"
+                 "Facility Agreement, Facility A Loan 2,3% + EURIBOR EUR 22.5 114.9 143.5 258.4\n"
+                 "Other Loan N/A EUR 0.2 2.4 2.4\nAmortised loan costs -14.3 -14.3\n"
+                 "Total, carrying amount 114.9 2,570.9 2,685.8\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 1965, "unit": "MEUR", "period": "2025", "raw_label": "Total, carrying amount",
+         "source": {"page": 1, "quote": "Total, carrying amount 135.2 1,829.8 1,965.0"}},
+        {"key": "due_within_1_year", "value": 135.2, "unit": "MEUR", "period": "2025", "raw_label": "Total, carrying amount",
+         "source": {"page": 1, "quote": "Total, carrying amount 135.2 1,829.8 1,965.0"}},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([karnov135], [1], dm_ship, {"fiscal_year": 2025})
+    got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
+    assert got == {"total_debt": (1965, 0.9), "due_within_1_year": (135.2, 0.9),
+                   "due_1_to_5_years": (None, 0.0), "due_after_5_years": (None, 0.0)}, (got, out["warnings"])
+    assert not any("section subtotal" in w for w in out["warnings"]), out["warnings"]
+    # counter-example 2 (Ambea G18 again, the model answering nothing): both sections and both
+    # subtotals are there, but the block prints its own grand total right after the current section
+    # ("Total interest-bearing liabilities 12,643") -- that row is total_debt's own read, and the
+    # pair shape declines. The pre-existing statement-spread fill reads the printed total instead.
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None} for k in dmf]}
+    out = x.extract([ambea119], [1], dm_ship, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got["total_debt"] == 12643 and got["due_within_1_year"] is None, (got, out["warnings"])
+    assert not any("section subtotal" in w for w in out["warnings"]), out["warnings"]
+    # counter-example 3 (synthetic): a third Summa -- another table's own -- printed between the two
+    # section Summas, both sections closing arithmetically so only the structure can decline it:
+    # the walk from Summa A to the next section heading meets printed figures, the "one note"
+    # premise fails, nothing is adopted.
+    interleaved = ("Not 19. Räntebärande skulder\nLångfristiga skulder 2025-12-31 2024-12-31\n"
+                   "Banklån 7 241 9 112\nLeasingskulder 221 620 240 911\nSumma 228 861 250 023\n"
+                   "Ansvarsförbindelser\nAnsvarsbelopp 100 200\nSumma 100 200\nKortfristiga skulder\n"
+                   "Checkräkningskredit 135 399 -\nFactoring 460 021 380 108\nSumma 595 420 380 108\n")
+    out = x.extract([interleaved], [1], dm_ship, {"fiscal_year": 2025})
+    assert all(f["value"] is None for f in out["fields"]), out["fields"]
+    assert not any("section subtotal" in w for w in out["warnings"]), out["warnings"]
+    # the same shape on a smaller synthetic note: the current-section fill and replacement. The
+    # model read one instrument row (135,399, quote-verified) for within1y -- the section's own
+    # Summa (457,453) wins, warning naming the read it replaced; and a VERIFIED model total that
+    # disagrees with the two subtotals (696,629, a balance-sheet row) declines silently: the note
+    # and the model then name different scopes, the model's answer stands.
+    pair_plain = ("Not 19. Räntebärande skulder\nLångfristiga skulder 2025-12-31 2024-12-31\n"
+                  "Banklån 7 241 9 112\nLeasingskulder 118 027 134 803\nSumma 125 268 143 915\n"
+                  "Kortfristiga skulder\nCheckräkningskredit 135 399 -\nFactoring 322 054 316 185\n"
+                  "Summa 457 453 316 185\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_within_1_year", "value": 135399, "unit": "TSEK", "period": "2025", "raw_label": "Checkräkningskredit",
+         "source": {"page": 1, "quote": "Checkräkningskredit 135 399 -"}},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([pair_plain], [1], dm_ship, {"fiscal_year": 2025})
+    got = {f["key"]: f for f in out["fields"]}
+    assert got["total_debt"]["value"] == 582721 and "value_derived" in got["total_debt"]["evidence"], (got, out["warnings"])
+    w1 = got["due_within_1_year"]
+    assert w1["value"] == 457453 and w1["source"] == {"page": 1, "quote": "Summa 457 453 316 185"} and "value_in_quote" in w1["evidence"], w1
+    assert any("135399 is not the current section's own subtotal" in w for w in out["warnings"]), out["warnings"]
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 696629, "unit": "TSEK", "period": "2025", "raw_label": "Räntebärande skulder",
+         "source": {"page": 1, "quote": "Balansräkningen Räntebärande skulder 696 629 571 428"}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([pair_plain + "Balansräkningen Räntebärande skulder 696 629 571 428\n"], [1], dm_ship, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 696629, "due_within_1_year": None, "due_1_to_5_years": None, "due_after_5_years": None}, (got, out["warnings"])
+    assert not any("section subtotal" in w for w in out["warnings"]), out["warnings"]
     print("confidence self-check ok")
 
 
