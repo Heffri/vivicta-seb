@@ -1,0 +1,105 @@
+{
+  "report_id": "lib-nobia_2025",
+  "company": "Nobia",
+  "fiscal_year": 2025,
+  "currency": "SEK m",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 2983,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Total",
+      "source": {
+        "page": 131,
+        "quote": "Total 2,569 2,983 - - 29"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 0,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Within 1 year",
+      "source": {
+        "page": 131,
+        "quote": "Within 1 year - - - -"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": 2983,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Between 1 and 5 years",
+      "source": {
+        "page": 131,
+        "quote": "Between 1 and 5 years 2,569 2,983 - -"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": 0,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Longer than 5 years",
+      "source": {
+        "page": 131,
+        "quote": "Longer than 5 years - - - -"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": true,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((0 + 2983 + 0) - 2983) <= 2"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [131, 132] selected from candidates [131, 132, 110, 135]",
+    "published: seed11 run replayed with extract.py @ 0a45f666"
+  ]
+}
