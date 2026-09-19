@@ -257,6 +257,23 @@ value as `maturity_basis`. The desktop
 Settings cards carry the matching two-choice control that writes this env var on Save. See
 `pipeline/extract.py`'s `debt_basis()` and `docs/acrylic/evidence/v089.md`.
 
+## Prior-year maturity metadata (`prior_year`) -- v091
+
+debt_maturity extractions may carry a top-level `prior_year` object: the prior fiscal year's own
+`total_debt` + bucket figures, each with the prior year's printed row as its source, plus the identity
+check re-run on those values. It is never a model answer and never crosses tables — it is a
+deterministic re-read of the same table the current year came from, on the same basis: either the
+prior-year *column* of the same bucket rows (MedCap's year-column table), or the same-labelled row of
+the prior year's own stacked block read with the same column keys (Tången's and Ework's two-table
+pages, where `_bucket_row_prior_year` proves the year). The key is written only when `total_debt` and
+at least two buckets were read and they close `maturity_sums_to_total` within the check's own ±2 on
+**explicit** values (the shipped `require_explicit_values` rule, applied to FY-1: a bucket whose
+prior-year figure the table does not print is absent from the fields and named in the check detail,
+never zero-filled). Date-per-instrument notes (Proact) and model-only answers produce no prior year.
+`GET .../extraction.pptx?prior_year=1` adds the second, fainter `FY<n-1>` chart series when the
+extraction carries one; the UI's "Show prior year" switch (MaturityChart) follows the same flag. See
+`pipeline/extract.py`'s `_prior_year_fill()` and `docs/acrylic/evidence/v091.md`.
+
 ## Publishing hardening results into `data/kb` (`scripts/publish_kb.py`) -- v093
 
     python scripts/publish_kb.py --kb <seed1-kb> ... --kb <seedN-kb> [--section debt_maturity] [--dry-run]

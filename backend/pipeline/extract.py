@@ -1754,7 +1754,8 @@ def _bucket_row_prior_year(rows: list[str], idx: int, fiscal_year) -> bool:
 
 
 def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, texts: list[str], pages: list[int],
-                          fiscal_year, warnings: list[str], values: dict, filled: set, basis: str = "carrying") -> None:
+                          fiscal_year, warnings: list[str], values: dict, filled: set, basis: str = "carrying",
+                          selected: dict | None = None) -> None:
     """A maturity-bucket note that prints on one row, columns = buckets, instead of one row per bucket (Cloetta's
     borrowings note: "Total 197 22 1,377 9 1,605" under a header of "< 1 year / 1-2 years / 2-5 years / > 5 years
     / Total") -- a shape none of this file's other repairs cover, since _year_column finds no year in a bucket
@@ -1772,7 +1773,12 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
     written only when the row's own arithmetic closes -- v078's dash gate, one level up from the bucket's own
     column to a column the table named its own way. A value in that column is an honest decline with a warning
     that names the boundary straddled; a wrong guess there would be endorsed by the very identity check that
-    should be catching it (v088's ">3 years" experiment filled the all-liabilities Total 533.5 and passed)."""
+    should be catching it (v088's ">3 years" experiment filled the all-liabilities Total 533.5 and passed).
+
+    v091: an optional `selected` dict receives {page, idx, col_keys} for the row this function actually
+    read (recorded past the last valve -- only the writes can still be no-ops, when the model's own
+    answers already agree with the table). _prior_year_fill's bucket-column prior-year source; every
+    pre-existing caller passes nothing and behaves exactly as before."""
     ident = _identity_parts(schema)
     if not ident:
         return
@@ -1873,6 +1879,10 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
             if _bucket_row_prior_year(rows, idx, fiscal_year):
                 warnings.append(f"{total_key}: {rows[idx]!r} names fiscal year {int(fiscal_year) - 1}, not {fiscal_year}; not this year's bucket row")
                 continue
+            if selected is not None and "idx" not in selected:
+                # v091: the first valve-passing pick stands -- a later candidate that also passed every
+                # valve would have to be a second table this page already read under the same header.
+                selected.update(page=page, idx=idx, col_keys=list(col_keys))
             # v078: a bucket whose every column on this row prints a dash is not unprinted -- the report is
             # saying "no debt is due in this window" (v036's own nil convention, one level down), which is a
             # 0, not the null this path carried until now. Two gates before a dash says 0: the row must print
@@ -2034,6 +2044,150 @@ def score_field(field: dict, sf: dict, checks: list[dict], schema: dict, currenc
     if fiscal_year and re.fullmatch(r"\d{4}", str(field.get("period"))) and "period_ok" not in ev:
         score = min(score, 0.50)  # another year's figure
     field["confidence"] = round(score, 3)
+
+
+def _prior_year_fill(fields: list[dict], sfs: list[dict], schema: dict, texts: list[str], fiscal_year,
+                     bucket_pick: dict) -> dict | None:
+    """(v091) The prior fiscal year's figures for the identity's own fields, as `prior_year` metadata --
+    a deterministic re-read of the same table the current year came from, never a model answer. Two
+    sources, exactly the two that read today's values deterministically:
+
+    (a) buckets-as-columns (`bucket_pick`, what _fill_bucket_columns recorded): the same-labelled row
+        of the prior year's own block on the same page -- Tången p.62 stacks whole "31 december 2025"
+        and "31 december 2024" tables with identical row labels, Ework p.70 stacks "2025"/"2024"
+        blocks -- proven prior-year by _bucket_row_prior_year, lined up with the SAME col_keys, read
+        through _bucket_assign. A bucket whose prior-year cells all print dashes is the report's
+        explicit 0 (v078's convention, one year back); the total must be a real figure.
+    (b) buckets-as-rows (no pick): the prior-year COLUMN of the very rows that supplied the current
+        values -- MedCap p.101's "Koncernen Moderbolaget / 2025-12-31 2024-12-31 2025-12-31
+        2024-12-31" header names the Group's prior-year column. Each field is admitted only when the
+        fiscal-year column of its own quoted rows reproduces its current value (the _column_values
+        admission), every admitted field must share one header (page, fiscal column, prior column,
+        column count), and the prior column comes from the same nearest-run walk _row_year_column
+        uses, with _row_year_column's own answer as the divergence guard. A field with no page-verified
+        row quote (a date-per-instrument sum, Proact v073) never admits, so date-shaped notes and
+        model-only answers give no prior year.
+
+    The gate is the schema's own identity, run on the prior year's EXPLICIT values -- the shipped
+    require_explicit_values rule applied to FY-1: a bucket with no prior-year figure is absent from
+    the sum, never zero-filled (and a bucket that would have mattered makes the closure fail, which
+    is the point). The key is written only when the total and at least two buckets were read and the
+    read buckets sum to the total within the check's own ±2; anything less returns None and the
+    extraction carries no prior_year key at all, not a null one. The basis needs no threading of its
+    own: (a) reuses the pick _fill_bucket_columns recorded under the live debt_basis() -- same table,
+    same total slot -- and (b) has no total-slot dimension."""
+    ident = _identity_parts(schema)
+    if not ident or not fiscal_year or set(ident[1]) != _DATE_BUCKET_KEYS:
+        return None
+    total_key, part_keys = ident
+    prior_fy = int(fiscal_year) - 1
+    sc = next((c for c in schema.get("checks", []) if c.get("identity")
+               and re.search(rf"\b{re.escape(total_key)}\b", c["expr"])), None)
+    if sc is None:
+        return None
+
+    def _numeric(v):
+        return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+    reads: dict[str, tuple] | None = None
+    if bucket_pick.get("page") and 0 < bucket_pick["page"] <= len(texts):
+        rows = _page_rows(texts[bucket_pick["page"] - 1])
+        idx, col_keys = bucket_pick["idx"], bucket_pick["col_keys"]
+        label = _row_label(rows[idx]) if 0 <= idx < len(rows) else None
+        if label and not _bucket_row_prior_year(rows, idx, fiscal_year):
+            cands = [(j, am) for j, r in enumerate(rows)
+                     if j != idx and _row_label(r) == label and _bucket_row_prior_year(rows, j, fiscal_year)
+                     and len(am := _row_amounts(r, len(col_keys), nil=None)) == len(col_keys)]
+            if len(cands) == 1:  # no twin, or two indistinguishable twins: no prior year, never a guess
+                j, am = cands[0]
+                derived = _bucket_assign(am, [total_key if k == "total" else k for k in col_keys])
+                reads = {}
+                for k in (total_key, *part_keys):
+                    if k not in derived:
+                        continue  # the prior-year table prints no column of its own for this bucket
+                    v = derived[k]
+                    if k == total_key and not _numeric(v):
+                        continue  # a dash or missing total anchors nothing
+                    reads[k] = (0 if v is None else v, bucket_pick["page"], rows[j])
+    if reads is None:
+        def _row_range(rows: list[str], quote: str):
+            if quote in rows:
+                i = rows.index(quote)
+                return i, i + 1
+            for a, r in enumerate(rows):  # a derived quote is contiguous rows joined with single spaces
+                if not quote.startswith(r):
+                    continue
+                join, b = r, a + 1
+                while b < len(rows) and len(join) < len(quote):
+                    join += " " + rows[b]
+                    b += 1
+                if join == quote:
+                    return a, b
+            return None
+
+        def _prior_column(rows: list[str], i: int):
+            """(prior_col, fy_col, ncols) from the nearest year run above rows[i]: _row_year_column's
+            own upward walk and its Group|Parent pair rule, mirrored for the prior year. The fiscal
+            column must agree with _row_year_column's own answer, or the read declines -- never a
+            second opinion alongside the one the current year already trusted."""
+            for j in range(i - 1, -1, -1):
+                run = _year_run(_DEC_DATE.sub(lambda m: m.group(1), " ".join(rows[j:i])))
+                if not run:
+                    continue
+                fy = [p for p, y in enumerate(run) if y == str(fiscal_year)]
+                pr = [p for p, y in enumerate(run) if y == str(prior_fy)]
+                take = (pr[0], fy[0]) if len(fy) == 1 and len(pr) == 1 else None
+                if take is None and len(fy) == 2 and len(pr) == 2:  # Group | Parent pairs, same rule as _row_year_column
+                    near = " ".join(rows[max(j - 1, 0):j + 1]).lower()
+                    g, e = locate.GROUP.search(near), locate.ENTITY.search(near)
+                    if g and e:
+                        first = g.start() < e.start()
+                        take = (pr[0] if first else pr[-1], fy[0] if first else fy[-1])
+                if take is None or _row_year_column(rows, i, fiscal_year) != (take[1], len(run)):
+                    return None
+                return (*take, len(run))
+            return None
+
+        reads, headers = {}, set()
+        for f in fields:
+            if f["key"] not in (total_key, *part_keys) or not _numeric(f.get("value")):
+                continue
+            src = f.get("source") or {}
+            page, quote = src.get("page"), src.get("quote")
+            if not isinstance(page, int) or not 0 < page <= len(texts) or not quote \
+                    or "quote_on_page" not in f.get("evidence", []):
+                continue  # a model-only answer has no printed row to mirror a year column off
+            rows = _page_rows(texts[page - 1])
+            rng = _row_range(rows, quote)
+            pc = _prior_column(rows, rng[0]) if rng else None
+            if pc is None:
+                continue
+            pcol, fcol, ncols = pc
+            ams = [_row_amounts(r, ncols, nil=None) for r in rows[rng[0]:rng[1]]]
+            if any(len(am) != ncols for am in ams) \
+                    or round(sum(am[fcol] for am in ams if am[fcol] is not None), 2) != f["value"]:
+                continue  # the field's own rows in their own fiscal-year column must reproduce it
+            headers.add((page, fcol, pcol, ncols))
+            pv = round(sum(am[pcol] for am in ams if am[pcol] is not None), 2)
+            reads[f["key"]] = (pv if any(am[pcol] is not None for am in ams) else 0, page, quote)
+        if len(headers) != 1 or total_key not in reads:  # fields from more than one table, or no total
+            reads = None
+    if not reads:
+        return None
+    total = reads.get(total_key, (None,))[0]
+    buckets = {k: v for k, v in reads.items() if k in part_keys}
+    if not _numeric(total) or len(buckets) < 2 \
+            or abs(round(sum(v[0] for v in buckets.values()), 2) - total) > 2:
+        return None  # the total and at least two buckets read, closing within the check's own tolerance
+    absent = [k for k in part_keys if k not in buckets]
+    detail = f"{sc.get('detail', '')} | abs((" + " + ".join(str(buckets[k][0]) for k in part_keys if k in buckets) \
+        + f") - {total}) <= 2" + (f" ({', '.join(absent)}: no prior-year figure in this table)" if absent else "")
+    return {
+        "fiscal_year": prior_fy,
+        "fields": {k: {"value": reads[k][0], "source": {"page": reads[k][1], "quote": reads[k][2]}}
+                   for k in (total_key, *part_keys) if k in reads},
+        "check": {"passed": True, "detail": detail.strip(" |")},
+    }
 
 
 def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict) -> dict:
@@ -2433,7 +2587,8 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             warnings.append(f"{sf['key']}: {f.get('raw_label')!r} {f['value']} dropped: not a known {sf['label'].lower()} label and the statement has no {req}")
             f.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
             values.pop(sf["key"], None)
-    _fill_bucket_columns(fields, sfs, schema, texts, pages, fiscal_year, warnings, values, filled, basis)
+    bucket_pick: dict = {}  # v091: the bucket-column table's own selected row, recorded by _fill_bucket_columns
+    _fill_bucket_columns(fields, sfs, schema, texts, pages, fiscal_year, warnings, values, filled, basis, bucket_pick)
     _finer_split_rows(fields, schema, texts, fiscal_year, warnings, values, filled, basis)  # the bucket-ROW finer split (Rusta), beside the bucket-column reader above
     _normalize_sign(fields, sfs, schema, texts, warnings, values)  # v101: liabilities-negative printed totals/buckets record their magnitude; the identity below closes on carrying positives
     checks = [_check(c, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema, stated_zeros=stated_zeros) for c in schema.get("checks", [])]
@@ -2475,7 +2630,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
         if field["value"] is not None:
             score_field(field, sf, checks, schema, currency, fiscal_year, statement_pages)
 
-    return {
+    out = {
         "report_id": report_meta.get("report_id"),
         "company": report_meta.get("company"),
         "fiscal_year": fiscal_year,
@@ -2486,3 +2641,6 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
         "checks": checks,
         "warnings": warnings,
     }
+    if (prior := _prior_year_fill(fields, sfs, schema, texts, fiscal_year, bucket_pick)) is not None:
+        out["prior_year"] = prior  # v091: the prior year's own figures, identity-gated on explicit values; no key at all when they cannot be read deterministically
+    return out

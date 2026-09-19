@@ -7,14 +7,14 @@ import json
 from pptx import Presentation
 from pptx.chart.data import CategoryChartData
 from pptx.dml.color import RGBColor
-from pptx.enum.chart import XL_CHART_TYPE
+from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION
 from pptx.util import Inches, Pt
 
 BUCKET_ORDER = ["due_within_1_year", "due_1_to_5_years", "due_after_5_years"]
 BUCKET_LABELS = {"due_within_1_year": "< 1 year", "due_1_to_5_years": "1–5 years", "due_after_5_years": "> 5 years"}
 
 
-def build_pptx(x: dict) -> bytes:
+def build_pptx(x: dict, prior_year: bool = False) -> bytes:
     prs = Presentation()
     prs.slide_width, prs.slide_height = Inches(13.333), Inches(7.5)  # 16:9
     slide = prs.slides.add_slide(prs.slide_layouts[6])  # blank
@@ -35,7 +35,9 @@ def build_pptx(x: dict) -> bytes:
     if buckets:
         debt_basis = f"{basis.get('debt_basis') or 'Debt basis unknown'} | Leases: {basis.get('leases') or 'unknown'}"
         _textbox(slide, debt_basis, Pt(12), top=Inches(2.05))
-        _debt_chart(slide, by_key, buckets)
+        # v091: the prior year rides along only when the caller asked for it (?prior_year=1) and the
+        # extraction carries it; anything else renders exactly as before.
+        _debt_chart(slide, by_key, buckets, x.get("prior_year") if prior_year else None)
     else:
         _table(slide, x["fields"])
 
@@ -50,7 +52,7 @@ def build_pptx(x: dict) -> bytes:
     return buf.getvalue()
 
 
-def _debt_chart(slide, by_key, buckets):
+def _debt_chart(slide, by_key, buckets, prior=None):
     total = by_key.get("total_debt", {}).get("value")
     unit = next((by_key[k]["unit"] for k in buckets if by_key[k].get("unit")), "")
     if total is not None:
@@ -59,9 +61,14 @@ def _debt_chart(slide, by_key, buckets):
     data = CategoryChartData()
     data.categories = [BUCKET_LABELS[k] for k in buckets]
     data.add_series("Debt due", [by_key[k]["value"] for k in buckets])
+    if prior:  # v091: a second, fainter series beside each bucket, named for its own fiscal year
+        data.add_series(f"FY{prior.get('fiscal_year')}", [prior.get("fields", {}).get(k, {}).get("value") for k in buckets])
     frame = slide.shapes.add_chart(XL_CHART_TYPE.COLUMN_CLUSTERED, Inches(1.2), Inches(2.95), Inches(10.9), Inches(3.7), data)
     chart = frame.chart
-    chart.has_legend = False
+    chart.has_legend = bool(prior)  # one series needs no legend; two are told apart by theirs
+    if prior:
+        chart.legend.position = XL_LEGEND_POSITION.BOTTOM
+        chart.legend.include_in_layout = False
     plot = chart.plots[0]
     plot.has_data_labels = True
     plot.data_labels.number_format = "#,##0.######"
