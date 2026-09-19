@@ -88,6 +88,6 @@
     "two_pass: page [92, 93] selected from candidates [79, 80, 92, 67, 69]",
     "due_within_1_year: quote not found on page 92",
     "due_1_to_5_years: quote not found on page 92",
-    "published: seed11 run replayed with extract.py @ 0a45f666"
+    "published: seed11 run replayed with extract.py @ e9640e49"
   ]
 }

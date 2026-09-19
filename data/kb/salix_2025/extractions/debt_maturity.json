@@ -83,6 +83,6 @@
     "two_pass: page [177, 178] selected from candidates [177, 178, 182, 184, 181]",
     "due_within_1_year: quote not found on page 177",
     "due_within_1_year: 192 is not printed on the statement; filled from page 177 row 'Within 1 year 87 87 1'",
-    "published: seed8 run replayed with extract.py @ 0a45f666"
+    "published: seed8 run replayed with extract.py @ e9640e49"
   ]
 }
