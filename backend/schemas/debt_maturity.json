@@ -45,6 +45,18 @@
   "ignore_header_synonyms": [
     "total undiscounted", "undiscounted cash flows", "odiskonterade kassaflöden", "total contractual"
   ],
+  "table_scope_words": {
+    "undiscounted": [
+      "undiscounted", "non-discounted", "contractual cash flows", "odiskonterade", "kontraktsenliga",
+      "liquidity risk", "likviditetsrisk", "maturity analysis regarding"
+    ],
+    "all_liabilities": [
+      "trade payables", "accounts payable", "accounts payables", "leverantörsskulder",
+      "other liabilities", "other liabilites", "other current liabilities", "other current liabilites",
+      "övriga skulder", "expected returns", "derivatives", "derivate", "acquisition-related liabilities",
+      "contingent considerations"
+    ]
+  },
   "fields": [
     {
       "key": "total_debt",
