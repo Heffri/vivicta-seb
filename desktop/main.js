@@ -17,6 +17,7 @@ const DEV_PORT = 8000 // frontend/vite.config.ts hardcodes its /api proxy to :80
 // backend serves the frontend itself, same origin, same port — see startBackend/loadShell).
 
 let mainWindow = null
+let overlayTone = 'dark' // v117: last tone the renderer reported over arp:tone-changed (drives glyph color)
 let backendProcess = null
 let viteProcess = null
 let backendLogStream = null
@@ -525,10 +526,25 @@ async function startViteDevServer(repoRoot) {
 // ---------------------------------------------------------------------------
 // Window
 // ---------------------------------------------------------------------------
+// v117: the overlay ground is always fully transparent. The caption region composites over the
+// page itself, and the page already paints the right thing under the buttons in every theme×tone
+// (Solid dark: the painted-wallpaper glass the default tone kept through v100; Solid light: the
+// opaque painted titlebar strip; Acrylic: the one glass pane over the OS material) — so a
+// transparent overlay lets the window's own titlebar continue under the OS glyphs instead of
+// showing the old flat #14141b/#f7f7fa block that matched neither theme. Only the glyph color
+// follows the tone. (Measured on the pre-fix build, 2026-09-19: an opaque overlay reads
+// (10,10,18) where the Solid dark glass titlebar reads (14,23,51) beside it — the block the
+// owner reported; transparent reads identical to the neighbouring titlebar in all four combos.)
 function toneOverlayOptions(tone) {
-  return tone === 'light'
-    ? { color: '#f7f7fa', symbolColor: '#16161a', height: 44 }
-    : { color: '#14141b', symbolColor: '#f4f4f7', height: 44 }
+  return { color: '#00000000', symbolColor: tone === 'light' ? '#16161a' : '#f4f4f7', height: 44 }
+}
+
+// v117: push the current tone onto the live overlay without a restart (glyph color; the caption
+// ground stays transparent in every theme).
+function applyOverlay() {
+  if (!isWindows || !mainWindow || mainWindow.isDestroyed()) return
+  if (typeof mainWindow.setTitleBarOverlay !== 'function') return
+  mainWindow.setTitleBarOverlay(toneOverlayOptions(overlayTone))
 }
 
 function createWindow(acrylic) {
@@ -666,10 +682,11 @@ async function main() {
   )
   mainWindow = createWindow(acrylic)
 
+  // v117: tone arrives from the renderer's <html data-tone> observer (preload.js) and drives the
+  // overlay glyph color; the caption ground itself is transparent, so theme needs no IPC here.
   ipcMain.on('arp:tone-changed', (_event, tone) => {
-    if (!isWindows || !mainWindow || mainWindow.isDestroyed()) return
-    if (typeof mainWindow.setTitleBarOverlay !== 'function') return
-    mainWindow.setTitleBarOverlay(toneOverlayOptions(tone === 'light' ? 'light' : 'dark'))
+    overlayTone = tone === 'light' ? 'light' : 'dark'
+    applyOverlay()
   })
 
   ipcMain.handle('arp:settings:get', () => settings.loadConfig(app.getPath('userData')))
