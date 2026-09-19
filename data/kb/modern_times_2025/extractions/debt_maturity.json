@@ -9,58 +9,191 @@
     {
       "key": "total_debt",
       "label": "Total borrowings",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "value": 85151,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "Lease liabilities",
+      "source": {
+        "page": 142,
+        "quote": "Lease liabilities 155 37 33 85 151"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "due_within_1_year",
       "label": "Due within 1 year",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "value": 155,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "Lease liabilities",
+      "source": {
+        "page": 142,
+        "quote": "Lease liabilities 155 37 33 85 151"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "value": 37,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "Lease liabilities",
+      "source": {
+        "page": 142,
+        "quote": "Lease liabilities 155 37 33 85 151"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "due_after_5_years",
       "label": "Due after 5 years",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "value": 33,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "Lease liabilities",
+      "source": {
+        "page": 142,
+        "quote": "Lease liabilities 155 37 33 85 151"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     }
   ],
   "checks": [
     {
       "name": "maturity_sums_to_total",
       "passed": false,
-      "detail": "missing: due_within_1_year"
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((155 + 37 + 33) - 85151) <= 2",
+      "status": "failed"
     }
   ],
   "warnings": [
-    "two_pass: page [99, 100] selected from candidates [106, 107, 99, 87, 77, 105, 102, 74]",
-    "total_debt: 'Total -14 -10' is a Total*/Summa* row with no total column in its own header (due_1_to_5_years, due_after_5_years); its own total cannot be checked, left for another path",
-    "published: seedseed-rerun-v114-kb run replayed with extract.py @ d3eb5fc8"
-  ]
+    "two_pass: page [142, 143] selected from candidates [149, 150, 118, 141, 142]",
+    "due_after_5_years: model returned null, fill from page 149 row 'More than five years 16 0' refused -- table 'Maturity analysis – Contractual undiscounted cash flow' is undiscounted",
+    "total_debt: 3487 disagrees with the maturity table; 85151 read from 'Lease liabilities 155 37 33 85 151' by its column order",
+    "due_within_1_year: 582 disagrees with the maturity table; 155 read from 'Lease liabilities 155 37 33 85 151' by its column order",
+    "due_1_to_5_years: 3318 disagrees with the maturity table; 37 read from 'Lease liabilities 155 37 33 85 151' by its column order",
+    "due_after_5_years: model returned null; 33 read from 'Lease liabilities 155 37 33 85 151' by its column order"
+  ],
+  "stem": "modern_times_2025",
+  "pdf_available": true,
+  "check_history": [
+    {
+      "at": "2026-09-19T23:30:21.480595+00:00",
+      "reason": "Recalculated explicit values after extraction",
+      "previous": [
+        {
+          "name": "maturity_sums_to_total",
+          "passed": false,
+          "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((155 + 37 + 33) - 85151) <= 2"
+        }
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "kind": "basis",
+      "key": "entity",
+      "detail": "Confirm entity"
+    },
+    {
+      "kind": "basis",
+      "key": "consolidation",
+      "detail": "Confirm consolidation"
+    },
+    {
+      "kind": "basis",
+      "key": "period",
+      "detail": "Confirm period"
+    },
+    {
+      "kind": "basis",
+      "key": "currency",
+      "detail": "Confirm currency"
+    },
+    {
+      "kind": "basis",
+      "key": "scale",
+      "detail": "Confirm scale"
+    },
+    {
+      "kind": "basis",
+      "key": "source",
+      "detail": "Confirm source"
+    },
+    {
+      "kind": "basis",
+      "key": "restatement",
+      "detail": "Confirm restatement"
+    },
+    {
+      "kind": "basis",
+      "key": "debt_basis",
+      "detail": "Confirm debt basis"
+    },
+    {
+      "kind": "basis",
+      "key": "leases",
+      "detail": "Confirm leases"
+    },
+    {
+      "kind": "basis",
+      "key": "bucket_mapping",
+      "detail": "Confirm bucket mapping"
+    },
+    {
+      "kind": "field",
+      "key": "total_debt",
+      "detail": "Total borrowings: verify value, unit, period and source"
+    },
+    {
+      "kind": "field",
+      "key": "due_within_1_year",
+      "detail": "Due within 1 year: verify value, unit, period and source"
+    },
+    {
+      "kind": "field",
+      "key": "due_1_to_5_years",
+      "detail": "Due 1–5 years: verify value, unit, period and source"
+    },
+    {
+      "kind": "field",
+      "key": "due_after_5_years",
+      "detail": "Due after 5 years: verify value, unit, period and source"
+    },
+    {
+      "kind": "check",
+      "key": "maturity_sums_to_total",
+      "detail": "maturity_sums_to_total: due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((155 + 37 + 33) - 85151) <= 2"
+    }
+  ],
+  "ready": false
 }
