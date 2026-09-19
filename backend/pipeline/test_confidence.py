@@ -1913,12 +1913,30 @@ def demo():
     assert any("2184 reads one finer-split row" in w for w in out["warnings"]), out["warnings"]  # the replaced partial read is named
     assert got["due_after_5_years"]["value"] == 2431 and got["due_after_5_years"]["source"]["quote"] == ">5 years 2,431 2,633", got["due_after_5_years"]  # one row: untouched, status quo
     assert out["checks"][0]["passed"] and "abs((1039 + 3153 + 2431) - 6624) <= 2" in out["checks"][0]["detail"], out["checks"]
-    # single-row buckets keep today's behaviour: the same page's parent-company table prints one row
-    # per bucket ("Within one year" / "Between 1 and 5 years" / "Later than 5 years", real text) -- every
-    # bucket's "sum" is one row's own literal figure, so the finer-split derivation writes nothing and
-    # the fields are exactly what the single-row paths already produce (statement-spread fills 607 and
-    # 2,016 off their own printed rows, _between_rows closes 1,924 between them -- all pre-v096
-    # machinery, every quote a single row, no sibling join anywhere).
+    # single-row buckets keep today's behaviour: the same page's table with ONE row per bucket ("Within
+    # one year" / "Between 1 and 5 years" / "Later than 5 years", real text) -- every bucket's "sum" is
+    # one row's own literal figure, so the finer-split derivation writes nothing and the fields are
+    # exactly what the single-row paths already produce (statement-spread fills 607 and 2,016 off their
+    # own printed rows, _between_rows closes 1,924 between them -- all pre-v096 machinery, every quote a
+    # single row, no sibling join anywhere). v111: the block prints these rows under a "Parent Company"
+    # section heading, which the wrong-table guard now refuses for the Group's section -- so the same
+    # rows under a "Group" heading (the v096 mechanics unchanged, the entity switched) carry the
+    # assertion, and the real parent block below asserts the refusal itself.
+    rusta115_group = rusta115.replace("Parent Company\n", "Group\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 4547, "unit": "MSEK", "period": "2025", "raw_label": "Total",
+         "source": {"page": 1, "quote": "Total 4,547 4,769"}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([rusta115_group], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: (f["value"], f["source"]["quote"]) for f in out["fields"]}
+    assert got == {"total_debt": (4547, "Total 4,547 4,769"), "due_within_1_year": (607, "Within one year 607 590"),
+                   "due_1_to_5_years": (1924, "Between 1 and 5 years 1,924 1,949"),
+                   "due_after_5_years": (2016, "Later than 5 years 2,016 2,231")}, (got, out["warnings"])
+    assert out["checks"][0]["passed"] and not any("finer-split" in w for w in out["warnings"]), (out["checks"], out["warnings"])  # all buckets single-row: the derivation stayed silent
+    # v111: the real parent block (verbatim from the page) is the wrong entity for the Group's section --
+    # every read of it, the model's own total citation included, is refused with the section named
     x.call_llm = lambda *a, **k: {"fields": [
         {"key": "total_debt", "value": 4547, "unit": "MSEK", "period": "2025", "raw_label": "Total",
          "source": {"page": 1, "quote": "Total 4,547 4,769"}},
@@ -1926,11 +1944,9 @@ def demo():
         {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
         {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
     out = x.extract([rusta115], [1], dm, {"fiscal_year": 2025})
-    got = {f["key"]: (f["value"], f["source"]["quote"]) for f in out["fields"]}
-    assert got == {"total_debt": (4547, "Total 4,547 4,769"), "due_within_1_year": (607, "Within one year 607 590"),
-                   "due_1_to_5_years": (1924, "Between 1 and 5 years 1,924 1,949"),
-                   "due_after_5_years": (2016, "Later than 5 years 2,016 2,231")}, (got, out["warnings"])
-    assert out["checks"][0]["passed"] and not any("finer-split" in w for w in out["warnings"]), (out["checks"], out["warnings"])  # all buckets single-row: the derivation stayed silent
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert all(v is None for v in got.values()), (got, out["warnings"])
+    assert sum("Parent Company section" in w for w in out["warnings"]) >= 2, out["warnings"]
     # counter-example 1: sibling rows whose sums do NOT close the identity (100+50 vs Total 200) --
     # nothing adopted, fields exactly as before: the identity gate is the whole decision, no plausibility
     badsum = "Maturity analysis\nMSEK 2025 2024\n0–6 months 100 90\n7–12 months 50 40\nTotal 200 190\n"
@@ -2531,6 +2547,196 @@ def demo():
     got = {f["key"]: f["value"] for f in out["fields"]}
     assert got == {"total_debt": 696629, "due_within_1_year": None, "due_1_to_5_years": None, "due_after_5_years": None}, (got, out["warnings"])
     assert not any("section subtotal" in w for w in out["warnings"]), out["warnings"]
+    # v111: the wrong-table guard's second batch, two more _table_scope refusals under BOTH bases.
+    # (a) non-debt-subject tables -- Volati p.177's "Timing of revenue recognition, contract liabilities":
+    #     its "Within 1 year 87 87 1" is contract-liability timing, and the statement-spread fill wrote it
+    #     over the model's own correct current-total 192 (Note 17 prints no maturity table at all; Salix,
+    #     the same report family, is the label-pinned instance -- the label names 192 and calls the stored
+    #     87 "Note 19 contract liabilities ... not debt"); (b) Parent Company sections -- Momentum p.111's
+    #     parent lease maturity under a "Parent Company" heading: 2/2/0 against the Group's 622 balance-
+    #     sheet total. Every counter-example keeps its read: v052's paired Koncernen|Moderbolaget column
+    #     headers, a Group heading above the table, debt words in the title or rows, the carrying column.
+    dsw = x._debt_subject_words(dm)
+    pc = tsw["parent_company"]
+    # the section-heading test itself: the entity word alone, trailing unit/date furniture excepted
+    assert x._section_heading("Parent Company", pc) == "parent"
+    assert x._section_heading("Parent Company, MSEK 31 Dec 2025 31 Dec 2024", pc) == "parent"  # Momentum p.117
+    assert x._section_heading("Moderbolaget 2025 2024", pc) == "parent"  # Svedbergs p.132's parent block
+    assert x._section_heading("Moderföretaget", pc) == "parent"
+    assert x._section_heading("Group, MSEK 31 Dec 2025 31 Dec 2024", pc) == "group"  # the return to the Group
+    assert x._section_heading("Group", pc) == "group" and x._section_heading("Koncernen", pc) == "group"
+    assert x._section_heading("Koncernen Moderbolaget", pc) is None  # v052's paired columns: one table, not a section
+    assert x._section_heading("Förfallotidpunkt för upplåning Koncernen Moderbolaget", pc) is None  # MedCap p.101
+    assert x._section_heading("Moderbolaget har inga räntebärande skulder", pc) is None  # prose, not a heading
+    assert x._section_heading("Parent Company financial statements", pc) is None  # a TOC line names no section
+    # (a) header level, Volati p.177 trimmed to the timing table (real text; _page_rows glues the wrapped
+    # title into one row): refused under both bases, whichever bucket row anchors the walk
+    volati_timing = ("NOTE 19 | Contract assets and liabilities\n"
+                     "Contract assets Contract liabilities\n"
+                     "Opening balance, 1 Jan 2025 54 131 9 140 2\n"
+                     "Projects accrued during the year 314 –81 –1 –83\n"
+                     "Closing balance, 31 Dec 2025 104 87 8 95 1\n"
+                     "Timing of revenue recognition, contract\n"
+                     "liabilities\n"
+                     "Within 1 year 87 87 1\n"
+                     "1–2 years 2 2 –\n"
+                     "2–5 years 3 3 –\n"
+                     "After 5 years 2 2 –\n"
+                     "87 8 95 1\n")
+    vt_rows = x._page_rows(volati_timing)
+    assert "Timing of revenue recognition, contract liabilities" in vt_rows, vt_rows
+    for basis in ("carrying", "undiscounted"):
+        assert x._table_scope(vt_rows, None, vt_rows.index("Within 1 year 87 87 1"), basis, tsw, debt_words=dsw) == "non_debt"
+        assert x._table_scope(vt_rows, None, vt_rows.index("1–2 years 2 2 –"), basis, tsw, debt_words=dsw) == "non_debt"
+    # debt words win: the work order's made-up page -- same "Contract liabilities" title, but the table's
+    # own rows are the borrowings note's ("Interest-bearing liabilities") -- is NOT refused
+    made_debt = ("Contract liabilities, timing of revenue\n"
+                 "MSEK 2025 2024\n"
+                 "Interest-bearing liabilities 500 480\n"
+                 "Within 1 year 120 100\n"
+                 "Between 1 and 5 years 380 380\n"
+                 "Total 500 480\n")
+    md_rows = x._page_rows(made_debt)
+    assert x._table_scope(md_rows, None, len(md_rows) - 1, "carrying", tsw, debt_words=dsw) == "unknown", md_rows
+    made_pure = ("Contract liabilities, timing of revenue\n"
+                 "MSEK 2025 2024\n"
+                 "Within 1 year 120 100\n"
+                 "Between 1 and 5 years 380 380\n"
+                 "Total 500 480\n")
+    mp_rows = x._page_rows(made_pure)
+    assert x._table_scope(mp_rows, None, len(mp_rows) - 1, "carrying", tsw, debt_words=dsw) == "non_debt", mp_rows
+    # (b) header level, Momentum p.111 trimmed (real text): the parent lease table under "Parent Company"
+    # is the parent's own, whichever of its rows anchors; a Rusta-shaped page (bare "Group" heading above
+    # the Group's maturity table, the parent's own table below it) reads the Group rows untouched
+    momentum111 = ("11 Leases\n"
+                   "Right-of-use assets\n"
+                   "Group, MSEK Premises Vehicles Other Total\n"
+                   "Closing balance, 31 Dec 2025 187 46 0 233\n"
+                   "Lease liabilities\n"
+                   "Amounts recognised in profit or loss\n"
+                   "MSEK 2025 2024\n"
+                   "Depreciation of right-of-use assets –95 –83\n"
+                   "Disclosure concerning operating leases in the Parent Company\n"
+                   "Parent Company\n"
+                   "Non-cancellable lease payments amount to: 31 Dec 2025 31 Dec 2024\n"
+                   "Leases in which the company is the lessee\n"
+                   "Within 1 year 2 2\n"
+                   "Between 1 and 5 years 2 1\n"
+                   "Later than 5 years – –\n"
+                   "Total 4 3\n")
+    mo_rows = x._page_rows(momentum111)
+    for basis in ("carrying", "undiscounted"):
+        for r in ("Within 1 year 2 2", "Between 1 and 5 years 2 1", "Later than 5 years – –", "Total 4 3"):
+            assert x._table_scope(mo_rows, None, mo_rows.index(r), basis, tsw, debt_words=dsw) == "parent", r
+    rusta_shape = ("Lease liabilities\n"
+                   "Group\n"
+                   "Maturity analysis – lease liabilities 30 Apr 2026 30 Apr 2025\n"
+                   "0–6 months 523 490\n"
+                   ">5 years 2,431 2,633\n"
+                   "Total 6,624 6,669\n"
+                   "On the balance sheet date, the Parent Company had outstanding commitments\n"
+                   "Parent Company\n"
+                   "30 Apr 2026 30 Apr 2025\n"
+                   "Within one year 607 590\n"
+                   "Total 4,547 4,769\n")
+    ru_rows = x._page_rows(rusta_shape)
+    assert x._table_scope(ru_rows, None, ru_rows.index("Total 6,624 6,669"), "carrying", tsw, debt_words=dsw) == "unknown"
+    assert x._table_scope(ru_rows, None, ru_rows.index("Within one year 607 590"), "carrying", tsw, debt_words=dsw) == "parent"
+    assert x._table_scope(mc_rows, None, len(mc_rows) - 1, "carrying", tsw, debt_words=dsw) == "unknown"  # MedCap's paired columns, again with the v111 words live
+    # end to end, Volati (real p.177 shape, trimmed): the model's own 192 (Note 17's current total, quote
+    # not a printed row) survives -- the fill that used to overwrite it with the timing table's 87 refuses,
+    # warning that names the table; the finer buckets stay honestly null, the total keeps its verified 3,246.
+    # The model's own quote is not stored (only its "quote not found on page 177" warning is), so the stub's
+    # quote is shaped to fail verification the way the real one did -- a value the page prints ("192 191")
+    # under a quote no suffix rule can find; note "Current liabilities 192 191" would NOT do: its suffix
+    # "liabilities ... 192 ... 191" matches the printed "Lease liabilities 180 185 / 192 191" rows through
+    # quote_on_page's note-reference gap, and a verified quote means no fill ever fires
+    volati177 = ("NOTE 17 | Interest-bearing liabilities\n"
+                 "Non-current liabilities 2025 2024\n"
+                 "Lease liabilities 375 402\n"
+                 "Liabilities to credit institutions 2,678 2,350\n"
+                 "3,053 2,753\n"
+                 "Current liabilities 2025 2024\n"
+                 "Liabilities to credit institutions 12 7\n"
+                 "Lease liabilities 180 185\n"
+                 "192 191\n"
+                 "31 December 3,246 2,944\n"
+                 "NOTE 19 | Contract assets and liabilities\n"
+                 "Contract assets Contract liabilities\n"
+                 "Closing balance, 31 Dec 2025 104 87 8 95 1\n"
+                 "Timing of revenue recognition, contract\n"
+                 "liabilities\n"
+                 "Within 1 year 87 87 1\n"
+                 "1–2 years 2 2 –\n"
+                 "2–5 years 3 3 –\n"
+                 "After 5 years 2 2 –\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 3246, "unit": "SEK m", "period": "2025", "raw_label": "31 December",
+         "source": {"page": 1, "quote": "31 December 3,246 2,944"}},
+        {"key": "due_within_1_year", "value": 192, "unit": "SEK m", "period": "2025", "raw_label": "Current liabilities",
+         "source": {"page": 1, "quote": "Note 17, current portion 192"}},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([volati177], [1], dm_ship, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 3246, "due_within_1_year": 192, "due_1_to_5_years": None, "due_after_5_years": None}, (got, out["warnings"])
+    assert any("quote not found on page 1" in w for w in out["warnings"]), out["warnings"]  # the real run's own first warning, kept
+    assert any("fill from page 1 row 'Within 1 year 87 87 1' refused" in w
+               and "table 'Timing of revenue recognition, contract liabilities' is a non-debt subject table" in w
+               for w in out["warnings"]), out["warnings"]
+    # end to end, the stored-seed11 shape (the model itself answered the timing row, quote-verified): the
+    # citation gate refuses it -- 87 goes null, the honest outcome the replay showed on the real page
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 3246, "unit": "SEK m", "period": "2025", "raw_label": "31 December",
+         "source": {"page": 1, "quote": "31 December 3,246 2,944"}},
+        {"key": "due_within_1_year", "value": 87, "unit": "SEK m", "period": "2025", "raw_label": "Within 1 year",
+         "source": {"page": 1, "quote": "Within 1 year 87 87 1"}},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([volati177], [1], dm_ship, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 3246, "due_within_1_year": None, "due_1_to_5_years": None, "due_after_5_years": None}, (got, out["warnings"])
+    assert any("87 from 'Within 1 year 87 87 1' refused" in w and "non-debt subject table" in w for w in out["warnings"]), out["warnings"]
+    # end to end, Momentum (p.111 + p.117 trimmed): the buckets the seed11 run filled out of the parent's
+    # lease table are refused at the fill (the model returned null), the Group's own 622 on p.117 -- under
+    # a "Group, MSEK" heading, not the Parent block above it -- keeps its verified read
+    momentum117 = ("23 Expected recovery periods for assets, provisions and liabilities\n"
+                   "Parent Company, MSEK 31 Dec 2025 31 Dec 2024\n"
+                   "Financial liabilities\n"
+                   "Liabilities to credit institutions 395 268\n"
+                   "Total financial liabilities 884 642\n"
+                   "22 Financial assets and liabilities\n"
+                   "Group, MSEK 31 Dec 2025 31 Dec 2024\n"
+                   "Financial liabilities\n"
+                   "Interest-bearing liabilities 622 486\n"
+                   "Accounts payable 248 246\n"
+                   "Total financial liabilities 1,006 862\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 622, "unit": "MSEK", "period": "2025", "raw_label": "Interest-bearing liabilities",
+         "source": {"page": 2, "quote": "Interest-bearing liabilities 622 486"}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([momentum111, momentum117], [1, 2], dm_ship, {"fiscal_year": 2025})
+    got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
+    assert got == {"total_debt": (622, 0.9), "due_within_1_year": (None, 0.0), "due_1_to_5_years": (None, 0.0),
+                   "due_after_5_years": (None, 0.0)}, (got, out["warnings"])
+    assert any("the Parent Company section 'Parent Company' holds this table" in w for w in out["warnings"]), out["warnings"]
+    assert not any("filled from page 1 row" in w and "Within 1 year 2 2" in w for w in out["warnings"]), out["warnings"]
+    # and the stored-seed11 shape (the model itself cited the parent rows): every bucket citation refused
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 622, "unit": "MSEK", "period": "2025", "raw_label": "Interest-bearing liabilities",
+         "source": {"page": 2, "quote": "Interest-bearing liabilities 622 486"}},
+        {"key": "due_within_1_year", "value": 2, "unit": "MSEK", "period": "2025", "raw_label": "Within 1 year",
+         "source": {"page": 1, "quote": "Within 1 year 2 2"}},
+        {"key": "due_1_to_5_years", "value": 2, "unit": "MSEK", "period": "2025", "raw_label": "Between 1 and 5 years",
+         "source": {"page": 1, "quote": "Between 1 and 5 years 2 1"}},
+        {"key": "due_after_5_years", "value": 0, "unit": "MSEK", "period": "2025", "raw_label": "Later than 5 years – –",
+         "source": {"page": 1, "quote": "Later than 5 years – –"}}]}
+    out = x.extract([momentum111, momentum117], [1, 2], dm_ship, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 622, "due_within_1_year": None, "due_1_to_5_years": None, "due_after_5_years": None}, (got, out["warnings"])
+    assert sum("refused" in w and "Parent Company" in w for w in out["warnings"]) >= 3, out["warnings"]
     print("confidence self-check ok")
 
 
