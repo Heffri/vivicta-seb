@@ -22,12 +22,15 @@ export const IDENTITY_CHECK = 'maturity_sums_to_total'
 // v091: "Show prior year" remembers its last position per browser (default off = the exact
 // pre-v091 rendering). Same pattern as ResultsView's provenance-viewer key.
 const PRIOR_KEY = 'maturity-prior-year'
+// v109: "Per year" likewise remembers its position (default off = the three-bucket rendering).
+const PER_YEAR_KEY = 'maturity-per-year'
 
 type Props = {
   extraction: Extraction
   selectedKey: string | null
   onSelect: (key: string) => void
   onPriorChange?: (shown: boolean) => void // v091: mirrors the toggle so the Export PPTX href can follow it (?prior_year=1)
+  onPerYearChange?: (shown: boolean) => void // v109: same mirror for "Per year" (?per_year=1)
 }
 
 // Same rule as ppt.py build_pptx, translated verbatim: draw a bar chart iff any bucket
@@ -83,6 +86,14 @@ const loadPrior = () => {
   }
 }
 
+const loadPerYear = () => {
+  try {
+    return localStorage.getItem(PER_YEAR_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 /** The ppt.py slide, on the results view: total debt + one column per maturity bucket.
  *  Renders nothing unless the section has bucket fields (see bucketSlots). Clicking a
  *  column selects its field row, so the Source panel jumps to that field's page — the
@@ -91,12 +102,26 @@ const loadPrior = () => {
  *  v091: when the extraction carries `prior_year` (the prior fiscal year's own figures,
  *  read deterministically from the same table and identity-gated by the backend), a
  *  "Show prior year (FY<n>)" switch offers them beside each bucket — default off, and off
- *  renders exactly the chart this file drew before the switch existed. */
-export function MaturityChart({ extraction, selectedKey, onSelect, onPriorChange }: Props) {
+ *  renders exactly the chart this file drew before the switch existed.
+ *
+ *  v109: when the extraction carries `buckets_by_year` (the report's own calendar-year
+ *  columns, identity-gated against total_debt), a "Per year" switch redraws the body as
+ *  one column per printed year — the report's own granularity instead of the three fixed
+ *  buckets. Default off; off (or no key) renders exactly the chart above, and the two
+ *  switches are mutually exclusive: one chart, one question. */
+export function MaturityChart({ extraction, selectedKey, onSelect, onPriorChange, onPerYearChange }: Props) {
   const [hoveredKey, setHoveredKey] = useState<string | null>(null)
   const [showPrior, setShowPrior] = useState(loadPrior)
+  const [showPerYear, setShowPerYear] = useState(loadPerYear)
   const prior = extraction.prior_year ?? null
-  const py = showPrior && prior ? prior : null // the prior year actually drawn (null when off / not carried)
+  const byYear = extraction.buckets_by_year ?? null
+  // v109: the two switches are mutually exclusive — one chart, one question. "Per year" redraws
+  // the body as the report's own calendar-year columns (no bucket fields behind the bars); the
+  // prior-year series is bucket-shaped and cannot ride along on year categories. Turning either
+  // on turns the other off, so at most one non-default view ever renders.
+  const years = showPerYear && byYear ? byYear.years : null
+  const perYearView = years !== null
+  const py = showPrior && prior && !years ? prior : null // the prior year actually drawn (null when off / not carried / per-year view)
   const dual = !!py
 
   const priorValue = (key: string) => {
@@ -104,9 +129,20 @@ export function MaturityChart({ extraction, selectedKey, onSelect, onPriorChange
     return typeof v === 'number' ? v : null
   }
 
+  const persist = (key: string, next: boolean) => {
+    try {
+      localStorage.setItem(key, next ? '1' : '0')
+    } catch {
+      /* private mode etc. — preference just won't stick */
+    }
+  }
+
   useEffect(() => {
     onPriorChange?.(dual)
   }, [dual, onPriorChange])
+  useEffect(() => {
+    onPerYearChange?.(perYearView)
+  }, [perYearView, onPerYearChange])
 
   const slots = bucketSlots(extraction.fields)
   if (!slots.some((f) => f && f.value !== null)) return null
@@ -118,12 +154,14 @@ export function MaturityChart({ extraction, selectedKey, onSelect, onPriorChange
   const missing = check?.status === 'unavailable' || !!check?.stale || (check?.detail.startsWith('missing:') ?? false)
   const unit = extraction.currency ?? ''
 
-  const step = niceStep(
-    Math.max(...slots.map(numeric).map((v) => v ?? 0), ...(dual ? BUCKET_ORDER.map((k) => priorValue(k) ?? 0) : [])) / TICKS,
-  )
+  const step = years
+    ? niceStep(Math.max(0, ...years.map((yr) => yr.value)) / TICKS)
+    : niceStep(
+        Math.max(...slots.map(numeric).map((v) => v ?? 0), ...(dual ? BUCKET_ORDER.map((k) => priorValue(k) ?? 0) : [])) / TICKS,
+      )
   const top = step * TICKS
   const y = (v: number) => BASELINE - (v / top) * PLOT.h
-  const band = PLOT.w / slots.length
+  const band = PLOT.w / (years ? years.length : slots.length)
 
   return (
     <Card className="xl:col-span-2">
@@ -131,33 +169,68 @@ export function MaturityChart({ extraction, selectedKey, onSelect, onPriorChange
         <CardTitle>Maturity profile</CardTitle>
         <CardAction>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-            {prior && (
+            {byYear && (
               <button
                 type="button"
                 role="switch"
-                aria-checked={showPrior}
+                aria-checked={perYearView}
                 onClick={() => {
-                  setShowPrior((v) => {
-                    const next = !v
-                    try {
-                      localStorage.setItem(PRIOR_KEY, next ? '1' : '0')
-                    } catch {
-                      /* private mode etc. — preference just won't stick */
-                    }
-                    return next
-                  })
+                  const next = !perYearView
+                  setShowPerYear(next)
+                  persist(PER_YEAR_KEY, next)
+                  if (next && showPrior) {
+                    // mutually exclusive: the per-year view has no bucket bars for a prior series
+                    setShowPrior(false)
+                    persist(PRIOR_KEY, false)
+                  }
                 }}
                 className="inline-flex cursor-pointer items-center gap-2 rounded-md text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 <span
                   aria-hidden
                   className={`relative inline-flex h-4.5 w-8 shrink-0 items-center rounded-full border transition-colors ${
-                    showPrior ? 'border-primary/50 bg-primary/30' : 'border-line-2 bg-transparent'
+                    perYearView ? 'border-primary/50 bg-primary/30' : 'border-line-2 bg-transparent'
+                  }`}
+                >
+                  <span
+                    aria-hidden
+                    className={`absolute size-3 rounded-full transition-[left,background-color] ${
+                      perYearView ? 'left-[calc(100%-0.9375rem)] bg-primary-foreground' : 'left-0.5 bg-fg-3'
+                    }`}
+                  />
+                </span>
+                Per year
+              </button>
+            )}
+            {prior && (
+              <button
+                type="button"
+                role="switch"
+                aria-checked={dual}
+                onClick={() => {
+                  // keyed on what is actually drawn (dual), not the raw state: if both switches were
+                  // remembered on across a reload, the per-year view wins and this switch honestly
+                  // reads off until clicked — the click then restores the bucket view with prior bars
+                  const next = !dual
+                  setShowPrior(next)
+                  persist(PRIOR_KEY, next)
+                  if (next && perYearView) {
+                    // mutually exclusive, the other direction: bucket bars are back, years are not
+                    setShowPerYear(false)
+                    persist(PER_YEAR_KEY, false)
+                  }
+                }}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-md text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                <span
+                  aria-hidden
+                  className={`relative inline-flex h-4.5 w-8 shrink-0 items-center rounded-full border transition-colors ${
+                    dual ? 'border-primary/50 bg-primary/30' : 'border-line-2 bg-transparent'
                   }`}
                 >
                   <span
                     className={`absolute size-3 rounded-full transition-[left,background-color] ${
-                      showPrior ? 'left-[calc(100%-0.9375rem)] bg-primary-foreground' : 'left-0.5 bg-fg-3'
+                      dual ? 'left-[calc(100%-0.9375rem)] bg-primary-foreground' : 'left-0.5 bg-fg-3'
                     }`}
                   />
                 </span>
@@ -225,7 +298,28 @@ export function MaturityChart({ extraction, selectedKey, onSelect, onPriorChange
             </g>
           ))}
 
-          {slots.map((f, i) => {
+          {years ? (
+            /* v109: the report's own calendar-year columns, one bar per printed year — the same
+               marks, the same color, no field key behind a year so the bars are not selectable;
+               the header's total line and check indicator are the view's own provenance */
+            years.map((yr, i) => {
+              const cx = M.left + band * i + band / 2
+              const v = typeof yr.value === 'number' ? yr.value : 0
+              return (
+                <g key={`${yr.label}:${i}`}>
+                  <title>{`${yr.label}: ${fmtValue(v)}${unit ? ` ${unit}` : ''}`}</title>
+                  {v > 0 && <path d={barPath(cx, y(v), BAR_W, BASELINE)} fill={BAR_FILL} />}
+                  <text x={cx} y={(v > 0 ? y(v) : BASELINE) - 7} fontSize={12} fontWeight={500} textAnchor="middle" fill="var(--fg-1)">
+                    {fmtValue(v)}
+                  </text>
+                  <text x={cx} y={BASELINE + 24} fontSize={12} textAnchor="middle" fill="var(--fg-2)">
+                    {yr.label}
+                  </text>
+                </g>
+              )
+            })
+          ) : (
+          slots.map((f, i) => {
             const key = f?.key ?? BUCKET_ORDER[i]
             const cx = M.left + band * i + band / 2
             const v = numeric(f)
@@ -294,7 +388,8 @@ export function MaturityChart({ extraction, selectedKey, onSelect, onPriorChange
                 <rect x={M.left + band * i} y={M.top} width={band} height={PLOT.h + 28} fill="transparent" />
               </g>
             )
-          })}
+          })
+          )}
         </svg>
       </CardContent>
     </Card>

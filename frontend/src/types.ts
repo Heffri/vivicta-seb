@@ -98,6 +98,13 @@ export type PriorYear = {
   fields: Record<string, { value: number; source: Source | null }>; // one entry per readable field (a bucket the prior-year table never prints is absent)
   check: { passed: boolean; detail: string };
 };
+// v109: the report's own calendar-year maturity columns (the years must sum to total_debt within
+// the identity check's own tolerance) — absent entirely when the report prints named buckets
+// instead, or the year columns cannot be read deterministically.
+export type BucketsByYear = {
+  basis: 'carrying' | 'undiscounted'; // the same maturity basis total_debt + the buckets were read on
+  years: { label: string; value: number; source: Source | null }[]; // one per printed column, label as printed ("2026" … "Later")
+};
 export type Extraction = {
   basis?: Basis;
   basis_history?: (Basis & { previous: Partial<Basis> })[];
@@ -113,6 +120,7 @@ export type Extraction = {
   section: string;          // schema name
   maturity_basis?: 'carrying' | 'undiscounted'; // v089, debt_maturity only: which maturity table total_debt + the buckets were read from (env DEBT_BASIS)
   prior_year?: PriorYear;   // v091, debt_maturity only: FY-1 alongside FY for the maturity chart
+  buckets_by_year?: BucketsByYear; // v109, debt_maturity only: the report's own calendar-year columns for the maturity chart
   fields: Field[];          // one entry per schema field, in schema order (value null if missing)
   checks: Check[];
   warnings: string[];       // free text, e.g. "revenue: quote not found on page 64"
