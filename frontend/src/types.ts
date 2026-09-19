@@ -91,6 +91,13 @@ export type Basis = { values: Record<string, string>; reviewer: string; note: st
 export type ReviewIssue = { kind: 'basis' | 'field' | 'check'; key: string; detail: string };
 export type Comparison = { candidates: KbEntry[]; previous_stem?: string; current_year?: number; previous_year?: number; reasons: string[]; restatement?: Record<string, string>; rows: { key: string; label: string; current: Field['value']; previous: Field['value']; delta: number | null; percent: number | null; sign_change: boolean; reason: string }[] };
 export type QueueIssue = ReviewIssue & { report: KbEntry; section: string };
+// v091: the prior fiscal year's own figures, read deterministically from the same table as the
+// current year (identity-gated on explicit values) — absent entirely when they could not be.
+export type PriorYear = {
+  fiscal_year: number;
+  fields: Record<string, { value: number; source: Source | null }>; // one entry per readable field (a bucket the prior-year table never prints is absent)
+  check: { passed: boolean; detail: string };
+};
 export type Extraction = {
   basis?: Basis;
   basis_history?: (Basis & { previous: Partial<Basis> })[];
@@ -105,6 +112,7 @@ export type Extraction = {
   currency: string | null;  // dominant unit in the section
   section: string;          // schema name
   maturity_basis?: 'carrying' | 'undiscounted'; // v089, debt_maturity only: which maturity table total_debt + the buckets were read from (env DEBT_BASIS)
+  prior_year?: PriorYear;   // v091, debt_maturity only: FY-1 alongside FY for the maturity chart
   fields: Field[];          // one entry per schema field, in schema order (value null if missing)
   checks: Check[];
   warnings: string[];       // free text, e.g. "revenue: quote not found on page 64"

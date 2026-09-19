@@ -49,6 +49,7 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
   const [brokenPage, setBrokenPage] = useState<number | null>(null)
   const [askPage, setAskPage] = useState<number | null>(initialPage ?? null) // citation chip override; a row click clears it
   const [viewer, setViewerState] = useState<Viewer>(loadViewer)
+  const [priorYear, setPriorYear] = useState(false) // v091: mirrors MaturityChart's "Show prior year" switch so Export PPTX requests the second series
   const setViewer = (v: Viewer) => {
     setViewerState(v)
     try {
@@ -122,7 +123,7 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
           <a href={csvUrl(report_id, extraction.stem ? section : undefined, comparison?.previous_stem)} download className={buttonVariants({ variant: 'outline' })}>
             <Download /> Export CSV
           </a>
-          <a href={pptxUrl(report_id, extraction.stem ? section : undefined, comparison?.previous_stem)} download className={buttonVariants({ variant: 'outline' })}>
+          <a href={pptxUrl(report_id, extraction.stem ? section : undefined, comparison?.previous_stem, priorYear || undefined)} download className={buttonVariants({ variant: 'outline' })}>
             <Download /> Export PPTX
           </a>
           <Button onClick={onReset}>New report</Button>
@@ -139,7 +140,7 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
       <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         {/* Maturity buckets — nothing renders unless the fields look like maturity
             buckets, the same rule ppt.py uses to pick chart over table. */}
-        <MaturityChart extraction={extraction} selectedKey={selectedKey} onSelect={selectField} />
+        <MaturityChart extraction={extraction} selectedKey={selectedKey} onSelect={selectField} onPriorChange={setPriorYear} />
 
         <div className="space-y-4">
           <FieldsTable fields={fields} selectedKey={selectedKey} onSelect={selectField} />

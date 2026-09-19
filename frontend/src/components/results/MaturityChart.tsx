@@ -1,5 +1,5 @@
 import { Check, Minus, X } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { fmtValue } from '@/components/ResultsView'
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { Extraction, Field } from '@/types'
@@ -19,10 +19,15 @@ export const BUCKET_LABELS: Record<(typeof BUCKET_ORDER)[number], string> = {
 // identity flag over the API (docs/API.md), so the result is looked up by name — never recomputed here.
 export const IDENTITY_CHECK = 'maturity_sums_to_total'
 
+// v091: "Show prior year" remembers its last position per browser (default off = the exact
+// pre-v091 rendering). Same pattern as ResultsView's provenance-viewer key.
+const PRIOR_KEY = 'maturity-prior-year'
+
 type Props = {
   extraction: Extraction
   selectedKey: string | null
   onSelect: (key: string) => void
+  onPriorChange?: (shown: boolean) => void // v091: mirrors the toggle so the Export PPTX href can follow it (?prior_year=1)
 }
 
 // Same rule as ppt.py build_pptx, translated verbatim: draw a bar chart iff any bucket
@@ -66,23 +71,56 @@ const TICKS = 4
 // brighter via the raw accent, failure stays on the check line, not the marks.
 const BAR_FILL = 'var(--primary)'
 const BAR_FILL_LIT = 'color-mix(in srgb, var(--ring) 45%, var(--primary))'
+// v091: the prior year sits beside the current one as the same mark one step fainter — the
+// accent at 60% opacity over the glass, never a second hue competing with the primary series.
+const BAR_FILL_PRIOR = 'color-mix(in srgb, var(--primary) 60%, transparent)'
+
+const loadPrior = () => {
+  try {
+    return localStorage.getItem(PRIOR_KEY) === '1'
+  } catch {
+    return false
+  }
+}
 
 /** The ppt.py slide, on the results view: total debt + one column per maturity bucket.
  *  Renders nothing unless the section has bucket fields (see bucketSlots). Clicking a
  *  column selects its field row, so the Source panel jumps to that field's page — the
- *  same selection the table drives. Pure SVG, no chart library. */
-export function MaturityChart({ extraction, selectedKey, onSelect }: Props) {
+ *  same selection the table drives. Pure SVG, no chart library.
+ *
+ *  v091: when the extraction carries `prior_year` (the prior fiscal year's own figures,
+ *  read deterministically from the same table and identity-gated by the backend), a
+ *  "Show prior year (FY<n>)" switch offers them beside each bucket — default off, and off
+ *  renders exactly the chart this file drew before the switch existed. */
+export function MaturityChart({ extraction, selectedKey, onSelect, onPriorChange }: Props) {
   const [hoveredKey, setHoveredKey] = useState<string | null>(null)
+  const [showPrior, setShowPrior] = useState(loadPrior)
+  const prior = extraction.prior_year ?? null
+  const py = showPrior && prior ? prior : null // the prior year actually drawn (null when off / not carried)
+  const dual = !!py
+
+  const priorValue = (key: string) => {
+    const v = py?.fields[key]?.value
+    return typeof v === 'number' ? v : null
+  }
+
+  useEffect(() => {
+    onPriorChange?.(dual)
+  }, [dual, onPriorChange])
+
   const slots = bucketSlots(extraction.fields)
   if (!slots.some((f) => f && f.value !== null)) return null
 
   const byKey = new Map(extraction.fields.map((f) => [f.key, f]))
   const total = byKey.get('total_debt') ?? null
+  const priorTotal = priorValue('total_debt')
   const check = extraction.checks.find((c) => c.name === IDENTITY_CHECK) ?? null
   const missing = check?.status === 'unavailable' || !!check?.stale || (check?.detail.startsWith('missing:') ?? false)
   const unit = extraction.currency ?? ''
 
-  const step = niceStep(Math.max(...slots.map(numeric).map((v) => v ?? 0)) / TICKS)
+  const step = niceStep(
+    Math.max(...slots.map(numeric).map((v) => v ?? 0), ...(dual ? BUCKET_ORDER.map((k) => priorValue(k) ?? 0) : [])) / TICKS,
+  )
   const top = step * TICKS
   const y = (v: number) => BASELINE - (v / top) * PLOT.h
   const band = PLOT.w / slots.length
@@ -93,9 +131,50 @@ export function MaturityChart({ extraction, selectedKey, onSelect }: Props) {
         <CardTitle>Maturity profile</CardTitle>
         <CardAction>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+            {prior && (
+              <button
+                type="button"
+                role="switch"
+                aria-checked={showPrior}
+                onClick={() => {
+                  setShowPrior((v) => {
+                    const next = !v
+                    try {
+                      localStorage.setItem(PRIOR_KEY, next ? '1' : '0')
+                    } catch {
+                      /* private mode etc. — preference just won't stick */
+                    }
+                    return next
+                  })
+                }}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-md text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                <span
+                  aria-hidden
+                  className={`relative inline-flex h-4.5 w-8 shrink-0 items-center rounded-full border transition-colors ${
+                    showPrior ? 'border-primary/50 bg-primary/30' : 'border-line-2 bg-transparent'
+                  }`}
+                >
+                  <span
+                    className={`absolute size-3 rounded-full transition-[left,background-color] ${
+                      showPrior ? 'left-[calc(100%-0.9375rem)] bg-primary-foreground' : 'left-0.5 bg-fg-3'
+                    }`}
+                  />
+                </span>
+                Show prior year (FY{prior.fiscal_year})
+              </button>
+            )}
             <span>
               Total debt <span className="font-semibold">{fmtValue(total?.value ?? null)}</span>
               {unit ? ` ${unit}` : ''}
+              {py && priorTotal !== null ? (
+                <>
+                  {' · '}
+                  <span className="text-muted-foreground">
+                    FY{py.fiscal_year} <span className="font-semibold">{fmtValue(priorTotal)}</span>
+                  </span>
+                </>
+              ) : null}
             </span>
             {check && (
               <span
@@ -115,6 +194,20 @@ export function MaturityChart({ extraction, selectedKey, onSelect }: Props) {
           <text x={2} y={14} fontSize={11} fill="var(--fg-3)">
             {unit}
           </text>
+
+          {/* v091: with both years on, the legend names them beside the unit, top right */}
+          {py && (
+            <g fontSize={11}>
+              <rect x={VIEW.w - M.right - 196} y={4} width={10} height={10} rx={2} fill={BAR_FILL} />
+              <text x={VIEW.w - M.right - 181} y={13} fill="var(--fg-2)">
+                FY{extraction.fiscal_year ?? '—'}
+              </text>
+              <rect x={VIEW.w - M.right - 128} y={4} width={10} height={10} rx={2} fill={BAR_FILL_PRIOR} stroke="var(--line-2)" />
+              <text x={VIEW.w - M.right - 113} y={13} fill="var(--fg-2)">
+                FY{py.fiscal_year}
+              </text>
+            </g>
+          )}
 
           {/* value axis: recessive solid hairlines, clean tick numbers */}
           {Array.from({ length: TICKS + 1 }, (_, i) => i * step).map((t) => (
@@ -137,6 +230,11 @@ export function MaturityChart({ extraction, selectedKey, onSelect }: Props) {
             const cx = M.left + band * i + band / 2
             const v = numeric(f)
             const lit = f && (key === selectedKey || key === hoveredKey)
+            const pv = dual ? priorValue(key) : null
+            // grouped columns while both years show: current left, prior right; single-centred
+            // otherwise — the exact pre-v091 geometry, unchanged when the switch is off
+            const curCx = pv === null ? cx : cx - BAR_W / 2 - 2
+            const priCx = cx + BAR_W / 2 + 2
             return (
               <g
                 key={key}
@@ -160,16 +258,16 @@ export function MaturityChart({ extraction, selectedKey, onSelect }: Props) {
                 {/* null bucket: an empty column on the baseline, never a zero bar */}
                 {f && v === null && (
                   <>
-                    <rect x={cx - BAR_W / 2} y={BASELINE - 12} width={BAR_W} height={12} rx={2} fill="none" stroke="var(--line-2)" strokeDasharray="3 3" />
-                    <text x={cx} y={BASELINE - 19} fontSize={12} textAnchor="middle" fill="var(--fg-3)">
+                    <rect x={curCx - BAR_W / 2} y={BASELINE - 12} width={BAR_W} height={12} rx={2} fill="none" stroke="var(--line-2)" strokeDasharray="3 3" />
+                    <text x={curCx} y={BASELINE - 19} fontSize={12} textAnchor="middle" fill="var(--fg-3)">
                       {fmtValue(null)}
                     </text>
                   </>
                 )}
 
-                {v !== null && v > 0 && <path d={barPath(cx, y(v), BAR_W, BASELINE)} fill={lit ? BAR_FILL_LIT : BAR_FILL} />}
+                {v !== null && v > 0 && <path d={barPath(curCx, y(v), BAR_W, BASELINE)} fill={lit ? BAR_FILL_LIT : BAR_FILL} />}
                 <text
-                  x={cx}
+                  x={curCx}
                   y={(v !== null ? y(v) : BASELINE) - 7}
                   fontSize={12}
                   fontWeight={lit ? 600 : 500}
@@ -178,6 +276,16 @@ export function MaturityChart({ extraction, selectedKey, onSelect }: Props) {
                 >
                   {fmtValue(f && f.value !== null ? f.value : null)}
                 </text>
+                {pv !== null && pv > 0 && (
+                  <path d={barPath(priCx, y(pv), BAR_W, BASELINE)} fill={BAR_FILL_PRIOR}>
+                    {py && <title>{`FY${py.fiscal_year} ${BUCKET_LABELS[BUCKET_ORDER[i]]}: ${fmtValue(pv)}${unit ? ` ${unit}` : ''}`}</title>}
+                  </path>
+                )}
+                {pv !== null && (
+                  <text x={priCx} y={y(pv) - 7} fontSize={11} textAnchor="middle" fill="var(--fg-3)">
+                    {fmtValue(pv)}
+                  </text>
+                )}
                 <text x={cx} y={BASELINE + 24} fontSize={12} textAnchor="middle" fill="var(--fg-2)">
                   {BUCKET_LABELS[BUCKET_ORDER[i]]}
                 </text>
