@@ -55,6 +55,16 @@
       "other liabilities", "other liabilites", "other current liabilities", "other current liabilites",
       "övriga skulder", "expected returns", "derivatives", "derivate", "acquisition-related liabilities",
       "contingent considerations"
+    ],
+    "non_debt_subject": [
+      "contract liabilities", "contract liability", "avtalsskulder", "avtalsskuld",
+      "timing of revenue", "intäktsredovisning",
+      "customer advances", "customer advance", "förskott från kunder",
+      "warranty", "garanti", "provisions", "provision",
+      "avsättningar", "avsättning", "deferred revenue", "upplupna"
+    ],
+    "parent_company": [
+      "parent company", "moderbolaget", "moderföretaget", "parent"
     ]
   },
   "fields": [
