@@ -1,0 +1,160 @@
+{
+  "report_id": "lib-smartcraft_2025",
+  "company": "SmartCraft Group",
+  "fiscal_year": 2025,
+  "currency": null,
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "status": "unavailable",
+      "detail": "Missing explicit values: total_debt, due_within_1_year, due_1_to_5_years, due_after_5_years"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [59, 60] selected from candidates [59, 60, 31]",
+    "due_within_1_year: model returned null, fill from page 59 row 'Less than 1 year 13 825 13 825' refused -- table 'Total undiscounted lease liabilities' is undiscounted",
+    "due_after_5_years: model returned null, fill from page 59 row 'More than 5 years - -' refused -- table 'Total undiscounted lease liabilities' is undiscounted"
+  ],
+  "stem": "smartcraft_2025",
+  "pdf_available": true,
+  "check_history": [
+    {
+      "at": "2026-09-19T21:37:33.741950+00:00",
+      "reason": "Recalculated explicit values after extraction",
+      "previous": [
+        {
+          "name": "maturity_sums_to_total",
+          "passed": false,
+          "detail": "missing: due_within_1_year"
+        }
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "kind": "basis",
+      "key": "entity",
+      "detail": "Confirm entity"
+    },
+    {
+      "kind": "basis",
+      "key": "consolidation",
+      "detail": "Confirm consolidation"
+    },
+    {
+      "kind": "basis",
+      "key": "period",
+      "detail": "Confirm period"
+    },
+    {
+      "kind": "basis",
+      "key": "currency",
+      "detail": "Confirm currency"
+    },
+    {
+      "kind": "basis",
+      "key": "scale",
+      "detail": "Confirm scale"
+    },
+    {
+      "kind": "basis",
+      "key": "source",
+      "detail": "Confirm source"
+    },
+    {
+      "kind": "basis",
+      "key": "restatement",
+      "detail": "Confirm restatement"
+    },
+    {
+      "kind": "basis",
+      "key": "debt_basis",
+      "detail": "Confirm debt basis"
+    },
+    {
+      "kind": "basis",
+      "key": "leases",
+      "detail": "Confirm leases"
+    },
+    {
+      "kind": "basis",
+      "key": "bucket_mapping",
+      "detail": "Confirm bucket mapping"
+    },
+    {
+      "kind": "field",
+      "key": "total_debt",
+      "detail": "Total borrowings: missing value (not zero)"
+    },
+    {
+      "kind": "field",
+      "key": "due_within_1_year",
+      "detail": "Due within 1 year: missing value (not zero)"
+    },
+    {
+      "kind": "field",
+      "key": "due_1_to_5_years",
+      "detail": "Due 1–5 years: missing value (not zero)"
+    },
+    {
+      "kind": "field",
+      "key": "due_after_5_years",
+      "detail": "Due after 5 years: missing value (not zero)"
+    },
+    {
+      "kind": "check",
+      "key": "maturity_sums_to_total",
+      "detail": "maturity_sums_to_total: Missing explicit values: total_debt, due_within_1_year, due_1_to_5_years, due_after_5_years"
+    }
+  ],
+  "ready": false
+}

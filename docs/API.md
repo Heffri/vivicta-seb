@@ -19,7 +19,7 @@ Backend runs on `http://localhost:8000`, frontend dev server proxies `/api` to i
 | `GET`  | `/api/library` | – | `LibraryEntry[]` — the report **cache** in `data/reports/` (only files present on disk). Populated by `/fetch`; hand-curated entries also live in `index.json` |
 | `POST` | `/api/reports/{report_id}/index` | – | `IndexStatus` — chunk + embed the report into the knowledge base (idempotent, cached on disk). ~10–30 s per report locally |
 | `POST` | `/api/ask` | `{ "question": string, "report_ids"?: string[], "report_stems"?: string[] }` | `Answer` — omit both scopes to search all saved reports. Explicit scopes must be non-empty and mutually exclusive; unknown entries fail rather than widening the search. Global retrieval uses BM25 with bounded context, without embedding the entire library |
-| `GET`  | `/api/kb` | – | `KbEntry[]` — what is in `data/kb/` (one per parsed report: pages indexed, sections extracted) |
+| `GET`  | `/api/kb` | `?collection_name=wallenberg\|all` | `KbEntry[]` — what is in `data/kb/` (one per parsed report: pages indexed, sections extracted). `collection_name` filters the list: `all` (the backend default) or the curated Wallenberg roster (`wallenberg` — what the KB page sends by default) |
 | `GET` | `/api/kb/{stem}/pages/{page}` | – | `{ page: number, text: string }` — saved page text, available even without the PDF; exact known stem and valid page required |
 | `GET` | `/api/kb/{stem}/{section}` | – | Saved `Extraction`, no model call, available without the original PDF |
 | `GET`  | `/api/config` | – | `{ model, embed_model, base_url, llm, provider, retrieval, maturity_basis }` — what the backend runs with; `retrieval` is `"hybrid"` (cosine+BM25) \| `"bm25"` (keyword-only, e.g. codex/claude subscription with no embeddings endpoint) \| `"fixture"`; `maturity_basis` (v089) is `"carrying"` (default) \| `"undiscounted"`, from env `DEBT_BASIS` |
@@ -278,7 +278,7 @@ continues to accept `report_ids` and retains its retrieval mode.
 
 
 ### Wallenberg collection and opt-in PDFs
-The desktop UI requests `collection_name=wallenberg` on GET `/api/companies`, `/api/library`, and `/api/kb`. The API's `all` scope remains available and existing data is retained. The roster is defined in `pipeline/collection.py`, sourced from Investor and FAM, and shipped as application code. It is a curated holdings collection, not an exhaustive ownership graph. Global Ask sends the visible collection's report stems explicitly.
+The desktop UI requests `collection_name=wallenberg` on GET `/api/companies`, `/api/library`, and `/api/kb`. The API's `all` scope remains available and existing data is retained. The KB page's Collection switch (Wallenberg / All saved reports) also sends `collection_name=all` on GET `/api/kb` when the user picks All; the review queue stays on the Wallenberg scope. The roster is defined in `pipeline/collection.py`, sourced from Investor and FAM, and shipped as application code. It is a curated holdings collection, not an exhaustive ownership graph. Global Ask sends the visible collection's report stems explicitly.
 POST `/api/reports/fetch` defaults `download_pdf` to false. It reuses saved text or an existing PDF and returns 409 if neither exists, without making a web request. Only `download_pdf: true` permits a download. POST `/api/reports/{id}/extract` accepts `reuse_saved: true` to return the saved extraction before calling a model, preserving human reviews. A new extraction can use saved page text without a PDF.
 
 

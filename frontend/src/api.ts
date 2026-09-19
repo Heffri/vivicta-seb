@@ -83,7 +83,10 @@ export type Config = {
   maturity_basis?: 'carrying' | 'undiscounted' // v089: the backend's live DEBT_BASIS; absent on older backends
 }
 export const getConfig = () => request<Config>('/api/config')
-export const getKb = () => request<KbEntry[]>('/api/kb?collection_name=wallenberg')
+// v112: the KB page's collection switch. 'wallenberg' is the curated roster (the page's default,
+// issue #4); 'all' lists every saved extraction in data/kb. The backend default is 'all' — pass one explicitly.
+export const getKb = (collection: 'wallenberg' | 'all' = 'wallenberg') =>
+  request<KbEntry[]>(`/api/kb?collection_name=${collection}`)
 // Stored extraction, no model call; the backend re-registers the PDF so pageUrl/csvUrl work.
 export const openKbExtraction = (stem: string, section: string) =>
   request<Extraction>(`/api/kb/${encodeURIComponent(stem)}/${encodeURIComponent(section)}`)
