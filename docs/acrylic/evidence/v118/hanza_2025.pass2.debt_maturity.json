@@ -1,0 +1,192 @@
+{
+ "report_id": "lib-hanza_2025",
+ "company": "HANZA",
+ "fiscal_year": 2025,
+ "currency": "MSEK",
+ "section": "debt_maturity",
+ "maturity_basis": "carrying",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 1444,
+   "unit": "MSEK",
+   "period": "2025",
+   "raw_label": "Summa",
+   "source": {
+    "page": 132,
+    "quote": "Summa 1 444 33 27 1 382 2"
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": 60,
+   "unit": "MSEK",
+   "period": "2025",
+   "raw_label": "Summa",
+   "source": {
+    "page": 132,
+    "quote": "Summa 1 444 33 27 1 382 2"
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": 1382,
+   "unit": "MSEK",
+   "period": "2025",
+   "raw_label": "Summa",
+   "source": {
+    "page": 132,
+    "quote": "Summa 1 444 33 27 1 382 2"
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": 2,
+   "unit": "MSEK",
+   "period": "2025",
+   "raw_label": "Summa",
+   "source": {
+    "page": 132,
+    "quote": "Summa 1 444 33 27 1 382 2"
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": true,
+   "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((60 + 1382 + 2) - 1444) <= 2",
+   "status": "passed"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [132, 133] selected from candidates [132, 133, 128, 116]"
+ ],
+ "stem": "hanza_2025",
+ "pdf_available": true,
+ "check_history": [
+  {
+   "at": "2026-09-19T22:31:25.658068+00:00",
+   "reason": "Recalculated explicit values after extraction",
+   "previous": [
+    {
+     "name": "maturity_sums_to_total",
+     "passed": true,
+     "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((60 + 1382 + 2) - 1444) <= 2"
+    }
+   ]
+  }
+ ],
+ "issues": [
+  {
+   "kind": "basis",
+   "key": "entity",
+   "detail": "Confirm entity"
+  },
+  {
+   "kind": "basis",
+   "key": "consolidation",
+   "detail": "Confirm consolidation"
+  },
+  {
+   "kind": "basis",
+   "key": "period",
+   "detail": "Confirm period"
+  },
+  {
+   "kind": "basis",
+   "key": "currency",
+   "detail": "Confirm currency"
+  },
+  {
+   "kind": "basis",
+   "key": "scale",
+   "detail": "Confirm scale"
+  },
+  {
+   "kind": "basis",
+   "key": "source",
+   "detail": "Confirm source"
+  },
+  {
+   "kind": "basis",
+   "key": "restatement",
+   "detail": "Confirm restatement"
+  },
+  {
+   "kind": "basis",
+   "key": "debt_basis",
+   "detail": "Confirm debt basis"
+  },
+  {
+   "kind": "basis",
+   "key": "leases",
+   "detail": "Confirm leases"
+  },
+  {
+   "kind": "basis",
+   "key": "bucket_mapping",
+   "detail": "Confirm bucket mapping"
+  },
+  {
+   "kind": "field",
+   "key": "total_debt",
+   "detail": "Total borrowings: verify value, unit, period and source"
+  },
+  {
+   "kind": "field",
+   "key": "due_within_1_year",
+   "detail": "Due within 1 year: verify value, unit, period and source"
+  },
+  {
+   "kind": "field",
+   "key": "due_1_to_5_years",
+   "detail": "Due 1–5 years: verify value, unit, period and source"
+  },
+  {
+   "kind": "field",
+   "key": "due_after_5_years",
+   "detail": "Due after 5 years: verify value, unit, period and source"
+  }
+ ],
+ "ready": false
+}
