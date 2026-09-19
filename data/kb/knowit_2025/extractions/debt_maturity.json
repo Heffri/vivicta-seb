@@ -72,6 +72,6 @@
   "warnings": [
     "due_within_1_year: 151065 is printed on none of pages [152, 153]; dropped as computed, not read",
     "due_1_to_5_years: 607873 is printed on none of pages [152, 153]; dropped as computed, not read",
-    "published: seed3 run replayed with extract.py @ 9ed0abe9"
+    "published: seed3 run replayed with extract.py @ 0a45f666"
   ]
 }

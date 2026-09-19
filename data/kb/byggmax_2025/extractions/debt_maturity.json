@@ -71,6 +71,6 @@
   "warnings": [
     "two_pass: page [87, 88] selected from candidates [64, 65, 76, 87]",
     "total_debt: 2 candidate debt rows for the bucket table ('Borrowing', 'Borrowing') -- ambiguous, none used",
-    "published: seed8 run replayed with extract.py @ 9ed0abe9"
+    "published: seed8 run replayed with extract.py @ 0a45f666"
   ]
 }

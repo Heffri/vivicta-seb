@@ -101,6 +101,6 @@
   "warnings": [
     "two_pass: page [132, 133] selected from candidates [132, 133, 131]",
     "due_1_to_5_years: 435842 is printed on none of pages [132, 133]; dropped as computed, not read",
-    "published: seed10 run replayed with extract.py @ 9ed0abe9"
+    "published: seed10 run replayed with extract.py @ 0a45f666"
   ]
 }

@@ -83,6 +83,6 @@
   "warnings": [
     "due_1_to_5_years: 'Summa räntebärande skulder' 802669 dropped: the same row as total_debt, and not a due 1–5 years label",
     "due_after_5_years: 'Summa räntebärande skulder' 50778 dropped: the same row as total_debt, and not a due after 5 years label",
-    "published: seed1 run replayed with extract.py @ 9ed0abe9"
+    "published: seed1 run replayed with extract.py @ 0a45f666"
   ]
 }

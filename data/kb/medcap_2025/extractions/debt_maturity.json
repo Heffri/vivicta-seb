@@ -93,6 +93,36 @@
   "warnings": [
     "two_pass: page [101, 102] selected from candidates [101, 102, 82, 97, 91, 96]",
     "due_within_1_year: 102.3 is printed on none of pages [101, 102]; dropped as computed, not read",
-    "published: seed5 run replayed with extract.py @ 9ed0abe9"
-  ]
+    "published: seed5 run replayed with extract.py @ 0a45f666"
+  ],
+  "prior_year": {
+    "fiscal_year": 2024,
+    "fields": {
+      "total_debt": {
+        "value": 377.6,
+        "source": {
+          "page": 101,
+          "quote": "Totalt 718,7 377,6 – –"
+        }
+      },
+      "due_within_1_year": {
+        "value": 60.8,
+        "source": {
+          "page": 101,
+          "quote": "6 månader eller mindre 54,3 41,8 – – 6 – 12 månader 48,0 19,0 – –"
+        }
+      },
+      "due_1_to_5_years": {
+        "value": 316.7,
+        "source": {
+          "page": 101,
+          "quote": "1 – 5 år 616,5 316,7 – –"
+        }
+      }
+    },
+    "check": {
+      "passed": true,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((60.8 + 316.7) - 377.6) <= 2 (due_after_5_years: no prior-year figure in this table)"
+    }
+  }
 }

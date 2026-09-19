@@ -103,6 +103,43 @@
     "two_pass: page [169, 170] selected from candidates [169, 170, 179, 171]",
     "due_1_to_5_years: 1399 is printed on none of pages [169, 170]; dropped as computed, not read",
     "due_1_to_5_years: model returned null; 1399 read from 'Total 197 22 1,377 9 1,605' by its column order",
-    "published: seed4 run replayed with extract.py @ 9ed0abe9"
-  ]
+    "published: seed4 run replayed with extract.py @ 0a45f666"
+  ],
+  "prior_year": {
+    "fiscal_year": 2024,
+    "fields": {
+      "total_debt": {
+        "value": 2509,
+        "source": {
+          "page": 169,
+          "quote": "Total 203 2,262 32 12 2,509"
+        }
+      },
+      "due_within_1_year": {
+        "value": 203,
+        "source": {
+          "page": 169,
+          "quote": "Total 203 2,262 32 12 2,509"
+        }
+      },
+      "due_1_to_5_years": {
+        "value": 2294,
+        "source": {
+          "page": 169,
+          "quote": "Total 203 2,262 32 12 2,509"
+        }
+      },
+      "due_after_5_years": {
+        "value": 12,
+        "source": {
+          "page": 169,
+          "quote": "Total 203 2,262 32 12 2,509"
+        }
+      }
+    },
+    "check": {
+      "passed": true,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((203 + 2294 + 12) - 2509) <= 2"
+    }
+  }
 }

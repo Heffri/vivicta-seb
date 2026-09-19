@@ -101,6 +101,36 @@
   ],
   "warnings": [
     "two_pass: page [106, 107] selected from candidates [106, 107, 93, 71]",
-    "published: seed9 run replayed with extract.py @ 9ed0abe9"
-  ]
+    "published: seed9 run replayed with extract.py @ 0a45f666"
+  ],
+  "prior_year": {
+    "fiscal_year": 2024,
+    "fields": {
+      "total_debt": {
+        "value": 423.2,
+        "source": {
+          "page": 106,
+          "quote": "Liabilities to credit institutions 71.4 351.7 - 423.2"
+        }
+      },
+      "due_within_1_year": {
+        "value": 71.4,
+        "source": {
+          "page": 106,
+          "quote": "Liabilities to credit institutions 71.4 351.7 - 423.2"
+        }
+      },
+      "due_1_to_5_years": {
+        "value": 351.7,
+        "source": {
+          "page": 106,
+          "quote": "Liabilities to credit institutions 71.4 351.7 - 423.2"
+        }
+      }
+    },
+    "check": {
+      "passed": true,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((71.4 + 351.7) - 423.2) <= 2 (due_after_5_years: no prior-year figure in this table)"
+    }
+  }
 }

@@ -93,6 +93,36 @@
   ],
   "warnings": [
     "two_pass: page [123, 124] selected from candidates [123, 124, 132]",
-    "published: seed4 run replayed with extract.py @ 9ed0abe9"
-  ]
+    "published: seed4 run replayed with extract.py @ 0a45f666"
+  ],
+  "prior_year": {
+    "fiscal_year": 2024,
+    "fields": {
+      "total_debt": {
+        "value": 50701,
+        "source": {
+          "page": 123,
+          "quote": "Total borrowing 43,384 50,701 - 50,701"
+        }
+      },
+      "due_within_1_year": {
+        "value": 13839,
+        "source": {
+          "page": 123,
+          "quote": "Total borrowings in current liabilities1 271 13,839 - 13,839"
+        }
+      },
+      "due_1_to_5_years": {
+        "value": 36862,
+        "source": {
+          "page": 123,
+          "quote": "Total borrowings in non-current liabilities 43,113 36,862 - 36,862"
+        }
+      }
+    },
+    "check": {
+      "passed": true,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((13839 + 36862) - 50701) <= 2 (due_after_5_years: no prior-year figure in this table)"
+    }
+  }
 }
