@@ -64,6 +64,6 @@
     "due_within_1_year: model returned null; 210 read from 'Total 210 3 7 0 0 220' by its column order",
     "due_1_to_5_years: model returned null; 10 read from 'Total 210 3 7 0 0 220' by its column order",
     "due_after_5_years: model returned null; 0 read from 'Total 210 3 7 0 0 220' by its column order",
-    "published: seed10 run replayed with extract.py @ c26d1f36"
+    "published: seed10 run replayed with extract.py @ d3eb5fc8"
   ]
 }

@@ -88,6 +88,51 @@
     "two_pass: page [92, 93] selected from candidates [79, 80, 92, 67, 69]",
     "due_within_1_year: quote not found on page 92",
     "due_1_to_5_years: quote not found on page 92",
-    "published: seed11 run replayed with extract.py @ c26d1f36"
-  ]
+    "published: seed11 run replayed with extract.py @ d3eb5fc8"
+  ],
+  "buckets_by_year": {
+    "basis": "carrying",
+    "years": [
+      {
+        "label": "2026",
+        "value": 77141,
+        "source": {
+          "page": 92,
+          "quote": "SEK thousands 12-31-25 2026 77,141 2027 39 2028 300,039 2029 202,539 2030 39"
+        }
+      },
+      {
+        "label": "2027",
+        "value": 39,
+        "source": {
+          "page": 92,
+          "quote": "SEK thousands 12-31-25 2026 77,141 2027 39 2028 300,039 2029 202,539 2030 39"
+        }
+      },
+      {
+        "label": "2028",
+        "value": 300039,
+        "source": {
+          "page": 92,
+          "quote": "SEK thousands 12-31-25 2026 77,141 2027 39 2028 300,039 2029 202,539 2030 39"
+        }
+      },
+      {
+        "label": "2029",
+        "value": 202539,
+        "source": {
+          "page": 92,
+          "quote": "SEK thousands 12-31-25 2026 77,141 2027 39 2028 300,039 2029 202,539 2030 39"
+        }
+      },
+      {
+        "label": "2030",
+        "value": 39,
+        "source": {
+          "page": 92,
+          "quote": "SEK thousands 12-31-25 2026 77,141 2027 39 2028 300,039 2029 202,539 2030 39"
+        }
+      }
+    ]
+  }
 }
