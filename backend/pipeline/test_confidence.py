@@ -2078,6 +2078,211 @@ def demo():
     got = {f["key"]: f for f in out["fields"]}
     assert got["total_debt"]["value"] == -500 and "sign_normalized" not in got["total_debt"]["evidence"], (got["total_debt"], out["warnings"])
     assert any("net-debt label" in w for w in out["warnings"]), out["warnings"]
+
+    # v103: the wrong-table guard. Two mis-scoped fills from v097 read their values out of the liquidity
+    # note's tables -- RVRC's p.110 "Maturity analysis regarding non-discounted liabilities" (its Total row
+    # sums trade payables 119, expected returns 34 and other current liabilities 54 into total_debt, and
+    # the identity endorsed it: 210+10+0 == 220, check passed) and Lime's p.72 "Liquidity risk - Group"
+    # table (its Borrowing row is contractual cash flow, not carrying). The schema now names the marker
+    # words (table_scope_words) and _table_scope refuses such a table under the carrying basis, at every
+    # fill mechanism's entry and on the model's own citations. Real page text throughout, trimmed.
+    rvrc110 = ("Maturity analysis regarding non-discounted liabilities\n"
+               "SEKm <6 months 6–12 months 1–3 years 3–5 years >5 years Total\n"
+               "30 June 2025\n"
+               "Leases1) 3 3 7 0 0 12\n"
+               "Trade payables 119 — — — — 119\n"
+               "Expected returns 34 — — — — 34\n"
+               "Other liabilites 0 — — — — 0\n"
+               "Other current liabilites 54 — — — — 54\n"
+               "Total 210 3 7 0 0 220\n")
+    rvrc_rows = x._page_rows(rvrc110)
+    tsw = dm["table_scope_words"]
+    # header level: the title row's wording (short standalone line, inside the 25-row window) classes the
+    # table "undiscounted" under carrying; under the undiscounted basis the same table's bare-Total shape
+    # is "all_liabilities" (trade payables among its rows -- never debt, on either basis), while its debt
+    # row (Leases, the report's own interest-bearing scope) stays readable
+    assert x._table_scope(rvrc_rows, None, 8, "carrying", tsw) == "undiscounted"
+    assert x._table_scope(rvrc_rows, None, 8, "undiscounted", tsw) == "all_liabilities"
+    assert x._table_scope(rvrc_rows, None, 3, "undiscounted", tsw, debt_scoped=True) == "unknown"
+    assert x._table_scope(rvrc_rows, None, 3, "carrying", tsw, debt_scoped=True) == "undiscounted"  # the table is refused whole
+    lime72 = ("Lime's financial policy states that Lime shall not use any\n"
+              "excess liquidity for trading in financial assets and that cash and cash equivalents over\n"
+              "time shall amount to at least 8% of annual sales.\n"
+              "Liquidity risk - Group\n"
+              "As of 31 December 2025 Less than 3 months Between 3 months and 1 year Between 1 and 2 years Between 2 and 5 years\n"
+              "Borrowing (incl. overdraft) 15,000 51,396 60,000 25,000\n"
+              "Liabilities related to leasing 5,112 11,298 8,000 4,664\n"
+              "Acquisition-related liabilities - - - 35,275\n"
+              "Accounts payable 12,806 - - -\n"
+              "Amount 32,918 62,694 68,000 64,939\n")
+    lime_rows = x._page_rows(lime72)
+    li = lime_rows.index("Borrowing (incl. overdraft) 15,000 51,396 60,000 25,000")
+    ai = lime_rows.index("Amount 32,918 62,694 68,000 64,939")
+    assert x._table_scope(lime_rows, None, li, "carrying", tsw) == "undiscounted"
+    assert x._table_scope(lime_rows, None, ai, "undiscounted", tsw) == "all_liabilities"  # accounts payable above the grand Amount row
+    assert x._table_scope(lime_rows, None, li, "undiscounted", tsw, debt_scoped=True) == "unknown"  # v089's own read
+    # the carrying-column exemption: a table whose title says undiscounted but which prints a carrying
+    # column is readable under both bases (Ework/Instalco, v076/v085 -- the title names the OTHER column)
+    assert x._table_scope(ework_rows, None, ework_idx, "carrying", tsw) == "carrying"
+    assert x._table_scope(instalco_rows, None, instalco_idx, "carrying", tsw) == "carrying"
+    assert x._table_scope(instalco_rows, None, instalco_idx, "undiscounted", tsw) == "carrying"
+    # a "liquidity risk" section heading above prose above the carrying table never brands the table
+    # (MedCap p.101: the walk stops at the prose that names amounts, before reaching LIKVIDITETSRISK);
+    # Boozt p.121's all-liabilities maturity table has NO marker on its own title line -- the marker
+    # ("contractual undiscounted amounts") sits in a 181-char prose sentence the title cap excludes, and
+    # the debt row the label reads stays readable (the label pins 273/63 from exactly that row)
+    medcap101 = ("LIKVIDITETSRISK\n"
+                 "Likviditetsrisk är risken att koncernen inte kan finansiera lånebetalningar eller andra finansiella\n"
+                 "åtaganden i den takt de förfaller till betalning och hanteras genom uppläggning av\n"
+                 "av tillgängliga likvida medel, kortfristiga placeringar och outnyttjat utrymme på checkräkningskredit.\n"
+                 "Per 2025-12-31 uppgick driftlikviditeten till 370,4 (370,1)\n"
+                 "MSEK. 100 procent av koncernens krediter löper med så\n"
+                 "kallad rörlig ränta med 3 månaders bindningstid.\n"
+                 "Förfallotidpunkt för upplåning Koncernen Moderbolaget\n"
+                 "MSEK 2025-12-31 2024-12-31 2025-12-31 2024-12-31\n"
+                 "6 månader eller mindre 54,3 41,8 – –\n"
+                 "6 – 12 månader 48,0 19,0 – –\n"
+                 "1 – 5 år 616,5 316,7 – –\n"
+                 "Totalt 718,7 377,6 – –\n")
+    mc_rows = x._page_rows(medcap101)
+    assert x._table_scope(mc_rows, None, len(mc_rows) - 1, "carrying", tsw) == "unknown"
+    assert x._table_scope(mc_rows, None, len(mc_rows) - 1, "undiscounted", tsw) == "unknown"
+    boozt121 = ("LIQUIDITY RISK\n"
+                "The maturity structure for all of the Group's financial liabilities, including principal and interest, is shown in the table below. The table shows contractual undiscounted amounts.\n"
+                "MATURITY STRUCTURE OF OUTSTANDNING ACCOUNT PAYABLES AND OTHER LIABILITIES\n"
+                "Total borrowing\n"
+                "Maturity within\n"
+                "3 months\n"
+                "Maturity within three to twelve months\n"
+                "Maturity within one to five years\n"
+                "Maturity within five to nie years\n"
+                "Maturity after nine years\n"
+                "Maturity structure of borrowing Dec 31,2024\n"
+                "Liabilities to credit institutions 380 - - 380 - -\n"
+                "Lease liabilities 499 29 85 251 135 -\n"
+                "Accounts payables 1,235 1,225 10 - - -\n"
+                "Other liabilities 531 527 4 - - -\n"
+                "Total 2,645 1,781 99 631 135 0\n"
+                "Maturity structure of borrowing Dec 31, 2025\n"
+                "Liabilities to credit institutions 0 - - 0 - -\n"
+                "Lease liabilities 441 26 78 273 63 -\n"
+                "Accounts payables 1,384 1,374 10 - - -\n"
+                "Other liabilities 533 528 4 - - -\n"
+                "Total 2,358 1,928 92 273 63 0\n")
+    bz_rows = x._page_rows(boozt121)
+    bzi = bz_rows.index("Lease liabilities 441 26 78 273 63 -")
+    assert x._table_scope(bz_rows, None, bzi, "carrying", tsw) == "unknown"  # the label's own read, kept
+    assert x._table_scope(bz_rows, None, bzi, "undiscounted", tsw) == "unknown"
+    # Smartcraft p.59: the table's own title names it ("Total undiscounted lease liabilities") -- refused
+    # under carrying even though the rows are the label-declined lease buckets the stored answer read
+    smartcraft59 = ("2025 ANNUAL REPORT\n"
+                    "Total undiscounted lease liabilities\n"
+                    "Expenses related to the right of use assets and lease liabilites recongized in the P&L\n"
+                    "Amounts in NOK (thousands) Maturity analysis Total 2025\n"
+                    "Less than 1 year 13 825 13 825\n"
+                    "1-2-years 8 088 8 088\n"
+                    "2-3 years 7 462 7 462\n"
+                    "3-4 years 2 155 2 155\n"
+                    "4-5 years - -\n"
+                    "More than 5 years - -\n"
+                    "Total undiscounted lease liability 31 529 31 529\n"
+                    "Amounts in NOK (thousands) 2025 2024\n"
+                    "Total lease expenses related to short-term or low value leases 629 774\n"
+                    "Depreciation 13 253 12 457\n"
+                    "Interest on lease liabilites 2 467 1 825\n"
+                    "Total expenses from leases recognized in the P&L 16 348 15 056\n")
+    sc_rows = x._page_rows(smartcraft59)
+    assert x._table_scope(sc_rows, None, 4, "carrying", tsw) == "undiscounted"
+    # end to end, RVRC -- the stored v097 pass shape: the model answered the Total row of the refused
+    # table for all four fields (the repair had overwritten its own 12 with 220). Every one of them is
+    # refused now, with a warning naming the table; the check honestly reports its missing operands
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 220, "unit": "SEKm", "period": "2025", "raw_label": "Total",
+         "source": {"page": 1, "quote": "Total 210 3 7 0 0 220"}},
+        {"key": "due_within_1_year", "value": 210, "unit": "SEKm", "period": "2025", "raw_label": "Total",
+         "source": {"page": 1, "quote": "Total 210 3 7 0 0 220"}},
+        {"key": "due_1_to_5_years", "value": 10, "unit": "SEKm", "period": "2025", "raw_label": "Total",
+         "source": {"page": 1, "quote": "Total 210 3 7 0 0 220"}},
+        {"key": "due_after_5_years", "value": 0, "unit": "SEKm", "period": "2025", "raw_label": "Total",
+         "source": {"page": 1, "quote": "Total 210 3 7 0 0 220"}}]}
+    out = x.extract([rvrc110], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": None, "due_within_1_year": None, "due_1_to_5_years": None, "due_after_5_years": None}, (got, out["warnings"])
+    assert sum("refused" in w for w in out["warnings"]) >= 4, out["warnings"]
+    assert any("table 'Maturity analysis regarding non-discounted liabilities' is undiscounted" in w for w in out["warnings"]), out["warnings"]
+    assert out["checks"][0]["detail"].startswith("missing:"), out["checks"]
+    # and the model's own Note 21 read (p.109, one page earlier) survives untouched: a carrying row of
+    # the borrowings disclosure is not in any refused table -- 12 kept, buckets honestly null
+    rvrc109 = ("The table below shows conditions and maturity dates for respective interest-bearing liabilities:\n"
+               "SEKm Reported value Currency Matures Interest\n"
+               "Long-term liabilities to credit institutions as of 30 June 2025\n"
+               "Bank loan Facility B 0 SEK — Variable\n"
+               "Lease liabilities (see Note 18 Lease agreements) 12 SEK 1) Variable\n"
+               "Reported value\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 12, "unit": "SEKm", "period": "2025", "raw_label": "Lease liabilities (see Note 18 Lease agreements)",
+         "source": {"page": 2, "quote": "Lease liabilities (see Note 18 Lease agreements) 12 SEK 1) Variable"}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([rvrc110, rvrc109], [1, 2], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got["total_debt"] == 12 and got["due_within_1_year"] is None, (got, out["warnings"])
+    # end to end, Lime -- the stored v097 shape (buckets citing the liquidity row, total honestly null):
+    # both citations refused, and the column repair's own attempt on the same table declines with the
+    # same reason instead of filling 66,396/85,000
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_within_1_year", "value": 66396, "unit": "Tkr", "period": "2025", "raw_label": "Borrowing (incl. overdraft)",
+         "source": {"page": 1, "quote": "Borrowing (incl. overdraft) 15,000 51,396 60,000 25,000"}},
+        {"key": "due_1_to_5_years", "value": 85000, "unit": "Tkr", "period": "2025", "raw_label": "Borrowing (incl. overdraft)",
+         "source": {"page": 1, "quote": "Borrowing (incl. overdraft) 15,000 51,396 60,000 25,000"}},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([lime72], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": None, "due_within_1_year": None, "due_1_to_5_years": None, "due_after_5_years": None}, (got, out["warnings"])
+    assert any("table 'Liquidity risk - Group' is undiscounted" in w for w in out["warnings"]), out["warnings"]
+    # and the fill with the model declined everywhere (the live v097 shape): the column repair declines
+    # on the refused table -- no 66,396/85,000 fill, the refusal warning instead
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([lime72], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert all(v is None for v in got.values()), (got, out["warnings"])
+    assert any("column reading of 'Borrowing (incl. overdraft) 15,000 51,396 60,000 25,000' declined" in w
+               and "refused under the carrying basis" in w for w in out["warnings"]), out["warnings"]
+    # Smartcraft end to end, the live v097 shape (model declined, the statement-row fill read p.59's
+    # "Less than 1 year 13 825" rows): the guard refuses what that fill cited -- the table's own title
+    # names it ("Total undiscounted lease liabilities"; the labels pin the carrying 13,439/14,809 from
+    # p.58, the stored 13,825-family reads are the undiscounted ones)
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([smartcraft59], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert all(v is None for v in got.values()), (got, out["warnings"])
+    assert sum("refused" in w for w in out["warnings"]) >= 2, out["warnings"]
+    assert any("table 'Total undiscounted lease liabilities' is undiscounted" in w for w in out["warnings"]), out["warnings"]
+    # the undiscounted basis reads the liquidity table it is told to read (v089's Instalco case, above,
+    # still passes); RVRC's all-liabilities Total stays refused on that basis too
+    basis_saved = x.debt_basis
+    x.debt_basis = lambda: "undiscounted"
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 220, "unit": "SEKm", "period": "2025", "raw_label": "Total",
+         "source": {"page": 1, "quote": "Total 210 3 7 0 0 220"}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([rvrc110], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert all(v is None for v in got.values()), (got, out["warnings"])
+    assert any("is an all-liabilities table" in w for w in out["warnings"]), out["warnings"]
+    x.debt_basis = basis_saved  # restore: the carrying default governs everything after this block
     print("confidence self-check ok")
 
 

@@ -841,7 +841,8 @@ def _derived_value(field: dict, texts: list[str], fiscal_year, check: dict | Non
     return None
 
 
-def _between_rows(sf: dict, fields: list[dict], sfs: list[dict], defaults: dict, texts: list[str], fiscal_year, check: dict, page: int):
+def _between_rows(sf: dict, fields: list[dict], sfs: list[dict], defaults: dict, texts: list[str], fiscal_year, check: dict, page: int,
+                  scope_words: dict | None = None, basis: str = "carrying", warnings: list[str] | None = None):
     """A missing operand of an identity when the model answered nothing: the full rows printed strictly between the other
     operands' rows, when their sums close the identity in every column (Addnode: "Profit after financial items 514 536",
     "Current tax -157 -154", "Deferred tax 27 20", "Profit for the year 384 402"; no total tax row exists), the one row among them
@@ -856,6 +857,14 @@ def _between_rows(sf: dict, fields: list[dict], sfs: list[dict], defaults: dict,
     if len(idx) < 2:
         return None
     top = min(idx)
+    scope = _table_scope(rows, None, top, basis, scope_words) if scope_words else "unknown"
+    if scope in ("undiscounted", "all_liabilities"):
+        # v103: no derivation out of a table the basis refuses -- anchored at the uppermost operand row,
+        # the row whose table the between/window rows belong to
+        if warnings is not None:
+            warnings.append(f"{sf['key']}: no between-rows derivation -- {_scope_reason(rows, None, top, scope_words, scope)}; "
+                            f"not read under the {basis} basis")
+        return None
     header = _row_year_column(rows, top, fiscal_year)  # row-anchored at the uppermost operand row: the rows this derivation reads sit at or directly above it
     if not header or header[1] < 2:
         return None
@@ -950,7 +959,8 @@ def _balance_sheet_date(window: list[str], fiscal_year) -> date:
     return date(int(fiscal_year), 12, 31)
 
 
-def _date_bucket_derive(schema: dict, fields: list[dict], texts: list[str], fiscal_year) -> dict[str, tuple] | None:
+def _date_bucket_derive(schema: dict, fields: list[dict], texts: list[str], fiscal_year,
+                        basis: str = "carrying", warnings: list[str] | None = None) -> dict[str, tuple] | None:
     """{key: (value, quote, page, raw_label)} for however many of debt_maturity's three buckets a date-
     per-instrument note proves, when the model answered null on some or all of them: Proact prints one row
     per loan/lease -- label, then its own due date/year/year-range, then its carrying amount -- instead of
@@ -985,6 +995,14 @@ def _date_bucket_derive(schema: dict, fields: list[dict], texts: list[str], fisc
     if src["quote"] not in rows:
         return None
     ti = rows.index(src["quote"])
+    scope = _table_scope(rows, None, ti, basis, schema.get("table_scope_words")) if schema.get("table_scope_words") else "unknown"
+    if scope in ("undiscounted", "all_liabilities"):
+        # v103: no date-bucket derivation out of a table the basis refuses -- anchored at total_debt's
+        # own verified row, whose window the instrument rows above it belong to
+        if warnings is not None:
+            warnings.append(f"{total_key}: no date-bucket derivation -- {_scope_reason(rows, None, ti, schema['table_scope_words'], scope)}; "
+                            f"not read under the {basis} basis")
+        return None
     window = rows[max(0, ti - _DATE_BUCKET_WINDOW):ti]
     fye = _balance_sheet_date(window, fiscal_year)
     sums: dict[str, float] = {}
@@ -1079,7 +1097,7 @@ _TORN_GROUP = re.compile(r"(?<![\d,.])\d{1,3}[ ]\d{3}(?![.'\d]|,\d{3})")  # ONE 
 
 
 def _finer_split_rows(fields: list[dict], schema: dict, texts: list[str], fiscal_year,
-                      warnings: list[str], values: dict, filled: set) -> None:
+                      warnings: list[str], values: dict, filled: set, basis: str = "carrying") -> None:
     """A maturity note that prints one row per FINER interval (Rusta Note 11: "0–6 months 523 /
     7–12 months 516 / 1–2 years 969 / 2–5 years 2,184 / >5 years 2,431 / Total 6,624") splits a
     bucket over several sibling rows no existing repair sums: _statement_row deliberately declines
@@ -1122,6 +1140,13 @@ def _finer_split_rows(fields: list[dict], schema: dict, texts: list[str], fiscal
     if src["quote"] not in rows:
         return
     ti = rows.index(src["quote"])
+    scope = _table_scope(rows, None, ti, basis, schema.get("table_scope_words")) if schema.get("table_scope_words") else "unknown"
+    if scope in ("undiscounted", "all_liabilities"):
+        # v103: no finer-split derivation out of a table the basis refuses -- anchored at total_debt's
+        # own verified row, the row whose table the sibling rows above it belong to
+        warnings.append(f"{total_key}: no finer-split derivation -- {_scope_reason(rows, None, ti, schema['table_scope_words'], scope)}; "
+                        f"not read under the {basis} basis")
+        return
     header = _row_year_column(rows, ti, fiscal_year) or _year_column(text, fiscal_year)
     if not header:
         return  # no column the fiscal year is provably in
@@ -1372,6 +1397,122 @@ def _bucket_year_hits(text: str, fiscal_year) -> list[tuple[int, str]]:
     if tail:
         hits.append((pos + tail.start(), "due_after_5_years"))
     return hits
+
+
+_SCOPE_TITLE_MAX = 100  # v103: a table's own title is a standalone short line; prose definitions and torn
+# multi-column glue are not (Boozt p.121's own table title is 73 chars, the prose sentence above it that
+# names "contractual undiscounted amounts" is 181 -- the cap is what keeps the marker on the title block
+# and off the section prose above it)
+_CARRY_COLUMN = re.compile(r"(?i)\bcarrying\b|\bredovisat\b|\bbokfört\b|\bbook value\b")  # v103: carrying-
+# column wording, a superset of total_debt's own header_synonyms ("carrying amount" / "carrying value" /
+# "redovisat värde" / "bokfört värde") -- plus "book value" (Humble's own column header) and the bare word
+# "carrying", because a torn header can break the phrase while the word still names the column (Ework's
+# real p.70: "Total undis- Carrying kSEK Due < 1 month ... counted value amount"). Deliberately not added
+# to header_synonyms: that list re-tags the total slot (v076) and must not change meaning.
+
+
+def _scope_zone(rows: list[str], i_header: int | None, i_total: int) -> tuple[list[str], list[str]]:
+    """v103: (title_rows, body_rows) of the table the row rows[i_total] sits in. The body is the rows
+    directly above i_total that carry a digit, contiguously -- a maturity table's data rows all print
+    figures, so prose, footnotes and section text break the walk (MedCap's carrying table ends at its own
+    title because the prose above it names amounts), and a quote stitched or prose-written far below a
+    table never walks back up into it (Storytel's covenants sentence). The title block is the digit-free
+    rows above the body, short ones only (_SCOPE_TITLE_MAX): a section heading above prose stays
+    unreachable (Boozt's "LIQUIDITY RISK" must not brand the all-liabilities table below prose that
+    names it, and MedCap's "LIKVIDITETSRISK" must not brand the carrying table under it). Both zones
+    bounded by 25 rows (v085's window); i_header, when the caller knows the table's own header row, is
+    the walk's floor -- the block of a stacked page never climbs into the table above."""
+    lo = max(0, i_total - 25)
+    floor = i_header if isinstance(i_header, int) and 0 <= i_header < i_total else lo - 1
+    j = i_total - 1
+    while j > floor and j >= lo and re.search(r"\d", rows[j]):
+        j -= 1
+    body = rows[j + 1:i_total]
+    title: list[str] = []
+    k = j
+    while k >= lo:
+        row = rows[k]
+        if k != j and re.search(r"\d", row):
+            break  # prose that names figures, or a table stacked above: the title block is over
+        if len(row) > _SCOPE_TITLE_MAX and not (k == j and i_header is not None):
+            break  # the caller's own header row (a floor stop) is table furniture, not prose -- uncapped
+        title.append(row)
+        k -= 1
+    return title, body
+
+
+def _table_scope(rows: list[str], i_header: int | None, i_total: int, basis: str = "carrying",
+                 scope_words: dict | None = None, debt_scoped: bool = False) -> str:
+    """v103: which maturity table the row rows[i_total] belongs to, for the wrong-table guard:
+    "carrying" -- the table prints a carrying-amount column (Ework, Instalco, Bergman & Beving,
+        Humble's "Book value"): readable under both bases, whatever its title says -- the title's
+        "undiscounted" names the other column, and reading the carrying column is exactly v076;
+    "undiscounted" -- the liquidity note's undiscounted table (title/header markers, no carrying
+        column): refused under the carrying basis (v097's two mis-scoped fills -- RVRC's 220 read off
+        the "Maturity analysis regarding non-discounted liabilities" Total row, Lime's 66,396 off the
+        "Liquidity risk - Group" Borrowing row), and allowed under the undiscounted basis, where it is
+        the table v089 reads, unless its own shape makes it "all_liabilities";
+    "all_liabilities" -- a marker-carrying table read on a row that is not debt-scoped while non-debt
+        liability rows (trade payables, accounts payable, ...) sit between its header and that row:
+        refused under both bases -- trade payables are not debt on either one (RVRC's Total row sums
+        payables 119 and expected returns 34 into total_debt with the identity endorsing it). Under
+        the carrying basis the title rule already refuses the whole table, so this verdict only ever
+        surfaces under the undiscounted basis, where the title rule steps aside for v089's read;
+    "unknown" -- no marker provable on the page: exactly today's behaviour, no refusal. A markerless
+        all-liabilities table (Karnell's earn-outs and accounts-payable rows) is NOT refused here:
+        v095's debt-row-first ordering already governs it, and a bare word-list refusal would take
+        label-pinned reads off balance sheets and torn pages (Alligo, RaySearch, Svedbergs,
+        Stillfront, Hexatronic -- the five a full-corpus dry run caught before this shipped).
+
+    `basis` resolves which table the extraction is told to read (debt_basis()); `debt_scoped` says the
+    caller's row names the borrowing scope itself (the total field's own row vocabulary) -- only
+    consulted under the undiscounted basis, where a debt row of the liquidity note is the legitimate
+    read (Lime's Borrowing row) while its grand-total row is not."""
+    words = scope_words or {}
+    und_words = [w.lower() for w in words.get("undiscounted", [])]
+    all_words = [w.lower() for w in words.get("all_liabilities", [])]
+    if not und_words and not all_words:
+        return "unknown"  # a schema that opts out (every section but debt_maturity) keeps today's behaviour
+    title, body = _scope_zone(rows, i_header, i_total)
+    tlow = " ".join(r.translate(_DASHES).lower() for r in title)
+    blow = " ".join(r.translate(_DASHES).lower() for r in body)
+    if _CARRY_COLUMN.search(tlow) or _CARRY_COLUMN.search(blow) \
+            or _CARRY_COLUMN.search(rows[i_total].translate(_DASHES)):
+        return "carrying"  # the table's own carrying column -- the carrying read, both bases (v076/v085)
+    if not any(w in tlow for w in und_words):
+        return "unknown"  # no title/header marker inside the walk's reach: nothing provable to refuse on
+    if basis == "undiscounted" and (debt_scoped or not any(w in blow for w in all_words)):
+        return "unknown"  # v089's own table: the debt-scoped read of it is the basis's legitimate read
+    if basis == "undiscounted":
+        return "all_liabilities"
+    return "undiscounted"
+
+
+def _scope_reason(rows: list[str], i_header: int | None, i_total: int, scope_words: dict | None,
+                  scope: str = "undiscounted") -> str:
+    """The 'table <row> is undiscounted / is an all-liabilities table (<word> among its rows)' half of a
+    guard warning -- names the row the marker matched, so the warning points at the page."""
+    words = scope_words or {}
+    und_words = [w.lower() for w in words.get("undiscounted", [])]
+    all_words = [w.lower() for w in words.get("all_liabilities", [])]
+    title, body = _scope_zone(rows, i_header, i_total)
+    hit = next((r for r in title if any(w in r.translate(_DASHES).lower() for w in und_words)), None)
+    frag = (hit if hit is not None else (title[0] if title else rows[i_total])).strip()
+    if scope != "all_liabilities":
+        return f"table {frag!r} is undiscounted"
+    word = next((w for w in all_words if w in " ".join(r.translate(_DASHES).lower() for r in body)), None)
+    return f"table {frag!r} is an all-liabilities table ({word!r} among its rows)"
+
+
+def _scope_header(rows: list[str], i_total: int, bucket_sfs: dict, max_back: int = 25) -> int | None:
+    """Index of the nearest row above i_total that names a bucket of its own (_bucket_synonym_hits over
+    the schema's bucket fields): the fill gate's known header row for _table_scope -- in a row-per-bucket
+    table that nearest row is itself a bucket-labelled data row, still a correct floor for the walk."""
+    for j in range(i_total - 1, max(0, i_total - max_back) - 1, -1):
+        if any(k.split(":")[0] not in ("total", "_ignore")
+               for _, _, k in _bucket_synonym_hits(rows[j], bucket_sfs)):
+            return j
+    return None
 
 
 def _bucket_header(rows: list[str], idx: int, bucket_sfs: dict, fiscal_year, max_back: int = 25,
@@ -1643,6 +1784,8 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
     ignore_syns = schema.get("ignore_header_synonyms", [])  # v076: undiscounted/contractual total wording
     # (which of the two total-shaped word groups is the total slot and which is ignored follows the
     # basis -- v089's debt_basis(), threaded down to _bucket_synonym_hits through the calls below)
+    scope_words = schema.get("table_scope_words")  # v103: the wrong-table guard's marker vocabulary
+    debt_vocab = {"synonyms": total_sf.get("synonyms", []) + total_sf.get("row_synonyms", [])}
     by_key = {f["key"]: f for f in fields}
     cited = {by_key[k]["source"]["page"] for k in (total_key, *part_keys) if by_key[k]["source"]}
     for page in dict.fromkeys([p for p in pages[:2] if p] + sorted(cited)):
@@ -1660,6 +1803,14 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
             amounts = _row_amounts(rows[idx], len(col_keys), nil=None)
             if len(amounts) != len(col_keys):
                 continue
+            if scope_words:  # v103: the wrong-table guard -- a table the basis refuses is not filled from,
+                hdr_i = _scope_header(rows, idx, bucket_sfs)  # whatever row of it happens to align
+                scope = _table_scope(rows, hdr_i, idx, basis, scope_words,
+                                     debt_scoped=_label_known(_row_label(rows[idx]), debt_vocab))
+                if scope in ("undiscounted", "all_liabilities"):
+                    warnings.append(f"{total_key}: column reading of {rows[idx]!r} declined -- "
+                                    f"{_scope_reason(rows, hdr_i, idx, scope_words, scope)}; refused under the {basis} basis")
+                    continue
             # v095: the off-grid columns this header printed (">3 years") -- counted for the alignment above,
             # never assigned. A value in one is an honest decline: where its window crosses the 1/5-year
             # boundaries the split is a guess no check can verify (a counterfactual Karnell printing 173 under
@@ -2132,6 +2283,34 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
         if req and f["value"] is not None and by_key[req]["value"] is None and not _label_known(f.get("raw_label"), sf):
             warnings.append(f"{sf['key']}: {f.get('raw_label')!r} {f['value']} dropped: not a known {sf['label'].lower()} label and the statement has no {req}")
             f.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
+    # v103: the wrong-table guard on the model's own citations -- a field whose verified quote is a row
+    # of a table the basis refuses carries that table's scope, not the borrowings note's (v097's stored
+    # RVRC/Lime answers). Null it and say so; a carrying total quoted from another page stays (RVRC's
+    # own Note 21 row one page earlier is exactly that). A quote that is no printed row at all (stitched,
+    # or a prose sentence the stated-zero path proved) is left to the provenance gates that own it.
+    scope_words = schema.get("table_scope_words")
+    if scope_words:
+        ident_sf = _identity_parts(schema)
+        total_voc = {"synonyms": []}
+        if ident_sf:
+            tsf = next((sf for sf in sfs if sf["key"] == ident_sf[0]), None)
+            total_voc = {"synonyms": (tsf or {}).get("synonyms", []) + (tsf or {}).get("row_synonyms", [])}
+        for sf, f in zip(sfs, fields):
+            src = f.get("source") or {}
+            page = src.get("page")
+            if f["value"] is None or sf["key"] in stated_zeros or not isinstance(page, int) \
+                    or not 0 < page <= len(texts) or not src.get("quote"):
+                continue
+            qrows = _page_rows(texts[page - 1])
+            qi = next((i for i, r in enumerate(qrows) if r == src["quote"] or quote_on_page(src["quote"], r)), None)
+            if qi is None:
+                continue
+            scope = _table_scope(qrows, None, qi, basis, scope_words,
+                                 debt_scoped=_label_known(_row_label(qrows[qi]), total_voc))
+            if scope in ("undiscounted", "all_liabilities"):
+                warnings.append(f"{sf['key']}: {f['value']} from {src['quote'][:70]!r} refused -- "
+                                f"{_scope_reason(qrows, None, qi, scope_words, scope)}; not read under the {basis} basis")
+                f.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
     values = {f["key"]: f["value"] for f in fields if isinstance(f["value"], (int, float))}
     units = Counter(f["unit"] for f in fields if f["unit"])
     periods = Counter(f["period"] for f in fields if re.fullmatch(r"\d{4}", str(f["period"])))
@@ -2165,7 +2344,8 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
         if sc.get("identity") and missing and pages and fiscal_year:
             key = missing  # Addnode after two LLM timeouts: no tax answer, and the statement prints no total tax row
             sf, f = next(((s, g) for s, g in zip(sfs, fields) if g["key"] == key), (None, None))
-            fix = f and f["value"] is None and _between_rows(sf, fields, sfs, defaults, texts, fiscal_year, sc, pages[0])
+            fix = f and f["value"] is None and _between_rows(sf, fields, sfs, defaults, texts, fiscal_year, sc, pages[0],
+                                                              schema.get("table_scope_words"), basis, warnings)
             if fix:
                 warnings.append(f"{key}: model returned null; {fix[1]!r} sits between the other rows of {c['name']} and closes it in every column")
                 f.update(value=fix[0], period=str(fiscal_year), raw_label=fix[2], source={"page": pages[0], "quote": fix[1]},
@@ -2173,7 +2353,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                 values[key] = fix[0]
                 filled.add(key)
                 c.update(_check(sc, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema, stated_zeros=stated_zeros))
-            elif (dated := _date_bucket_derive(schema, fields, texts, fiscal_year)):
+            elif (dated := _date_bucket_derive(schema, fields, texts, fiscal_year, basis, warnings)):
                 # a date-per-instrument note (Proact, v073): _between_rows just found fewer than two other real
                 # operands to sit between, but a date-shaped note can prove every null bucket at once, so this
                 # is tried independently rather than only for the one key `missing` happened to name
@@ -2233,7 +2413,8 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                 others_fields = [g for g in fields if g is not f]  # exclude f's own (about-to-be-dropped) quote from the operand search below
                 for sc in schema.get("checks", []):
                     if sc.get("identity") and re.search(rf"\b{re.escape(f['key'])}\b", sc["expr"]):
-                        fix = _between_rows(sf, others_fields, sfs, defaults, texts, fiscal_year, sc, pages[0])
+                        fix = _between_rows(sf, others_fields, sfs, defaults, texts, fiscal_year, sc, pages[0],
+                                            schema.get("table_scope_words"), basis, warnings)
                         if fix:
                             break
             if fix:
@@ -2253,7 +2434,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             f.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
             values.pop(sf["key"], None)
     _fill_bucket_columns(fields, sfs, schema, texts, pages, fiscal_year, warnings, values, filled, basis)
-    _finer_split_rows(fields, schema, texts, fiscal_year, warnings, values, filled)  # the bucket-ROW finer split (Rusta), beside the bucket-column reader above
+    _finer_split_rows(fields, schema, texts, fiscal_year, warnings, values, filled, basis)  # the bucket-ROW finer split (Rusta), beside the bucket-column reader above
     _normalize_sign(fields, sfs, schema, texts, warnings, values)  # v101: liabilities-negative printed totals/buckets record their magnitude; the identity below closes on carrying positives
     checks = [_check(c, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema, stated_zeros=stated_zeros) for c in schema.get("checks", [])]
     for c, sc in zip(checks, schema.get("checks", [])):
