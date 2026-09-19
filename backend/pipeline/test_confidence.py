@@ -2601,6 +2601,91 @@ def demo():
     out = x.extract([yr999], [1], dm, {"fiscal_year": 2025})
     assert {f["key"]: f["value"] for f in out["fields"]}["total_debt"] == 999, out["warnings"]
     assert "buckets_by_year" not in out, out.get("buckets_by_year")  # 120+80+0+40+0+60 != 999
+    # v109 continuation -- the ROW-shaped year table (seed 11 landed after the lane's first pass): the
+    # report prints one figure per calendar year and pymupdf tears the rows into a single line of
+    # "<year> <figure>" pairs. BTS p.92 (data/kb pages.jsonl, real text, trimmed to the two tables):
+    # "Maturity analyses for liabilities to credit institutions / SEK thousands 12-31-25 2026 77,141
+    # 2027 39 2028 300,039 2029 202,539 2030 39 / Total 579,797" -- the years sum exactly onto the
+    # model's own verified total (the liabilities table's row above), and the key appears. The pairs
+    # chain from fiscal_year+1 exactly; the table's own one-figure Total row must print below them.
+    bts92 = ("Liabilities to credit institutions\n"
+             "SEK thousands 12-31-25 12-31-24\n"
+             "Non-current liabilities 502,656 202,500\n"
+             "Current liabilities 77,141 218,453\n"
+             "Total 579,797 420,953\n"
+             "Maturity analyses for liabilities to credit institutions\n"
+             "SEK thousands 12-31-25 2026 77,141 2027 39 2028 300,039 2029 202,539 2030 39\n"
+             "Total 579,797\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 579797, "unit": "SEK thousands", "period": "2025", "raw_label": "Total",
+         "source": {"page": 1, "quote": "Total 579,797 420,953"}},
+        *[{"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None}
+          for k in ("due_within_1_year", "due_1_to_5_years", "due_after_5_years")]]}
+    out = x.extract([bts92], [1], dm, {"fiscal_year": 2025})
+    assert {f["key"]: f["value"] for f in out["fields"]}["total_debt"] == 579797, out["warnings"]
+    by = out["buckets_by_year"]
+    assert by["basis"] == "carrying", by
+    assert [(y["label"], y["value"]) for y in by["years"]] == [
+        ("2026", 77141), ("2027", 39), ("2028", 300039), ("2029", 202539), ("2030", 39)], by
+    assert all(y["source"] == {"page": 1, "quote": "SEK thousands 12-31-25 2026 77,141 2027 39 2028 300,039 2029 202,539 2030 39"}
+               for y in by["years"]), by
+    # the tail-year path the BTS page cannot reach (Ericsson p.97's real shape carries it, and its own
+    # printed total -- but a LEASE table: below it declines on total_debt, the gate doing its work)
+    ericsson97 = ("Total interest-bearing liabilities 32,703 38,041\n"
+                  "Future payment obligations for leases\n"
+                  "Operating leases 2026 530 2027 386 2028 308 2029 252 2030 193\n"
+                  "2031 and later 169\n"
+                  "Total 1,838\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 32703, "unit": "SEK m", "period": "2025", "raw_label": "Total interest-bearing liabilities",
+         "source": {"page": 1, "quote": "Total interest-bearing liabilities 32,703 38,041"}},
+        *[{"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None}
+          for k in ("due_within_1_year", "due_1_to_5_years", "due_after_5_years")]]}
+    out = x.extract([ericsson97], [1], dm, {"fiscal_year": 2025})
+    assert {f["key"]: f["value"] for f in out["fields"]}["total_debt"] == 32703, out["warnings"]
+    assert "buckets_by_year" not in out, out.get("buckets_by_year")  # 530+386+308+252+193+169 = 1,838 != 32,703
+    # the same machinery with years that DO close on total_debt: the open-end tail row rides along as
+    # the last bucket, its label as printed, its quote its own row
+    yr_tail = "Note 20 Borrowings\nMSEK\n2026 120 2027 80 2028 – 2029 40\nSenare 60\nTotal 300\n"
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 300, "unit": "MSEK", "period": "2025", "raw_label": "Total",
+         "source": {"page": 1, "quote": "Total 300"}},
+        *[{"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None}
+          for k in ("due_within_1_year", "due_1_to_5_years", "due_after_5_years")]]}
+    out = x.extract([yr_tail], [1], dm, {"fiscal_year": 2025})
+    by = out["buckets_by_year"]
+    assert [(y["label"], y["value"]) for y in by["years"]] == [
+        ("2026", 120), ("2027", 80), ("2028", 0), ("2029", 40), ("Senare", 60)], by  # the dash is the report's explicit 0 (v078)
+    assert by["years"][-1]["source"]["quote"] == "Senare 60", by
+    # a two-figure Total row below the years is a stacked table's own row (BTS p.92's liabilities
+    # table prints exactly that shape): no one-column total, no proof, no key
+    stacked = "Maturity analyses\nSEK thousands 12-31-25 2026 100 2027 50\nTotal 150 140\n"
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 150, "unit": "SEK thousands", "period": "2025", "raw_label": "Total",
+         "source": {"page": 1, "quote": "Total 150 140"}},
+        *[{"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None}
+          for k in ("due_within_1_year", "due_1_to_5_years", "due_after_5_years")]]}
+    out = x.extract([stacked], [1], dm, {"fiscal_year": 2025})
+    assert "buckets_by_year" not in out, out.get("buckets_by_year")
+    # BTS p.93's NOTE 21, the untorn one-row-per-year form (real text): non-current only, first year
+    # 2027 = fiscal_year+2 -- the inline reader never fires and nothing else reads the shape; the
+    # report's own narrower table (total 548,320) is not total_debt's answer
+    bts93 = ("NOTE 21 | Non-current liabilities\n"
+             "Group\n"
+             "SEK thousands 12-31-25\n"
+             "2027 18,415\n"
+             "2028 318,414\n"
+             "2029 211,452\n"
+             "2030 39\n"
+             "Total 548,320\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 548320, "unit": "SEK thousands", "period": "2025", "raw_label": "Total",
+         "source": {"page": 1, "quote": "Total 548,320"}},
+        *[{"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None}
+          for k in ("due_within_1_year", "due_1_to_5_years", "due_after_5_years")]]}
+    out = x.extract([bts93], [1], dm, {"fiscal_year": 2025})
+    assert {f["key"]: f["value"] for f in out["fields"]}["total_debt"] == 548320, out["warnings"]
+    assert "buckets_by_year" not in out, out.get("buckets_by_year")
     print("confidence self-check ok")
 
 
