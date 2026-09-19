@@ -182,13 +182,15 @@ def scored_pages(texts: list[str], schema: dict) -> list[tuple[float, int]]:
     return scored
 
 
-def candidate_pages(texts: list[str], schema: dict, top_n: int = 8) -> list[int]:
+def candidate_pages(texts: list[str], schema: dict, top_n: int = 10) -> list[int]:
     """1-based page numbers, best first. The page after the best one is always second (statements span two
     pages: EPS sits on the second). PROMPT_BUDGET bounds only the list's first WINDOW_PAGES pages -- the
     deepest full-text read extract() ever makes of it (the widen window pages[:4]); pages beyond that are
     seen by two-pass page selection as ~1200-char snippets only (extract's PAGE_SELECT_SNIPPET), so they
     are kept for it rather than trimmed: v123 measured 13/87 debt-label pages ranking #2-#8 being dropped
-    by a whole-list budget trim that no full-text reader was ever going to read."""
+    by a whole-list budget trim that no full-text reader was ever going to read. top_n 10 (was 8): the one
+    debt-label page ranking #9 (Inwido's Note 21) became a candidate with no other company moving on
+    either section; the cost is pass-1 snippets for up to two more pages."""
     pages = [page for _, page in scored_pages(texts, schema)[:top_n]]
     if pages and pages[0] < len(texts):
         pages = [pages[0], pages[0] + 1] + [p for p in pages[1:] if p != pages[0] + 1]
