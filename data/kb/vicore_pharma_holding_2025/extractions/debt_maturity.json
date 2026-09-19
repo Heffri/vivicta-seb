@@ -69,6 +69,6 @@
   "warnings": [
     "two_pass: page [46, 47] selected from candidates [46, 47, 45]",
     "total_debt: quote not found on page 46",
-    "published: seed5 run replayed with extract.py @ 0a45f666"
+    "published: seed5 run replayed with extract.py @ e9640e49"
   ]
 }

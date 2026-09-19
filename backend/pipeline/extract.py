@@ -1221,6 +1221,167 @@ def _finer_split_rows(fields: list[dict], schema: dict, texts: list[str], fiscal
         filled.add(key)
 
 
+_NONCURRENT_WORDS = ("långfristig", "non-current", "noncurrent", "long-term", "long term")  # v110: the two
+_CURRENT_WORDS = ("kortfristig", "current", "short-term", "short term")  # section-heading families, structure not vocabulary
+_PAIR_TITLE_WINDOW = 8  # rows the section heading may sit below the note title (NOTE's sits directly under it)
+_PAIR_SECTION_WINDOW = 14  # rows a section's own rows may span before its Summa
+_PAIR_TAIL_WINDOW = 6  # rows after the second Summa that may still print the block's own grand total
+
+
+def _subtotal_pair_fill(fields: list[dict], sfs: list[dict], schema: dict, texts: list[str], pages: list[int],
+                        fiscal_year, warnings: list[str], values: dict, filled: set, basis: str = "carrying") -> None:
+    """v110: a borrowings note split into a non-current and a current section, each closed by its own
+    Summa/Total row, with NO third grand-total row anywhere in the block (NOTE Not 19, p.107:
+    "Långfristiga skulder ... Summa 228 861 250 023 / Kortfristiga skulder ... Summa 595 420 380 108").
+    The maturity buckets such a note names are exactly two -- everything non-current and everything
+    current -- so it proves total_debt (A + B, value_derived; the sum is printed nowhere, which is the
+    gap: the model's own 824,281 was dropped as computed-not-read while the two Summa rows sit right
+    there) and due_within_1_year (B, the current section's own printed subtotal). The other two
+    buckets stay null -- the note prints nothing that splits them (Ambea/Karnov's family, v088's
+    "current/non-current granularity only" gap 2; recorded, not forced).
+
+    Structural, not vocabulary-driven (no schema edit, v088's ruling): a note TITLE row (a debt word
+    of total_debt's own synonyms + row_synonyms, printing no figures) heads a section heading A
+    (Långfristiga/Non-current/Long-term), then A's detail rows, then A's Summa; directly below, past
+    furniture only, a section heading B (Kortfristiga/Current/Short-term), B's rows, B's Summa; and
+    no total-shaped row within _PAIR_TAIL_WINDOW rows after B's Summa -- a block that prints its own
+    grand total (Ambea G18's "Total interest-bearing liabilities 12,643") is that total's shape, not
+    this one. Both Summas must sit in one year header (_row_year_column, agreeing), and each
+    section's own detail rows must close to its Summa in EVERY column -- the note's own arithmetic
+    is what proves a bare "Summa" row is its section's subtotal and not another table's (a third
+    Summa interleaved from a stacked table breaks the section walk or fails this closure). Declines
+    are silent (counter-examples must replay byte-identical); the model's own non-null total that
+    DISAGREES with A+B declines too -- the note and the model then name different scopes, a human's
+    question, not a repair's. Corroboration (the model's total matching, or the prose conversion of
+    A+B -- NOTE's p.109 "räntebärande skulder 824,2 (630,0) MSEK") only names itself in the warning;
+    without it the adoption still stands on the two closures, at value_derived confidence."""
+    ident = _identity_parts(schema)
+    if not ident or not fiscal_year or set(ident[1]) != _DATE_BUCKET_KEYS or basis != "carrying" \
+            or "due_within_1_year" not in ident[1]:
+        return
+    total_key, part_keys = ident
+    total_sf = next((sf for sf in sfs if sf["key"] == total_key), None)
+    if not total_sf:
+        return
+    by_key = {f["key"]: f for f in fields}
+    debt_words = sorted({w for w in (" ".join(str(s).translate(_DASHES).lower().split())
+                                     for s in total_sf.get("synonyms", []) + total_sf.get("row_synonyms", [])) if w})
+
+    def _heading_like(r: str) -> bool:  # prints no figures, or only calendar years (a header line)
+        return all(isinstance(a, int) and 1900 <= a <= 2100 for a in _row_amounts(r))
+
+    def _vocab(r: str) -> str | None:  # which section family a heading names; "non-current" contains "current", so A rules first
+        lab = " ".join(_row_label(r).translate(_DASHES).lower().split())
+        if any(w in lab for w in _NONCURRENT_WORDS):
+            return "A"
+        return "B" if any(w in lab for w in _CURRENT_WORDS) else None
+
+    def _subtotal_row(r: str) -> bool:  # a bare Total/Totalt/Summa label carrying a real (non-year) figure
+        return bool(_BARE_TOTAL.search(_row_label(r))) and any(not (isinstance(a, int) and 1900 <= a <= 2100)
+                                                               for a in _row_amounts(r))
+
+    def _find_pair(rows: list[str]) -> tuple | None:
+        """(hA, sumA, hB, sumB) of the first qualifying block on the page, or None."""
+        for t, r in enumerate(rows):
+            if not _heading_like(r) or not any(w in " ".join(r.translate(_DASHES).lower().split()) for w in debt_words):
+                continue
+            hA = next((i for i in range(t + 1, min(t + 1 + _PAIR_TITLE_WINDOW, len(rows)))
+                       if _heading_like(rows[i]) and _vocab(rows[i]) == "A"), None)
+            if hA is None or any(not _heading_like(rows[i]) for i in range(t + 1, hA)):
+                continue  # printed figures before any section heading: a table, not a sectioned note
+            sumA = next((i for i in range(hA + 1, min(hA + 1 + _PAIR_SECTION_WINDOW, len(rows))) if _subtotal_row(rows[i])), None)
+            if sumA is None or any(_heading_like(rows[i]) and _vocab(rows[i]) for i in range(hA + 1, sumA)):
+                continue  # section A runs into another section before its own Summa: never totalled alone
+            hB = next((i for i in range(sumA + 1, min(sumA + 1 + _PAIR_SECTION_WINDOW, len(rows)))
+                       if _heading_like(rows[i]) and _vocab(rows[i]) == "B"), None)
+            if hB is None or any(not _heading_like(rows[i]) for i in range(sumA + 1, hB)):
+                continue  # another table's rows between the two Summas (the stacked-table shape): not one note
+            sumB = next((i for i in range(hB + 1, min(hB + 1 + _PAIR_SECTION_WINDOW, len(rows))) if _subtotal_row(rows[i])), None)
+            if sumB is None or any(_heading_like(rows[i]) and _vocab(rows[i]) for i in range(hB + 1, sumB)):
+                continue
+            tail = next((i for i in range(sumB + 1, min(sumB + 1 + _PAIR_TAIL_WINDOW, len(rows)))
+                         if not _heading_like(rows[i])), None)
+            if tail is not None and (_BARE_TOTAL.search(_row_label(rows[tail])) or _label_known(_row_label(rows[tail]), total_sf)):
+                continue  # the block prints its own grand total after the sections: that row is total_debt's own read
+            return hA, sumA, hB, sumB
+        return None
+
+    def _closes(h: int, si: int, am: list) -> bool:  # the section's own rows sum to its Summa in every column
+        parts = []
+        for i in range(h + 1, si):
+            if _heading_like(rows[i]):
+                continue  # a wrapped label line
+            a = _row_amounts(rows[i], ncols)
+            if len(a) != ncols:
+                return False
+            parts.append(a)
+        return bool(parts) and all(abs(round(sum(a[c] for a in parts), 2) - am[c]) <= 2 for c in range(ncols))
+
+    def _prose_total(pair_total) -> int | None:  # a candidate page's prose printing the total (NOTE p.109's "824,2 MSEK")
+        for q in dict.fromkeys([p for p in pages if isinstance(p, int) and 0 < p <= len(texts)]):
+            for r in _page_rows(texts[q - 1]):
+                if not any(w in " ".join(r.translate(_DASHES).lower().split()) for w in debt_words):
+                    continue
+                for tok in re.findall(r"\d{1,3}(?:[  ]\d{3})+(?:[.,]\d{1,2})?|\d+[.,]\d{1,2}|\d{4,}", r):
+                    v = float(tok.replace(" ", "").replace(" ", "").replace(",", "."))
+                    if abs(v - pair_total) <= 2 or abs(v - pair_total / 1000) <= 0.1:
+                        return q
+        return None
+
+    cited = {by_key[k]["source"]["page"] for k in (total_key, *part_keys)
+             if isinstance((by_key[k].get("source") or {}).get("page"), int)}
+    scope_words = schema.get("table_scope_words")
+    for page in dict.fromkeys([p for p in pages[:2] if isinstance(p, int) and 0 < p <= len(texts)]
+                              + sorted(p for p in cited if 0 < p <= len(texts))):
+        rows = _page_rows(texts[page - 1])
+        pair = _find_pair(rows)
+        if not pair:
+            continue
+        hA, sumA, hB, sumB = pair
+        if scope_words and _table_scope(rows, None, sumB, basis, scope_words) in ("undiscounted", "all_liabilities"):
+            continue  # the wrong-table guard: a table the basis refuses is not a subtotal pair either
+        header = _row_year_column(rows, sumA, fiscal_year)
+        if not header or header != _row_year_column(rows, sumB, fiscal_year):
+            continue  # the two Summas must share one year header -- one note, one table
+        col, ncols = header
+        amA, amB = _row_amounts(rows[sumA], ncols), _row_amounts(rows[sumB], ncols)
+        if len(amA) != ncols or len(amB) != ncols or not _closes(hA, sumA, amA) or not _closes(hB, sumB, amB):
+            continue
+        pair_total = round(amA[col] + amB[col], 2)
+        model_total = by_key[total_key].get("value")
+        if isinstance(model_total, (int, float)) and not isinstance(model_total, bool) and abs(model_total - pair_total) > 2:
+            continue  # the note's own subtotals and the model's total name different scopes: not this repair's call
+        span = " ".join(rows[sumA:sumB + 1])  # both Summa rows verbatim, contiguously (a two-row join is not a page substring)
+        if not quote_on_page(span, texts[page - 1]):
+            continue
+        corroborated = None
+        if isinstance(model_total, (int, float)) and not isinstance(model_total, bool):
+            corroborated = "the model's own total"
+        elif (q := _prose_total(pair_total)) is not None:
+            corroborated = f"page {q} prose"
+        note = f"; corroborated by {corroborated}" if corroborated else "; no printed or model total corroborates -- the two closures alone prove it"
+        current = by_key[total_key]["value"]
+        if not (isinstance(current, (int, float)) and not isinstance(current, bool) and abs(current - pair_total) <= 2):
+            label = f"{_row_label(rows[sumA])} ({_row_label(rows[hA])}) + {_row_label(rows[sumB])} ({_row_label(rows[hB])})"
+            prefix = "model returned null" if current is None else f"{current} disagrees with the note's own sections"
+            warnings.append(f"{total_key}: {prefix}; the note's two section subtotals on page {page} sum to "
+                            f"{pair_total} ({amA[col]} + {amB[col]}), each closing on its own rows{note}")
+            by_key[total_key].update(value=pair_total, period=str(fiscal_year), raw_label=label,
+                                     source={"page": page, "quote": span}, evidence=["quote_on_page", "value_derived"])
+            values[total_key] = pair_total
+            filled.add(total_key)
+        w1y = by_key["due_within_1_year"]
+        if not (isinstance(w1y["value"], (int, float)) and not isinstance(w1y["value"], bool) and abs(w1y["value"] - amB[col]) <= 2):
+            prefix = "model returned null" if w1y["value"] is None else f"{w1y['value']} is not the current section's own subtotal"
+            warnings.append(f"due_within_1_year: {prefix}; {amB[col]} is printed in the note's current-section Summa "
+                            f"row on page {page} ({rows[sumB]!r}){note}")
+            w1y.update(value=amB[col], period=str(fiscal_year), raw_label=_row_label(rows[sumB]),
+                       source={"page": page, "quote": rows[sumB]}, evidence=["quote_on_page"])
+            values["due_within_1_year"] = amB[col]
+            filled.add("due_within_1_year")
+        return  # one adoption per extraction: the note that validated is the borrowings note
+
+
 _BUCKET_BOUNDARY = {  # the schema's own synonyms cover most of this (dash-normalised below, so "1–2 years" matches
     # the schema's "1-2 years"); these patch gaps a plain header_synonyms literal-substring entry (case-
     # insensitive, no word boundary, scanned over the whole 25-row window _bucket_header searches, not just the
@@ -2685,6 +2846,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
     bucket_pick: dict = {}  # v091: the bucket-column table's own selected row, recorded by _fill_bucket_columns
     _fill_bucket_columns(fields, sfs, schema, texts, pages, fiscal_year, warnings, values, filled, basis, bucket_pick)
     _finer_split_rows(fields, schema, texts, fiscal_year, warnings, values, filled, basis)  # the bucket-ROW finer split (Rusta), beside the bucket-column reader above
+    _subtotal_pair_fill(fields, sfs, schema, texts, pages, fiscal_year, warnings, values, filled, basis)  # v110: non-current + current section subtotals, no printed grand total (NOTE Not 19)
     _normalize_sign(fields, sfs, schema, texts, warnings, values)  # v101: liabilities-negative printed totals/buckets record their magnitude; the identity below closes on carrying positives
     checks = [_check(c, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema, stated_zeros=stated_zeros) for c in schema.get("checks", [])]
     for c, sc in zip(checks, schema.get("checks", [])):
