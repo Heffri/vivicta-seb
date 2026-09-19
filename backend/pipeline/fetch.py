@@ -209,6 +209,18 @@ def _toks(company):
     return toks[:2] or [company.lower()]
 
 
+def _acronym(company):
+    """The name's initials as one word, when at least three letters survive ("Modern Times Group"
+    -> "mtg"): how a report that styles itself only by the acronym -- MTG's FY2025 annual and
+    sustainability report says "MTG" from page 2 and first spells the full name on page 41 -- can
+    still prove whose it is. Legal suffixes never contribute; None below three letters
+    ("ABB Ltd" -> "a", "Atlas Copco" -> "ac"). data/companies.json carries no alias/former-name
+    field today, so the acronym is the one name the issuer check accepts beyond the full one."""
+    stem = _fold(re.sub(r"\(publ\)|\bLtd\b|\bplc\b|\bAB\b", "", company, flags=re.I))
+    acr = "".join(w[0] for w in re.split(r"[^a-z]+", stem) if w)
+    return acr if len(acr) >= 3 else None
+
+
 def _year_re(year):
     return re.compile(rf"\b{year}\b|\b{year - 1}/{year % 100}\b")  # SkiStar's "Annual Report 2024/25" is the FY2025 report
 
@@ -454,7 +466,13 @@ def _validate(data, company, year):
     plain = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
     missing = [t for t in _toks(company) if not re.search(rf"\b{re.escape(t)}", plain)]  # "nibe", "abb", "lundin gold" (not Lundin Mining)
     if missing:
-        return None, f"issuer mismatch: {missing[0]!r} not in first 20 pages"  # DDG happily returns some other company's report
+        # v122 ruling: the issuer may style itself only by its acronym, when the initials (at least
+        # three letters) stand whole-word on the cover -- that is how MTG's own FY2025 report reads.
+        # An acronym in the body alone accepts nothing: an unrelated report naming "ABB" as a
+        # supplier is still somebody else's report (DDG happily returns those).
+        acr = _acronym(company)
+        if not (acr and re.search(rf"\b{acr}\b", _fold(_head_text(doc)))):
+            return None, f"issuer mismatch: {missing[0]!r} not in first 20 pages"
     if reason := _year_reason(doc, year):  # v122: the year on the first pages or an accounting period, not "anywhere"
         return None, reason
     head = "".join(doc[i].get_text() for i in range(min(3, doc.page_count)))

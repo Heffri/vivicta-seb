@@ -468,6 +468,42 @@ def demo():
                 head, full = _kb_page_texts(stem)
                 assert fetch._fiscal_year_re(meta["fiscal_year"]).search(head) or fetch._period_re(meta["fiscal_year"]).search(full), \
                     f"{stem}: real FY{meta['fiscal_year']} report fails the anchored year check -- audit it"
+
+            # 26. v122 ruling follow-up: an issuer that styles itself only by its acronym is accepted
+            #     when the initials of its name (at least three letters) stand whole-word on the cover
+            #     -- MTG's real FY2025 report (the one that escaped into the feed) says "MTG" from
+            #     page 2 and first spells "Modern Times Group" on page 41 -- while an acronym mention
+            #     in the body of an unrelated report accepts nothing
+            assert fetch._acronym("Modern Times Group") == "mtg"
+            assert fetch._acronym("ABB Ltd") is None, "fewer than three initials survive"
+            assert fetch._acronym("Atlas Copco") is None
+            assert fetch._acronym("Asea Brown Boveri") == "abb"
+            acr_path = tmp / "public" / "mtg-annual-and-sustainability-2025.pdf"
+            _pdf_from_page_texts(acr_path,
+                                 ["MTG", "Annual and Sustainability report 2025", "Content"],
+                                 filler_lines=["MTG gaming studios revenue, operating profit and cash flow.",
+                                               "MTG segment performance and notes to the financial statements."] * 4,
+                                 filler_pages=45)
+            doc, text = fetch._validate(acr_path.read_bytes(), "Modern Times Group", 2025)
+            assert doc is not None, text
+            body_path = tmp / "public" / "unrelated-with-mtg-in-body.pdf"
+            _pdf_from_page_texts(body_path,
+                                 ["Someone Else Group", "Annual and Sustainability report 2025", "Content"],
+                                 filler_lines=["Someone Else Group revenue, operating profit and cash flow.",
+                                               "Platform partners such as MTG deliver parts of the roadmap."] * 4,
+                                 filler_pages=45)
+            doc, text = fetch._validate(body_path.read_bytes(), "Modern Times Group", 2025)
+            assert doc is None and "issuer mismatch" in text, text
+            # the ruling's own counter-example: "ABB" in the body of a competitor's report does not
+            # make that report Asea Brown Boveri's own
+            abb_path = tmp / "public" / "volvo-with-abb-supplier.pdf"
+            _pdf_from_page_texts(abb_path,
+                                 ["Volvo Group", "Annual Report 2025", "Content"],
+                                 filler_lines=["Volvo Group revenue, operating profit and cash flow.",
+                                               "Electrification components come from suppliers such as ABB."] * 4,
+                                 filler_pages=45)
+            doc, text = fetch._validate(abb_path.read_bytes(), "Asea Brown Boveri", 2025)
+            assert doc is None and "issuer mismatch" in text, text
     finally:
         for k, v in saved.items():
             if v is None:
