@@ -30,6 +30,35 @@ for (const tone of TONES) {
     expect(errors).toEqual([])
   })
 
+  test(`kb: collection switch Wallenberg -> All -> back [${tone}]`, async ({ page }) => {
+    const errors = trackPageErrors(page)
+    await gotoWithTone(page, tone)
+
+    await railTab(page, 'Knowledge base').click()
+    await expect(page.getByRole('heading', { name: /reports/ })).toBeVisible()
+    const rows = page.locator('tbody tr')
+    await expect(rows).toHaveCount(11)
+
+    const collection = page.getByRole('group', { name: 'Collection' })
+    await collection.getByRole('button', { name: 'All', exact: true }).click()
+    // The heading's collection label flips with state, not with the fetch — wait for the row count
+    // to actually change (it keeps growing as other tests upload, so no exact number here).
+    await expect.poll(async () => rows.count(), { timeout: 20000 }).toBeGreaterThan(11)
+    expect(await rows.count()).toBeGreaterThanOrEqual(190)
+
+    // The choice sticks across a reload (localStorage arp-kb-collection); the reload lands on the
+    // default Extract tab, so go back to Knowledge base before reading the header.
+    await page.reload()
+    await railTab(page, 'Knowledge base').click()
+    await expect(page.getByRole('heading', { name: /reports/ })).toContainText('all saved reports', { timeout: 20000 })
+
+    await collection.getByRole('button', { name: 'Wallenberg', exact: true }).click()
+    await expect(page.getByRole('heading', { name: /reports/ })).toContainText('Wallenberg collection', { timeout: 20000 })
+    await expect(rows).toHaveCount(11)
+
+    expect(errors).toEqual([])
+  })
+
   test(`kb: a saved extraction without its PDF can still open [${tone}]`, async ({ page }) => {
     const errors = trackPageErrors(page)
     await gotoWithTone(page, tone)
