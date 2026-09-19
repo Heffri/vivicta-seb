@@ -122,6 +122,7 @@ type Extraction = {
   section: string;          // schema name
   maturity_basis?: "carrying" | "undiscounted"; // v089, debt_maturity only: which maturity table total_debt + the buckets were read from (env DEBT_BASIS); distinct from the analyst-confirmed `basis` object below
   prior_year?: PriorYear;   // v091, debt_maturity only: the prior fiscal year's own figures (see below); the key is absent when they cannot be read deterministically
+  buckets_by_year?: BucketsByYear; // v109, debt_maturity only: the report's own calendar-year maturity columns (see below); the key is absent unless the report prints years and they close on total_debt
   fields: Field[];          // one entry per schema field, in schema order (value null if missing)
   checks: Check[];
   warnings: string[];       // free text, e.g. "revenue: quote not found on page 64"
@@ -138,6 +139,18 @@ type PriorYear = {
     source: Source | null;                   // the prior year's own printed row (page + verbatim quote)
   }>;
   check: { passed: boolean; detail: string }; // the identity re-run on the prior year's values
+};
+
+// v109: the report's own calendar-year maturity columns, read deterministically from the same table
+// the current year's buckets came from — never a model answer. Written only when the years sum to
+// total_debt within the check's own ±2 (a dash in a year column is the report's explicit 0).
+type BucketsByYear = {
+  basis: "carrying" | "undiscounted";        // the same maturity basis total_debt + the buckets were read on
+  years: {                                   // one per printed year column, in print order
+    label: string;                           // as printed: "2026" … the tail word "Later"/"Senare"/"2031 and later", or an open-end "2031–"
+    value: number;
+    source: Source | null;                   // the printed row the year came from (page + verbatim quote)
+  }[];
 };
 ```
 
@@ -281,3 +294,5 @@ Comparison responses include saved `candidates`, `previous_stem`, `current_year`
 
 ### Prior-year maturity metadata and the PPTX second series (v091)
 `GET /api/reports/{report_id}/extraction.pptx` additionally accepts `prior_year=1`: the maturity chart gains a second, fainter series named `FY<n-1>` beside the current one (plus a legend naming both). The flag is ignored — the slide renders exactly as before — when the extraction carries no `prior_year` or the parameter is absent. The two deterministic sources are: a maturity table printing one row per bucket under year columns (the prior year is the prior-year column of the same rows), and one printing buckets as columns under stacked per-year blocks (the prior year is the same-labelled row of the FY-1 block, read with the same column keys). Date-per-instrument notes and model-only answers never produce a prior year.
+
+`GET /api/reports/{report_id}/extraction.pptx` also accepts `per_year=1` (v109): when the extraction carries `buckets_by_year`, the maturity chart's three bucket categories are replaced by the report's own calendar-year columns, one "Debt due" series of the printed years (labels as printed). The flag is ignored — the slide renders exactly the three buckets — when the extraction carries no `buckets_by_year` or the parameter is absent; when both `per_year=1` and `prior_year=1` are sent, the year series wins (a year series and a bucket series answer two different questions). See "Per-year maturity metadata (`buckets_by_year`)" in `backend/README.md`.
