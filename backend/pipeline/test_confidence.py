@@ -2078,6 +2078,119 @@ def demo():
     got = {f["key"]: f for f in out["fields"]}
     assert got["total_debt"]["value"] == -500 and "sign_normalized" not in got["total_debt"]["evidence"], (got["total_debt"], out["warnings"])
     assert any("net-debt label" in w for w in out["warnings"]), out["warnings"]
+
+    # v091: the prior fiscal year's four figures ride along as top-level `prior_year` metadata -- never a
+    # model answer, only a deterministic re-read of the same table the current year came from, written
+    # only when its own identity closes on explicit values (the shipped require_explicit_values rule,
+    # applied to FY-1: a bucket with no prior-year figure is absent from the sum, never zero-filled).
+    # Two shapes, exactly the two that read today's values deterministically:
+    # (a) buckets-as-COLUMNS (_fill_bucket_columns' selected row): the same-labelled row of the prior
+    #     year's own block on the same page (Tången p.62's "31 december 2024" table, Ework p.70's "2024"
+    #     block), read with the SAME col_keys through _bucket_assign -- a bucket whose prior-year cells
+    #     all print dashes is the report's explicit 0 (v078, one year back);
+    # (b) buckets-as-ROWS (the year-column tables): the prior-year COLUMN of the very rows that supplied
+    #     the current values (MedCap p.101's Koncernen 2024 column), each field admitted only when the
+    #     fiscal-year column of its own rows reproduces its current value -- _column_values' admission.
+    # Date-per-instrument notes (Proact, v073) and model-only answers give no prior year: no year
+    # header, no twin row, no admission -- and the >=2-buckets + closure gate has the final say anyway.
+    # Tången, end to end on v084's own two-table fixture (the model answers nothing; the current-year
+    # read is v084's): the prior year's own table prints 90,970 / (68,704 + 188,828) / 4,520 / 353,022,
+    # and 90,970 + 257,532 + 4,520 == 353,022 exactly.
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None} for k in dmf]}
+    out = x.extract([tangen62_full], [1], dm, {"fiscal_year": 2025})
+    py = out["prior_year"]
+    assert py["fiscal_year"] == 2024 and py["check"]["passed"] and "353022" in py["check"]["detail"], py
+    assert {k: v["value"] for k, v in py["fields"].items()} == {
+        "total_debt": 353022, "due_within_1_year": 90970, "due_1_to_5_years": 257532, "due_after_5_years": 4520}, py
+    assert all(v["source"] == {"page": 1, "quote": "Lån Kreditinstitut 90 970 68 704 188 828 4 520 353 022"}
+               for v in py["fields"].values()), py  # the prior year's own printed row, verbatim
+    out = x.extract([tangen62_full], [1], dm_ship, {"fiscal_year": 2025})  # the shipped schema's explicit-values rule decides the gate identically
+    assert {k: v["value"] for k, v in out["prior_year"]["fields"].items()} == {
+        "total_debt": 353022, "due_within_1_year": 90970, "due_1_to_5_years": 257532, "due_after_5_years": 4520}, out["prior_year"]
+    # The single-year page alone (v083's fixture): no prior-year twin row exists, and the bucket-column
+    # table has no year header for a column read either -- no prior_year key at all, never a null one.
+    out = x.extract([tangen62_2025], [1], dm, {"fiscal_year": 2025})
+    assert "prior_year" not in out, out.get("prior_year")
+    # Ework, end to end on the real p.70 shape (seed5-kb: the 2025 block, its Accounts payable and
+    # Total rows, then the 2024 block; the year labels are lone lines that _page_rows glues onto the
+    # row above -- v076's own account). The model's own answer is v078's (total_debt already reads the
+    # Carrying amount column); the current-year fields are v078's, and the prior year is the 2024
+    # block's same-labelled row: Due nil + 30,971 + 152,377 + 11,319 = 194,667 in the carrying column,
+    # both dash buckets the report's explicit 0s, closing 194,667 + 0 + 0 == 194,667 exactly.
+    ework_two_years = ("Maturity structure financial liabilities – undiscounted cash flows\n"
+                       "The Group\n"
+                       "kSEK Due < 1 month 1-3 months 3-12 months 1-5 years > 5 years Total undiscounted value Carrying amount\n"
+                       "2025\n"
+                       "Lease liabilities – – 5,230 5,332 22,169 794 33,525 33,403\n"
+                       "Short-term interest-bearing liabilities* – 153,761 971 1,677 – – 156,410 156,410\n"
+                       "Accounts payable 91,284 1,472,001 992,513 120,851 – – 2,676,650 2,676,650\n"
+                       "Total 91,284 1,625,763 998,715 127,860 22,169 794 2,866,584 2,866,462\n"
+                       "2024\n"
+                       "Lease liabilities – – 3,000 193 7,518 19,973 30,684 27,918\n"
+                       "Short-term interest-bearing liabilities* – 30,971 152,377 11,319 – – 194,667 194,667\n"
+                       "Accounts payable 103,815 1,838,069 1,088,419 47,791 – – 3,078,094 3,078,094\n"
+                       "Total 103,815 1,869,039 1,243,796 59,303 7,518 19,973 3,303,445 3,300,679\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 156410, "unit": "kSEK", "period": "2025", "raw_label": "Short-term interest-bearing liabilities*",
+         "source": {"page": 1, "quote": "Short-term interest-bearing liabilities* – 153,761 971 1,677 – – 156,410 156,410"}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([ework_two_years], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 156410, "due_within_1_year": 156409, "due_1_to_5_years": 0, "due_after_5_years": 0} \
+        and out["checks"][0]["passed"], (got, out["checks"], out["warnings"])  # v078's current-year read, unchanged on the bigger page
+    py = out["prior_year"]
+    assert py["fiscal_year"] == 2024 and py["check"]["passed"], py
+    assert {k: v["value"] for k, v in py["fields"].items()} == {
+        "total_debt": 194667, "due_within_1_year": 194667, "due_1_to_5_years": 0, "due_after_5_years": 0}, py
+    assert all(v["source"]["quote"] == "Short-term interest-bearing liabilities* – 30,971 152,377 11,319 – – 194,667 194,667"
+               for v in py["fields"].values()), py
+    # MedCap, end to end on the v052/v058 flow (real p.101 shape; the model reads total_debt and
+    # due_1_to_5_years off the carrying table, the derivation fills due_within_1_year from the two
+    # month rows): the prior year is the Koncernen 2024 COLUMN of the same rows -- 41.8 + 19.0 = 60.8
+    # within 1 year, 316.7 in 1-5 years, 377.6 total. The table prints no >5y row for EITHER year, so
+    # due_after_5_years is absent from the prior-year fields and named in the check detail; the gate
+    # closes on the explicit values alone (60.8 + 316.7 = 377.5 ~= 377.6, within the check's own +-2).
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 718.7, "unit": "MSEK", "period": "2025", "raw_label": "Totalt", "source": {"page": 1, "quote": "Totalt 718,7 377,6 – –"}},
+        {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_1_to_5_years", "value": 616.5, "unit": "MSEK", "period": "2025", "raw_label": "1 – 5 år", "source": {"page": 1, "quote": "1 – 5 år 616,5 316,7 – –"}},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([medcap101, medcap102], [1, 2], dm, {"fiscal_year": 2025})
+    py = out["prior_year"]
+    assert py["fiscal_year"] == 2024 and py["check"]["passed"] and "due_after_5_years" in py["check"]["detail"], py
+    assert {k: v["value"] for k, v in py["fields"].items()} == {
+        "total_debt": 377.6, "due_within_1_year": 60.8, "due_1_to_5_years": 316.7}, py  # no due_after_5_years key: no >5y row exists
+    assert py["fields"]["due_within_1_year"]["source"] == {
+        "page": 1, "quote": "6 månader eller mindre 54,3 41,8 – – 6 – 12 månader 48,0 19,0 – –"}, py["fields"]["due_within_1_year"]
+    assert py["fields"]["total_debt"]["source"] == {"page": 1, "quote": "Totalt 718,7 377,6 – –"}, py["fields"]["total_debt"]
+    # Counter-example 1: a date-per-instrument note (Proact, v073's own fixture and answer) has no
+    # deterministic prior-year read -- the current-year buckets are date sums, the year-header table on
+    # the page is a different table, and the admission check keeps its rows out. No prior_year key.
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 478611, "unit": "SEK thousand", "period": "2025", "raw_label": "Total interest-bearing liabilities",
+         "source": {"page": 1, "quote": "Total interest-bearing liabilities 478,611"}},
+        {"key": "due_within_1_year", "value": 312458, "unit": "SEK thousand", "period": "2025",
+         "raw_label": "Bank loan, Svensk Exportkredit 2); Lease liability 3)",
+         "source": {"page": 1, "quote": "Lease liability 3) 3.86% - 5.59% 2026 96,098"}},
+        {"key": "due_1_to_5_years", "value": 166153, "unit": "SEK thousand", "period": "2025", "raw_label": "Lease liability 3)",
+         "source": {"page": 1, "quote": "Lease liability 3) 4.06% - 5.59% 2027-2030 166,153"}},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([proact103], [1], dm, {"fiscal_year": 2025})
+    assert "prior_year" not in out, out.get("prior_year")
+    # Counter-example 2: the prior year's own buckets must close against the prior year's own total --
+    # a twin row whose figures do not sum (a misglued or wrong-scope row) is declined whole, exactly
+    # like every other identity-gated write in this file.
+    tangen_bad = tangen62_2025 + (
+        "31 december 2024 (KSEK)\nMindre än 12 månader\nMellan 1 och 2 år Mellan 3 och 5 år Senare än 5 år Summa\n"
+        "Leverantörsskulder och övriga skulder (exklusive icke finansiella skulder) 163 517 - - - 163 517\n"
+        "Lån Kreditinstitut 90 970 68 704 188 828 4 520 999 999\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None} for k in dmf]}
+    out = x.extract([tangen_bad], [1], dm, {"fiscal_year": 2025})
+    assert "prior_year" not in out, out.get("prior_year")  # 90,970 + 257,532 + 4,520 != 999,999: no key, not a failing one
     print("confidence self-check ok")
 
 
