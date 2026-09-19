@@ -540,9 +540,10 @@ def extraction_csv(report_id: str, section: str | None = None, previous_stem: st
 
 @app.get("/api/reports/{report_id}/extraction.pptx")
 def extraction_pptx(report_id: str, section: str | None = None, previous_stem: str | None = None,
-                    prior_year: bool = False):  # v091: ?prior_year=1 adds the extraction's prior-year series when it carries one
+                    prior_year: bool = False,  # v091: ?prior_year=1 adds the extraction's prior-year series when it carries one
+                    per_year: bool = False):  # v109: ?per_year=1 swaps the three buckets for the report's own calendar-year columns when it carries them
     x = export_extraction(report_id, section, previous_stem)
-    data = ppt.build_pptx(x, prior_year=prior_year)
+    data = ppt.build_pptx(x, prior_year=prior_year, per_year=per_year)
     return Response(data, media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
                     headers={"Content-Disposition": f'attachment; filename="{report_id}_{x["section"]}.pptx"'})
 

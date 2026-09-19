@@ -274,6 +274,26 @@ never zero-filled). Date-per-instrument notes (Proact) and model-only answers pr
 extraction carries one; the UI's "Show prior year" switch (MaturityChart) follows the same flag. See
 `pipeline/extract.py`'s `_prior_year_fill()` and `docs/acrylic/evidence/v091.md`.
 
+## Per-year maturity metadata (`buckets_by_year`) -- v109
+
+debt_maturity extractions may carry a top-level `buckets_by_year` object: the report's own
+calendar-year maturity columns — Kristian's "every year its own bucket" granularity, answered
+with the report's own print whenever it prints years instead of named buckets. Two deterministic
+sources, never a model answer: the year **columns** a maturity table prints as its header
+(Electrolux Professional's Note 18: `SEKm 2026 2027 2028 2029 2030 2031– Total`), re-read on the
+bucket reader's own recorded row; or the year **rows** of a maturity table, which pymupdf tears
+into a single line of `<year> <figure>` pairs (BTS's p.92 "Maturity analyses for liabilities to
+credit institutions": `2026 77,141 2027 39 2028 300,039 2029 202,539 2030 39` above a one-figure
+`Total 579,797`). The years must chain from `fiscal_year+1`, sum to the table's own printed total,
+and close `maturity_sums_to_total` against the extraction's `total_debt` within the check's own
+±2 — anything less writes no key at all (Ericsson's lease-year table closes on its own 1,838 and
+is refused on `total_debt` 32,703; named-bucket headers, interval rows and date-per-instrument
+notes give no key either). The three bucket fields and their summation of these same years are
+unchanged. `GET .../extraction.pptx?per_year=1` swaps the chart's bucket categories for the
+printed years when the key is present; the UI's "Per year" switch (MaturityChart) follows the
+same flag and is mutually exclusive with "Show prior year". See `pipeline/extract.py`'s
+`_buckets_by_year_fill()` and `docs/acrylic/evidence/v109.md`.
+
 ## Publishing hardening results into `data/kb` (`scripts/publish_kb.py`) -- v093
 
     python scripts/publish_kb.py --kb <seed1-kb> ... --kb <seedN-kb> [--section debt_maturity] [--dry-run]

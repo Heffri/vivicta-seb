@@ -14,7 +14,7 @@ BUCKET_ORDER = ["due_within_1_year", "due_1_to_5_years", "due_after_5_years"]
 BUCKET_LABELS = {"due_within_1_year": "< 1 year", "due_1_to_5_years": "1–5 years", "due_after_5_years": "> 5 years"}
 
 
-def build_pptx(x: dict, prior_year: bool = False) -> bytes:
+def build_pptx(x: dict, prior_year: bool = False, per_year: bool = False) -> bytes:
     prs = Presentation()
     prs.slide_width, prs.slide_height = Inches(13.333), Inches(7.5)  # 16:9
     slide = prs.slides.add_slide(prs.slide_layouts[6])  # blank
@@ -37,7 +37,12 @@ def build_pptx(x: dict, prior_year: bool = False) -> bytes:
         _textbox(slide, debt_basis, Pt(12), top=Inches(2.05))
         # v091: the prior year rides along only when the caller asked for it (?prior_year=1) and the
         # extraction carries it; anything else renders exactly as before.
-        _debt_chart(slide, by_key, buckets, x.get("prior_year") if prior_year else None)
+        # v109: ?per_year=1 swaps the three-bucket series for the report's own calendar-year columns
+        # when the extraction carries them -- same total, the report's own granularity (a year series
+        # and a bucket series on one chart would answer two different questions, so per_year wins and
+        # the prior series steps aside). Without the flag or without buckets_by_year: exactly as before.
+        _debt_chart(slide, by_key, buckets, x.get("prior_year") if prior_year else None,
+                    x.get("buckets_by_year") if per_year else None)
     else:
         _table(slide, x["fields"])
 
@@ -52,21 +57,25 @@ def build_pptx(x: dict, prior_year: bool = False) -> bytes:
     return buf.getvalue()
 
 
-def _debt_chart(slide, by_key, buckets, prior=None):
+def _debt_chart(slide, by_key, buckets, prior=None, by_year=None):
     total = by_key.get("total_debt", {}).get("value")
     unit = next((by_key[k]["unit"] for k in buckets if by_key[k].get("unit")), "")
     if total is not None:
         _textbox(slide, "Total debt: " + f"{total:,.6f}".rstrip("0").rstrip(".").replace(",", " ") + " " + unit, Pt(20), bold=True, top=Inches(2.4))
 
     data = CategoryChartData()
-    data.categories = [BUCKET_LABELS[k] for k in buckets]
-    data.add_series("Debt due", [by_key[k]["value"] for k in buckets])
-    if prior:  # v091: a second, fainter series beside each bucket, named for its own fiscal year
-        data.add_series(f"FY{prior.get('fiscal_year')}", [prior.get("fields", {}).get(k, {}).get("value") for k in buckets])
+    if by_year:  # v109: the report's own calendar-year columns as the categories, one series of the same "Debt due"
+        data.categories = [y["label"] for y in by_year["years"]]
+        data.add_series("Debt due", [y["value"] for y in by_year["years"]])
+    else:
+        data.categories = [BUCKET_LABELS[k] for k in buckets]
+        data.add_series("Debt due", [by_key[k]["value"] for k in buckets])
+        if prior:  # v091: a second, fainter series beside each bucket, named for its own fiscal year
+            data.add_series(f"FY{prior.get('fiscal_year')}", [prior.get("fields", {}).get(k, {}).get("value") for k in buckets])
     frame = slide.shapes.add_chart(XL_CHART_TYPE.COLUMN_CLUSTERED, Inches(1.2), Inches(2.95), Inches(10.9), Inches(3.7), data)
     chart = frame.chart
-    chart.has_legend = bool(prior)  # one series needs no legend; two are told apart by theirs
-    if prior:
+    chart.has_legend = bool(prior and not by_year)  # one series needs no legend; two are told apart by theirs
+    if prior and not by_year:  # v109: the year view has one series again -- no legend to place
         chart.legend.position = XL_LEGEND_POSITION.BOTTOM
         chart.legend.include_in_layout = False
     plot = chart.plots[0]

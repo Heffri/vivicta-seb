@@ -63,8 +63,9 @@ export const ask = (question: string, reportIds?: string[], reportStems?: string
 export const pageUrl = (reportId: string, page: number) => `/api/reports/${reportId}/pages/${page}.png`
 export const csvUrl = (reportId: string, section?: string, previous?: string) => `/api/reports/${reportId}/extraction.csv?${new URLSearchParams({ ...(section ? { section } : {}), ...(previous ? { previous_stem: previous } : {}) })}`
 // v091: prior=1 asks the pptx for the prior-year series alongside the current one (ignored by the
-// backend when the extraction carries no prior_year).
-export const pptxUrl = (reportId: string, section?: string, previous?: string, prior?: boolean) => `/api/reports/${reportId}/extraction.pptx?${new URLSearchParams({ ...(section ? { section } : {}), ...(previous ? { previous_stem: previous } : {}), ...(prior ? { prior_year: '1' } : {}) })}`
+// backend when the extraction carries no prior_year). v109: perYear=1 asks for the report's own
+// calendar-year columns instead of the three buckets (ignored without buckets_by_year).
+export const pptxUrl = (reportId: string, section?: string, previous?: string, prior?: boolean, perYear?: boolean) => `/api/reports/${reportId}/extraction.pptx?${new URLSearchParams({ ...(section ? { section } : {}), ...(previous ? { previous_stem: previous } : {}), ...(prior ? { prior_year: '1' } : {}), ...(perYear ? { per_year: '1' } : {}) })}`
 export const pdfUrl = (reportId: string, page?: number) =>
   `/api/reports/${reportId}/pdf${page ? `#page=${page}` : ''}`
 
