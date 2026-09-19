@@ -121,9 +121,23 @@ type Extraction = {
   currency: string | null;  // dominant unit in the section
   section: string;          // schema name
   maturity_basis?: "carrying" | "undiscounted"; // v089, debt_maturity only: which maturity table total_debt + the buckets were read from (env DEBT_BASIS); distinct from the analyst-confirmed `basis` object below
+  prior_year?: PriorYear;   // v091, debt_maturity only: the prior fiscal year's own figures (see below); the key is absent when they cannot be read deterministically
   fields: Field[];          // one entry per schema field, in schema order (value null if missing)
   checks: Check[];
   warnings: string[];       // free text, e.g. "revenue: quote not found on page 64"
+};
+
+// v091: FY-1 alongside FY, read from the same table the current year came from (same basis),
+// never a model answer. Written only when total_debt and at least two buckets were read and they
+// close maturity_sums_to_total within the check's own tolerance on explicit values — a bucket
+// whose prior-year figure the table does not print is absent from `fields` and named in the detail.
+type PriorYear = {
+  fiscal_year: number;                       // the current fiscal year minus one
+  fields: Record<string, {                   // keyed like Field.key ("total_debt", "due_within_1_year", ...)
+    value: number;
+    source: Source | null;                   // the prior year's own printed row (page + verbatim quote)
+  }>;
+  check: { passed: boolean; detail: string }; // the identity re-run on the prior year's values
 };
 ```
 
@@ -264,3 +278,6 @@ Extractions gain optional `basis`, `basis_history`, `check_history`, `issues`, a
 Checks include `status: passed|failed|unavailable`. Reconciliation requires every operand to be explicit and use the same nonempty unit and period. Source evidence remains distinct from arithmetic and human review. `issues` contains `{kind: basis|field|check, key, detail}`. `ready` requires no unresolved issues, including missing figures even when a human confirmed their absence. Queue entries add `report: KbEntry` and `section`.
 
 Comparison responses include saved `candidates`, `previous_stem`, `current_year`, `previous_year`, `reasons`, and per-field `rows` with current/previous values, delta, percent, sign-change flag, sources and human reviews. Missing immediate prior years and duplicate sources require explicit selection. Definitions must be confirmed and compatible before calculating changes. Period formats must match after replacing each fiscal year. A zero previous value gives a null percentage, never infinity. Alternate intervals and declared restatements remain explicit. Export query parameters `section` and `previous_stem` select the saved statement and comparison, regardless of the last statement opened.
+
+### Prior-year maturity metadata and the PPTX second series (v091)
+`GET /api/reports/{report_id}/extraction.pptx` additionally accepts `prior_year=1`: the maturity chart gains a second, fainter series named `FY<n-1>` beside the current one (plus a legend naming both). The flag is ignored — the slide renders exactly as before — when the extraction carries no `prior_year` or the parameter is absent. The two deterministic sources are: a maturity table printing one row per bucket under year columns (the prior year is the prior-year column of the same rows), and one printing buckets as columns under stacked per-year blocks (the prior year is the same-labelled row of the FY-1 block, read with the same column keys). Date-per-instrument notes and model-only answers never produce a prior year.
