@@ -151,9 +151,11 @@ def toc_targets(texts: list[str], schema: dict) -> dict[int, str]:
     return hits
 
 
-def candidate_pages(texts: list[str], schema: dict, top_n: int = 8) -> list[int]:
-    """1-based page numbers, best first. The page after the best one is always second (statements span two
-    pages: EPS sits on the second), then pages are dropped from the tail until the text fits PROMPT_BUDGET."""
+def scored_pages(texts: list[str], schema: dict) -> list[tuple[float, int]]:
+    """Every page matching at least one keyword, (score, 1-based pdf page), best first -- the full ranking
+    candidate_pages cuts its window from. Exposed for measurement (scripts/locate_reach.py: where a label
+    page sits in the ranking when it is not a candidate); candidate_pages itself is the only production
+    consumer."""
     keywords = [k.lower() for k in schema.get("keywords", [])]
     excluded = [k.lower() for k in schema.get("exclude_keywords", [])]  # "parent company", "five-year summary"
     synonyms = sorted({s.lower() for f in schema.get("fields", []) for s in f.get("synonyms", [])})
@@ -176,7 +178,13 @@ def candidate_pages(texts: list[str], schema: dict, top_n: int = 8) -> list[int]
         penalty = 0.1 if summary or parent else 1  # Vitrolife prints "Group | Parent Company" columns on one page: group first, so not a parent page
         scored.append(((distinct + 5 * heading + fields + 5 * (i + 1 in toc)) * (1 + 5 * density) * penalty, i + 1))
     scored.sort(key=lambda s: (-s[0], s[1]))
-    pages = [page for _, page in scored[:top_n]]
+    return scored
+
+
+def candidate_pages(texts: list[str], schema: dict, top_n: int = 8) -> list[int]:
+    """1-based page numbers, best first. The page after the best one is always second (statements span two
+    pages: EPS sits on the second), then pages are dropped from the tail until the text fits PROMPT_BUDGET."""
+    pages = [page for _, page in scored_pages(texts, schema)[:top_n]]
     if pages and pages[0] < len(texts):
         pages = [pages[0], pages[0] + 1] + [p for p in pages[1:] if p != pages[0] + 1]
     while len(pages) > 2 and sum(len(texts[p - 1]) for p in pages) > PROMPT_BUDGET:
