@@ -80,6 +80,6 @@
   "warnings": [
     "two_pass: page [102, 103] selected from candidates [101, 102]",
     "due_within_1_year: quote not found on page 103",
-    "published: seed4 run replayed with extract.py @ 16f128b0"
+    "published: seed4 run replayed with extract.py @ 9ed0abe9"
   ]
 }

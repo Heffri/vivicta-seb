@@ -106,6 +106,6 @@
     "due_1_to_5_years: 3062 is not printed in '2–5 years'; the row's 2025 figure is 2184",
     "due_after_5_years: 2633 is not the 2025 column, 2431 is",
     "due_within_1_year: 975 is printed on none of pages [115, 132, 133]; dropped as computed, not read",
-    "published: seed9 run replayed with extract.py @ 16f128b0"
+    "published: seed9 run replayed with extract.py @ 9ed0abe9"
   ]
 }

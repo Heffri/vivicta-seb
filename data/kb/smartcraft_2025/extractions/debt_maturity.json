@@ -20,71 +20,42 @@
     {
       "key": "due_within_1_year",
       "label": "Due within 1 year",
-      "value": 13825,
+      "value": null,
       "unit": null,
-      "period": "2025",
-      "raw_label": "Less than 1 year",
-      "source": {
-        "page": 59,
-        "quote": "Less than 1 year 13 825 13 825"
-      },
-      "confidence": 0.95,
-      "evidence": [
-        "quote_on_page",
-        "value_in_quote",
-        "arith_ok",
-        "label_known",
-        "period_ok",
-        "page_is_statement"
-      ]
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
     },
     {
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
-      "value": 7462,
+      "value": null,
       "unit": null,
-      "period": "2025",
-      "raw_label": "2-3 years",
-      "source": {
-        "page": 59,
-        "quote": "2-3 years 7 462 7 462"
-      },
-      "confidence": 0.95,
-      "evidence": [
-        "quote_on_page",
-        "value_in_quote",
-        "arith_ok",
-        "label_known",
-        "period_ok",
-        "page_is_statement"
-      ]
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
     },
     {
       "key": "due_after_5_years",
       "label": "Due after 5 years",
-      "value": 0,
+      "value": null,
       "unit": null,
-      "period": "2025",
-      "raw_label": "More than 5 years - -",
-      "source": {
-        "page": 59,
-        "quote": "More than 5 years - -"
-      },
-      "confidence": 0.5,
-      "evidence": [
-        "quote_on_page",
-        "arith_ok",
-        "label_known",
-        "period_ok",
-        "page_is_statement"
-      ]
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
     }
   ],
   "checks": [
     {
       "name": "maturity_sums_to_total",
       "passed": false,
-      "detail": "missing: total_debt"
+      "detail": "missing: due_within_1_year"
     }
   ],
   "warnings": [
@@ -93,6 +64,6 @@
     "due_1_to_5_years: model returned null, filled from page 59 row '2-3 years 7 462 7 462'",
     "due_after_5_years: model returned null, filled from page 59 row 'More than 5 years - -'",
     "due_after_5_years: quoted '4-5 years - -'; the 'More than 5 years - -' row prints 0",
-    "published: seed5 run replayed with extract.py @ 16f128b0"
+    "published: seed5 run replayed with extract.py @ 9ed0abe9"
   ]
 }

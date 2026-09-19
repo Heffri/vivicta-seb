@@ -152,8 +152,12 @@ def main():
     ap.add_argument("--section", action="append", default=None,
                     help="extraction section to publish (repeatable; default debt_maturity)")
     ap.add_argument("--dry-run", action="store_true", help="decide and print, write nothing")
+    ap.add_argument("--accept-loss", default="",
+                    help="comma-separated stems whose replay is published even where it drops a stored value: a guard "
+                         "(e.g. v103's wrong-table refusal) that nulls a value proven wrong is the honest state, not a loss")
     a = ap.parse_args()
     a.section = a.section or ["debt_maturity"]
+    accept_loss = {x.strip() for x in a.accept_loss.split(",") if x.strip()}
 
     target_root = ROOT / "data" / "kb"
     sha8 = extract_py_sha()
@@ -221,10 +225,11 @@ def main():
                 worse, better = [], []
                 replayed = None
 
-            if replayed is not None and not worse:
+            accepted = replayed is not None and worse and stem in accept_loss
+            if replayed is not None and (not worse or accepted):
                 payload = replayed
-                mode = "same" if not better else "better"
-                note = "; ".join(better)
+                mode = ("accepted-loss" if accepted else "same" if not better else "better")
+                note = "; ".join(worse if accepted else better)
             else:
                 payload = stored
                 mode = "stored"

@@ -91,6 +91,6 @@
   "warnings": [
     "two_pass: page [103, 104] selected from candidates [104, 105, 103]",
     "due_within_1_year: 312458 is another segment's column; the page's rows are read from column 1 of 3, which prints 0",
-    "published: seed6 run replayed with extract.py @ 16f128b0"
+    "published: seed6 run replayed with extract.py @ 9ed0abe9"
   ]
 }

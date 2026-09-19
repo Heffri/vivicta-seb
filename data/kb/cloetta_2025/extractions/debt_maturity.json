@@ -103,6 +103,6 @@
     "two_pass: page [169, 170] selected from candidates [169, 170, 179, 171]",
     "due_1_to_5_years: 1399 is printed on none of pages [169, 170]; dropped as computed, not read",
     "due_1_to_5_years: model returned null; 1399 read from 'Total 197 22 1,377 9 1,605' by its column order",
-    "published: seed4 run replayed with extract.py @ 16f128b0"
+    "published: seed4 run replayed with extract.py @ 9ed0abe9"
   ]
 }

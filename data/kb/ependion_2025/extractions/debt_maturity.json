@@ -91,6 +91,6 @@
     "total_debt: 'Borrowing' 583531 dropped: the same row as due_1_to_5_years, and not a total borrowings label",
     "due_within_1_year: 'Borrowing' 167546 dropped: the same row as due_1_to_5_years, and not a due within 1 year label",
     "due_1_to_5_years: 415984 is printed on none of pages [155, 156]; dropped as computed, not read",
-    "published: seed5 run replayed with extract.py @ 16f128b0"
+    "published: seed5 run replayed with extract.py @ 9ed0abe9"
   ]
 }
