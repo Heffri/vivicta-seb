@@ -1,6 +1,6 @@
 {
   "report_id": "lib-arjo_2025",
-  "company": "Arjo",
+  "company": "arjo",
   "fiscal_year": 2025,
   "currency": "SEK M",
   "section": "debt_maturity",
@@ -70,6 +70,7 @@
     }
   ],
   "warnings": [
-    "published: seed2 run replayed with extract.py @ d3eb5fc8"
+    "two_pass: page [109, 110] selected from candidates [109, 110]",
+    "published: seedseed-rerun-v115-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

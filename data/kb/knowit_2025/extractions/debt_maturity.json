@@ -1,6 +1,6 @@
 {
   "report_id": "lib-knowit_2025",
-  "company": "Knowit",
+  "company": "knowit",
   "fiscal_year": 2025,
   "currency": "KSEK",
   "section": "debt_maturity",
@@ -32,9 +32,9 @@
       "key": "due_within_1_year",
       "label": "Due within 1 year",
       "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
+      "unit": "KSEK",
+      "period": "2025",
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -43,9 +43,9 @@
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
       "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
+      "unit": "KSEK",
+      "period": "2025",
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -56,7 +56,7 @@
       "value": null,
       "unit": "KSEK",
       "period": "2025",
-      "raw_label": null,
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -70,8 +70,7 @@
     }
   ],
   "warnings": [
-    "due_within_1_year: 151065 is printed on none of pages [152, 153]; dropped as computed, not read",
-    "due_1_to_5_years: 607873 is printed on none of pages [152, 153]; dropped as computed, not read",
-    "published: seed3 run replayed with extract.py @ d3eb5fc8"
+    "two_pass: page [152, 153] selected from candidates [152, 153, 135]",
+    "published: seedseed-rerun-v115-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

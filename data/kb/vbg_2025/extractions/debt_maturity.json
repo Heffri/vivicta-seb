@@ -1,6 +1,6 @@
 {
   "report_id": "lib-vbg_2025",
-  "company": "VBG GROUP",
+  "company": "vbg",
   "fiscal_year": 2025,
   "currency": "SEK ’000",
   "section": "debt_maturity",
@@ -33,7 +33,7 @@
       "value": null,
       "unit": "SEK ’000",
       "period": "2025",
-      "raw_label": "",
+      "raw_label": null,
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -44,7 +44,7 @@
       "value": null,
       "unit": "SEK ’000",
       "period": "2025",
-      "raw_label": "",
+      "raw_label": null,
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -55,7 +55,7 @@
       "value": null,
       "unit": "SEK ’000",
       "period": "2025",
-      "raw_label": "",
+      "raw_label": null,
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -70,6 +70,6 @@
   ],
   "warnings": [
     "two_pass: page [133, 134] selected from candidates [133, 134, 97]",
-    "published: seed6 run replayed with extract.py @ d3eb5fc8"
+    "published: seedseed-rerun-v115-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

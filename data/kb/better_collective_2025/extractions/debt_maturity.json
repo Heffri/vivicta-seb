@@ -1,28 +1,39 @@
 {
   "report_id": "lib-better_collective_2025",
-  "company": "Better Collective",
+  "company": "better_collective",
   "fiscal_year": 2025,
   "currency": "tEUR",
   "section": "debt_maturity",
+  "maturity_basis": "carrying",
   "fields": [
     {
       "key": "total_debt",
       "label": "Total borrowings",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "value": 259946,
+      "unit": "tEUR",
+      "period": "2025",
+      "raw_label": "Debt to credit institutions",
+      "source": {
+        "page": 161,
+        "quote": "Debt to credit institutions 259,946 259,946 306,005 10,551 295,454 0"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "due_within_1_year",
       "label": "Due within 1 year",
       "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
+      "unit": "tEUR",
+      "period": "2025",
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -31,9 +42,9 @@
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
       "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
+      "unit": "tEUR",
+      "period": "2025",
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -42,9 +53,9 @@
       "key": "due_after_5_years",
       "label": "Due after 5 years",
       "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
+      "unit": "tEUR",
+      "period": "2025",
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -58,6 +69,7 @@
     }
   ],
   "warnings": [
-    "published: seed1 run as stored"
+    "two_pass: page [160, 161] selected from candidates [129, 130, 171, 158, 181, 183, 160]",
+    "published: seedseed-rerun-v115-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }
