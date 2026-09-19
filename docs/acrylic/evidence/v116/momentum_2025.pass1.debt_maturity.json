@@ -1,0 +1,188 @@
+{
+  "report_id": "lib-momentum_2025",
+  "company": "Momentum Group",
+  "fiscal_year": 2025,
+  "currency": "MSEK",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 622,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Interest-bearing liabilities",
+      "source": {
+        "page": 117,
+        "quote": "Interest-bearing liabilities 622 486"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 161,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Current interest-bearing liabilities; Current lease liabilities",
+      "source": {
+        "page": 117,
+        "quote": "Current lease liabilities 94 – – 94"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": 11,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Non-current interest-bearing liabilities; Non-current lease liabilities",
+      "source": {
+        "page": 117,
+        "quote": "Non-current lease liabilities 0 122 11 133"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "status": "unavailable",
+      "detail": "Missing explicit values: due_1_to_5_years"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [116, 117] selected from candidates [111, 112, 116]",
+    "due_1_to_5_years: 450 is printed on none of pages [111, 112, 117]; dropped as computed, not read"
+  ],
+  "stem": "momentum_2025",
+  "pdf_available": true,
+  "check_history": [
+    {
+      "at": "2026-09-19T21:43:32.150951+00:00",
+      "reason": "Recalculated explicit values after extraction",
+      "previous": [
+        {
+          "name": "maturity_sums_to_total",
+          "passed": false,
+          "detail": "missing: due_1_to_5_years"
+        }
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "kind": "basis",
+      "key": "entity",
+      "detail": "Confirm entity"
+    },
+    {
+      "kind": "basis",
+      "key": "consolidation",
+      "detail": "Confirm consolidation"
+    },
+    {
+      "kind": "basis",
+      "key": "period",
+      "detail": "Confirm period"
+    },
+    {
+      "kind": "basis",
+      "key": "currency",
+      "detail": "Confirm currency"
+    },
+    {
+      "kind": "basis",
+      "key": "scale",
+      "detail": "Confirm scale"
+    },
+    {
+      "kind": "basis",
+      "key": "source",
+      "detail": "Confirm source"
+    },
+    {
+      "kind": "basis",
+      "key": "restatement",
+      "detail": "Confirm restatement"
+    },
+    {
+      "kind": "basis",
+      "key": "debt_basis",
+      "detail": "Confirm debt basis"
+    },
+    {
+      "kind": "basis",
+      "key": "leases",
+      "detail": "Confirm leases"
+    },
+    {
+      "kind": "basis",
+      "key": "bucket_mapping",
+      "detail": "Confirm bucket mapping"
+    },
+    {
+      "kind": "field",
+      "key": "total_debt",
+      "detail": "Total borrowings: verify value, unit, period and source"
+    },
+    {
+      "kind": "field",
+      "key": "due_within_1_year",
+      "detail": "Due within 1 year: verify value, unit, period and source"
+    },
+    {
+      "kind": "field",
+      "key": "due_1_to_5_years",
+      "detail": "Due 1–5 years: missing value (not zero)"
+    },
+    {
+      "kind": "field",
+      "key": "due_after_5_years",
+      "detail": "Due after 5 years: verify value, unit, period and source"
+    },
+    {
+      "kind": "check",
+      "key": "maturity_sums_to_total",
+      "detail": "maturity_sums_to_total: Missing explicit values: due_1_to_5_years"
+    }
+  ],
+  "ready": false
+}
