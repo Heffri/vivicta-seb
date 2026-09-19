@@ -83,6 +83,6 @@
   "warnings": [
     "two_pass: page [134, 135] selected from candidates [127, 128, 134, 148, 102]",
     "total_debt: column reading of 'Total 547 44 – – –12' rejected -- due_within_1_year 547, due_1_to_5_years 44 exceed its own total -12; model's own values kept",
-    "published: seed6 run replayed with extract.py @ e9640e49"
+    "published: seed6 run replayed with extract.py @ c26d1f36"
   ]
 }

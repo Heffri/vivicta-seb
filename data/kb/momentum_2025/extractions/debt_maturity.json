@@ -17,10 +17,11 @@
         "page": 117,
         "quote": "Interest-bearing liabilities 622 486"
       },
-      "confidence": 0.5,
+      "confidence": 0.9,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
+        "arith_ok",
         "period_ok",
         "page_is_statement",
         "unit_ok"
@@ -29,68 +30,42 @@
     {
       "key": "due_within_1_year",
       "label": "Due within 1 year",
-      "value": 2,
-      "unit": "MSEK",
-      "period": "2025",
-      "raw_label": "Within 1 year",
-      "source": {
-        "page": 111,
-        "quote": "Within 1 year 2 2"
-      },
-      "confidence": 0.5,
-      "evidence": [
-        "quote_on_page",
-        "value_in_quote",
-        "label_known",
-        "period_ok",
-        "unit_ok"
-      ]
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
     },
     {
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
-      "value": 2,
-      "unit": "MSEK",
-      "period": "2025",
-      "raw_label": "Between 1 and 5 years",
-      "source": {
-        "page": 111,
-        "quote": "Between 1 and 5 years 2 1"
-      },
-      "confidence": 0.5,
-      "evidence": [
-        "quote_on_page",
-        "value_in_quote",
-        "label_known",
-        "period_ok",
-        "unit_ok"
-      ]
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
     },
     {
       "key": "due_after_5_years",
       "label": "Due after 5 years",
-      "value": 0,
-      "unit": "MSEK",
-      "period": "2025",
-      "raw_label": "Later than 5 years – –",
-      "source": {
-        "page": 111,
-        "quote": "Later than 5 years – –"
-      },
-      "confidence": 0.5,
-      "evidence": [
-        "quote_on_page",
-        "label_known",
-        "period_ok",
-        "unit_ok"
-      ]
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
     }
   ],
   "checks": [
     {
       "name": "maturity_sums_to_total",
       "passed": false,
-      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((2 + 2 + 0) - 622) <= 2"
+      "detail": "missing: due_within_1_year"
     }
   ],
   "warnings": [
@@ -98,6 +73,6 @@
     "due_within_1_year: model returned null, filled from page 111 row 'Within 1 year 2 2'",
     "due_1_to_5_years: model returned null, filled from page 111 row 'Between 1 and 5 years 2 1'",
     "due_after_5_years: model returned null, filled from page 111 row 'Later than 5 years – –'",
-    "published: seed11 run replayed with extract.py @ e9640e49"
+    "published: seed11 run replayed with extract.py @ c26d1f36"
   ]
 }

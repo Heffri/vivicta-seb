@@ -80,6 +80,6 @@
   "warnings": [
     "two_pass: page [54, 55] selected from candidates [53, 54, 47, 38]",
     "llm: TimeoutExpired: Command '['C:\\\\Users\\\\<user>\\\\AppData\\\\Local\\\\Programs\\\\OpenAI\\\\Codex\\\\bin\\\\codex.EXE', 'exec', '-m', 'gpt-5.6-terra', '-s', 'read-only', '-C', 'C:\\\\Users\\\\<user>\\\\AppData\\\\Local\\\\Temp\\\\vivicta-codex-758v30vl', '--skip-git-repo-check', '--json', '-o', 'C:\\\\Users\\\\<user>\\\\AppData\\\\Local\\\\Temp\\\\vivicta-codex-758v30vl\\\\last-message.txt', '-']' timed out after 120.0 seconds (pages [54, 55])",
-    "published: seed10 run replayed with extract.py @ e9640e49"
+    "published: seed10 run replayed with extract.py @ c26d1f36"
   ]
 }

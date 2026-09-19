@@ -30,24 +30,13 @@
     {
       "key": "due_within_1_year",
       "label": "Due within 1 year",
-      "value": 87,
-      "unit": "SEK m",
-      "period": "2025",
-      "raw_label": "Within 1 year",
-      "source": {
-        "page": 177,
-        "quote": "Within 1 year 87 87 1"
-      },
-      "confidence": 1.0,
-      "evidence": [
-        "quote_on_page",
-        "value_in_quote",
-        "arith_ok",
-        "label_known",
-        "period_ok",
-        "page_is_statement",
-        "unit_ok"
-      ]
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
     },
     {
       "key": "due_1_to_5_years",
@@ -76,13 +65,13 @@
     {
       "name": "maturity_sums_to_total",
       "passed": false,
-      "detail": "missing: due_1_to_5_years"
+      "detail": "missing: due_within_1_year"
     }
   ],
   "warnings": [
     "two_pass: page [177, 178] selected from candidates [177, 178, 182, 184, 181]",
     "due_within_1_year: quote not found on page 177",
     "due_within_1_year: 192 is not printed on the statement; filled from page 177 row 'Within 1 year 87 87 1'",
-    "published: seed11 run replayed with extract.py @ e9640e49"
+    "published: seed11 run replayed with extract.py @ c26d1f36"
   ]
 }

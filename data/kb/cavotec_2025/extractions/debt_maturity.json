@@ -72,6 +72,6 @@
     "two_pass: page [71, 72] selected from candidates [71, 72, 61]",
     "total_debt: 'Lease liabilities 3,805 8,756 4,621 2,689' names fiscal year 2024, not 2025; not this year's bucket row",
     "total_debt: 'Total 39,403 23,112 4,621 2,689' is a Total*/Summa* row with no total column in its own header (due_within_1_year, due_after_5_years, due_within_1_year, due_after_5_years); its own total cannot be checked, left for another path",
-    "published: seed11 run replayed with extract.py @ e9640e49"
+    "published: seed11 run replayed with extract.py @ c26d1f36"
   ]
 }

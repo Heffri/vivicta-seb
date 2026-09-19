@@ -61,6 +61,6 @@
   "warnings": [
     "two_pass: page [99, 100] selected from candidates [106, 107, 99, 87, 77, 105, 102, 74]",
     "total_debt: 'Total -14 -10' is a Total*/Summa* row with no total column in its own header (due_1_to_5_years, due_after_5_years); its own total cannot be checked, left for another path",
-    "published: seed8 run replayed with extract.py @ e9640e49"
+    "published: seed8 run replayed with extract.py @ c26d1f36"
   ]
 }
