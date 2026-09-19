@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import warnings
 from pathlib import Path
 
 from . import llm
@@ -27,12 +28,21 @@ def after(args, flag):
 
 args = sys.argv[1:]
 stdin_text = sys.stdin.read()
+schema_seen = None  # v121: the file --output-schema points at, parsed back, for the test to assert on
+if "--output-schema" in args:
+    with open(args[args.index("--output-schema") + 1], encoding="utf-8") as f:
+        schema_seen = json.load(f)
 debug = os.environ.get("FAKE_CODEX_DEBUG")
 if debug:
     with open(debug, "w", encoding="utf-8") as f:
-        json.dump({"args": args, "stdin": stdin_text}, f)
+        json.dump({"args": args, "stdin": stdin_text, "schema": schema_seen}, f)
 print(json.dumps({"type": "session_configured"}))  # a real --json event; unparsed here, -o carries the reply
 mode = os.environ.get("FAKE_CODEX_MODE", "ok")
+if mode == "reject-schema":
+    if schema_seen is not None:  # a CLI build that does not know the flag
+        sys.stderr.write("error: unexpected argument '--output-schema' found\\n")
+        sys.exit(1)
+    mode = "ok"  # the fallback retry arrives without the flag: answer normally
 if mode == "timeout":
     time.sleep(5)
     sys.exit(0)
@@ -62,7 +72,7 @@ def _fake_codex(dir: Path) -> Path:
 
 
 def demo_codex():
-    env_keys = ("CODEX_BIN", "LLM_PROVIDER", "LLM_MODEL", "LLM_TIMEOUT", "PATH",
+    env_keys = ("CODEX_BIN", "LLM_PROVIDER", "LLM_MODEL", "LLM_TIMEOUT", "PATH", "LLM_STRICT_SCHEMA",
                 "FAKE_CODEX_MODE", "FAKE_CODEX_REPLY", "FAKE_CODEX_DEBUG")
     saved = {k: os.environ.get(k) for k in env_keys}
     try:
@@ -121,6 +131,41 @@ def demo_codex():
             call = json.loads(debug.read_text(encoding="utf-8"))
             args = call["args"]
             assert args[args.index("--search") + 1] == "exec", args  # top-level flag, before the subcommand
+
+            # LLM_STRICT_SCHEMA (v121, opt-in): default is byte-for-byte today's call -- every assertion
+            # above ran with the switch unset, and this one pins the flag's absence explicitly
+            os.environ["FAKE_CODEX_MODE"], os.environ["FAKE_CODEX_REPLY"] = "ok", json.dumps(REPLY)
+            assert json.loads(llm.chat("s", "u", SCHEMA)) == REPLY
+            args = json.loads(debug.read_text(encoding="utf-8"))["args"]
+            assert "--output-schema" not in args, args
+
+            # switch on: the schema rides along as `--output-schema <file>`, written into the call's own
+            # -C temp dir (inside the read-only sandbox, never the repo); the fake CLI read it back
+            # byte-identical, and the reply path is unchanged
+            os.environ["LLM_STRICT_SCHEMA"] = "1"
+            assert json.loads(llm.chat("s", "u", SCHEMA)) == REPLY
+            call = json.loads(debug.read_text(encoding="utf-8"))
+            assert call["schema"] == SCHEMA, call
+            args = call["args"]
+            assert args[args.index("--output-schema") + 1].startswith(args[args.index("-C") + 1]), args
+
+            # a CLI that does not know the flag: one fallback retry without it, same reply, and a
+            # warning (not an exception -- the call as a whole still succeeded)
+            os.environ["FAKE_CODEX_MODE"] = "reject-schema"
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                assert json.loads(llm.chat("s", "u", SCHEMA)) == REPLY
+            assert sum("LLM_STRICT_SCHEMA" in str(w.message) for w in caught) == 1, caught
+
+            # but a call failing for a real reason fails the same way with the switch on: the fallback
+            # re-runs once and ITS error is the one raised (no second retry, nothing masked)
+            os.environ["FAKE_CODEX_MODE"] = "nonzero"
+            try:
+                llm.chat("s", "u", SCHEMA)
+                assert False, "expected the fallback retry's own failure to raise"
+            except RuntimeError as e:
+                assert "429" in str(e), e
+            del os.environ["LLM_STRICT_SCHEMA"]
     finally:
         for k, v in saved.items():
             if v is None:
@@ -140,11 +185,19 @@ import time
 
 args = sys.argv[1:]
 stdin_text = sys.stdin.read()
+schema_seen = None  # v121: the --json-schema value itself (claude takes the schema inline, not as a file)
+if "--json-schema" in args:
+    schema_seen = json.loads(args[args.index("--json-schema") + 1])
 debug = os.environ.get("FAKE_CLAUDE_DEBUG")
 if debug:
     with open(debug, "w", encoding="utf-8") as f:
-        json.dump({"args": args, "stdin": stdin_text}, f)
+        json.dump({"args": args, "stdin": stdin_text, "schema": schema_seen}, f)
 mode = os.environ.get("FAKE_CLAUDE_MODE", "ok")
+if mode == "reject-schema":
+    if schema_seen is not None:  # a CLI build that does not know the flag
+        sys.stderr.write("error: unknown option '--json-schema'\\n")
+        sys.exit(1)
+    mode = "ok"  # the fallback retry arrives without the flag: answer normally
 if mode == "timeout":
     time.sleep(5)
     sys.exit(0)
@@ -172,7 +225,7 @@ def _fake_claude(dir: Path) -> Path:
 
 
 def demo_claude():
-    env_keys = ("CLAUDE_BIN", "LLM_PROVIDER", "LLM_MODEL", "LLM_TIMEOUT", "PATH",
+    env_keys = ("CLAUDE_BIN", "LLM_PROVIDER", "LLM_MODEL", "LLM_TIMEOUT", "PATH", "LLM_STRICT_SCHEMA",
                 "FAKE_CLAUDE_MODE", "FAKE_CLAUDE_REPLY", "FAKE_CLAUDE_DEBUG")
     saved = {k: os.environ.get(k) for k in env_keys}
     try:
@@ -239,6 +292,36 @@ def demo_claude():
             call = json.loads(debug.read_text(encoding="utf-8"))
             args = call["args"]
             assert args[args.index("--tools") + 1] == "WebSearch", args
+
+            # LLM_STRICT_SCHEMA (v121, opt-in): default is byte-for-byte today's call -- every assertion
+            # above ran with the switch unset, and this one pins the flag's absence explicitly
+            os.environ["FAKE_CLAUDE_MODE"], os.environ["FAKE_CLAUDE_REPLY"] = "ok", json.dumps(REPLY)
+            assert json.loads(llm.chat("s", "u", SCHEMA)) == REPLY
+            args = json.loads(debug.read_text(encoding="utf-8"))["args"]
+            assert "--json-schema" not in args, args
+
+            # switch on: claude's --help takes the schema INLINE (`--json-schema <schema>`, a JSON
+            # string -- its own example is inline JSON, not a file path like codex's --output-schema),
+            # passed as one argv element; the reply path is unchanged
+            os.environ["LLM_STRICT_SCHEMA"] = "1"
+            assert json.loads(llm.chat("s", "u", SCHEMA)) == REPLY
+            assert json.loads(debug.read_text(encoding="utf-8"))["schema"] == SCHEMA
+
+            # a CLI build without the flag: one fallback retry without it, same reply, one warning
+            os.environ["FAKE_CLAUDE_MODE"] = "reject-schema"
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                assert json.loads(llm.chat("s", "u", SCHEMA)) == REPLY
+            assert sum("LLM_STRICT_SCHEMA" in str(w.message) for w in caught) == 1, caught
+
+            # a real failure still fails on its own merits (the fallback's error is the one raised)
+            os.environ["FAKE_CLAUDE_MODE"] = "nonzero"
+            try:
+                llm.chat("s", "u", SCHEMA)
+                assert False, "expected the fallback retry's own failure to raise"
+            except RuntimeError as e:
+                assert "429" in str(e), e
+            del os.environ["LLM_STRICT_SCHEMA"]
     finally:
         for k, v in saved.items():
             if v is None:
