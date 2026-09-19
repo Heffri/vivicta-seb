@@ -1,0 +1,88 @@
+{
+ "report_id": "lib-xano_industri_2025",
+ "company": "XANO Industri",
+ "fiscal_year": 2025,
+ "currency": "TSEK",
+ "section": "debt_maturity",
+ "maturity_basis": "carrying",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 904522,
+   "unit": "TSEK",
+   "period": "2025",
+   "raw_label": "Summa räntebärande skulder",
+   "source": {
+    "page": 84,
+    "quote": "Summa räntebärande skulder 4 090 8 680 38 305 51 075 768 885 33 784 50 778 904 522"
+   },
+   "confidence": 1.0,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "label_known",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": 51075,
+   "unit": "TSEK",
+   "period": "2025",
+   "raw_label": "inom 1 år och 3 år och 5 år: Summa räntebärande skulder",
+   "source": {
+    "page": 84,
+    "quote": "Summa räntebärande skulder 4 090 8 680 38 305 51 075 768 885 33 784 50 778 904 522"
+   },
+   "confidence": 1.0,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "label_known",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": null,
+   "unit": null,
+   "period": null,
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": null,
+   "unit": null,
+   "period": null,
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "detail": "missing: due_1_to_5_years"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [84, 85] selected from candidates [84, 85, 102]",
+  "due_1_to_5_years: 'Summa räntebärande skulder' 802669 dropped: the same row as total_debt, and not a due 1–5 years label",
+  "due_after_5_years: 'Summa räntebärande skulder' 50778 dropped: the same row as total_debt, and not a due after 5 years label"
+ ]
+}
