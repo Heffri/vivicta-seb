@@ -2,7 +2,7 @@
   "report_id": "lib-dynavox_2025",
   "company": "Dynavox Group",
   "fiscal_year": 2025,
-  "currency": "SEK m",
+  "currency": "MSEK",
   "section": "debt_maturity",
   "maturity_basis": "carrying",
   "fields": [
@@ -10,7 +10,7 @@
       "key": "total_debt",
       "label": "Total borrowings",
       "value": 893.8,
-      "unit": "SEK m",
+      "unit": "MSEK",
       "period": "2025",
       "raw_label": "Interest-bearing borrowings",
       "source": {
@@ -31,7 +31,7 @@
       "key": "due_within_1_year",
       "label": "Due within 1 year",
       "value": null,
-      "unit": "SEK m",
+      "unit": "MSEK",
       "period": "2025",
       "raw_label": "",
       "source": null,
@@ -42,7 +42,7 @@
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
       "value": null,
-      "unit": "SEK m",
+      "unit": "MSEK",
       "period": "2025",
       "raw_label": "",
       "source": null,
@@ -53,7 +53,7 @@
       "key": "due_after_5_years",
       "label": "Due after 5 years",
       "value": null,
-      "unit": "SEK m",
+      "unit": "MSEK",
       "period": "2025",
       "raw_label": "",
       "source": null,
@@ -69,7 +69,7 @@
     }
   ],
   "warnings": [
-    "two_pass: page [135, 136] selected from candidates [134, 135]",
-    "published: seed9 run replayed with extract.py @ d3eb5fc8"
+    "two_pass: page [134, 135] selected from candidates [134, 135]",
+    "published: seedseed-rex-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

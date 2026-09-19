@@ -76,13 +76,106 @@
     {
       "name": "maturity_sums_to_total",
       "passed": false,
-      "detail": "missing: due_1_to_5_years"
+      "status": "unavailable",
+      "detail": "Missing explicit values: due_1_to_5_years, due_after_5_years"
     }
   ],
   "warnings": [
     "two_pass: page [107, 108] selected from candidates [107, 108, 88, 109]",
     "total_debt: 824.2 from 'och räntebärande skulder 824,2 (630,0) MSEK, utnyttjad checkräkningskr' refused -- table 'Likviditetsrisker' is undiscounted; not read under the carrying basis",
-    "total_debt: model returned null; the note's two section subtotals on page 107 sum to 824281 (228861 + 595420), each closing on its own rows; corroborated by page 109 prose",
-    "published: seedseed-rex-kb run replayed with extract.py @ d3eb5fc8"
-  ]
+    "total_debt: model returned null; the note's two section subtotals on page 107 sum to 824281 (228861 + 595420), each closing on its own rows; corroborated by page 109 prose"
+  ],
+  "stem": "note_2025",
+  "pdf_available": true,
+  "check_history": [
+    {
+      "at": "2026-09-19T21:59:43.813694+00:00",
+      "reason": "Recalculated explicit values after extraction",
+      "previous": [
+        {
+          "name": "maturity_sums_to_total",
+          "passed": false,
+          "detail": "missing: due_1_to_5_years"
+        }
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "kind": "basis",
+      "key": "entity",
+      "detail": "Confirm entity"
+    },
+    {
+      "kind": "basis",
+      "key": "consolidation",
+      "detail": "Confirm consolidation"
+    },
+    {
+      "kind": "basis",
+      "key": "period",
+      "detail": "Confirm period"
+    },
+    {
+      "kind": "basis",
+      "key": "currency",
+      "detail": "Confirm currency"
+    },
+    {
+      "kind": "basis",
+      "key": "scale",
+      "detail": "Confirm scale"
+    },
+    {
+      "kind": "basis",
+      "key": "source",
+      "detail": "Confirm source"
+    },
+    {
+      "kind": "basis",
+      "key": "restatement",
+      "detail": "Confirm restatement"
+    },
+    {
+      "kind": "basis",
+      "key": "debt_basis",
+      "detail": "Confirm debt basis"
+    },
+    {
+      "kind": "basis",
+      "key": "leases",
+      "detail": "Confirm leases"
+    },
+    {
+      "kind": "basis",
+      "key": "bucket_mapping",
+      "detail": "Confirm bucket mapping"
+    },
+    {
+      "kind": "field",
+      "key": "total_debt",
+      "detail": "Total borrowings: verify value, unit, period and source"
+    },
+    {
+      "kind": "field",
+      "key": "due_within_1_year",
+      "detail": "Due within 1 year: verify value, unit, period and source"
+    },
+    {
+      "kind": "field",
+      "key": "due_1_to_5_years",
+      "detail": "Due 1–5 years: missing value (not zero)"
+    },
+    {
+      "kind": "field",
+      "key": "due_after_5_years",
+      "detail": "Due after 5 years: missing value (not zero)"
+    },
+    {
+      "kind": "check",
+      "key": "maturity_sums_to_total",
+      "detail": "maturity_sums_to_total: Missing explicit values: due_1_to_5_years, due_after_5_years"
+    }
+  ],
+  "ready": false
 }

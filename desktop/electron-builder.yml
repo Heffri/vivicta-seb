@@ -7,6 +7,7 @@ files:
   - preload.js
   - settings.js
   - updates.js
+  - data-sync.js
   - icons/icon.ico
   - package.json
 extraResources:

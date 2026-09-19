@@ -2,7 +2,7 @@
   "report_id": "lib-lime_technologies_2025",
   "company": "Lime Technologies",
   "fiscal_year": 2025,
-  "currency": "TSEK",
+  "currency": "MSEK",
   "section": "debt_maturity",
   "maturity_basis": "carrying",
   "fields": [
@@ -10,8 +10,8 @@
       "key": "total_debt",
       "label": "Total borrowings",
       "value": null,
-      "unit": "TSEK",
-      "period": "2025",
+      "unit": null,
+      "period": null,
       "raw_label": null,
       "source": null,
       "confidence": 0.0,
@@ -43,8 +43,8 @@
       "key": "due_after_5_years",
       "label": "Due after 5 years",
       "value": null,
-      "unit": "TSEK",
-      "period": "2025",
+      "unit": null,
+      "period": null,
       "raw_label": null,
       "source": null,
       "confidence": 0.0,
@@ -60,6 +60,7 @@
   ],
   "warnings": [
     "two_pass: page [72, 73] selected from candidates [72, 73]",
-    "published: seed10 run replayed with extract.py @ d3eb5fc8"
+    "total_debt: column reading of 'Borrowing (incl. overdraft) 15,000 51,396 60,000 25,000' declined -- table 'Liquidity risk - Group' is undiscounted; refused under the carrying basis",
+    "published: seedseed-rex-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

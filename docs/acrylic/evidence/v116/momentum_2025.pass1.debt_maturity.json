@@ -1,6 +1,6 @@
 {
-  "report_id": "lib-karnell_2025",
-  "company": "Karnell Group",
+  "report_id": "lib-momentum_2025",
+  "company": "Momentum Group",
   "fiscal_year": 2025,
   "currency": "MSEK",
   "section": "debt_maturity",
@@ -9,13 +9,13 @@
     {
       "key": "total_debt",
       "label": "Total borrowings",
-      "value": 397.2,
+      "value": 622,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Liabilities to credit institutions",
+      "raw_label": "Interest-bearing liabilities",
       "source": {
-        "page": 106,
-        "quote": "Liabilities to credit institutions 43.5 353.7 - 397.2"
+        "page": 117,
+        "quote": "Interest-bearing liabilities 622 486"
       },
       "confidence": 0.9,
       "evidence": [
@@ -30,18 +30,17 @@
     {
       "key": "due_within_1_year",
       "label": "Due within 1 year",
-      "value": 43.5,
+      "value": 161,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Liabilities to credit institutions",
+      "raw_label": "Current interest-bearing liabilities; Current lease liabilities",
       "source": {
-        "page": 106,
-        "quote": "Liabilities to credit institutions 43.5 353.7 - 397.2"
+        "page": 117,
+        "quote": "Current lease liabilities 94 – – 94"
       },
-      "confidence": 0.9,
+      "confidence": 0.5,
       "evidence": [
         "quote_on_page",
-        "value_in_quote",
         "arith_ok",
         "period_ok",
         "page_is_statement",
@@ -51,13 +50,24 @@
     {
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
-      "value": 353.7,
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": 11,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Liabilities to credit institutions",
+      "raw_label": "Non-current interest-bearing liabilities; Non-current lease liabilities",
       "source": {
-        "page": 106,
-        "quote": "Liabilities to credit institutions 43.5 353.7 - 397.2"
+        "page": 117,
+        "quote": "Non-current lease liabilities 0 122 11 133"
       },
       "confidence": 0.9,
       "evidence": [
@@ -68,84 +78,31 @@
         "page_is_statement",
         "unit_ok"
       ]
-    },
-    {
-      "key": "due_after_5_years",
-      "label": "Due after 5 years",
-      "value": 0,
-      "unit": "MSEK",
-      "period": "2025",
-      "raw_label": "Liabilities to credit institutions",
-      "source": {
-        "page": 106,
-        "quote": "Liabilities to credit institutions 43.5 353.7 - 397.2"
-      },
-      "confidence": 1.0,
-      "evidence": [
-        "quote_on_page",
-        "value_derived",
-        "arith_ok",
-        "label_known",
-        "period_ok",
-        "page_is_statement",
-        "unit_ok"
-      ]
     }
   ],
   "checks": [
     {
       "name": "maturity_sums_to_total",
-      "passed": true,
-      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((43.5 + 353.7 + 0) - 397.2) <= 2",
-      "status": "passed"
+      "passed": false,
+      "status": "unavailable",
+      "detail": "Missing explicit values: due_1_to_5_years"
     }
   ],
   "warnings": [
-    "two_pass: page [106, 107] selected from candidates [106, 107, 93, 71]",
-    "due_after_5_years: model returned null; no debt due in that window -- the row prints a dash in its '>3 years' column ('Liabilities to credit institutions 43.5 353.7 - 397.2'), which spans it whole",
-    "published: seedseed-rex-kb run as stored"
+    "two_pass: page [116, 117] selected from candidates [111, 112, 116]",
+    "due_1_to_5_years: 450 is printed on none of pages [111, 112, 117]; dropped as computed, not read"
   ],
-  "prior_year": {
-    "fiscal_year": 2024,
-    "fields": {
-      "total_debt": {
-        "value": 423.2,
-        "source": {
-          "page": 106,
-          "quote": "Liabilities to credit institutions 71.4 351.7 - 423.2"
-        }
-      },
-      "due_within_1_year": {
-        "value": 71.4,
-        "source": {
-          "page": 106,
-          "quote": "Liabilities to credit institutions 71.4 351.7 - 423.2"
-        }
-      },
-      "due_1_to_5_years": {
-        "value": 351.7,
-        "source": {
-          "page": 106,
-          "quote": "Liabilities to credit institutions 71.4 351.7 - 423.2"
-        }
-      }
-    },
-    "check": {
-      "passed": true,
-      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((71.4 + 351.7) - 423.2) <= 2 (due_after_5_years: no prior-year figure in this table)"
-    }
-  },
-  "stem": "karnell_2025",
+  "stem": "momentum_2025",
   "pdf_available": true,
   "check_history": [
     {
-      "at": "2026-09-19T21:55:13.485038+00:00",
+      "at": "2026-09-19T21:43:32.150951+00:00",
       "reason": "Recalculated explicit values after extraction",
       "previous": [
         {
           "name": "maturity_sums_to_total",
-          "passed": true,
-          "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((43.5 + 353.7 + 0) - 397.2) <= 2"
+          "passed": false,
+          "detail": "missing: due_1_to_5_years"
         }
       ]
     }
@@ -214,12 +171,17 @@
     {
       "kind": "field",
       "key": "due_1_to_5_years",
-      "detail": "Due 1–5 years: verify value, unit, period and source"
+      "detail": "Due 1–5 years: missing value (not zero)"
     },
     {
       "kind": "field",
       "key": "due_after_5_years",
       "detail": "Due after 5 years: verify value, unit, period and source"
+    },
+    {
+      "kind": "check",
+      "key": "maturity_sums_to_total",
+      "detail": "maturity_sums_to_total: Missing explicit values: due_1_to_5_years"
     }
   ],
   "ready": false

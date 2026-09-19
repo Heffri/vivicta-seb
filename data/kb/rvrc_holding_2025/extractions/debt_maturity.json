@@ -2,28 +2,38 @@
   "report_id": "lib-rvrc_holding_2025",
   "company": "RVRC Holding",
   "fiscal_year": 2025,
-  "currency": null,
+  "currency": "SEKm",
   "section": "debt_maturity",
   "maturity_basis": "carrying",
   "fields": [
     {
       "key": "total_debt",
       "label": "Total borrowings",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "value": 12,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "Lease liabilities (see Note 18 Lease agreements)",
+      "source": {
+        "page": 109,
+        "quote": "Lease liabilities (see Note 18 Lease agreements) 12 SEK 1) Variable"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "due_within_1_year",
       "label": "Due within 1 year",
       "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -32,9 +42,9 @@
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
       "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -43,9 +53,9 @@
       "key": "due_after_5_years",
       "label": "Due after 5 years",
       "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -60,10 +70,8 @@
   ],
   "warnings": [
     "two_pass: page [109, 110] selected from candidates [110, 111, 109]",
-    "total_debt: 12 disagrees with the maturity table; 220 read from 'Total 210 3 7 0 0 220' by its column order",
-    "due_within_1_year: model returned null; 210 read from 'Total 210 3 7 0 0 220' by its column order",
-    "due_1_to_5_years: model returned null; 10 read from 'Total 210 3 7 0 0 220' by its column order",
-    "due_after_5_years: model returned null; 0 read from 'Total 210 3 7 0 0 220' by its column order",
-    "published: seed10 run replayed with extract.py @ d3eb5fc8"
+    "total_debt: column reading of 'Total 210 3 7 0 0 220' declined -- table 'Maturity analysis regarding non-discounted liabilities' is undiscounted; refused under the carrying basis",
+    "total_debt: column reading of 'Total 225 2 8 1 0 235' declined -- table 'Maturity analysis regarding non-discounted liabilities' is undiscounted; refused under the carrying basis",
+    "published: seedseed-rex-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

@@ -69,7 +69,7 @@
     }
   ],
   "warnings": [
-    "two_pass: page selection failed or illegal for candidates [90, 91, 100]; fell back to the single-pass window",
-    "published: seed10 run replayed with extract.py @ d3eb5fc8"
+    "two_pass: page [90, 91] selected from candidates [90, 91, 100]",
+    "published: seedseed-rex-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

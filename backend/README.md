@@ -129,6 +129,18 @@ OpenAI-compatible `/v1/embeddings` directly. As with Codex, a Claude-only setup 
 retrieval runs pure BM25 without `LLM_BASE_URL` (`kb.retrieval_mode()` -> `"bm25"`); a base URL upgrades retrieval to
 hybrid cosine+BM25.
 
+**Strict schema for the CLI providers (both this and the Codex one): `LLM_STRICT_SCHEMA=1`.** Off (the default),
+today's calls go out exactly as before. On, the caller's JSON schema rides along the way `response_format` has
+always constrained `openai_compatible`: `codex exec` takes `--output-schema <file>` (the schema written into the
+call's own read-only temp dir; verified against codex-cli 0.153.4's `exec --help` and real calls), `claude -p`
+takes `--json-schema <inline JSON>` (its `--help` shows the schema as a string value, not a file path -- the one
+place the two CLIs differ). The parse path is unchanged either way. If the strict attempt fails -- a CLI build
+without the flag, a rate limit, a timeout -- it is retried once without the flag and a `warnings.warn` notes the
+fallback, so the switch can only add a retry, never change a reply the old code would have gotten. Verified for
+Codex with three real debt_maturity extractions (Karnell/NOTE/Dynavox, each strict vs plain: values byte-identical
+on the two stable reports, times within ~2 s); the Claude flag is help-verified and unit-tested only, no real
+call spent on it.
+
 Test: `python -m pipeline.test_llm` -- a fake `claude.cmd` + Python script replays discovery, stdin,
 `--output-format json` parsing, fence stripping, `is_error: true`, a non-zero exit and a timeout, no network or
 real Claude Code install needed.

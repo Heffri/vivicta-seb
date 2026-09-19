@@ -23,6 +23,14 @@ or claude's `--json-schema` could constrain the reply the way response_format={"
 for openai_compatible, but that's untried against the real CLIs and the prompt already asks for strict
 JSON, parsed the same way as today either way.
 
+LLM_STRICT_SCHEMA=1 (v121, opt-in) closes that gap: the CLI providers then pass the caller's `schema` on
+-- codex exec takes `--output-schema <file>` (the schema written into the call's own -C temp dir), claude
+takes `--json-schema <inline JSON>` (its --help shows the schema as a string value, not a file path -- the
+one place the two CLIs differ). Parsing is unchanged; the prompt still asks for strict JSON either way.
+When the strict call fails (a CLI build without the flag, or any non-zero exit/timeout), chat() falls
+back to today's flag-less call with a warnings.warn -- so the switch can only add a retry, never change
+a reply that today's code would have gotten. Default (switch unset) is byte-for-byte today's behavior.
+
 web_lookup() (v074) is chat() with the provider's own web-search tool switched on -- fetch.py's fourth
 report source. Only the CLI providers have a search tool; an OpenAI-compatible endpoint has none, so
 web_lookup raises there instead of quietly answering from the model's memory.
@@ -34,6 +42,7 @@ import shutil
 import subprocess
 import tempfile
 import urllib.request
+import warnings
 from pathlib import Path
 
 from openai import OpenAI
@@ -52,12 +61,31 @@ def chat(system: str, user: str, schema: dict, name: str = "response") -> str:
     """One model call -> the reply's raw text. Raises on failure the same way the provider's own
     client already did (a timeout's exception type name contains "timeout" either way, which is what
     extract.extract()'s retry/window-shrink logic keys off; anything else is just some Exception, same
-    as an unhandled openai.* error today)."""
+    as an unhandled openai.* error today).
+
+    LLM_STRICT_SCHEMA=1 (v121) hands the CLI providers the caller's `schema` the way _openai_chat has
+    always passed it as response_format. Only the *first*, strict attempt carries the flag: any failure
+    (RuntimeError from a non-zero exit, or TimeoutExpired) falls back to today's flag-less call with a
+    warnings.warn -- so a CLI build without the flag, a rate limit, or a timeout costs one retry and
+    degrades to exactly the pre-v121 behavior. The fallback's own failure is what the caller sees."""
     p = provider()
+    strict = schema is not None and os.getenv("LLM_STRICT_SCHEMA", "") == "1"
     if p == "codex":
-        content = _codex_chat(system, user)
+        try:
+            content = _codex_chat(system, user, schema=schema if strict else None)
+        except (RuntimeError, subprocess.TimeoutExpired):
+            if not strict:
+                raise
+            warnings.warn("LLM_STRICT_SCHEMA: codex exec did not accept --output-schema; retrying without it")
+            content = _codex_chat(system, user)
     elif p == "claude":
-        content = _claude_chat(system, user)
+        try:
+            content = _claude_chat(system, user, schema=schema if strict else None)
+        except (RuntimeError, subprocess.TimeoutExpired):
+            if not strict:
+                raise
+            warnings.warn("LLM_STRICT_SCHEMA: claude -p did not accept --json-schema; retrying without it")
+            content = _claude_chat(system, user)
     else:
         content = _openai_chat(system, user, schema, name)
     content = re.sub(r"<think>.*?</think>", "", content, flags=re.S)  # qwen3 & co
@@ -131,16 +159,24 @@ def _codex_executable() -> str:
     raise RuntimeError("codex executable not found (PATH, or the usual OpenAI Codex install dirs); set CODEX_BIN to override")
 
 
-def _codex_chat(system: str, user: str, search: bool = False) -> str:
+def _codex_chat(system: str, user: str, search: bool = False, schema: dict | None = None) -> str:
     exe = _codex_executable()
     model, timeout = os.getenv("LLM_MODEL", "gpt-5.6-terra"), float(os.getenv("LLM_TIMEOUT", "120"))
     prompt = f"{system}\n\n{user}"
     with tempfile.TemporaryDirectory(prefix="vivicta-codex-") as cwd:
         out = Path(cwd) / "last-message.txt"  # -o: codex's own answer to "which part of the output is the reply", no event-stream parsing needed
+        # --output-schema (v121, opt-in LLM_STRICT_SCHEMA) is an exec flag per `codex exec --help`
+        # ("Path to a JSON Schema file describing the model's final response shape"): a FILE path, so
+        # the schema goes into the call's own -C temp dir -- inside the read-only sandbox, never the repo.
+        schema_arg = []
+        if schema is not None:
+            sp = Path(cwd) / "response-schema.json"
+            sp.write_text(json.dumps(schema), encoding="utf-8")
+            schema_arg = ["--output-schema", str(sp)]
         # --search is a top-level codex flag (v074), not an exec one: `codex exec --search` is rejected,
         # `codex --search exec ...` parses. It enables the native Responses web_search tool with no
         # per-call approval, which is all web_lookup() needs.
-        cmd = [exe, *(["--search"] if search else []), "exec", "-m", model, "-s", "read-only", "-C", cwd, "--skip-git-repo-check", "--json", "-o", str(out), "-"]
+        cmd = [exe, *(["--search"] if search else []), "exec", "-m", model, "-s", "read-only", "-C", cwd, "--skip-git-repo-check", *schema_arg, "--json", "-o", str(out), "-"]
         p = subprocess.run(cmd, input=prompt, cwd=cwd, capture_output=True, encoding="utf-8", errors="replace", timeout=timeout)
         if p.returncode != 0 or not out.exists():
             tail = ((p.stdout or "") + "\n" + (p.stderr or ""))[-2000:].strip()
@@ -204,7 +240,7 @@ def _claude_managed_candidate() -> str | None:
     return None
 
 
-def _claude_chat(system: str, user: str, tools: str = "") -> str:
+def _claude_chat(system: str, user: str, tools: str = "", schema: dict | None = None) -> str:
     exe = _claude_executable()
     model, timeout = os.getenv("LLM_MODEL", "claude-sonnet-5"), float(os.getenv("LLM_TIMEOUT", "120"))
     prompt = f"{system}\n\n{user}"
@@ -216,7 +252,11 @@ def _claude_chat(system: str, user: str, tools: str = "") -> str:
         # passes "WebSearch" instead (v074): the same flag is the whole allowlist. --output-format
         # json is codex's `--json -o <file>` in one flag: a single JSON object on stdout, reply text in "result"
         # (verified against a real `claude -p` call, 2026-09-16).
-        cmd = [exe, "-p", "--output-format", "json", "--model", model, "--tools", tools, "--no-session-persistence"]
+        # --json-schema (v121, opt-in LLM_STRICT_SCHEMA), unlike codex's --output-schema, takes the schema
+        # itself, not a file path: `claude --help` shows `--json-schema <schema>` with an inline JSON object
+        # as its example, so it goes on argv as one element (subprocess list form, no quoting involved).
+        schema_arg = ["--json-schema", json.dumps(schema)] if schema is not None else []
+        cmd = [exe, "-p", "--output-format", "json", *schema_arg, "--model", model, "--tools", tools, "--no-session-persistence"]
         p = subprocess.run(cmd, input=prompt, cwd=cwd, capture_output=True, encoding="utf-8", errors="replace", timeout=timeout)
         if p.returncode != 0:
             tail = ((p.stdout or "") + "\n" + (p.stderr or ""))[-2000:].strip()

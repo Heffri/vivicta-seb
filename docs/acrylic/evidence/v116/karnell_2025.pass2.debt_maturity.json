@@ -102,8 +102,7 @@
   ],
   "warnings": [
     "two_pass: page [106, 107] selected from candidates [106, 107, 93, 71]",
-    "due_after_5_years: model returned null; no debt due in that window -- the row prints a dash in its '>3 years' column ('Liabilities to credit institutions 43.5 353.7 - 397.2'), which spans it whole",
-    "published: seedseed-rex-kb run as stored"
+    "due_after_5_years: model returned null; no debt due in that window -- the row prints a dash in its '>3 years' column ('Liabilities to credit institutions 43.5 353.7 - 397.2'), which spans it whole"
   ],
   "prior_year": {
     "fiscal_year": 2024,
