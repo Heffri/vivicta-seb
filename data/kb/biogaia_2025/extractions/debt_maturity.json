@@ -1,6 +1,6 @@
 {
   "report_id": "lib-biogaia_2025",
-  "company": "BioGaia",
+  "company": "biogaia",
   "fiscal_year": 2025,
   "currency": "TSEK",
   "section": "debt_maturity",
@@ -31,7 +31,7 @@
       "value": null,
       "unit": "TSEK",
       "period": "2025",
-      "raw_label": "",
+      "raw_label": null,
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -42,7 +42,7 @@
       "value": null,
       "unit": "TSEK",
       "period": "2025",
-      "raw_label": "",
+      "raw_label": null,
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -53,7 +53,7 @@
       "value": null,
       "unit": "TSEK",
       "period": "2025",
-      "raw_label": "",
+      "raw_label": null,
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -69,6 +69,6 @@
   "warnings": [
     "two_pass: page [153, 154] selected from candidates [148, 149, 153]",
     "total_debt: quote not found on page 153",
-    "published: seed5 run replayed with extract.py @ d3eb5fc8"
+    "published: seedseed-rerun-v115-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

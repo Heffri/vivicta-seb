@@ -1,9 +1,10 @@
 {
   "report_id": "lib-nelly_2025",
-  "company": "Nelly Group",
+  "company": "nelly",
   "fiscal_year": 2025,
   "currency": "Miljoner kronor",
   "section": "debt_maturity",
+  "maturity_basis": "carrying",
   "fields": [
     {
       "key": "total_debt",
@@ -29,20 +30,19 @@
     {
       "key": "due_within_1_year",
       "label": "Due within 1 year",
-      "value": 287.1,
+      "value": 36.2,
       "unit": "Miljoner kronor",
       "period": "2025",
-      "raw_label": "Kortfristiga + Långfristiga",
+      "raw_label": "Kortfristiga",
       "source": {
         "page": 89,
-        "quote": "Kortfristiga 36,2 35,7 Långfristiga 250,9 251,5"
+        "quote": "Kortfristiga 36,2 35,7"
       },
-      "confidence": 1.0,
+      "confidence": 0.9,
       "evidence": [
         "quote_on_page",
-        "value_derived",
+        "value_in_quote",
         "arith_ok",
-        "label_known",
         "period_ok",
         "page_is_statement",
         "unit_ok"
@@ -74,12 +74,12 @@
   "checks": [
     {
       "name": "maturity_sums_to_total",
-      "passed": true,
-      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((287.1 + 0 (due_1_to_5_years null) + 0 (due_after_5_years null)) - 287.1) <= 2"
+      "passed": false,
+      "detail": "missing: due_1_to_5_years"
     }
   ],
   "warnings": [
-    "due_within_1_year: 36.2 fails maturity_sums_to_total; 'Kortfristiga 36,2 35,7 Långfristiga 250,9 251,5' sums to 287.1 in every column, which passes",
-    "published: seed2 run as stored"
+    "two_pass: page [89, 90] selected from candidates [88, 89, 57, 78, 84]",
+    "published: seedseed-rerun-v115-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

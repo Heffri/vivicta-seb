@@ -1,6 +1,6 @@
 {
   "report_id": "lib-ctt_systems_2025",
-  "company": "CTT Systems",
+  "company": "ctt_systems",
   "fiscal_year": 2025,
   "currency": null,
   "section": "debt_maturity",
@@ -60,6 +60,6 @@
   ],
   "warnings": [
     "two_pass: page [41, 42] selected from candidates [41, 42]",
-    "published: seed5 run replayed with extract.py @ d3eb5fc8"
+    "published: seedseed-rerun-v115-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

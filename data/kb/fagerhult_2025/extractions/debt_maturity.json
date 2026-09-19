@@ -112,6 +112,6 @@
     "due_within_1_year: 56 kept: closes the identity exactly, even though column 1 of 4 prints 5.2",
     "due_1_to_5_years: 3390 kept: closes the identity exactly, even though column 1 of 4 prints 6",
     "due_after_5_years: 3.5 kept: closes the identity exactly, even though column 1 of 4 prints 13.1",
-    "published: seed10 run replayed with extract.py @ d3eb5fc8"
+    "published: seedseed-rerun-v118-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

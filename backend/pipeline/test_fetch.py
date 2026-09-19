@@ -8,6 +8,7 @@ patched out for the same reason -- this needs no MFN/Nasdaq/DuckDuckGo access an
 Run: python -m pipeline.test_fetch"""
 import json
 import os
+import random
 import tempfile
 import threading
 import functools
@@ -50,6 +51,39 @@ def _write_pdf(path: Path, pages: int = 90):
         page.insert_text((72, 72), f"{COMPANY} Annual Report {YEAR}")
         for i in range(8):
             page.insert_text((72, 100 + 14 * i), f"{COMPANY} revenue, operating profit and financial statements.")
+    doc.save(path)
+    doc.close()
+
+
+KB = Path(__file__).resolve().parents[2] / "data" / "kb"  # the committed corpus: real report page text, no PDFs
+
+
+def _kb_pages(stem: str):
+    """Per-page texts for a KB stem -- the same parse the backend serves.
+    split('\n'), not splitlines(): page text may hold U+2028 (the pipeline.kb._pages rule)."""
+    lines = (KB / stem / "pages.jsonl").read_text(encoding="utf-8").split("\n")
+    return [json.loads(l)["text"] for l in lines if l.strip()]
+
+
+def _kb_page_texts(stem: str):
+    """(first-three-pages text, full text) for a KB stem."""
+    pages = _kb_pages(stem)
+    return "".join(pages[:3]), "".join(pages)
+
+
+def _pdf_from_page_texts(path: Path, page_texts, filler_lines=None, filler_pages=0):
+    """A PDF whose leading pages carry the given texts line by line (latin-1 for the base-14 font,
+    which only shifts dashes etc.), optionally followed by dense filler pages for the text-layer
+    and page-count gates."""
+    doc = fitz.open()
+    for t in page_texts:
+        page = doc.new_page()
+        for i, line in enumerate((t or "").splitlines() or [""]):
+            page.insert_text((72, 72 + 14 * i), line.encode("latin-1", "replace").decode("latin-1")[:90])
+    for _ in range(filler_pages):
+        page = doc.new_page()
+        for i, line in enumerate(filler_lines):
+            page.insert_text((72, 72 + 14 * i), line.encode("latin-1", "replace").decode("latin-1")[:90])
     doc.save(path)
     doc.close()
 
@@ -347,6 +381,93 @@ def demo():
             ir_urls, ir_note = fetch._ir_page_candidates(COMPANY, YEAR)
             assert ir_urls == [_url(base, "/ir/page1.html"), _url(base, "/ir/page2.html")], ir_urls  # capped at MAX_IR_PAGE_CANDIDATES
             os.environ.pop("FAKE_WEB_REPLY_IR_PAGE", None)
+
+            # 20. v122 red proof, end to end: MTG's real FY2021 cover/title/contents as the first three
+            #     pages of an otherwise plausible candidate (forward-looking "2025" filler after), served
+            #     off the loopback server exactly like the download that put the wrong document in the KB.
+            #     The old year-anywhere check registered this exact shape; the anchored check must refuse
+            #     it, and the reason on the tried list must name the year the cover does name.
+            os.environ.pop("LLM_PROVIDER", None)  # feeds-only: no model layer between the candidate and the year gate
+            dest12 = tmp / "reports12"
+            mtg_head, _ = _kb_page_texts("modern_times_2025")
+            mtg_path = "/mtg-annual-and-cr-report-2021.pdf"
+            _pdf_from_page_texts(tmp / "public" / mtg_path.lstrip("/"), _kb_pages("modern_times_2025")[:3],
+                                 filler_lines=["Modern Times Group revenue, operating profit and financial statements.",
+                                               "Target for 2025: organic growth across our gaming portfolio.",
+                                               "Modern Times Group segment performance, cash flow and balance sheet.",
+                                               "Forward-looking statement: by 2025 the group expects margin expansion.",
+                                               "Modern Times Group notes to the financial statements and other information.",
+                                               "Strategy update: the plan for 2025 builds on the studios' strong pipelines.",
+                                               "Modern Times Group corporate responsibility summary and statutory statement.",
+                                               "Outlook: management expectations for 2025 and the years beyond."] * 2,
+                                 filler_pages=45)
+            mtg_url = _url(base, mtg_path)
+            fetch._candidates = lambda company, year: [mtg_url]
+            try:
+                fetch.fetch_report("Modern Times Group", 2025, dest12)
+                assert False, "expected LookupError: the FY2021 document must not pass the anchored year check"
+            except LookupError as e:
+                assert e.args[0] == [mtg_url, "2025 not on the first 3 pages and no accounting period for it; cover names 2021"], e.args
+            assert not list(dest12.glob("*.pdf")), "the refused document must not be stored"
+
+            # 21. the anchored rule's own shapes: the fiscal year (plain or split-year, both spellings)
+            #     on the cover, or an accounting period ending in it; a bare year elsewhere never is one
+            fy = fetch._fiscal_year_re(2025)
+            assert fy.search("ANNUAL REPORT 2025") and fy.search("Annual Report 2024/25") and fy.search("2024/2025"), fy.pattern
+            assert not fy.search("2024") and not fy.search("2026 plans"), fy.pattern
+            period = fetch._period_re(2025)
+            for shape in ("1 januari–31 december 2025", "1 January – 31 December 2025", "1 september 2024–31 augusti 2025",
+                          "September 1, 2024–August 31, 2025", "financial year 2025", "Financial Year 2025",
+                          "fiscal year 2025", "räkenskapsåret 2025"):
+                assert period.search(shape), shape
+            for shape in ("growth target for 2025", "by 2025 the group will", "31 december 2024", "December 31, 2024",
+                          "financial year 2024", "interim report Q3 2025"):
+                assert not period.search(shape), shape
+
+            # 22. the title-year detail, both directions: MTG's real head names 2021 above the title;
+            #     an earlier year with no report wording, or report wording with no earlier year, names nothing
+            assert fetch._title_year(mtg_head, 2025) == "2021"
+            assert fetch._title_year("Quarterly update 2021 for investors", 2025) is None
+            assert fetch._title_year("Annual Report with no year on the cover", 2025) is None
+            assert fetch._title_year("Årsredovisning 2023", 2025) == "2023"
+
+            # 23. Dustin's real cover passes: its FY2025 report is exactly the split-fiscal-year shape
+            #     the anchored rule must keep accepting ("September 1, 2024–August 31, 2025")
+            dustin_head, _ = _kb_page_texts("dustin_2025")
+            dustin_path = tmp / "public" / "dustin-annual-and-sustainability-2025.pdf"
+            _pdf_from_page_texts(dustin_path, _kb_pages("dustin_2025")[:3],
+                                 filler_lines=["Dustin Group revenue, operating profit and financial statements.",
+                                               "Dustin Group segment performance, cash flow and balance sheet.",
+                                               "Dustin Group notes to the financial statements and other information.",
+                                               "Dustin Group corporate responsibility summary and statutory statement."] * 3,
+                                 filler_pages=45)
+            doc, text = fetch._validate(dustin_path.read_bytes(), "Dustin Group", 2025)
+            assert doc is not None, text
+
+            # 24. the escape hatch on its own: a cover whose first three pages never name the year is
+            #     still accepted when an accounting period ending in the fiscal year is stated later
+            #     in the text -- and refused once that statement names only the prior year (ASCII
+            #     hyphen: the base-14 insertion font latin-1-mangles a dash, covered as U+2013 in 21)
+            for body, want in ((["Annual and Sustainability Report", "", "Contents", "", "",
+                                 "The financial year comprises 1 January - 31 December 2025."], True),
+                               (["Annual and Sustainability Report", "", "Contents", "", "",
+                                 "The prior financial year comprised 1 January - 31 December 2024."], False)):
+                p = tmp / "public" / f"period-{'ok' if want else 'no'}.pdf"
+                _pdf_from_page_texts(p, body, filler_pages=0)
+                with fitz.open(p) as d:
+                    assert fetch._year_ok(d, 2025) is want, (body, want)
+
+            # 25. five random real reports from the committed corpus pass the same rule on their real
+            #     page text (modern_times_2025 excluded: it is the known defect, case 20's subject --
+            #     scripts/kb_year_audit.py is what lists it, and it must stay listed until re-fetched)
+            stems = sorted(p.name for p in KB.iterdir() if (p / "meta.json").exists())
+            assert len(stems) >= 200, f"expected the committed corpus, found {len(stems)} entries"
+            stems.remove("modern_times_2025")
+            for stem in random.Random(122).sample(stems, 5):
+                meta = json.loads((KB / stem / "meta.json").read_text(encoding="utf-8"))
+                head, full = _kb_page_texts(stem)
+                assert fetch._fiscal_year_re(meta["fiscal_year"]).search(head) or fetch._period_re(meta["fiscal_year"]).search(full), \
+                    f"{stem}: real FY{meta['fiscal_year']} report fails the anchored year check -- audit it"
     finally:
         for k, v in saved.items():
             if v is None:

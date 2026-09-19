@@ -12,19 +12,18 @@
       "value": 1090075,
       "unit": "kSEK",
       "period": "2025",
-      "raw_label": "Total borrowings",
+      "raw_label": "Total borrowings (Note 27)",
       "source": {
-        "page": 101,
-        "quote": "Total borrowings 1,090,075 998,103 – no maturity date 214,279 225,000 of netting in the same tax jurisdiction, is shown in the tables on the following page."
+        "page": 93,
+        "quote": "Total borrowings (Note 27) 1,090,075 998,103 be made (Note 18)."
       },
-      "confidence": 1.0,
+      "confidence": 0.95,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
         "arith_ok",
         "label_known",
         "period_ok",
-        "page_is_statement",
         "unit_ok"
       ]
     },
@@ -70,6 +69,7 @@
     }
   ],
   "warnings": [
-    "published: seed2 run replayed with extract.py @ d3eb5fc8"
+    "two_pass: page [117, 118] selected from candidates [93, 94, 117]",
+    "published: seedseed-rerun-v118-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

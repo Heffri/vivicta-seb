@@ -106,6 +106,8 @@
     "due_1_to_5_years: 3062 is not printed in '2–5 years'; the row's 2025 figure is 2184",
     "due_after_5_years: 2633 is not the 2025 column, 2431 is",
     "due_within_1_year: 975 is printed on none of pages [115, 132, 133]; dropped as computed, not read",
-    "published: seed9 run replayed with extract.py @ d3eb5fc8"
+    "due_within_1_year: model returned null; the rows above the total (0–6 months + 7–12 months) sum to 1039 in the 2025 column, closing maturity_sums_to_total",
+    "due_1_to_5_years: 2184 reads one finer-split row and misses its siblings; the rows above the total (1–2 years + 2–5 years) sum to 3153 in the 2025 column, closing maturity_sums_to_total",
+    "published: seedseed-rerun-v115-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

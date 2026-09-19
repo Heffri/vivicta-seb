@@ -17,14 +17,13 @@
         "page": 21,
         "quote": "Total interest-bearing liabilities 52,680 47,147 12"
       },
-      "confidence": 1.0,
+      "confidence": 0.95,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
         "arith_ok",
         "label_known",
         "period_ok",
-        "page_is_statement",
         "unit_ok"
       ]
     },
@@ -34,7 +33,7 @@
       "value": null,
       "unit": "SEK m",
       "period": "2025",
-      "raw_label": null,
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -45,7 +44,7 @@
       "value": null,
       "unit": "SEK m",
       "period": "2025",
-      "raw_label": null,
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -56,7 +55,7 @@
       "value": null,
       "unit": "SEK m",
       "period": "2025",
-      "raw_label": null,
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -70,7 +69,7 @@
     }
   ],
   "warnings": [
-    "two_pass: page [21, 22] selected from candidates [127, 128, 126, 21]",
-    "published: seed9 run replayed with extract.py @ d3eb5fc8"
+    "two_pass: page [126, 127] selected from candidates [127, 128, 126, 21]",
+    "published: seedseed-rerun-v118-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

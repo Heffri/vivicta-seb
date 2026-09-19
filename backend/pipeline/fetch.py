@@ -213,6 +213,70 @@ def _year_re(year):
     return re.compile(rf"\b{year}\b|\b{year - 1}/{year % 100}\b")  # SkiStar's "Annual Report 2024/25" is the FY2025 report
 
 
+# ---- v122: the year check is anchored to the cover/first pages and the accounting period ----
+# "the year anywhere in the text" let MTG's FY2021 Annual and CR Report through as modern_times_2025:
+# 122 of its 148 pages say 2021, and its only "2025" mentions are six pages of forward-looking targets.
+
+_PERIOD_MONTHS = ("january|february|march|april|may|june|july|august|september|october|november|december"
+                  "|januari|februari|mars|maj|juni|juli|augusti|oktober")
+TITLE_YEAR_MARK = "; cover names "  # _year_reason's detail when an earlier year titles the cover -- kept on the tried list
+_TITLE_WORDS = re.compile(r"annual[\w\s&-]*report|årsredovisning", re.I)
+
+
+def _fiscal_year_re(year):
+    """_year_re plus the full "2024/2025" split-year form -- feed titles shorten it, covers print both."""
+    return re.compile(rf"{_year_re(year).pattern}|\b{year - 1}\s*/\s*{year}\b")
+
+
+def _period_re(year):
+    """An accounting period ending in `year`, the wordings issuers actually print: a dated range
+    ("1 januari–31 december 2025", Dustin's English "September 1, 2024–August 31, 2025") or a named
+    fiscal year ("financial year 2025", "räkenskapsåret 2025"). A bare year elsewhere never matches."""
+    y, m, dash = str(year), _PERIOD_MONTHS, "[–—−-]"
+    return re.compile(
+        rf"\b\d{{1,2}}\s+(?:{m})(?:\s+\d{{4}})?\s*{dash}\s*\d{{1,2}}\s+(?:{m})\s+{y}\b"     # 1 januari–31 december 2025
+        rf"|(?:{m})\s+\d{{1,2}},?\s*(?:\d{{4}})?\s*{dash}\s*(?:{m})\s+\d{{1,2}},?\s*{y}\b"  # September 1, 2024–August 31, 2025
+        rf"|\b(?:financial|fiscal) year {y}\b"
+        rf"|\bräkenskapsåret {y}\b", re.I)
+
+
+def _head_text(doc):
+    """The first three pages -- cover, title page, contents: where a report names its own year."""
+    return "".join(doc[i].get_text() for i in range(min(3, doc.page_count)))
+
+
+def _title_year(head, year):
+    """An earlier year standing alone on a report-titled cover ("Annual Report 2021", or MTG's
+    year-above-the-title layout), or None -- the detail that explains a v122 rejection: in such a
+    document the target year typically appears only in forward-looking text, which is exactly how
+    the old year-anywhere check was satisfied."""
+    if not _TITLE_WORDS.search(head):
+        return None
+    older = [int(m.group(0)) for m in re.finditer(r"\b(?:19|20)\d{2}\b", head) if int(m.group(0)) < year]
+    return str(max(older)) if older else None
+
+
+def _year_ok(doc, year):
+    """v122: is this plausibly the fiscal-`year` report? The year itself -- or the split-year
+    "2024/25" / "2024/2025" cover shape -- must sit on the first three pages (cover, title page,
+    contents), or an accounting period ending in the year must be stated anywhere in the text.
+    A mere mention on some later page no longer passes: MTG's FY2021 report slipped through the
+    old year-anywhere check on six forward-looking "2025" target mentions."""
+    if _fiscal_year_re(year).search(_head_text(doc)):
+        return True
+    return bool(_period_re(year).search("".join(doc[i].get_text() for i in range(doc.page_count))))
+
+
+def _year_reason(doc, year):
+    """The v122 rejection reason for a PDF _year_ok refused (None when it passes). When the first
+    three pages title the report with an earlier year, the reason names it: that is a corpus-defect
+    finding worth keeping on the tried list, not just another candidate miss."""
+    if _year_ok(doc, year):
+        return None
+    ty = _title_year(_head_text(doc), year)
+    return f"{year} not on the first 3 pages and no accounting period for it" + (TITLE_YEAR_MARK + ty if ty else "")
+
+
 def _mfn_slugs(company):
     """Matching MFN company-feed slugs, best-named first: "PPI Public Property Invest" is filed under its own name only
     when searched without the "PPI" acronym prefix, and its actual report sits under a second, differently-named hit
@@ -391,8 +455,8 @@ def _validate(data, company, year):
     missing = [t for t in _toks(company) if not re.search(rf"\b{re.escape(t)}", plain)]  # "nibe", "abb", "lundin gold" (not Lundin Mining)
     if missing:
         return None, f"issuer mismatch: {missing[0]!r} not in first 20 pages"  # DDG happily returns some other company's report
-    if str(year) not in text:
-        return None, f"{year} not in first 20 pages"
+    if reason := _year_reason(doc, year):  # v122: the year on the first pages or an accounting period, not "anywhere"
+        return None, reason
     head = "".join(doc[i].get_text() for i in range(min(3, doc.page_count)))
     if NOT_REPORT.search(head) and not IS_AR.search(head):
         return None, f"not an annual report: {NOT_REPORT.search(head).group(0)!r} on the cover"
@@ -529,6 +593,8 @@ def _ir_page_report(seeds, company, year, tried):
             continue
         if not doc:
             print(f"{url} -> {text}")
+            if TITLE_YEAR_MARK in text:  # v122: a cover naming an older year is a finding, not just a miss
+                tried.append(text)
             continue
         print(f"{url} -> ok ({doc.page_count} pages, {time.time() - t0:.0f}s, IR page crawl)")
         if not best or doc.page_count > best[3]:
@@ -574,6 +640,8 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
             continue
         if not doc:
             print(f"{url} -> {text}")
+            if TITLE_YEAR_MARK in text:  # v122: a cover naming an older year is a finding, not just a miss
+                tried.append(text)
             if data.startswith(b"%PDF"):  # not a download error: a page an RNS-style notice may name its own site on
                 stub_pages += [u for u in _stub_pages(data, toks) if u not in stub_pages]
             elif url not in page_seeds:  # a page, not a PDF (a DDG hit that served an IR page): crawl it (v080)
@@ -609,6 +677,8 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
                 continue
             if not doc:  # no stub-page harvest here: the model was asked for direct PDF links only
                 print(f"{url} -> {text}")
+                if TITLE_YEAR_MARK in text:  # v122: a cover naming an older year is a finding, not just a miss
+                    tried.append(text)
                 if not data.startswith(b"%PDF") and url not in page_seeds:  # the model named a page, not a PDF (v080)
                     page_seeds.append(url)
                 continue

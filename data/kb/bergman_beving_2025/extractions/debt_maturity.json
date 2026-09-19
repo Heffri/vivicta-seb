@@ -9,20 +9,18 @@
     {
       "key": "total_debt",
       "label": "Total borrowings",
-      "value": 2062,
+      "value": 2038,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Total interest-bearing liabilities",
+      "raw_label": "Interest-bearing financial liabilities bank",
       "source": {
-        "page": 120,
-        "quote": "Total interest-bearing liabilities 2,390 2,062"
+        "page": 119,
+        "quote": "Interest-bearing financial liabilities bank 2,038 2,274 18 336 1,920 –"
       },
-      "confidence": 1.0,
+      "confidence": 0.5,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
-        "arith_ok",
-        "label_known",
         "period_ok",
         "page_is_statement",
         "unit_ok"
@@ -31,19 +29,17 @@
     {
       "key": "due_within_1_year",
       "label": "Due within 1 year",
-      "value": 476,
+      "value": 354,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Total current liabilities",
+      "raw_label": "Interest-bearing financial liabilities bank",
       "source": {
-        "page": 120,
-        "quote": "Total current liabilities 424 476"
+        "page": 119,
+        "quote": "Interest-bearing financial liabilities bank 2,038 2,274 18 336 1,920 –"
       },
-      "confidence": 0.9,
+      "confidence": 0.5,
       "evidence": [
         "quote_on_page",
-        "value_in_quote",
-        "arith_ok",
         "period_ok",
         "page_is_statement",
         "unit_ok"
@@ -52,34 +48,146 @@
     {
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
-      "value": null,
+      "value": 1920,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "",
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "raw_label": "Interest-bearing financial liabilities bank",
+      "source": {
+        "page": 119,
+        "quote": "Interest-bearing financial liabilities bank 2,038 2,274 18 336 1,920 –"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "due_after_5_years",
       "label": "Due after 5 years",
-      "value": null,
+      "value": 0,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "",
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "raw_label": "Interest-bearing financial liabilities bank",
+      "source": {
+        "page": 119,
+        "quote": "Interest-bearing financial liabilities bank 2,038 2,274 18 336 1,920 –"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     }
   ],
   "checks": [
     {
       "name": "maturity_sums_to_total",
       "passed": false,
-      "detail": "missing: due_1_to_5_years"
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((354 + 1920 + 0) - 2038) <= 2",
+      "status": "failed"
     }
   ],
   "warnings": [
-    "published: seed1 run replayed with extract.py @ d3eb5fc8"
-  ]
+    "two_pass: page [119, 120] selected from candidates [92, 93, 119, 123]",
+    "published: seedseed-rerun-v118-kb run as stored"
+  ],
+  "stem": "bergman_beving_2025",
+  "pdf_available": true,
+  "check_history": [
+    {
+      "at": "2026-09-19T22:22:53.890350+00:00",
+      "reason": "Recalculated explicit values after extraction",
+      "previous": [
+        {
+          "name": "maturity_sums_to_total",
+          "passed": false,
+          "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((354 + 1920 + 0) - 2038) <= 2"
+        }
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "kind": "basis",
+      "key": "entity",
+      "detail": "Confirm entity"
+    },
+    {
+      "kind": "basis",
+      "key": "consolidation",
+      "detail": "Confirm consolidation"
+    },
+    {
+      "kind": "basis",
+      "key": "period",
+      "detail": "Confirm period"
+    },
+    {
+      "kind": "basis",
+      "key": "currency",
+      "detail": "Confirm currency"
+    },
+    {
+      "kind": "basis",
+      "key": "scale",
+      "detail": "Confirm scale"
+    },
+    {
+      "kind": "basis",
+      "key": "source",
+      "detail": "Confirm source"
+    },
+    {
+      "kind": "basis",
+      "key": "restatement",
+      "detail": "Confirm restatement"
+    },
+    {
+      "kind": "basis",
+      "key": "debt_basis",
+      "detail": "Confirm debt basis"
+    },
+    {
+      "kind": "basis",
+      "key": "leases",
+      "detail": "Confirm leases"
+    },
+    {
+      "kind": "basis",
+      "key": "bucket_mapping",
+      "detail": "Confirm bucket mapping"
+    },
+    {
+      "kind": "field",
+      "key": "total_debt",
+      "detail": "Total borrowings: verify value, unit, period and source"
+    },
+    {
+      "kind": "field",
+      "key": "due_within_1_year",
+      "detail": "Due within 1 year: verify value, unit, period and source"
+    },
+    {
+      "kind": "field",
+      "key": "due_1_to_5_years",
+      "detail": "Due 1–5 years: verify value, unit, period and source"
+    },
+    {
+      "kind": "field",
+      "key": "due_after_5_years",
+      "detail": "Due after 5 years: verify value, unit, period and source"
+    },
+    {
+      "kind": "check",
+      "key": "maturity_sums_to_total",
+      "detail": "maturity_sums_to_total: due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((354 + 1920 + 0) - 2038) <= 2"
+    }
+  ],
+  "ready": false
 }
