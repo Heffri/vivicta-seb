@@ -2395,6 +2395,76 @@ def demo():
         {"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None} for k in dmf]}
     out = x.extract([tangen_bad], [1], dm, {"fiscal_year": 2025})
     assert "prior_year" not in out, out.get("prior_year")  # 90,970 + 257,532 + 4,520 != 999,999: no key, not a failing one
+    # v109: the report's own calendar-year maturity columns ride along as top-level buckets_by_year
+    # metadata -- never a model answer, only the year columns the bucket-column reader itself
+    # aligned (the _bucket_year_hits header fallback behind the recorded pick), re-read on the
+    # pick's own row, one entry per printed column (a dash = the report's explicit 0, v078 one
+    # window finer), gated on the schema's own identity against the extraction's total_debt within
+    # the check's own +-2. The three bucket fields and their summation of the year columns are
+    # v036/v095's, byte-identical; row-shaped year tables and date/interval notes give no key.
+    # Electrolux Professional, end to end on the real p.174 shape (data/kb pages.jsonl, Note 18
+    # "Repayment schedule for long-term borrowings, December 31, 2025"): header "SEKm 2026 2027
+    # 2028 2029 2030 2031- Total", the Total row printing two dashes (v078's explicit 0s). The
+    # corpus holds exactly one company whose year table passes every existing valve and closes
+    # (docs/acrylic/evidence/v109.md); the model answers nothing here, so the read is purely
+    # deterministic.
+    electrolux174 = ("Note 18 FINANCIAL INSTRUMENTS, CONT. Financial\n"
+                     "Repayment schedule for long-term borrowings, December 31, 2025 information\n"
+                     "SEKm 2026 2027 2028 2029 2030 2031– Total\n"
+                     "Bond loans 400 650 – 250 – – 1,300\n"
+                     "Bank and other loans 144 744 144 – – – 1,032\n"
+                     "Total 544 1,394 144 250 – – 2,332\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None} for k in dmf]}
+    out = x.extract([electrolux174], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 2332, "due_within_1_year": 544, "due_1_to_5_years": 1788, "due_after_5_years": 0} \
+        and out["checks"][0]["passed"], (got, out["checks"], out["warnings"])  # v036/v078's own read, unchanged
+    by = out["buckets_by_year"]
+    assert by["basis"] == "carrying", by
+    assert [(y["label"], y["value"]) for y in by["years"]] == [
+        ("2026", 544), ("2027", 1394), ("2028", 144), ("2029", 250), ("2030", 0), ("2031–", 0)], by
+    assert all(y["source"] == {"page": 1, "quote": "Total 544 1,394 144 250 – – 2,332"} for y in by["years"]), by
+    # the same page through the model's own answer (the production shape: total_debt quoted from the
+    # row): the years still come off the page and close on the field, not on the row's own column
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 2332, "unit": "SEKm", "period": "2025", "raw_label": "Total",
+         "source": {"page": 1, "quote": "Total 544 1,394 144 250 – – 2,332"}},
+        *[{"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None}
+          for k in ("due_within_1_year", "due_1_to_5_years", "due_after_5_years")]]}
+    out = x.extract([electrolux174], [1], dm, {"fiscal_year": 2025})
+    assert [(y["label"], y["value"]) for y in out["buckets_by_year"]["years"]][-1] == ("2031–", 0), out["buckets_by_year"]
+    # synthetic, for the paths the one real page cannot reach: a bare "Later" tail word as its own
+    # label, dash columns inside the 1-5y span, and closure only within the check's own +-2 (300
+    # printed across the years, 301 in the total column -- the same tolerance the identity uses)
+    yr301 = "Note 20 Borrowings\nMSEK\n2026 2027 2028 2029 2030 Later Total\nTotal borrowings 120 80 – 40 – 60 301\n"
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None} for k in dmf]}
+    out = x.extract([yr301], [1], dm, {"fiscal_year": 2025})
+    assert [(y["label"], y["value"]) for y in out["buckets_by_year"]["years"]] == [
+        ("2026", 120), ("2027", 80), ("2028", 0), ("2029", 40), ("2030", 0), ("Later", 60)], out["buckets_by_year"]
+    # counter-example 1 (real, Cloetta's own Note 21 shape): named bucket columns, no year header
+    # -- nothing to read per year, no key, exactly as before
+    out = x.extract([cloetta], [1], dm, {"fiscal_year": 2025})
+    assert "buckets_by_year" not in out, out.get("buckets_by_year")
+    # counter-example 2 (real, Acast p.65's own shape): the year columns ARE on the page, but the
+    # carrying column printed before them misaligns the header (v040's over-valve rejection) and
+    # the years sum to an undiscounted 701,636 against a carrying 690,785 anyway -- no key
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 135382, "unit": "SEK thousand", "period": "2025", "raw_label": "Total lease Liability",
+         "source": {"page": 1, "quote": "Total lease Liability 135,382 141,152"}},
+        *[{"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None}
+          for k in ("due_within_1_year", "due_1_to_5_years", "due_after_5_years")]]}
+    out = x.extract([leases, acast], [1, 2], dm, {"fiscal_year": 2025})
+    assert "buckets_by_year" not in out, out.get("buckets_by_year")
+    # counter-example 3 (synthetic): the pick records and the buckets fill, but the years do not
+    # close on the extraction's total_debt -- no key, not a failing one
+    yr999 = "Note 20 Borrowings\nMSEK\n2026 2027 2028 2029 2030 Later Total\nTotal borrowings 120 80 – 40 – 60 999\n"
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None} for k in dmf]}
+    out = x.extract([yr999], [1], dm, {"fiscal_year": 2025})
+    assert {f["key"]: f["value"] for f in out["fields"]}["total_debt"] == 999, out["warnings"]
+    assert "buckets_by_year" not in out, out.get("buckets_by_year")  # 120+80+0+40+0+60 != 999
     print("confidence self-check ok")
 
 

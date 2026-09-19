@@ -1377,11 +1377,26 @@ def _drop_nested_hits(hits: list[tuple[int, int, str]]) -> list[tuple[int, int, 
     return [h for h in hits if not any(os <= h[0] and h[1] <= oe and (oe - os) > (h[1] - h[0]) for os, oe, _ in hits)]
 
 
-def _bucket_year_hits(text: str, fiscal_year) -> list[tuple[int, str]]:
+def _year_span(head: str, pos: int, y: str) -> str:
+    """The printed form of a calendar-year column header (v109): the bare year, plus an immediately
+    adjacent open-end marker -- ">2031", "2031+", "2030–" name a window that runs past the year, and
+    the label keeps the report's own wording instead of a bare year that under-states the window."""
+    s, e = pos, pos + len(y)
+    while s > 0 and head[s - 1] == ">":
+        s -= 1
+    while e < len(head) and head[e] in "+–-":
+        e += 1
+    return head[s:e]
+
+
+def _bucket_year_hits(text: str, fiscal_year, labels: list | None = None) -> list[tuple[int, str]]:
     """A maturity table whose columns are calendar years rather than named buckets ("2026 2027 2028 Later"):
     [(position, key)] classifying each ascending year found right after fiscal_year (1 year out =
     due_within_1_year, 2-5 years out = due_1_to_5_years, further out or a trailing "Later"/"thereafter"/
-    "senare"/"övriga år" = due_after_5_years). [] without >=2 such years."""
+    "senare"/"övriga år" = due_after_5_years). [] without >=2 such years. `labels`, when a list is
+    passed, receives each column's own printed label in the same order (the year as printed, the
+    tail word verbatim) -- v109's buckets_by_year source; every pre-existing caller passes nothing
+    and gets exactly the old behaviour."""
     if not fiscal_year:
         return []
     run = _year_run(text)
@@ -1393,9 +1408,13 @@ def _bucket_year_hits(text: str, fiscal_year) -> list[tuple[int, str]]:
     for i, y in enumerate(run[start:], start=1):
         pos = head.find(y, pos + 1)
         hits.append((pos, "due_within_1_year" if i == 1 else "due_1_to_5_years" if i <= 5 else "due_after_5_years"))
+        if labels is not None:
+            labels.append(_year_span(head, pos, y))
     tail = _YEAR_TAIL.search(head[pos:])
     if tail:
         hits.append((pos + tail.start(), "due_after_5_years"))
+        if labels is not None:
+            labels.append(tail.group())
     return hits
 
 
@@ -1516,7 +1535,8 @@ def _scope_header(rows: list[str], i_total: int, bucket_sfs: dict, max_back: int
 
 
 def _bucket_header(rows: list[str], idx: int, bucket_sfs: dict, fiscal_year, max_back: int = 25,
-                   total_sf: dict | None = None, ignore_syns: list | None = None, basis: str = "carrying") -> list[str] | None:
+                   total_sf: dict | None = None, ignore_syns: list | None = None, basis: str = "carrying",
+                   year_cols: list | None = None) -> list[str] | None:
     """The ordered column keys of the maturity-bucket table whose grand-total sits on rows[idx]: each bucket hit
     above it, in print order, plus a "total" slot wherever a bare Total/Summa/Totalt column header is seen. A
     due_within_1_year subtotal column (_SUBTOTAL_PHRASES, e.g. XANO's "Summa inom 1 år") overrides, not adds to,
@@ -1570,7 +1590,11 @@ def _bucket_header(rows: list[str], idx: int, bucket_sfs: dict, fiscal_year, max
     one of the >=2 distinct bucket keys this function requires (a page mentioning one bucket word plus ">3
     years" in prose is still not a bucket-column table), and never assigned a bucket (_bucket_assign skips the
     tag). Only amount-free rows contribute one (the bare-Total rule, v060: a row printing "1-3 years 523" is a
-    row-per-bucket table's own data row, not this table's column header)."""
+    row-per-bucket table's own data row, not this table's column header).
+
+    v109: `year_cols`, when a list is passed, receives the calendar-year fallback's own column labels
+    (see _bucket_year_hits) -- buckets_by_year's "year header -> column" mapping, exposed where it is
+    computed instead of re-derived. Every pre-existing caller passes nothing and is unchanged."""
     window = rows[max(0, idx - max_back):idx]
     per_row = []
     row_ci = []  # v085: this row's own total:carrying/_ignore hits, kept aside because it names no bucket of
@@ -1629,15 +1653,21 @@ def _bucket_header(rows: list[str], idx: int, bucket_sfs: dict, fiscal_year, max
     # v095: an offgrid column counts toward the column list (alignment) but never toward the >=2 distinct bucket
     # keys this valve requires -- one bucket word plus ">3 years" in prose is not a bucket-column table
     if len({k.split(":")[0] for k in hits if k.split(":")[0] not in ("total", "_ignore", "offgrid")}) < 2:
-        year_hits = None
+        year_hits, year_labels = None, None
         for row in window:
-            yh = _bucket_year_hits(row, fiscal_year)
+            row_labels: list[str] = []
+            yh = _bucket_year_hits(row, fiscal_year, labels=row_labels)
             if len({k for _, k in yh}) >= 2:
-                year_hits = sorted(yh)
+                year_hits, year_labels = sorted(yh), row_labels
                 break
         if not year_hits:
             return None
         hits = [key for _, key in year_hits] + (["total"] if any(_BARE_TOTAL.search(r) for r in window) else [])
+        if year_cols is not None:
+            # v109: the native calendar-year columns behind these keys, one label per column in
+            # print order ("total", when present, is appended after them above) -- buckets_by_year's
+            # source, recorded only when this fallback is what produced the header
+            year_cols.extend(year_labels)
     original = hits
     for j, k in enumerate(original):  # a subtotal column wins over its own finer columns already counted to its left
         if k.endswith(":subtotal"):
@@ -1778,7 +1808,12 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
     v091: an optional `selected` dict receives {page, idx, col_keys} for the row this function actually
     read (recorded past the last valve -- only the writes can still be no-ops, when the model's own
     answers already agree with the table). _prior_year_fill's bucket-column prior-year source; every
-    pre-existing caller passes nothing and behaves exactly as before."""
+    pre-existing caller passes nothing and behaves exactly as before.
+
+    v109: when the pick's header was the calendar-year fallback, `selected` also receives
+    "year_labels" (one printed label per year column, from _bucket_header's year_cols) --
+    _buckets_by_year_fill's source. Same-table by construction: the years are the very columns
+    the three buckets above were summed out of."""
     ident = _identity_parts(schema)
     if not ident:
         return
@@ -1803,7 +1838,9 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
             continue
         matched = [i for i in candidates if fiscal_year and str(fiscal_year) in " ".join(rows[max(0, i - 25):i])]
         for idx in (matched or candidates):
-            col_keys = _bucket_header(rows, idx, bucket_sfs, fiscal_year, total_sf=total_sf, ignore_syns=ignore_syns, basis=basis)
+            year_labels: list[str] = []  # v109: the calendar-year fallback's own labels, when this header is one
+            col_keys = _bucket_header(rows, idx, bucket_sfs, fiscal_year, total_sf=total_sf, ignore_syns=ignore_syns,
+                                      basis=basis, year_cols=year_labels)
             if not col_keys:
                 continue
             amounts = _row_amounts(rows[idx], len(col_keys), nil=None)
@@ -1883,6 +1920,11 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
                 # v091: the first valve-passing pick stands -- a later candidate that also passed every
                 # valve would have to be a second table this page already read under the same header.
                 selected.update(page=page, idx=idx, col_keys=list(col_keys))
+                if year_labels and len(year_labels) == len(col_keys) - (1 if col_keys[-1:] == ["total"] else 0):
+                    # v109: this pick's columns are the report's own calendar years (the header
+                    # fallback), one label per year column -- recorded for buckets_by_year; a
+                    # named-bucket or carrying-column header leaves year_labels empty and records nothing
+                    selected["year_labels"] = list(year_labels)
             # v078: a bucket whose every column on this row prints a dash is not unprinted -- the report is
             # saying "no debt is due in this window" (v036's own nil convention, one level down), which is a
             # 0, not the null this path carried until now. Two gates before a dash says 0: the row must print
@@ -2188,6 +2230,59 @@ def _prior_year_fill(fields: list[dict], sfs: list[dict], schema: dict, texts: l
                    for k in (total_key, *part_keys) if k in reads},
         "check": {"passed": True, "detail": detail.strip(" |")},
     }
+
+
+def _buckets_by_year_fill(schema: dict, texts: list[str], fiscal_year, bucket_pick: dict, values: dict,
+                          basis: str = "carrying") -> dict | None:
+    """(v109) The report's own calendar-year maturity columns as top-level `buckets_by_year` metadata --
+    Kristian's "every year its own bucket" question, answered with the report's own granularity whenever
+    the report itself prints it, never derived. Source: the year columns the bucket-column reader already
+    aligned (_fill_bucket_columns' recorded pick, whose header was _bucket_year_hits' calendar-year
+    fallback -- a named-bucket or carrying-column header records no year labels and this returns None),
+    re-read on the pick's own row: one entry per printed column, label as printed ("2026" ... the tail
+    word "Later"/"Thereafter"/"Senare", or an open-end year "2031+"/">2031" per _year_span), value from
+    that column, a dash the report's explicit 0 (v078's convention, one window finer). Same table and
+    same total slot as the current year's own fields -- the basis rides along from the pick's read
+    (debt_basis()), exactly the way v091's prior year does.
+
+    The gate is the schema's own identity against the extraction's total_debt: the years must sum to
+    the field's own value within the check's own ±2, the tolerance maturity_sums_to_total already
+    answers to; anything less returns None and the extraction carries no buckets_by_year key at all,
+    not a null one (a year table whose sums only close on an undiscounted or all-liabilities total is
+    refused upstream by v103's basis guard and never reaches here). The three bucket fields themselves
+    are untouched -- their summation of these same year columns is v036/v095's, unchanged.
+
+    Deliberately not read: row-shaped year tables ("Förfalloår" rows) and date/interval notes. Every
+    row-shaped year table in the corpus is torn in the text layer (its total row glues onto the last
+    year row, its amount column is unnamed among percent columns), so no deterministic column choice
+    survives them -- no reader was invented for a shape nothing can exercise (evidence v109)."""
+    if not fiscal_year or not bucket_pick.get("year_labels"):
+        return None
+    ident = _identity_parts(schema)
+    if not ident or set(ident[1]) != _DATE_BUCKET_KEYS:
+        return None
+    total = values.get(ident[0])
+    if not isinstance(total, (int, float)) or isinstance(total, bool):
+        return None
+    page = bucket_pick.get("page")
+    if not isinstance(page, int) or not 0 < page <= len(texts):
+        return None
+    rows = _page_rows(texts[page - 1])
+    idx, col_keys, labels = bucket_pick["idx"], bucket_pick["col_keys"], bucket_pick["year_labels"]
+    ntail = 1 if col_keys[-1:] == ["total"] else 0
+    if not 0 <= idx < len(rows) or len(labels) + ntail != len(col_keys):
+        return None  # the recorded labels no longer line up with the recorded columns
+    amounts = _row_amounts(rows[idx], len(col_keys), nil=None)
+    if len(amounts) != len(col_keys):
+        return None
+    vals = [0 if a is None else a for a in amounts[:len(labels)]]  # v078: a dash in the row's own year column is the report's explicit 0
+    if total > 0 and any(v < 0 for v in vals) and all(v <= 0 for v in vals):
+        vals = [-v for v in vals]  # v101's liabilities-negative display convention, one level finer: the years are magnitudes too
+    if abs(round(sum(vals), 2) - total) > 2:
+        return None  # the years must close on the same total the three buckets answer to
+    return {"basis": basis,
+            "years": [{"label": label, "value": vals[i], "source": {"page": page, "quote": rows[idx]}}
+                      for i, label in enumerate(labels)]}
 
 
 def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict) -> dict:
@@ -2643,4 +2738,6 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
     }
     if (prior := _prior_year_fill(fields, sfs, schema, texts, fiscal_year, bucket_pick)) is not None:
         out["prior_year"] = prior  # v091: the prior year's own figures, identity-gated on explicit values; no key at all when they cannot be read deterministically
+    if (by_year := _buckets_by_year_fill(schema, texts, fiscal_year, bucket_pick, values, basis)) is not None:
+        out["buckets_by_year"] = by_year  # v109: the report's own calendar-year columns, identity-gated on total_debt; no key at all when the report prints named buckets or the years cannot be read deterministically
     return out
