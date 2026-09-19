@@ -18,9 +18,10 @@ page is in the window. Each row also prints the candidate list and, from locate.
 expected page's own rank and score whenever it scored at all -- rank above top_n or "noscore" (no
 keyword on the page, it never entered the ranking) is the why for every miss.
 
---baseline loads locate.py AS OF that git ref (git show, the replay_check mechanism) and prints both
-sides' four-bucket totals plus the per-company class moves, so one run reads a change's whole effect;
-without it the current tree is measured alone. Read-only: data/ is never written.
+--baseline loads locate.py AND schemas/<section>.json AS OF that git ref (git show, the replay_check
+mechanism) and prints both sides' four-bucket totals plus the per-company class moves, so one run reads
+a change's whole effect -- locator-code change or schema-keyword change alike; without it the current
+tree is measured alone. Read-only: data/ is never written.
 """
 import argparse
 import csv
@@ -36,6 +37,11 @@ sys.path.insert(0, str(ROOT / "backend"))
 from pipeline import locate as cur  # noqa: E402
 
 CLASSES = ("in", "adjacent", "unreachable", "empty")
+
+
+def git_show(ref: str, path: str) -> str:
+    return subprocess.run(["git", "-C", str(ROOT), "show", f"{ref}:{path}"],
+                          capture_output=True, text=True, encoding="utf-8", check=True).stdout
 
 
 def load_baseline(ref: str):
@@ -171,7 +177,10 @@ def main():
     lines = [f"locate_reach: section {a.section}, {len(expected)} companies"
              + (f", baseline {a.baseline} vs worktree" if old else ", worktree only")]
     now_rows = measure(cur, expected, schema, kb)
-    old_rows = measure(old, expected, schema, kb) if old else None
+    old_rows = None
+    if old:
+        old_schema = json.loads(git_show(a.baseline, f"backend/schemas/{a.section}.json"))
+        old_rows = measure(old, expected, old_schema, kb)
 
     def table(rows, tag):
         lines.append(f"\n{tag}:")
