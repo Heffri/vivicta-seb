@@ -9,55 +9,44 @@
     {
       "key": "total_debt",
       "label": "Total borrowings",
+      "value": 251209,
+      "unit": "PLN '000",
+      "period": "2025",
+      "raw_label": "Interest-bearing bank loans (including cash pooling liabilities)",
+      "source": {
+        "page": 75,
+        "quote": "Interest-bearing bank loans (including cash pooling liabilities) 251 209 342 888"
+      },
+      "confidence": 0.85,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
       "value": null,
       "unit": "PLN '000",
       "period": "2025",
-      "raw_label": null,
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
     },
     {
-      "key": "due_within_1_year",
-      "label": "Due within 1 year",
-      "value": 219487,
-      "unit": "PLN '000",
-      "period": "2025",
-      "raw_label": "Total",
-      "source": {
-        "page": 66,
-        "quote": "Total 219 487 304 269"
-      },
-      "confidence": 0.9,
-      "evidence": [
-        "quote_on_page",
-        "value_in_quote",
-        "arith_ok",
-        "period_ok",
-        "page_is_statement",
-        "unit_ok"
-      ]
-    },
-    {
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
-      "value": 31722,
+      "value": null,
       "unit": "PLN '000",
       "period": "2025",
-      "raw_label": "Total",
-      "source": {
-        "page": 66,
-        "quote": "Total 31 722 38 602"
-      },
-      "confidence": 0.9,
-      "evidence": [
-        "quote_on_page",
-        "value_in_quote",
-        "arith_ok",
-        "period_ok",
-        "page_is_statement",
-        "unit_ok"
-      ]
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
     },
     {
       "key": "due_after_5_years",
@@ -65,7 +54,7 @@
       "value": null,
       "unit": "PLN '000",
       "period": "2025",
-      "raw_label": null,
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -75,11 +64,11 @@
     {
       "name": "maturity_sums_to_total",
       "passed": false,
-      "detail": "missing: due_after_5_years"
+      "detail": "missing: due_within_1_year"
     }
   ],
   "warnings": [
     "two_pass: page [66, 67] selected from candidates [75, 76, 43, 44, 66, 71]",
-    "published: seed11 run replayed with extract.py @ d3eb5fc8"
+    "published: seedseed-rerun-v114-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

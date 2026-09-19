@@ -2,7 +2,7 @@
   "report_id": "lib-mildef_2025",
   "company": "Mildef Group",
   "fiscal_year": 2025,
-  "currency": "SEK m",
+  "currency": "MSEK",
   "section": "debt_maturity",
   "maturity_basis": "carrying",
   "fields": [
@@ -10,20 +10,21 @@
       "key": "total_debt",
       "label": "Total borrowings",
       "value": 772.9,
-      "unit": "SEK m",
+      "unit": "MSEK",
       "period": "2025",
       "raw_label": "Total borrowing",
       "source": {
         "page": 112,
         "quote": "Total borrowing 772.9 220.4"
       },
-      "confidence": 0.95,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
         "arith_ok",
         "label_known",
         "period_ok",
+        "page_is_statement",
         "unit_ok"
       ]
     },
@@ -31,7 +32,7 @@
       "key": "due_within_1_year",
       "label": "Due within 1 year",
       "value": null,
-      "unit": "SEK m",
+      "unit": "MSEK",
       "period": "2025",
       "raw_label": "",
       "source": null,
@@ -42,7 +43,7 @@
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
       "value": null,
-      "unit": "SEK m",
+      "unit": "MSEK",
       "period": "2025",
       "raw_label": "",
       "source": null,
@@ -53,7 +54,7 @@
       "key": "due_after_5_years",
       "label": "Due after 5 years",
       "value": null,
-      "unit": "SEK m",
+      "unit": "MSEK",
       "period": "2025",
       "raw_label": "",
       "source": null,
@@ -69,7 +70,7 @@
     }
   ],
   "warnings": [
-    "two_pass: page [95, 96] selected from candidates [95, 96, 112, 86, 88]",
-    "published: seed11 run replayed with extract.py @ d3eb5fc8"
+    "two_pass: page [112, 113] selected from candidates [95, 96, 112, 86, 88]",
+    "published: seedseed-rerun-v114-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

@@ -2,7 +2,7 @@
   "report_id": "lib-byggmastare_a_j_ahlstrom_h_2025",
   "company": "Byggmästare A J Ahlström H",
   "fiscal_year": 2025,
-  "currency": "tkr",
+  "currency": "TSEK",
   "section": "debt_maturity",
   "maturity_basis": "carrying",
   "fields": [
@@ -10,40 +10,41 @@
       "key": "total_debt",
       "label": "Total borrowings",
       "value": 2873,
-      "unit": "tkr",
+      "unit": "TSEK",
       "period": "2025",
-      "raw_label": "Redovisade leasingskulder 31 december",
+      "raw_label": "Redovisade leaseskulder 31 december",
       "source": {
-        "page": 53,
-        "quote": "Redovisade leasingskulder 31 december 2 873 3 806"
+        "page": 54,
+        "quote": "Redovisade leaseskulder 31 december 2 873 3 806"
       },
-      "confidence": 0.85,
+      "confidence": 0.9,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
         "arith_ok",
         "period_ok",
+        "page_is_statement",
         "unit_ok"
       ]
     },
     {
       "key": "due_within_1_year",
       "label": "Due within 1 year",
-      "value": 922,
-      "unit": "tkr",
+      "value": 962,
+      "unit": "TSEK",
       "period": "2025",
-      "raw_label": "Kortfristiga räntebärande skulder",
+      "raw_label": "Amotering år 1",
       "source": {
-        "page": 53,
-        "quote": "Kortfristiga räntebärande skulder 922 853"
+        "page": 54,
+        "quote": "Amotering år 1 962 853"
       },
-      "confidence": 0.95,
+      "confidence": 0.9,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
         "arith_ok",
-        "label_known",
         "period_ok",
+        "page_is_statement",
         "unit_ok"
       ]
     },
@@ -51,9 +52,9 @@
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
       "value": null,
-      "unit": "tkr",
-      "period": "2025",
-      "raw_label": "",
+      "unit": null,
+      "period": null,
+      "raw_label": null,
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -62,7 +63,7 @@
       "key": "due_after_5_years",
       "label": "Due after 5 years",
       "value": null,
-      "unit": "tkr",
+      "unit": "TSEK",
       "period": "2025",
       "raw_label": "",
       "source": null,
@@ -79,7 +80,7 @@
   ],
   "warnings": [
     "two_pass: page [54, 55] selected from candidates [53, 54, 47, 38]",
-    "llm: TimeoutExpired: Command '['C:\\\\Users\\\\<user>\\\\AppData\\\\Local\\\\Programs\\\\OpenAI\\\\Codex\\\\bin\\\\codex.EXE', 'exec', '-m', 'gpt-5.6-terra', '-s', 'read-only', '-C', 'C:\\\\Users\\\\<user>\\\\AppData\\\\Local\\\\Temp\\\\vivicta-codex-758v30vl', '--skip-git-repo-check', '--json', '-o', 'C:\\\\Users\\\\<user>\\\\AppData\\\\Local\\\\Temp\\\\vivicta-codex-758v30vl\\\\last-message.txt', '-']' timed out after 120.0 seconds (pages [54, 55])",
-    "published: seed10 run replayed with extract.py @ d3eb5fc8"
+    "due_1_to_5_years: 1911 is printed on none of pages [53, 54]; dropped as computed, not read",
+    "published: seedseed-rerun-v114-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

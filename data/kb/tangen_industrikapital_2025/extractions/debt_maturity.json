@@ -17,14 +17,13 @@
         "page": 57,
         "quote": "Total upplåning (inkl leasingskulder) 915 454 530 245"
       },
-      "confidence": 1.0,
+      "confidence": 0.95,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
         "arith_ok",
         "label_known",
         "period_ok",
-        "page_is_statement",
         "unit_ok"
       ]
     },
@@ -70,7 +69,7 @@
     }
   ],
   "warnings": [
-    "two_pass: page [57, 58] selected from candidates [57, 58, 63, 60]",
-    "published: seed8 run replayed with extract.py @ d3eb5fc8"
+    "two_pass: page [63, 64] selected from candidates [57, 58, 63, 60]",
+    "published: seedseed-rerun-v114-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

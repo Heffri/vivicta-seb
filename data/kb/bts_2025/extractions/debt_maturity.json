@@ -52,13 +52,15 @@
       "value": 502656,
       "unit": "SEK thousands",
       "period": "2025",
-      "raw_label": "2027; 2028; 2029; 2030",
+      "raw_label": "Non-current liabilities",
       "source": {
         "page": 92,
-        "quote": "2027 39\n2028 300,039\n2029 202,539\n2030 39"
+        "quote": "Non-current liabilities 502,656 202,500"
       },
-      "confidence": 0.25,
+      "confidence": 0.9,
       "evidence": [
+        "quote_on_page",
+        "value_in_quote",
         "arith_ok",
         "period_ok",
         "page_is_statement",
@@ -87,8 +89,7 @@
   "warnings": [
     "two_pass: page [92, 93] selected from candidates [79, 80, 92, 67, 69]",
     "due_within_1_year: quote not found on page 92",
-    "due_1_to_5_years: quote not found on page 92",
-    "published: seed11 run replayed with extract.py @ d3eb5fc8"
+    "published: seedseed-rerun-v114-kb run replayed with extract.py @ d3eb5fc8"
   ],
   "buckets_by_year": {
     "basis": "carrying",

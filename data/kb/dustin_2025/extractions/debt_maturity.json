@@ -2,7 +2,7 @@
   "report_id": "lib-dustin_2025",
   "company": "Dustin Group",
   "fiscal_year": 2025,
-  "currency": "MSEK",
+  "currency": "SEK million",
   "section": "debt_maturity",
   "maturity_basis": "carrying",
   "fields": [
@@ -10,7 +10,7 @@
       "key": "total_debt",
       "label": "Total borrowings",
       "value": 3055,
-      "unit": "MSEK",
+      "unit": "SEK million",
       "period": "2025",
       "raw_label": "Total",
       "source": {
@@ -31,9 +31,9 @@
       "key": "due_within_1_year",
       "label": "Due within 1 year",
       "value": null,
-      "unit": "MSEK",
+      "unit": "SEK million",
       "period": "2025",
-      "raw_label": null,
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -42,9 +42,9 @@
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
       "value": null,
-      "unit": "MSEK",
+      "unit": "SEK million",
       "period": "2025",
-      "raw_label": null,
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -53,9 +53,9 @@
       "key": "due_after_5_years",
       "label": "Due after 5 years",
       "value": null,
-      "unit": "MSEK",
+      "unit": "SEK million",
       "period": "2025",
-      "raw_label": null,
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -70,6 +70,6 @@
   ],
   "warnings": [
     "two_pass: page [116, 117] selected from candidates [116, 117, 123]",
-    "published: seed11 run replayed with extract.py @ d3eb5fc8"
+    "published: seedseed-rerun-v114-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

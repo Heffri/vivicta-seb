@@ -2,7 +2,7 @@
   "report_id": "lib-hansa_biopharma_2025",
   "company": "Hansa Biopharma",
   "fiscal_year": 2025,
-  "currency": "THOUSANDS OF SEK",
+  "currency": "IN THOUSANDS OF SEK",
   "section": "debt_maturity",
   "maturity_basis": "carrying",
   "fields": [
@@ -10,7 +10,7 @@
       "key": "total_debt",
       "label": "Total borrowings",
       "value": 927403,
-      "unit": "THOUSANDS OF SEK",
+      "unit": "IN THOUSANDS OF SEK",
       "period": "2025",
       "raw_label": "Long-term and short-term loan",
       "source": {
@@ -31,7 +31,7 @@
       "key": "due_within_1_year",
       "label": "Due within 1 year",
       "value": null,
-      "unit": "THOUSANDS OF SEK",
+      "unit": "IN THOUSANDS OF SEK",
       "period": "2025",
       "raw_label": "",
       "source": null,
@@ -42,7 +42,7 @@
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
       "value": null,
-      "unit": "THOUSANDS OF SEK",
+      "unit": "IN THOUSANDS OF SEK",
       "period": "2025",
       "raw_label": "",
       "source": null,
@@ -53,7 +53,7 @@
       "key": "due_after_5_years",
       "label": "Due after 5 years",
       "value": null,
-      "unit": "THOUSANDS OF SEK",
+      "unit": "IN THOUSANDS OF SEK",
       "period": "2025",
       "raw_label": "",
       "source": null,
@@ -69,7 +69,8 @@
     }
   ],
   "warnings": [
-    "currency: the model says thousands of SEK, but the statement names only EUR/GBP/SEK/USD and the report mostly SEK; SEK it is",
-    "published: seed3 run replayed with extract.py @ d3eb5fc8"
+    "two_pass: page [65, 66] selected from candidates [65, 66]",
+    "currency: the model says in thousands of SEK, but the statement names only EUR/GBP/SEK/USD and the report mostly SEK; SEK it is",
+    "published: seedseed-rerun-v114-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }
