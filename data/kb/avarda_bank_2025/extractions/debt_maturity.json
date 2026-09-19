@@ -60,6 +60,6 @@
   ],
   "warnings": [
     "two_pass: page [80, 81] selected from candidates [81, 82, 40, 80, 39]",
-    "published: seedfin-fresh-kb run replayed with extract.py @ d3eb5fc8"
+    "published: seedseed-rerun-v119-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

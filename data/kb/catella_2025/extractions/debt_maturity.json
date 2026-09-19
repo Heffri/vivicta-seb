@@ -20,7 +20,6 @@
       "confidence": 1.0,
       "evidence": [
         "quote_on_page",
-        "sign_normalized",
         "value_in_quote",
         "arith_ok",
         "label_known",
@@ -71,6 +70,8 @@
     }
   ],
   "warnings": [
-    "published: seed1 run replayed with extract.py @ d3eb5fc8"
+    "two_pass: page [107, 108] selected from candidates [107, 108, 99]",
+    "total_debt: -1474 printed with a liabilities-negative sign convention; recorded as 1474",
+    "published: seedseed-rerun-v119-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

@@ -2,7 +2,7 @@
   "report_id": "lib-enea_2025",
   "company": "Enea",
   "fiscal_year": 2025,
-  "currency": "SEK thousand",
+  "currency": "SEK thousands",
   "section": "debt_maturity",
   "maturity_basis": "carrying",
   "fields": [
@@ -10,9 +10,9 @@
       "key": "total_debt",
       "label": "Total borrowings",
       "value": null,
-      "unit": "SEK thousand",
+      "unit": null,
       "period": "2025",
-      "raw_label": "",
+      "raw_label": null,
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -21,7 +21,7 @@
       "key": "due_within_1_year",
       "label": "Due within 1 year",
       "value": 136403,
-      "unit": "SEK thousand",
+      "unit": "SEK thousands",
       "period": "2025",
       "raw_label": "Within 1 year after the balance sheet date",
       "source": {
@@ -43,7 +43,7 @@
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
       "value": 169152,
-      "unit": "SEK thousand",
+      "unit": "SEK thousands",
       "period": "2025",
       "raw_label": "Later than 1 year but within 3 years after the balance sheet date",
       "source": {
@@ -64,9 +64,9 @@
       "key": "due_after_5_years",
       "label": "Due after 5 years",
       "value": null,
-      "unit": "SEK thousand",
+      "unit": null,
       "period": "2025",
-      "raw_label": "",
+      "raw_label": null,
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -81,6 +81,6 @@
   ],
   "warnings": [
     "two_pass: page [76, 77] selected from candidates [76, 77, 64, 35]",
-    "published: seed6 run replayed with extract.py @ d3eb5fc8"
+    "published: seedseed-rerun-v119-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

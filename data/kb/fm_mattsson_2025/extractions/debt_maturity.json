@@ -20,7 +20,6 @@
       "confidence": 0.9,
       "evidence": [
         "quote_on_page",
-        "sign_normalized",
         "value_in_quote",
         "arith_ok",
         "period_ok",
@@ -34,7 +33,7 @@
       "value": null,
       "unit": "Tkr",
       "period": "2025",
-      "raw_label": null,
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -45,7 +44,7 @@
       "value": null,
       "unit": "Tkr",
       "period": "2025",
-      "raw_label": null,
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -56,7 +55,7 @@
       "value": null,
       "unit": "Tkr",
       "period": "2025",
-      "raw_label": null,
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -71,6 +70,7 @@
   ],
   "warnings": [
     "two_pass: page [123, 124] selected from candidates [123, 124]",
-    "published: seed5 run replayed with extract.py @ d3eb5fc8"
+    "total_debt: -89532 printed with a liabilities-negative sign convention; recorded as 89532",
+    "published: seedseed-rerun-v119-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

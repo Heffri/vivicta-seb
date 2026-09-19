@@ -17,14 +17,12 @@
         "page": 134,
         "quote": "(Note 21) –2,021 –286 –2,307"
       },
-      "confidence": 0.9,
+      "confidence": 0.85,
       "evidence": [
         "quote_on_page",
-        "sign_normalized",
         "value_in_quote",
         "arith_ok",
         "period_ok",
-        "page_is_statement",
         "unit_ok"
       ]
     },
@@ -39,14 +37,12 @@
         "page": 134,
         "quote": "– repayable within one year –70 –64"
       },
-      "confidence": 0.9,
+      "confidence": 0.85,
       "evidence": [
         "quote_on_page",
-        "sign_normalized",
         "value_in_quote",
         "arith_ok",
         "period_ok",
-        "page_is_statement",
         "unit_ok"
       ]
     },
@@ -56,7 +52,7 @@
       "value": null,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "",
+      "raw_label": null,
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -67,7 +63,7 @@
       "value": null,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "",
+      "raw_label": null,
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -81,8 +77,10 @@
     }
   ],
   "warnings": [
-    "two_pass: page [134, 135] selected from candidates [127, 128, 134, 148, 102]",
+    "two_pass: page [127, 128] selected from candidates [127, 128, 134, 148, 102]",
     "total_debt: column reading of 'Total 547 44 – – –12' rejected -- due_within_1_year 547, due_1_to_5_years 44 exceed its own total -12; model's own values kept",
-    "published: seed6 run replayed with extract.py @ d3eb5fc8"
+    "total_debt: -2307 printed with a liabilities-negative sign convention; recorded as 2307",
+    "due_within_1_year: -70 printed with a liabilities-negative sign convention; recorded as 70",
+    "published: seedseed-rerun-v119-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

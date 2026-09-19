@@ -15,7 +15,7 @@
       "raw_label": "Total",
       "source": {
         "page": 157,
-        "quote": "Total 2,727 2,677 2,727 2,677 Loans and receivables 2025 2024"
+        "quote": "Total 2,727 2,677 2,727 2,677"
       },
       "confidence": 0.9,
       "evidence": [
@@ -69,6 +69,7 @@
     }
   ],
   "warnings": [
-    "published: seed2 run replayed with extract.py @ d3eb5fc8"
+    "two_pass: page [157, 158] selected from candidates [157, 158, 159]",
+    "published: seedseed-rerun-v119-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

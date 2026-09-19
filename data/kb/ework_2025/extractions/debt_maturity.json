@@ -30,46 +30,115 @@
     {
       "key": "due_within_1_year",
       "label": "Due within 1 year",
-      "value": null,
+      "value": 156409,
       "unit": "kSEK",
       "period": "2025",
-      "raw_label": "",
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "raw_label": "Short-term interest-bearing liabilities* –",
+      "source": {
+        "page": 70,
+        "quote": "Short-term interest-bearing liabilities* – 153,761 971 1,677 – – 156,410 156,410"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_derived",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
-      "value": null,
+      "value": 0,
       "unit": "kSEK",
       "period": "2025",
-      "raw_label": "",
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "raw_label": "Short-term interest-bearing liabilities* –",
+      "source": {
+        "page": 70,
+        "quote": "Short-term interest-bearing liabilities* – 153,761 971 1,677 – – 156,410 156,410"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "due_after_5_years",
       "label": "Due after 5 years",
-      "value": null,
+      "value": 0,
       "unit": "kSEK",
       "period": "2025",
-      "raw_label": "",
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "raw_label": "Short-term interest-bearing liabilities* –",
+      "source": {
+        "page": 70,
+        "quote": "Short-term interest-bearing liabilities* – 153,761 971 1,677 – – 156,410 156,410"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     }
   ],
   "checks": [
     {
       "name": "maturity_sums_to_total",
-      "passed": false,
-      "detail": "missing: due_within_1_year"
+      "passed": true,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((156409 + 0 + 0) - 156410) <= 2"
     }
   ],
   "warnings": [
     "two_pass: page [70, 71] selected from candidates [70, 71, 66, 49, 51, 55]",
-    "published: seed5 run replayed with extract.py @ d3eb5fc8"
-  ]
+    "due_within_1_year: model returned null; 156409 read from 'Short-term interest-bearing liabilities* – 153,761 971 1,677 – – 156,410 156,410' by its column order",
+    "due_1_to_5_years: model returned null; a dash is printed in the row's own column for it ('Short-term interest-bearing liabilities* – 153,761 971 1,677 – – 156,410 156,410') -- no debt due in that window, the report's explicit 0",
+    "due_after_5_years: model returned null; a dash is printed in the row's own column for it ('Short-term interest-bearing liabilities* – 153,761 971 1,677 – – 156,410 156,410') -- no debt due in that window, the report's explicit 0",
+    "published: seedseed-rerun-v119-kb run replayed with extract.py @ d3eb5fc8"
+  ],
+  "prior_year": {
+    "fiscal_year": 2024,
+    "fields": {
+      "total_debt": {
+        "value": 194667,
+        "source": {
+          "page": 70,
+          "quote": "Short-term interest-bearing liabilities* – 30,971 152,377 11,319 – – 194,667 194,667"
+        }
+      },
+      "due_within_1_year": {
+        "value": 194667,
+        "source": {
+          "page": 70,
+          "quote": "Short-term interest-bearing liabilities* – 30,971 152,377 11,319 – – 194,667 194,667"
+        }
+      },
+      "due_1_to_5_years": {
+        "value": 0,
+        "source": {
+          "page": 70,
+          "quote": "Short-term interest-bearing liabilities* – 30,971 152,377 11,319 – – 194,667 194,667"
+        }
+      },
+      "due_after_5_years": {
+        "value": 0,
+        "source": {
+          "page": 70,
+          "quote": "Short-term interest-bearing liabilities* – 30,971 152,377 11,319 – – 194,667 194,667"
+        }
+      }
+    },
+    "check": {
+      "passed": true,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((194667 + 0 + 0) - 194667) <= 2"
+    }
+  }
 }

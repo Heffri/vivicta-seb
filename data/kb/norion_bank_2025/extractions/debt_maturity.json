@@ -9,31 +9,21 @@
     {
       "key": "total_debt",
       "label": "Total borrowings",
-      "value": 2896,
-      "unit": "SEKm",
-      "period": "2025",
-      "raw_label": "Debt securities issue",
-      "source": {
-        "page": 70,
-        "quote": "Debt securities issue - 50 1 300 500 1 100 - 2 950 2 896"
-      },
-      "confidence": 0.9,
-      "evidence": [
-        "quote_on_page",
-        "value_in_quote",
-        "arith_ok",
-        "period_ok",
-        "page_is_statement",
-        "unit_ok"
-      ]
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
     },
     {
       "key": "due_within_1_year",
       "label": "Due within 1 year",
       "value": null,
-      "unit": "SEKm",
-      "period": "2025",
-      "raw_label": "",
+      "unit": null,
+      "period": null,
+      "raw_label": null,
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -42,9 +32,9 @@
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
       "value": null,
-      "unit": "SEKm",
-      "period": "2025",
-      "raw_label": "",
+      "unit": null,
+      "period": null,
+      "raw_label": null,
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -53,9 +43,9 @@
       "key": "due_after_5_years",
       "label": "Due after 5 years",
       "value": null,
-      "unit": "SEKm",
-      "period": "2025",
-      "raw_label": "",
+      "unit": null,
+      "period": null,
+      "raw_label": null,
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -70,6 +60,6 @@
   ],
   "warnings": [
     "two_pass: page [70, 71] selected from candidates [70, 71, 66, 50]",
-    "published: seed4 run replayed with extract.py @ d3eb5fc8"
+    "published: seedseed-rerun-v119-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

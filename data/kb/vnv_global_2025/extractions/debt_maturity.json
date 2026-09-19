@@ -2,7 +2,7 @@
   "report_id": "lib-vnv_global_2025",
   "company": "VNV Global",
   "fiscal_year": 2025,
-  "currency": "MSEK",
+  "currency": "USD thousands",
   "section": "debt_maturity",
   "maturity_basis": "carrying",
   "fields": [
@@ -10,7 +10,7 @@
       "key": "total_debt",
       "label": "Total borrowings",
       "value": 46246,
-      "unit": "MSEK",
+      "unit": "USD thousands",
       "period": "2025",
       "raw_label": "Totalt",
       "source": {
@@ -31,7 +31,7 @@
       "key": "due_within_1_year",
       "label": "Due within 1 year",
       "value": null,
-      "unit": "MSEK",
+      "unit": "USD thousands",
       "period": "2025",
       "raw_label": "",
       "source": null,
@@ -42,7 +42,7 @@
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
       "value": null,
-      "unit": "MSEK",
+      "unit": "USD thousands",
       "period": "2025",
       "raw_label": "",
       "source": null,
@@ -53,7 +53,7 @@
       "key": "due_after_5_years",
       "label": "Due after 5 years",
       "value": null,
-      "unit": "MSEK",
+      "unit": "USD thousands",
       "period": "2025",
       "raw_label": "",
       "source": null,
@@ -70,6 +70,6 @@
   ],
   "warnings": [
     "two_pass: page [37, 38] selected from candidates [37, 38, 52]",
-    "published: seed6 run replayed with extract.py @ d3eb5fc8"
+    "published: seedseed-rerun-v119-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

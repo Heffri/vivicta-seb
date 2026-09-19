@@ -12,15 +12,14 @@
       "value": 4401,
       "unit": "SEK million",
       "period": "2025",
-      "raw_label": "interest-bearing liabilities",
+      "raw_label": "The Group’s interest-bearing liabilities",
       "source": {
         "page": 149,
-        "quote": "amounted to SEK 4,401m (5,150) at the end of the year and consisted of Bank balances 365 583 income and relate to hedge accounting in EUR up until 15 July 2025. The"
+        "quote": "current liabilities of SEK 543m (594) and non-current liabilities of SEK 3,858m (4,556)."
       },
-      "confidence": 0.9,
+      "confidence": 0.5,
       "evidence": [
         "quote_on_page",
-        "value_in_quote",
         "arith_ok",
         "period_ok",
         "page_is_statement",
@@ -33,10 +32,10 @@
       "value": 543,
       "unit": "SEK million",
       "period": "2025",
-      "raw_label": "current liabilities",
+      "raw_label": "Total carrying amount",
       "source": {
-        "page": 149,
-        "quote": "current liabilities of SEK 543m (594) and non-current liabilities of SEK Total 1,295 1,636 hedge becomes ineffective when the amount of the investment in foreign"
+        "page": 148,
+        "quote": "Total carrying amount 543 594"
       },
       "confidence": 0.9,
       "evidence": [
@@ -79,6 +78,7 @@
     }
   ],
   "warnings": [
-    "published: seed2 run replayed with extract.py @ d3eb5fc8"
+    "two_pass: page [148, 149] selected from candidates [148, 149, 64]",
+    "published: seedseed-rerun-v119-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }

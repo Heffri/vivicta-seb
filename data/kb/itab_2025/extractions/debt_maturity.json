@@ -15,7 +15,7 @@
       "raw_label": "The Group’s interest-bearing liabilities excluding lease liabilities",
       "source": {
         "page": 125,
-        "quote": "The Group’s interest-bearing liabilities excluding lease lia- bilities amounted to MSEK 3,369 (648) on the balance sheet date."
+        "quote": "amounted to MSEK 3,369 (648) on the balance sheet date."
       },
       "confidence": 0.9,
       "evidence": [
@@ -70,6 +70,6 @@
   ],
   "warnings": [
     "two_pass: page [125, 126] selected from candidates [125, 126]",
-    "published: seed5 run replayed with extract.py @ d3eb5fc8"
+    "published: seedseed-rerun-v119-kb run replayed with extract.py @ d3eb5fc8"
   ]
 }
