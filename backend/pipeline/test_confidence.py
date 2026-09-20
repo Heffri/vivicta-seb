@@ -552,6 +552,73 @@ def demo():
     got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
     assert got == {"total_debt": (1583, 0.9), "due_within_1_year": (197, 0.9), "due_1_to_5_years": (1377, 0.9), "due_after_5_years": (9, 0.9)}, (got, out["warnings"])
     assert out["checks"][0]["passed"], out["checks"]
+    # v134: a model-answered 0 whose citation is a row the report prints as dashes is the report's own printed
+    # nil (v078's convention, one reading further: the model, not the bucket-column reader, did the reading).
+    # Linc p.100 "Räntebärande skulder – –" (v090's standing gap) and Rejlers' "1-2 years - -" block (v097
+    # finding 4) both died -- "computed, not read" / 0@0.25 "quote not found" -- because quote_on_page can
+    # never verify a quote without a number token. Two conditions on the rows the quote matches, no arithmetic
+    # gate (an all-dash row prints no total to close against, and nothing on it can be summed into a 0): a
+    # known label, and a dash where the fiscal year reads. Refusals: an unknown label, a figure in the
+    # fiscal-year column, no dash row behind the quote, a dashed component row beside a real debt row.
+    linc = ("Substansvärde 2025-12-31 2024-12-31\nTotala tillgångar 4 442 632 4 839 415\nLångfristiga skulder – –\n"
+            "Kortfristiga skulder -11 620 -8 757\nSubstansvärde 4 431 012 4 830 658\nNettoskuld 2025-12-31 2024-12-31\n"
+            "Räntebärande skulder – –\nLikvida medel -283 982 -549 657\nNettoskuld -283 982 -549 657\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 0, "unit": "Tkr", "period": "2025", "raw_label": "Räntebärande skulder",
+         "source": {"page": 1, "quote": "Räntebärande skulder – –"}}] + [
+        {"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None}
+        for k in ("due_within_1_year", "due_1_to_5_years", "due_after_5_years")]}
+    out = x.extract([linc], [1], dm, {"fiscal_year": 2025})
+    total = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert (total["value"], total["confidence"]) == (0, 0.5) \
+        and total["evidence"] == ["quote_on_page", "printed_nil", "arith_ok", "period_ok", "page_is_statement", "unit_ok"] \
+        and total["source"] == {"page": 1, "quote": "Räntebärande skulder – –"}, (total, out["warnings"])
+    assert any("total_debt: 0 kept -- 'Räntebärande skulder – –' prints a dash in the fiscal-year column under a known label (printed nil)" in w
+               for w in out["warnings"]), out["warnings"]
+    # ... the bare row-synonym label ("räntebärande skulder", no summa/totalt prefix) is what the total field is
+    # recognised by here, the same vocabulary _bucket_total_row recognises the debt row by
+    assert x._model_zero_on_dash_row({"value": 0, "source": {"page": 1, "quote": "Räntebärande skulder – –"}},
+                                     dmf["total_debt"], [linc], [1], 2025) == (1, "Räntebärande skulder – –")
+    assert x._model_zero_on_dash_row({"value": 0, "source": {"page": 1, "quote": "Avstämningspost – –"}},
+                                     dmf["total_debt"], [linc.replace("Räntebärande", "Avstämningspost")], [1], 2025) is None  # an unknown label: any dash row is not the field
+    assert x._model_zero_on_dash_row({"value": 0, "source": {"page": 1, "quote": "Räntebärande skulder - 100"}},
+                                     dmf["total_debt"], ["Nettoskuld 2025-12-31 2024-12-31\nRäntebärande skulder - 100\nLikvida medel -50 -60\n"],
+                                     [1], 2025) == (1, "Räntebärande skulder - 100")  # the fiscal-year column is the dash; the 100 prints in the prior-year one
+    # Rejlers (v097 finding 4): the dash bucket rows quoted as one block; the page also prints "0.8 per cent",
+    # which is exactly what kept the answer alive unproven at 0.25 -- the printed-nil rule outranks that fallback.
+    rejlers = ("NOTE 24\nLiabilities to credit institutions\nThe Group has an overdraft facility with a limit of SEK 250\n"
+               "million (250), of which SEK 27.8 million (12.1) is utilised. The interest margin is fixed at 0.8 per\n"
+               "cent with an addition for STIBOR 3 months.\n"
+               "Maturity analysis, liabilities to credit institutions, SEK\nmillion 2025 2024\n"
+               "Within one year 400.3 349.5\n1-2 years - -\n2–3 years - -\n3-4 years - -\n4-5 years - -\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_within_1_year", "value": 400.3, "unit": "MSEK", "period": "2025", "raw_label": "Within one year",
+         "source": {"page": 1, "quote": "Within one year 400.3 349.5"}},
+        {"key": "due_1_to_5_years", "value": 0, "unit": "MSEK", "period": "2025", "raw_label": "1-2 years; 2–3 years; 3-4 years; 4-5 years",
+         "source": {"page": 1, "quote": "1-2 years - -\n2–3 years - -\n3-4 years - -\n4-5 years - -"}},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([rejlers], [1], dm, {"fiscal_year": 2025})
+    b15 = next(f for f in out["fields"] if f["key"] == "due_1_to_5_years")
+    assert (b15["value"], b15["confidence"]) == (0, 0.5) \
+        and b15["evidence"] == ["quote_on_page", "printed_nil", "arith_ok", "label_known", "period_ok", "page_is_statement", "unit_ok"] \
+        and b15["source"]["quote"] == "1-2 years - -", (b15, out["warnings"])  # the first matched dash row is the provenance
+    assert any("due_1_to_5_years: 0 kept -- '1-2 years - -' prints a dash in the fiscal-year column under a known label (printed nil)" in w
+               for w in out["warnings"]), out["warnings"]
+    # refusals, end to end: all three stay null, dropped as computed, not read
+    for page, key, quote in [("Nettoskuld 2025-12-31 2024-12-31\nAvstämningspost – –\n", "total_debt", "Avstämningspost – –"),
+                             ("NOTE 24\nLiabilities to credit institutions\nMaturity analysis, SEK million\nBetween 1 and 5 years 250 200\n",
+                              "due_1_to_5_years", "Between 1 and 5 years 250 200"),
+                             ("Note 20 Borrowings\nMSEK\n2025 2024\nWithin 1 year 3,538\n1-5 years 29,165\n", "total_debt", "Total borrowings – –"),
+                             ("Borrowings note\n2025 2024\nLease liabilities - -\nBank loans 500 400\n", "total_debt", "Lease liabilities - -")]:
+        x.call_llm = lambda *a, _p=page, _k=key, _q=quote, **k: {"fields": [
+            {"key": _k, "value": 0, "unit": "MSEK", "period": "2025", "raw_label": _q,
+             "source": {"page": 1, "quote": _q}}]}
+        out = x.extract([page], [1], dm, {"fiscal_year": 2025})
+        bad = next(f for f in out["fields"] if f["key"] == key)
+        assert bad["value"] is None and bad["confidence"] == 0.0, (bad, out["warnings"])
+        assert any("dropped as computed, not read" in w for w in out["warnings"]), (page, out["warnings"])
+        assert not any("printed nil" in w for w in out["warnings"]), (page, out["warnings"])
     # v044: null_as_zero, refined -- v041 finding 3 (MedCap, Ependion, same seed): a bucket the model failed to
     # extract reads identically to a bucket the report never prints -- both are null -- but only the second one
     # is really a 0. Before defaulting a null bucket to 0, _check now looks for its own synonym label (the same

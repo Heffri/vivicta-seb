@@ -751,6 +751,64 @@ def _stated_zero(field: dict, sf: dict, schema: dict, texts: list[str]) -> bool:
     return bool(set(q.split()) & {w.lower() for w in sf["zero_if_stated"].get("negations", [])})
 
 
+def _model_zero_on_dash_row(field: dict, sf: dict, texts: list[str], pages: list[int], fiscal_year) -> tuple[int, str] | None:
+    """(v134) A model-answered 0 whose citation is a row the report prints as dashes: Linc p.100's
+    "Räntebärande skulder – –" (the NAV reconciliation's own borrowings line, v090's standing gap) and
+    Rejlers' "1-2 years - -" bucket rows quoted as one block (v097 finding 4). quote_on_page can never
+    verify such a quote (a dash is no number token), and often no 0 is printed anywhere to fall back on,
+    so the answer died as "computed, not read" (Linc) or survived unproven at 0.25 (Rejlers). The dash is
+    the report's own printed nil (v036's convention, v078's translation), kept here under conditions all
+    on the rows the quote matches on the cited page (or the statement spread): every matched row's label
+    is one of the field's known synonyms (the total field's row_synonyms count -- the same vocabulary
+    _bucket_total_row recognises the debt row by), and it prints no figure in the fiscal-year column
+    (_row_year_column's; when no header names one, every numeric column must be a dash). v078's own
+    arithmetic gate cannot run here -- an all-dash row prints no total for its nils to close against --
+    and needs no successor: the model's 0 is not assembled from anything, and any row that could lend it
+    a figure disqualifies the quote, either by being matched itself (a matched row printing a figure
+    where the fiscal year reads is a contradiction, not a nil) or by sitting unquoted on the same page
+    under one of the field's own labels with real amounts (the lease-liabilities row next to a bank-loans
+    row with figures is not a zero total). A matched row _bucket_row_prior_year proves prior-year is
+    refused too: last year's dash is not this year's 0. Returns (page, first qualifying row) or None."""
+    if isinstance(field.get("value"), bool) or field.get("value") != 0:
+        return None
+    src = field.get("source") or {}
+    page, quote = src.get("page"), str(src.get("quote") or "")
+    if not isinstance(page, int) or not 0 < page <= len(texts) or not quote.strip():
+        return None
+    vocab = {"synonyms": sf.get("synonyms", []) + sf.get("row_synonyms", [])}
+    nq = normalize_ws(quote).casefold()
+    if not any(c.isalpha() for c in nq):
+        return None
+    for p in dict.fromkeys([page, *(q for q in pages[:2] if q != page)]):
+        if not 0 < p <= len(texts):
+            continue
+        rows = _page_rows(texts[p - 1])
+        hit, matched = None, set()
+        for i, r in enumerate(rows):
+            nr = normalize_ws(r).casefold()
+            if not nr or not any(c.isalpha() for c in nr) or (nr not in nq and nq not in nr):
+                continue  # not a row the quote is about
+            matched.add(r)
+            if not _label_known(_row_label(r), vocab) or _bucket_row_prior_year(rows, i, fiscal_year):
+                return None  # the quote names a row this field is not, or last year's: the 0 is the model's, not the page's
+            am = _row_amounts(r, None, nil=None)
+            if am and all(a is None for a in am):
+                hit = hit or r
+                continue
+            header = _row_year_column(rows, i, fiscal_year) if fiscal_year else None
+            if header and len(am2 := _row_amounts(r, header[1], nil=None)) == header[1] and am2[header[0]] is None:
+                hit = hit or r  # a figure may print in another column (prior year, carrying amount); the fiscal-year one is the dash
+                continue
+            return None  # the row prints a figure where the fiscal year reads: the 0 contradicts the page
+        if hit is None:
+            continue
+        if any(r not in matched and _label_known(_row_label(r), vocab) and (am3 := _row_amounts(r, None, nil=None))
+               and any(a is not None for a in am3) for r in rows):  # v134: no other figure for this field's own vocabulary may sit unquoted on the page
+            continue
+        return p, hit
+    return None
+
+
 def _signed(amounts: list, col: int, value) -> list:
     """Swedbank prints expenses positive, the field carries them negative: the whole row flips with the fiscal-year figure."""
     return [-a for a in amounts] if col < len(amounts) and amounts[col] == -value and value else amounts
@@ -2962,6 +3020,17 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                         verified, field["raw_label"], page, src["page"], rows = hit, _row_label(hit), p, p, _page_rows(texts[p - 1])
                         break
             if not verified:
+                nil_row = _model_zero_on_dash_row(field, sf, texts, pages, fiscal_year) \
+                    if field["value"] == 0 and not isinstance(field["value"], bool) else None
+                if nil_row:  # v134: the dash row the model read is the report's own printed nil -- before the printed-0
+                    nil_page, nil_quote = nil_row  # fallback below, since a 0 printed elsewhere (Rejlers' "0.8 per cent") proves nothing about this row
+                    warnings.append(f"{sf['key']}: 0 kept -- {nil_quote!r} prints a dash in the fiscal-year column under a known label (printed nil)")
+                    field.update(raw_label=_row_label(nil_quote), period=str(fiscal_year) if fiscal_year else field.get("period"),
+                                 source={"page": nil_page, "quote": nil_quote})
+                    field["evidence"] += ["quote_on_page", "printed_nil"]
+                    stated_zeros.add(sf["key"])  # the same standing as a stated zero: a 0 no printed digit proves, the page's own nil marker does
+                    fields.append(field)
+                    continue
                 nearby = sorted({page, *pages[:2]})
                 if not any(_value_in_quote(field["value"], texts[p - 1]) for p in nearby if 0 < p <= len(texts)):
                     if not _stated_zero(field, sf, schema, texts):
@@ -3293,6 +3362,16 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                          evidence=["quote_on_page", "value_derived"])
                 values[f["key"]] = f["value"]
                 filled.add(f["key"])
+                continue
+            nil_row = _model_zero_on_dash_row(f, sf, texts, pages, fiscal_year) \
+                if f["value"] == 0 and not isinstance(f["value"], bool) else None
+            if nil_row:  # v134: the same printed-nil rule at this drop site -- a quote a stray digit made verifiable
+                nil_page, nil_quote = nil_row  # still sits on an all-dash row the page prints (see _model_zero_on_dash_row)
+                warnings.append(f"{f['key']}: 0 kept -- {nil_quote!r} prints a dash in the fiscal-year column under a known label (printed nil)")
+                f.update(raw_label=_row_label(nil_quote), period=str(fiscal_year) if fiscal_year else f.get("period"),
+                         source={"page": nil_page, "quote": nil_quote})
+                f["evidence"] += ["quote_on_page", "printed_nil"] if "quote_on_page" not in f["evidence"] else ["printed_nil"]
+                stated_zeros.add(f["key"])
                 continue
             warnings.append(f"{f['key']}: {f['value']} is printed on none of pages {nearby}; dropped as computed, not read")
             f.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
