@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Segmented } from '@/components/ui/segmented'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ErrorBlock, LoadingLine } from '@/components/ui/state'
 import { ProviderCard } from '@/components/settings/ProviderCard'
@@ -21,6 +22,7 @@ const DEFAULT_CONFIG: DesktopConfig = {
   claudeModel: 'claude-sonnet-5',
   extractTwoPass: true, // matches desktop/settings.js's own DEFAULTS -- see its comment for why
   maturityBasis: 'carrying', // v089, same -- the backend's own default since v028
+  mergeRuns: 'off', // v140, same -- v133's EXTRACT_MERGE_RUNS default off (the single-run route)
   theme: 'solid', // v100, same -- desktop/settings.js's own DEFAULTS; never reaches the backend
 }
 
@@ -93,6 +95,14 @@ function StatusRow({ status, error, twoPass }: { status: Config | null; error: s
               // mirror too -- "Running now" showing what the backend would actually read.
               <span className="text-muted-foreground">
                 basis <span className="text-foreground">{status.maturity_basis === 'undiscounted' ? 'contractual undiscounted' : 'carrying amount'}</span>
+              </span>
+            )}
+            {status.merge_runs && (
+              // v140: same deal as basis -- the merge mode lives in the backend's env (the desktop
+              // passes EXTRACT_MERGE_RUNS on Save), and /api/config echoes the live value, so this
+              // shows what the backend would actually run with, browser mirror included.
+              <span className="text-muted-foreground">
+                merge <span className="text-foreground">{status.merge_runs}</span>
               </span>
             )}
           </>
@@ -175,6 +185,36 @@ function MaturityBasisSelect({
         </SelectContent>
       </Select>
     </Field>
+  )
+}
+
+// v140: v133's second-run merge (`EXTRACT_MERGE_RUNS=off|union|majority`, default off) as a user
+// option. Model-independent like MaturityBasisSelect, but rendered ONCE in the panel instead of
+// per provider card (basis repeats inside every card; this sits beside that block as one control,
+// since the choice has nothing to do with which provider is picked -- every non-fixture provider
+// passes it through, Ollama included). Same Segmented primitive as Results' PDF/Image toggle.
+function MergeRunsControl({ value, onChange }: { value: DesktopConfig['mergeRuns']; onChange: (value: DesktopConfig['mergeRuns']) => void }) {
+  return (
+    <Card size="sm">
+      <CardContent className="space-y-2">
+        <Field caption="Two-run merge">
+          <Segmented
+            aria-label="Two-run merge"
+            className="w-full sm:w-auto"
+            value={value}
+            onChange={onChange}
+            options={[
+              { value: 'off', label: 'Off' },
+              { value: 'union', label: 'Union' },
+              { value: 'majority', label: 'Majority' },
+            ]}
+          />
+        </Field>
+        <p className="text-xs text-muted-foreground">
+          Union: run twice, keep the better-evidenced field. Majority: also count the saved extraction; skips the second run when the first matches it. Doubles model calls.
+        </p>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -565,6 +605,10 @@ function DesktopSettings({ api, onConfigChange }: { api: ArpSettingsApi; onConfi
               />
             </ProviderCard>
           </div>
+
+          {/* v140: one model-independent control for the two-run merge, not one per card -- the
+              provider cards above each carry the basis select; this is panel-level like the theme. */}
+          <MergeRunsControl value={form.mergeRuns} onChange={(v) => update({ mergeRuns: v })} />
 
           <p className="text-xs text-muted-foreground">
             {form.provider === 'fixture' ? (

@@ -49,6 +49,10 @@ export type DesktopConfig = {
   // DEBT_BASIS passthrough (v089) -- unlike two-pass this is model-independent, so every provider
   // card shows the control and every non-fixture provider passes it through.
   maturityBasis: 'carrying' | 'undiscounted'
+  // EXTRACT_MERGE_RUNS passthrough (v140) -- v133's second-run merge, model-independent like the
+  // basis above (every non-fixture provider passes it through); unlike two-pass, /api/config
+  // echoes the live value as `merge_runs`, which is what the status row shows.
+  mergeRuns: 'off' | 'union' | 'majority'
   // v100: visual theme -- Solid (default, Sebastijan's 09-18 opaque surfaces) or Acrylic
   // (v001-v006b glass + the desktop shell's real Windows material). Persisted in config.json like
   // maturityBasis but never an env var: desktop/main.js reads it to build the window with the

@@ -152,6 +152,15 @@ def toc_targets(texts: list[str], schema: dict) -> dict[int, str]:
     return hits
 
 
+def _summary_heading(head: str, raw_head: str) -> bool:
+    """A multi-year / quarterly table heading: "2023 2022 2021" (>=4 distinct years, >=5 year tokens
+    counting repeats) or a quarter word. Pure predicate shared by scored_pages' summary penalty and
+    the balance-sheet companion's page filter (v139) -- the five-year summary prints a balance sheet
+    too, and neither scorer wants it."""
+    years = [YEARS.findall(SPLIT_YEAR.sub(r"\1", DATE.sub("", h))) for h in (head, raw_head)]  # AQ prints the income statement and comprehensive income side by side, each headed "01/01/2025 31/12/2025 ...": dates, not a multi-year table
+    return any(len(set(y)) >= 4 or len(y) >= 5 for y in years) or QUARTER.search(head)
+
+
 def scored_pages(texts: list[str], schema: dict) -> list[tuple[float, int]]:
     """Every page matching at least one keyword, (score, 1-based pdf page), best first -- the full ranking
     candidate_pages cuts its window from. Exposed for measurement (scripts/locate_reach.py: where a label
@@ -172,14 +181,56 @@ def scored_pages(texts: list[str], schema: dict) -> list[tuple[float, int]]:
         fields = sum(s in low for s in synonyms)  # the statement names most of its rows; a currency note or a liabilities table does not
         density = min(sum(c.isdigit() for c in text) / max(len(text), 1), 0.2)  # tables ~0.15-0.3, prose ~0.01; capped so summaries don't win on digits
         raw_head = " ".join(texts[i].lower().split())[:HEADING_CHARS]  # Medicover: the "5-year financial summary" title and its "2025" "2024" lines are on enough pages to be stripped as boilerplate
-        years = [YEARS.findall(SPLIT_YEAR.sub(r"\1", DATE.sub("", h))) for h in (head, raw_head)]  # AQ prints the income statement and comprehensive income side by side, each headed "01/01/2025 31/12/2025 ...": dates, not a multi-year table
-        summary = any(len(set(y)) >= 4 or len(y) >= 5 for y in years) or QUARTER.search(head)  # "2023 2022 2021" / "Oct-Dec 2025 Jul-Sep 2025 ...": multi-year or quarterly table
+        summary = _summary_heading(head, raw_head)  # "2023 2022 2021" / "Oct-Dec 2025 Jul-Sep 2025 ...": multi-year or quarterly table
         group_at = (GROUP.search(head) or re.compile(r"$").search(head)).start()
         parent = any(k in head and (head.index(k) < group_at or not ENTITY.search(k)) for k in excluded)  # Pandox: "KONCERNEN 2024 Rörelsesegment" is a segment note whatever precedes it. Saab SV: parent-company statement outranked the group one;
         penalty = 0.1 if summary or parent else 1  # Vitrolife prints "Group | Parent Company" columns on one page: group first, so not a parent page
         scored.append(((distinct + 5 * heading + fields + 5 * (i + 1 in toc)) * (1 + 5 * density) * penalty, i + 1))
     scored.sort(key=lambda s: (-s[0], s[1]))
     return scored
+
+
+BS_TITLE = re.compile(r"balansr[aä]kning|balance sheet|statement of financial position|finansiell[aä]? st[aä]llning", re.I)
+BS_TOTALS_EL = re.compile(r"total equity and liabilities|summa eget kapital och skulder", re.I)  # the balance sheet's bottom line -- its liabilities spread carries it even when the assets half sits on the facing page
+BS_TOTALS = re.compile(r"total assets|summa tillg[aå]ngar|totalt tillg[aå]ngar", re.I)
+BS_PARENT_HEAD = re.compile(r"moderbolag|moderf[oö]retag|parent company", re.I)  # the parent-company statement, not the group one the debt ties to
+
+
+def balance_sheet_page(texts: list[str]) -> int | None:
+    """The report's consolidated balance-sheet page (1-based), or None. A page qualifies when a
+    balance-sheet title sits in its heading -- the same first-HEADING_CHARS window scored_pages'
+    heading bonus reads -- and a totals anchor prints on the page (the bottom-line equity-and-
+    liabilities total, else Total assets/Summa tillgångar): a note that merely mentions the balance
+    sheet carries no such row, and neither does a contents page. Pages headed as the parent-company
+    statement or as a multi-year summary are not it (the five-year summary prints a balance sheet
+    too -- _summary_heading, the same test the summary penalty runs). Of the qualifiers the
+    consolidated-headed page with a bottom-line total wins, then any consolidated-headed one, then
+    the first remaining -- the main group statement precedes the interim and directors'-report
+    lookalikes that re-print one later in the report.
+
+    Candidate pages append this page as their last entry (v139): the debt labels of flerie, kabe,
+    hansa_biopharma and fm_mattsson sit on balance-sheet pages that carry no debt keyword at all
+    (noscore, unreachable), and scoring those title words -- tried in v123 -- crowded svolder and
+    hoist_finance off the ranked window. Appending joins them without competing: no scored page's
+    rank changes, the list only grows, so no company can move down; the budget trim below still
+    bounds the full-text prefix."""
+    group, plain = None, None
+    for i, text in enumerate(strip_boilerplate(texts)):
+        low = " ".join(text.lower().split())
+        head = low[:HEADING_CHARS]
+        raw_head = " ".join(texts[i].lower().split())[:HEADING_CHARS]  # the same raw-head read scored_pages makes
+        if BS_PARENT_HEAD.search(head) or not BS_TITLE.search(head) or _summary_heading(head, raw_head):
+            continue
+        if not (BS_TOTALS_EL.search(low) or BS_TOTALS.search(low)):
+            continue
+        if GROUP.search(head):
+            if group is None or group[0] == 0 and BS_TOTALS_EL.search(low):  # first consolidated page, or a later consolidated page that bottoms out on this one
+                group = (1 if BS_TOTALS_EL.search(low) else 0, i + 1)
+        elif plain is None:
+            plain = i + 1
+    if group:
+        return group[1]
+    return plain
 
 
 def candidate_pages(texts: list[str], schema: dict, top_n: int = 10) -> list[int]:
@@ -190,10 +241,15 @@ def candidate_pages(texts: list[str], schema: dict, top_n: int = 10) -> list[int
     are kept for it rather than trimmed: v123 measured 13/87 debt-label pages ranking #2-#8 being dropped
     by a whole-list budget trim that no full-text reader was ever going to read. top_n 10 (was 8): the one
     debt-label page ranking #9 (Inwido's Note 21) became a candidate with no other company moving on
-    either section; the cost is pass-1 snippets for up to two more pages."""
+    either section; the cost is pass-1 snippets for up to two more pages. The report's balance-sheet page
+    (balance_sheet_page, v139) joins as the last entry when it scored nothing of its own: the debt note's
+    carrying total ties to it, and the four remaining debt-label BS pages carry no debt keyword to score."""
     pages = [page for _, page in scored_pages(texts, schema)[:top_n]]
     if pages and pages[0] < len(texts):
         pages = [pages[0], pages[0] + 1] + [p for p in pages[1:] if p != pages[0] + 1]
+    bs = balance_sheet_page(texts)
+    if bs and bs not in pages:
+        pages.append(bs)  # last, never ranked: the window prefix and every scored page's place are untouched
     i = min(len(pages), WINDOW_PAGES)
     while i > 2 and sum(len(texts[p - 1]) for p in pages[:i]) > PROMPT_BUDGET:
         pages.append(pages.pop(i - 1))  # demote the window's last page to the snippet-only tail, never drop it

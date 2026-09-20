@@ -537,10 +537,12 @@ def export_extraction(report_id, section=None, previous_stem=None):
 def config():
     # codex/claude defaults live in llm.py; not "fixture" only for a provider _llm_configured() already accepts without LLM_MODEL
     model = os.getenv("LLM_MODEL") or {"codex": "gpt-5.6-terra", "claude": "claude-sonnet-5"}.get(llm.provider(), "fixture")
+    from pipeline import merge  # v140: echo only -- the route never reaches the second-run path
     return {"model": model, "embed_model": kb.embed_model(), "base_url": os.getenv("LLM_BASE_URL"),
             "llm": _llm_configured(), "provider": llm.provider() if _llm_configured() else "fixture",
             "retrieval": kb.retrieval_mode(),  # v034: "hybrid" | "bm25" | "fixture"
-            "maturity_basis": extract_mod.debt_basis()}  # v089: "carrying" (default) | "undiscounted", env DEBT_BASIS
+            "maturity_basis": extract_mod.debt_basis(),  # v089: "carrying" (default) | "undiscounted", env DEBT_BASIS
+            "merge_runs": merge.mode()}  # v140: "off" (default) | "union" | "majority", env EXTRACT_MERGE_RUNS
 
 
 @app.get("/api/reports/{report_id}/extraction.csv")

@@ -99,7 +99,9 @@
     }
   ],
   "warnings": [
-    "two_pass: page [131, 132] selected from candidates [131, 132, 110, 135]",
-    "published: seedseed-rerun-v114-kb run replayed with extract.py @ d3eb5fc8"
+    "run1: two_pass: page [131, 132] selected from candidates [131, 132, 110, 99, 135, 101, 134, 133, 31, 146]",
+    "run2: two_pass: page [131, 132] selected from candidates [131, 132, 110, 99, 135, 101, 134, 133, 31, 146]",
+    "merge: union, per-field: total_debt=run2 (agree: confidence tie -> run2), due_within_1_year=run2 (agree: confidence tie -> run2), due_1_to_5_years=run2 (agree: confidence tie -> run2), due_after_5_years=run2 (agree: confidence tie -> run2)",
+    "published: seedv136-publish-kb run replayed with extract.py @ 3089ab08"
   ]
 }

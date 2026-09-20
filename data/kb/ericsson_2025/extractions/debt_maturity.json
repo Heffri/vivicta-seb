@@ -2,19 +2,20 @@
   "report_id": "lib-ericsson_2025",
   "company": "Ericsson",
   "fiscal_year": 2025,
-  "currency": "SEK m",
+  "currency": "MSEK",
   "section": "debt_maturity",
+  "maturity_basis": "carrying",
   "fields": [
     {
       "key": "total_debt",
       "label": "Total borrowings",
       "value": 32703,
-      "unit": "SEK m",
+      "unit": "MSEK",
       "period": "2025",
       "raw_label": "Total interest-bearing liabilities",
       "source": {
         "page": 65,
-        "quote": "Total interest-bearing liabilities 32,703 38,041"
+        "quote": "Total interest-bearing liabilities 32,703 38,041 Revaluation due to changes in credit risk –30 567"
       },
       "confidence": 1.0,
       "evidence": [
@@ -31,18 +32,19 @@
       "key": "due_within_1_year",
       "label": "Due within 1 year",
       "value": 3538,
-      "unit": "SEK m",
+      "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Total borrowings, current",
+      "raw_label": "Borrowings, current Cash ﬂows: Total borrowings, current",
       "source": {
         "page": 65,
-        "quote": "Total borrowings, current 3,538 6,137"
+        "quote": "Total borrowings, current 3,538 6,137 Other financing activities 1,224 152"
       },
-      "confidence": 0.9,
+      "confidence": 1.0,
       "evidence": [
         "quote_on_page",
         "value_in_quote",
         "arith_ok",
+        "label_known",
         "period_ok",
         "page_is_statement",
         "unit_ok"
@@ -51,29 +53,19 @@
     {
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
-      "value": 29165,
-      "unit": "SEK m",
+      "value": null,
+      "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Total borrowings, non-current",
-      "source": {
-        "page": 65,
-        "quote": "Total borrowings, non-current 29,165 31,904"
-      },
-      "confidence": 0.9,
-      "evidence": [
-        "quote_on_page",
-        "value_in_quote",
-        "arith_ok",
-        "period_ok",
-        "page_is_statement",
-        "unit_ok"
-      ]
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
     },
     {
       "key": "due_after_5_years",
       "label": "Due after 5 years",
       "value": null,
-      "unit": "SEK m",
+      "unit": "MSEK",
       "period": "2025",
       "raw_label": "",
       "source": null,
@@ -85,10 +77,13 @@
     {
       "name": "maturity_sums_to_total",
       "passed": false,
-      "detail": "missing: due_after_5_years"
+      "detail": "missing: due_1_to_5_years"
     }
   ],
   "warnings": [
-    "due_after_5_years: value without source dropped"
+    "run1: two_pass: page [65, 66] selected from candidates [65, 66, 95, 34, 60, 20, 56, 96, 59, 62, 94]",
+    "run2: two_pass: page [95, 96] selected from candidates [65, 66, 95, 34, 60, 20, 56, 96, 59, 62, 94]",
+    "merge: union, per-field: total_debt=run1 (agree: higher confidence), due_within_1_year=run1 (only non-null), due_1_to_5_years=null (both null), due_after_5_years=null (both null)",
+    "published: seedv136-publish-kb run replayed with extract.py @ 3089ab08"
   ]
 }

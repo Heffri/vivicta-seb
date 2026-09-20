@@ -1,0 +1,83 @@
+{
+  "report_id": "lib-instalco_2025",
+  "company": "Instalco",
+  "fiscal_year": 2025,
+  "currency": "SEK m",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": null,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 281,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Total",
+      "source": {
+        "page": 124,
+        "quote": "as follows: Total 281 269 – – Other pledged assets:"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": 37,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "lease liabilities",
+      "source": {
+        "page": 124,
+        "quote": "SEK 37 million\nof the lease liabilities fall due for payment after more than five years"
+      },
+      "confidence": 0.25,
+      "evidence": [
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_1_to_5_years"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [124, 125] selected from candidates [122, 123, 128, 124, 140, 50, 104, 121, 126, 102, 127]",
+    "due_after_5_years: quote not found on page 124"
+  ]
+}

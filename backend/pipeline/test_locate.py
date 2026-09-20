@@ -54,10 +54,35 @@ def test_window_prefix_fits_budget_unless_two():
     check(len(pages) >= 2, f"a scored report must keep at least the companion pair, got {pages}")
 
 
+def test_balance_sheet_page_joins_last():
+    # v139 flerie/kabe/hansa shape: a balance-sheet page carrying no debt keyword (noscore, would-be
+    # unreachable) joins the candidate list as its last entry -- appended, never ranked, so scored
+    # pages keep their places and the full-text window prefix is untouched.
+    texts = [""] * 5
+    texts[0] = "Borrowings note\n" + "total borrowings 5\n" + "z " * 300
+    texts[3] = "Balansräkning för koncernen\nMateriella anläggningstillgångar 10\nSumma tillgångar 100\n" + "q " * 100
+    pages = locate.candidate_pages(texts, SCHEMA)
+    check(pages and pages[0] == 1, f"companion must not outrank the scored page, got {pages}")
+    check(pages[-1] == 4, f"balance-sheet page appended last, got {pages}")
+
+
+def test_parent_and_summary_balance_sheets_not_companions():
+    # The parent-company statement and the five-year summary both print a balance sheet; neither is
+    # the group one the debt note ties to, and v123 measured BS title words crowding ranked pages out.
+    texts = [""] * 6
+    texts[0] = "Borrowings note\n" + "total borrowings 5\n" + "z " * 300
+    texts[2] = "Balansräkning för moderbolaget\nSumma tillgångar 100\n" + "q " * 100
+    texts[4] = "Femårsöversikt balansräkning 2025 2024 2023 2022 2021\nSumma tillgångar 100\n" + "q " * 100
+    pages = locate.candidate_pages(texts, SCHEMA)
+    check(3 not in pages and 5 not in pages, f"parent/summary BS pages must not join the window, got {pages}")
+
+
 def main():
     test_companion_is_second()
     test_no_scored_page_dropped_for_budget()
     test_window_prefix_fits_budget_unless_two()
+    test_balance_sheet_page_joins_last()
+    test_parent_and_summary_balance_sheets_not_companions()
     print("locate self-check ok")
 
 

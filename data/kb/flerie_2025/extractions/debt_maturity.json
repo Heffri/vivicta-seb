@@ -9,13 +9,13 @@
     {
       "key": "total_debt",
       "label": "Total borrowings",
-      "value": 0.4,
+      "value": 2.1,
       "unit": "MSEK",
       "period": "2025",
       "raw_label": "Leasingskuld",
       "source": {
         "page": 86,
-        "quote": "Leasingskuld 0,8 -0,5 0,1 1,4 0,4"
+        "quote": "Leasingskuld 2,1 0,9 2,1 0,9"
       },
       "confidence": 0.9,
       "evidence": [
@@ -69,7 +69,9 @@
     }
   ],
   "warnings": [
-    "two_pass: page [86, 87] selected from candidates [86, 87, 66]",
-    "published: seedseed-rerun-v119-kb run replayed with extract.py @ d3eb5fc8"
+    "run1: two_pass: page [86, 87] selected from candidates [86, 87, 83, 77, 75, 66, 65, 67]",
+    "run2: two_pass: page [86, 87] selected from candidates [86, 87, 83, 77, 75, 66, 65, 67]",
+    "merge: union, per-field: total_debt=run1 (only non-null), due_within_1_year=null (both null), due_1_to_5_years=null (both null), due_after_5_years=null (both null)",
+    "published: seedv141-flerie-kb run replayed with extract.py @ 3089ab08"
   ]
 }
