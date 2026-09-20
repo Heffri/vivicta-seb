@@ -30,13 +30,21 @@
     {
       "key": "due_within_1_year",
       "label": "Due within 1 year",
-      "value": null,
+      "value": 192,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "",
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "raw_label": "Current liabilities",
+      "source": {
+        "page": 177,
+        "quote": "Current liabilities 2025 2024\nLease liabilities 180 185\nOverdraft facilities – –\nLiabilities to credit institutions 12 7\nLease liabilities 180 185\n192 191"
+      },
+      "confidence": 0.25,
+      "evidence": [
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "due_1_to_5_years",
@@ -65,12 +73,17 @@
     {
       "name": "maturity_sums_to_total",
       "passed": false,
-      "detail": "missing: due_within_1_year"
+      "detail": "missing: due_1_to_5_years"
     }
   ],
   "warnings": [
-    "two_pass: page [177, 178] selected from candidates [177, 178, 182, 184, 181]",
-    "due_within_1_year: model returned null, fill from page 177 row 'Within 1 year 87 87 1' refused -- table 'Timing of revenue recognition, contract liabilities' is a non-debt subject table",
-    "published: seedseed-rex-kb run replayed with extract.py @ d3eb5fc8"
+    "run1: two_pass: page [177, 178] selected from candidates [177, 178, 182, 184, 181, 145, 146, 175, 157, 156]",
+    "run1: due_within_1_year: quote not found on page 177",
+    "run1: due_within_1_year: fill from page 177 row 'Within 1 year 87 87 1' refused -- table 'Timing of revenue recognition, contract liabilities' is a non-debt subject table",
+    "run2: two_pass: page [177, 178] selected from candidates [177, 178, 182, 184, 181, 145, 146, 175, 157, 156]",
+    "run2: due_within_1_year: quote not found on page 177",
+    "run2: due_within_1_year: fill from page 177 row 'Within 1 year 87 87 1' refused -- table 'Timing of revenue recognition, contract liabilities' is a non-debt subject table",
+    "merge: majority, per-field: total_debt=run1 (majority: unanimous), due_within_1_year=run1 (majority: run1+run2), due_1_to_5_years=run1 (majority: unanimous), due_after_5_years=run1 (majority: unanimous)",
+    "published: seedv160-publish-kb run replayed with extract.py @ be8b2c4e"
   ]
 }

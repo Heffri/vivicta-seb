@@ -2,27 +2,37 @@
   "report_id": "lib-xvivo_perfusion_2025",
   "company": "Xvivo Perfusion",
   "fiscal_year": 2025,
-  "currency": null,
+  "currency": "SEK thousand",
   "section": "debt_maturity",
   "maturity_basis": "carrying",
   "fields": [
     {
       "key": "total_debt",
       "label": "Total borrowings",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "value": 124721,
+      "unit": "SEK thousand",
+      "period": "2025",
+      "raw_label": "Total",
+      "source": {
+        "page": 92,
+        "quote": "Total 124,721 34,043 83,272 -"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "due_within_1_year",
       "label": "Due within 1 year",
       "value": null,
       "unit": null,
-      "period": null,
+      "period": "2025",
       "raw_label": null,
       "source": null,
       "confidence": 0.0,
@@ -33,7 +43,7 @@
       "label": "Due 1–5 years",
       "value": null,
       "unit": null,
-      "period": null,
+      "period": "2025",
       "raw_label": null,
       "source": null,
       "confidence": 0.0,
@@ -44,7 +54,7 @@
       "label": "Due after 5 years",
       "value": null,
       "unit": null,
-      "period": null,
+      "period": "2025",
       "raw_label": null,
       "source": null,
       "confidence": 0.0,
@@ -59,7 +69,7 @@
     }
   ],
   "warnings": [
-    "two_pass: page [93, 94] selected from candidates [93, 94, 72, 65]",
-    "published: seedseed-rerun-v118-kb run replayed with extract.py @ d3eb5fc8"
+    "two_pass: page [92, 93] selected from candidates [93, 94, 72, 65, 81, 96, 67, 92, 95, 70]",
+    "published: seedv160-publish-kb run replayed with extract.py @ be8b2c4e"
   ]
 }
