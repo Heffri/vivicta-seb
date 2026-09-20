@@ -1503,6 +1503,22 @@ def _wording_months(tok: str, unit: str) -> int:
     return (int(tok) if tok.isdigit() else _SPAN_WORDS[tok]) * (12 if unit[0] in "yå" else 1)
 
 
+def _wording_window(w: str) -> tuple[int, float] | None:
+    """(lo, hi) months for one repayment/current wording (whitespace-joined) -- the window half of
+    the v126 grammar, split out of _row_bucket_span for v156's subtotal guard, which must know the
+    window a TOTAL-labelled row names (a thing _row_bucket_span itself refuses to sit in a family)."""
+    rm = _REPAY_ROW.search(w)
+    if not rm:
+        return (0, 12)  # the current classification IS the within-1-year window (v110's family)
+    g = rm.groups()
+    if g[0] is not None:  # "Repayment within 2–5 yr."
+        lo, hi = _wording_months(g[0], g[2]), _wording_months(g[1], g[2])
+        return (lo, hi) if lo <= hi else None
+    if g[3] is not None:  # "Repayment within 1 yr."
+        return (0, _wording_months(g[3], g[4]))
+    return (_wording_months(g[5], g[6]), float("inf"))  # "Repayment after more than 5 yr."
+
+
 def _row_bucket_span(row: str) -> tuple[tuple[int, float], str] | None:
     """(window, wording) for a maturity-note row whose repayment-timing wording sits at or inside it --
     the clean interval label ("0–6 months 523 490", _bucket_span on _row_label) or, glued two-column
@@ -1522,18 +1538,9 @@ def _row_bucket_span(row: str) -> tuple[tuple[int, float], str] | None:
         if re.search(r"[^\W\d_]", row[m.end():]):
             continue  # wording not at the row's figure edge: what follows is another row's label, not this row's amounts
         w = " ".join(m.group(0).split())
-        rm = _REPAY_ROW.search(m.group(0))
-        if not rm:
-            return ((0, 12), w)  # the current classification IS the within-1-year window (v110's family)
-        g = rm.groups()
-        if g[0] is not None:  # "Repayment within 2–5 yr."
-            lo, hi = _wording_months(g[0], g[2]), _wording_months(g[1], g[2])
-            if lo <= hi:
-                return ((lo, hi), w)
-        elif g[3] is not None:  # "Repayment within 1 yr."
-            return ((0, _wording_months(g[3], g[4])), w)
-        else:  # "Repayment after more than 5 yr."
-            return ((_wording_months(g[5], g[6]), float("inf")), w)
+        win = _wording_window(w)
+        if win is not None:
+            return (win, w)
     return None
 
 
@@ -1610,6 +1617,116 @@ def _window_row_sum(field: dict, fields: list[dict], schema: dict, texts: list[s
         label = " + ".join(w for _, _, w, _ in fam)
         return quote, label, len(fam), fam[0][2], fam[-1][2], p
     return None
+
+
+def _window_subtotal_row(row: str, key: str) -> bool:
+    """v156: does this row print the bucket's OWN subtotal -- a total word in the label with the
+    bucket's window wording at the row's figure edge ("Total Repayment within 2–5 yr. 200 190",
+    v126's counter-example page)? The window is then already a printed row's own read -- the
+    single-row paths' territory -- and the on-null walk must not derive over it: a family that
+    disagrees with a printed subtotal of its own window is the report's inconsistency, a human's
+    question, not a sum to redo. "Summa inom 1 år" (XANO) names no v126 wording and guards nobody."""
+    if not _BARE_TOTAL.search(_row_label(row)):
+        return False
+    matches = sorted([*_REPAY_ROW.finditer(row), *_CURRENT_ROW.finditer(row)],
+                     key=lambda m: m.start(), reverse=True)
+    for m in matches:
+        if re.search(r"[^\W\d_]", row[m.end():]):
+            continue  # not at the figure edge: another row's wording glued on, not this row's own
+        win = _wording_window(" ".join(m.group(0).split()))
+        return win is not None and _span_bucket(win) == key
+    return False
+
+
+def _window_rows_derive(fields: list[dict], schema: dict, texts: list[str], fiscal_year,
+                        pages: list[int], scope_words: dict | None, basis: str,
+                        warnings: list[str], values: dict, filled: set) -> None:
+    """v156: v126's window family, deriving on a NULL bucket answer (v096's adoption on the
+    identity) instead of only keeping a sum the model itself answered and had dropped. Same family
+    and column gates as _window_row_sum, reused verbatim: rows of one page whose window
+    (_row_bucket_span -> _span_bucket) falls entirely inside THIS bucket's range, at least two of
+    them, summed in the one column where the note's own total row ties to the already-verified
+    total_debt -- which is what makes "the table's total row" and "the verified total_debt" the
+    same number here. What replaces the model's own value is the closure gate: the family sum plus
+    the other buckets' already-read values (a bucket still null contributes 0 -- its rows would
+    sit inside the total too, so a partial family cannot close and nothing is derived) must reach
+    that total, the arithmetic v096 adopts on, through maturity_sums_to_total. A page that already
+    prints the window's own subtotal (_window_subtotal_row) stands the walk down for the bucket:
+    that row is the bucket's read, and a family disagreeing with it is not ours to settle. Every
+    decline is silent (v110's convention) -- the write is the only warning this walk emits."""
+    ident = _identity_parts(schema)
+    if not ident or not fiscal_year or set(ident[1]) != _DATE_BUCKET_KEYS:
+        return
+    total_key, part_keys = ident
+    sc = next((c for c in schema.get("checks", []) if c.get("identity") and re.search(rf"\b{re.escape(total_key)}\b", c["expr"])), None)
+    if not sc:
+        return
+    by_key = {f["key"]: f for f in fields}
+    total = by_key.get(total_key) or {}
+    tsrc = total.get("source") or {}
+    if not isinstance(total.get("value"), (int, float)) or isinstance(total.get("value"), bool) \
+            or not isinstance(tsrc.get("page"), int) or not tsrc.get("quote"):
+        return
+    for key in part_keys:
+        cur = by_key[key]
+        if cur.get("value") is not None or key in filled:
+            continue  # a read (or already-derived) bucket is nobody's null to fill
+        for p in sorted({tsrc["page"], *[q for q in pages[:2] if isinstance(q, int)]}):
+            if not 0 < p <= len(texts):
+                continue
+            text = texts[p - 1]
+            rows = _page_rows(text)
+            if tsrc["quote"] not in rows:  # the column gate needs the note's own total row, on this very page
+                continue
+            ti = rows.index(tsrc["quote"])
+            scope = _table_scope(rows, None, ti, basis, scope_words,
+                                 debt_words=_debt_subject_words(schema) if scope_words else None) if scope_words else "unknown"
+            if scope in _REFUSED_SCOPES:
+                continue  # v103/v111: no derivation out of a refused table -- silently, this walk writes or it says nothing
+            header = _row_year_column(rows, ti, fiscal_year) or _year_column(text, fiscal_year)
+            if not header:
+                continue  # no column the fiscal year is provably in
+            col, ncols = header
+            tam = _row_amounts(tsrc["quote"], ncols)
+            if len(tam) != ncols or not _close(tam[col], total["value"]):
+                continue  # the total row does not line up with the year header, or this column is not the verified total's
+            if any(_window_subtotal_row(r, key) for i, r in enumerate(rows) if i != ti):
+                break  # the window's own subtotal is printed on this page: the printed row's read, not a sum to derive
+            fam: list[tuple[str, str, list]] = []
+            for i, r in enumerate(rows):
+                if i == ti:
+                    continue
+                got = _row_bucket_span(r)
+                if not got or _span_bucket(got[0]) != key:
+                    continue  # another window's row (or no window): never this bucket's summand
+                am = _row_amounts(r, ncols)
+                if len(am) != ncols:
+                    continue  # a wrapped header line or furniture row between components
+                fam.append((r, got[1], am))
+            if len(fam) < 2:
+                continue
+            s = round(sum(am[col] for _, _, am in fam), 2)
+            gate = {**{k: 0 for k in part_keys}, key: s, total_key: total["value"]}
+            for k in part_keys:  # the other buckets' already-read values ride along; a null one stays 0
+                if k == key:
+                    continue
+                v = by_key[k].get("value")
+                if isinstance(v, (int, float)) and not isinstance(v, bool):
+                    gate[k] = v
+            if not _check(sc, gate)["passed"]:
+                continue  # the closure does not hold: nothing derived
+            rs = [r for r, _, _ in fam]
+            joined = " ".join(rs)
+            verified = quote_on_page(joined, text)
+            quote = verified if verified == joined else rs[0]  # contiguous rows quote joined (v096's form); scattered ones quote their first row
+            label = " + ".join(w for _, w, _ in fam)
+            warnings.append(f"{key}: derived as the sum of {len(fam)} rows inside its window on page {p} "
+                            f"({fam[0][1]!r} … {fam[-1][1]!r}); closes on {total['value']}")
+            cur.update(value=s, period=str(fiscal_year), raw_label=label, source={"page": p, "quote": quote},
+                       evidence=["quote_on_page"] if _value_in_quote(s, quote) else ["quote_on_page", "value_derived"])
+            values[key] = s
+            filled.add(key)
+            break
 
 
 _NONCURRENT_WORDS = ("långfristig", "non-current", "noncurrent", "long-term", "long term")  # v110: the two
@@ -1730,9 +1847,29 @@ def _subtotal_pair_fill(fields: list[dict], sfs: list[dict], schema: dict, texts
         """
         parts = []
         for i in range(h + 1, si):
-            if _heading_like(rows[i]):
-                continue  # a wrapped label line
-            a = _row_amounts(rows[i], ncols)
+            r = rows[i]
+            if _heading_like(r):
+                # v156 (Sdiptech p.110): a data row can LOOK like furniture here --
+                # "Liabilities to credit institutions 10 10" reads [] without ncols (both cells
+                # small enough to filter out as note references), "Other liabilities** 2 4" the
+                # same way behind its footnote stars. The section's own ncols read of the
+                # star-stripped row arbitrates: ncols real (non-year) figures make it a data row;
+                # anything else stays the wrapped label it looked like.
+                a = _row_amounts(r.replace("*", " "), ncols)
+                if not (len(a) == ncols and not all(isinstance(v, int) and 1900 <= v <= 2100 for v in a)):
+                    continue  # a wrapped label line
+            else:
+                a = _row_amounts(r, ncols)
+                if len(a) != ncols and "*" in r:
+                    # v156 (Sdiptech p.110): a bare footnote star between the label and the figures
+                    # breaks the all-digits tail the ncols split needs, so the space-grouped cells
+                    # read fused ("Contingent considerations * 597 910" -> 597910; the split-back is
+                    # a nil-gated Boozt case). Retry the star-stripped row under the section's own
+                    # ncols read; the per-column closure below still decides, so a wrong un-fusion
+                    # declines exactly as before.
+                    a2 = _row_amounts(r.replace("*", " "), ncols)
+                    if len(a2) == ncols:
+                        a = a2
             if allow_torn_trailing_blank and len(a) == ncols - 1:
                 a.append(0)
             if len(a) != ncols:
@@ -3729,6 +3866,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
     _fill_bucket_columns(fields, sfs, schema, texts, pages, fiscal_year, warnings, values, filled, basis, bucket_pick)
     _finer_split_rows(fields, schema, texts, fiscal_year, warnings, values, filled, basis)  # the bucket-ROW finer split (Rusta), beside the bucket-column reader above
     _subtotal_pair_fill(fields, sfs, schema, texts, pages, fiscal_year, warnings, values, filled, basis)  # v110: non-current + current section subtotals, no printed grand total (NOTE Not 19)
+    _window_rows_derive(fields, schema, texts, fiscal_year, pages, scope_words, basis, warnings, values, filled)  # v156: a null bucket derived from its window's printed rows when they close on the total (v126's family, on null)
     _normalize_sign(fields, sfs, schema, texts, warnings, values)  # v101: liabilities-negative printed totals/buckets record their magnitude; the identity below closes on carrying positives
     checks = [_check(c, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema, stated_zeros=stated_zeros) for c in schema.get("checks", [])]
     for c, sc in zip(checks, schema.get("checks", [])):
