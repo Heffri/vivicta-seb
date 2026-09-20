@@ -3360,6 +3360,83 @@ def demo():
     assert got == {"total_debt": 677.8, "due_within_1_year": 661.8, "due_1_to_5_years": 5.6, "due_after_5_years": None}, (got, out["warnings"])
     assert any("kept the model's own 661.8 -- printed on page 1 as 'Total current liabilities 661.8 2.5'" in w
                for w in out["warnings"]), out["warnings"]
+    # v144: MTG p.142 is a comparative gross-values table.  The 2024 lease row's final two
+    # cells are separate values, but the four recognised headers make _row_amounts read them
+    # as the Swedish-looking 85,151.  Its three bucket cells total only 225, so that row cannot
+    # replace the model's own 3,487 carrying amount.  This frozen fixture is the relevant real
+    # text; do not couple the test to the mutable data/kb corpus (v130).
+    mtg142 = ("Group notes\n"
+              "Note 16 cont.\n"
+              "Terms and payback period, gross values\n"
+              "2025 Maturity 2028 Carrying\n"
+              "(SEK million) Total Maturity 2026 Maturity 2027 or later amount\n"
+              "Liabilities to financial institutions 3,900 582 3,318 — 3,487\n"
+              "Lease liabilities 292 69 66 156 253\n"
+              "Put and call option liability 261 261 — — 250\n"
+              "Contingent consideration 1,217 1,062 — 156 1,145\n"
+              "Other non-interest bearing liabilities 785 785 — — 785\n"
+              "Accounts payable 464 464 — — 464\n"
+              "Total 6,919 3,222 3,384 312 6,384\n"
+              "2024 Maturity 2027 Carrying\n"
+              "(SEK million) Total Maturity 2025 Maturity 2026 or later amount\n"
+              "Lease liabilities 155 37 33 85 151\n"
+              "Put and call option liability 332 194 138 — 311\n"
+              "Contingent consideration 1,847 1,063 718 66 1,674\n"
+              "Other non-interest bearing liabilities 602 602 — — 601\n"
+              "Accounts payable 386 386 — — 386\n"
+              "Total 3,322 2,281 890 151 3,123\n")
+    mtg_texts = [""] * 143
+    mtg_texts[141] = mtg142  # candidate page 142; p.143 has no debt-maturity row
+    mtg_row = "Lease liabilities 155 37 33 85 151"
+    mtg_answer = lambda total: {"fields": [
+        {"key": "total_debt", "value": total, "unit": "SEK million", "period": "2025",
+         "raw_label": "Liabilities to financial institutions",
+         "source": {"page": 142, "quote": "Liabilities to financial institutions 3,900 582 3,318 — 3,487"}} if total is not None else
+        {"key": "total_debt", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        *[{"key": key, "value": value, "unit": "SEK million", "period": "2025", "raw_label": "Lease liabilities",
+           "source": {"page": 142, "quote": mtg_row}}
+          for key, value in (("due_within_1_year", 155), ("due_1_to_5_years", 37), ("due_after_5_years", 33))]
+    ]}
+    x.call_llm = lambda *a, **k: mtg_answer(3487)
+    out = x.extract(mtg_texts, [142, 143], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got["total_debt"] == 3487, (got, out["warnings"])
+    assert any("total_debt: kept the model's own 3487 -- the column-order row 'Lease liabilities 155 37 33 85 151' does not close"
+               in w for w in out["warnings"]), out["warnings"]
+    # A null model answer remains the existing deterministic fill's responsibility, even where
+    # this row's arithmetic is not a trustworthy override of an answered total.
+    x.call_llm = lambda *a, **k: mtg_answer(None)
+    out = x.extract(mtg_texts, [142, 143], dm, {"fiscal_year": 2025})
+    assert next(f for f in out["fields"] if f["key"] == "total_debt")["value"] == 85151, out["warnings"]
+    # Stored runs contain the old repair as if it were the model answer: its total points straight
+    # back to the same unclosed column-order row.  There is no independent 3,487 left to recover
+    # in a replay, so the poisoned stored value must become null rather than retain 85,151.
+    mtg_stored = mtg_answer(85151)
+    mtg_stored["fields"][0].update(raw_label="Lease liabilities", source={"page": 142, "quote": mtg_row})
+    x.call_llm = lambda *a, **k: mtg_stored
+    out = x.extract(mtg_texts, [142, 143], dm, {"fiscal_year": 2025})
+    assert next(f for f in out["fields"] if f["key"] == "total_debt")["value"] is None, out["warnings"]
+    assert any("total_debt: dropped 85151 -- its column-order source row 'Lease liabilities 155 37 33 85 151' does not close"
+               in w for w in out["warnings"]), out["warnings"]
+    # The space pair is split only where the header actually has five cells; with MTG's four
+    # recognised headers it remains ambiguous and the closure gate above decides whether it may
+    # overwrite.  A genuine Swedish thousands group is one number, not a pair to be split for a
+    # one-column header.
+    assert x._row_amounts(mtg_row, 5, nil=None) == [155, 37, 33, 85, 151]
+    assert x._row_amounts(mtg_row, 4, nil=None) == [155, 37, 33, 85151]
+    assert x._row_amounts("Lease liabilities 1 234 567", 1, nil=None) == [1234567]
+    # Conversely, a row that does close still corrects an answered model value.
+    closed = ("Maturity analysis\nOther debt 900\nWithin 1 year\n1-5 years\nAfter 5 years\nTotal\n"
+              "Lease liabilities 200, 300, 500, 1,000\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 900, "unit": "SEK million", "period": "2025", "raw_label": "Other debt",
+         "source": {"page": 1, "quote": "Other debt 900"}},
+        *[{"key": key, "value": value, "unit": "SEK million", "period": "2025", "raw_label": "Lease liabilities",
+           "source": {"page": 1, "quote": "Lease liabilities 200, 300, 500, 1,000"}}
+          for key, value in (("due_within_1_year", 200), ("due_1_to_5_years", 300), ("due_after_5_years", 500))]
+    ]}
+    out = x.extract([closed], [1], dm, {"fiscal_year": 2025})
+    assert next(f for f in out["fields"] if f["key"] == "total_debt")["value"] == 1000, out["warnings"]
     # and the read inside the very table the model cited is untouched (Cloetta's disagree case above:
     # the cited row IS the read row) -- v052's paired columns and v068's prior-year column along with it
     print("confidence self-check ok")
