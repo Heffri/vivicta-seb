@@ -3475,13 +3475,13 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     out = x.extract(mtg_texts, [142, 143], dm, {"fiscal_year": 2025})
     got = {f["key"]: f["value"] for f in out["fields"]}
     assert got["total_debt"] == 3487, (got, out["warnings"])
-    assert any("total_debt: kept the model's own 3487 -- the column-order row 'Lease liabilities 155 37 33 85 151' does not close"
+    assert any("total_debt: column reading of 'Lease liabilities 155 37 33 85 151' declined -- gross-value maturity block is headed 2024"
                in w for w in out["warnings"]), out["warnings"]
-    # A null model answer remains the existing deterministic fill's responsibility, even where
-    # this row's arithmetic is not a trustworthy override of an answered total.
+    # A null model answer has no safe deterministic fill: the only aligned row belongs to the
+    # prior gross-value block, not the fiscal-year carrying extraction.
     x.call_llm = lambda *a, **k: mtg_answer(None)
     out = x.extract(mtg_texts, [142, 143], dm, {"fiscal_year": 2025})
-    assert next(f for f in out["fields"] if f["key"] == "total_debt")["value"] == 85151, out["warnings"]
+    assert next(f for f in out["fields"] if f["key"] == "total_debt")["value"] is None, out["warnings"]
     # Stored runs contain the old repair as if it were the model answer: its total points straight
     # back to the same unclosed column-order row.  There is no independent 3,487 left to recover
     # in a replay, so the poisoned stored value must become null rather than retain 85,151.
@@ -3490,7 +3490,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     x.call_llm = lambda *a, **k: mtg_stored
     out = x.extract(mtg_texts, [142, 143], dm, {"fiscal_year": 2025})
     assert next(f for f in out["fields"] if f["key"] == "total_debt")["value"] is None, out["warnings"]
-    assert any("total_debt: dropped 85151 -- its column-order source row 'Lease liabilities 155 37 33 85 151' does not close"
+    assert any("gross-value maturity block is headed 2024, not 2025"
                in w for w in out["warnings"]), out["warnings"]
     # The space pair is split only where the header actually has five cells; with MTG's four
     # recognised headers it remains ambiguous and the closure gate above decides whether it may
@@ -3595,7 +3595,136 @@ def test_torn_bucket_headers():
     print("torn header self-check ok")
 
 
+def test_financial_liabilities_rollforward_total():
+    """v155: AcadeMedia's current roll-forward beats a sibling generic currency total."""
+    import copy
+    import json
+    import pathlib
+
+    dm = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
+    academedia87 = ("Belopp i MSEK 2025-06-30 2024-06-30\n"
+                    "SEK 7 660 8 450\nNOK 1 648 1 906\nEUR 2 806 2 741\nSUMMA 12 114 13 097\n"
+                    "K28: Skulder\nFÖRÄNDRING FINANSIELLA SKULDER 2024/25\n"
+                    "1 juli 2024 Kassaflöde Förvärv av dotterbolag Orealiserade valutakursdifferenser Andra förändringar 30 juni 2025\n"
+                    "Skulder till kreditinstitut exkl. fastighetslån 1 419 -518 0 -25 -2 874\n"
+                    "Fastighetslån 693 -39 14 -38 0 630\n"
+                    "Leasingskulder 10 982 -1 897 207 93 1 220 10 605\n"
+                    "Övriga räntebärande skulder 0 0 0 0 0 0\n"
+                    "Aktiverade lånekostnader -3 -5 0 0 4 -5\n"
+                    "SUMMA 13 090 -2 460 220 30 1 222 12 103\n"
+                    "FÖRÄNDRING FINANSIELLA SKULDER 2023/24\n"
+                    "1 juli 2023 Kassaflöde Förvärv av dotterbolag Orealiserade valutakursdifferenser Andra förändringar 30 juni 2024\n"
+                    "Skulder till kreditinstitut exkl. fastighetslån 842 582 0 -14 9 1 419\n"
+                    "Fastighetslån 727 -25 0 -10 0 693\nLeasingskulder 9 511 -1 705 1 282 0 1 893 10 982\n"
+                    "Övriga räntebärande skulder 27 -20 0 0 -7 0\nAktiverade lånekostnader -4 0 0 0 0 -3\n"
+                    "SUMMA 11 104 -1 168 1 282 -23 1 895 13 090\n")
+    rows = x._page_rows(academedia87)
+    assert x._financial_liabilities_rollforward_total(rows, 2025) == (
+        12103, "SUMMA 13 090 -2 460 220 30 1 222 12 103", "SUMMA"), rows
+    assert x._financial_liabilities_rollforward_total(rows, 2026) is None, rows
+    answer = [{"key": sf["key"], "value": 12114 if sf["key"] == "total_debt" else None,
+               "unit": "MSEK" if sf["key"] == "total_debt" else None,
+               "period": "2025" if sf["key"] == "total_debt" else None,
+               "raw_label": "SUMMA" if sf["key"] == "total_debt" else None,
+               "source": {"page": 1, "quote": "SUMMA 12 114 13 097"} if sf["key"] == "total_debt" else None}
+              for sf in dm["fields"]]
+    x.call_llm = lambda *a, **k: {"fields": copy.deepcopy(answer)}
+    out = x.extract([academedia87], [1], dm, {"fiscal_year": 2025})
+    total = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert total["value"] == 12103 and total["source"] == {
+        "page": 1, "quote": "SUMMA 13 090 -2 460 220 30 1 222 12 103"}, (total, out["warnings"])
+    assert any("financial-liabilities roll-forward closing total 12103" in warning for warning in out["warnings"]), out["warnings"]
+    print("financial-liabilities roll-forward self-check ok")
+
+
+def test_cash_flow_citation_refusal():
+    """v155: a cash-flow movement closing balance is not carrying debt."""
+    import copy
+    import json
+    import pathlib
+
+    dm = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
+    dynavox135 = ("Note 27. Supplementary disclosures to the statement of cash flows\n"
+                   "Liabilities related to financing activities\n"
+                   "Consolidated statement of cash flows Interest-bearing borrowings 691.5 202.4 893.8\n"
+                   "Consolidated statement of changes in equity Total 790.8 169.3 141.4 -7.1 9.0 -2.1 1,101.3\n")
+    rows = x._page_rows(dynavox135)
+    cited = "Consolidated statement of cash flows Interest-bearing borrowings 691.5 202.4 893.8"
+    assert x._table_scope(rows, None, rows.index(cited), "carrying", dm["table_scope_words"],
+                          debt_words=x._debt_subject_words(dm)) == "cash_flow", rows
+    # A navigation/header mention cannot brand an ordinary balance-sheet row.
+    sidebar = x._page_rows("Consolidated statement of cash flows\nInterest-bearing loans 896.2 691.5\n")
+    assert x._table_scope(sidebar, None, 1, "carrying", dm["table_scope_words"],
+                          debt_words=x._debt_subject_words(dm)) == "unknown", sidebar
+    dustin117 = ("Changes in financing activities\nNot affecting cash flow\n"
+                  "Aug 31, 2025 Opening balance Cash flow Reclassifications Change in leases Closing balance\n"
+                  "Liabilities to credit institutions 3,619 -1,016 - - 2,538\n"
+                  "Lease liabilities 569 -202 - 158 517\n"
+                  "Total 4,188 -1,217 - 158 3,055\n")
+    dustin_rows, dustin_total = x._page_rows(dustin117), "Total 4,188 -1,217 - 158 3,055"
+    assert x._table_scope(dustin_rows, None, dustin_rows.index(dustin_total), "carrying", dm["table_scope_words"],
+                          debt_words=x._debt_subject_words(dm)) == "cash_flow", dustin_rows
+    answer = [{"key": sf["key"], "value": 893.8 if sf["key"] == "total_debt" else None,
+               "unit": "MSEK" if sf["key"] == "total_debt" else None,
+               "period": "2025" if sf["key"] == "total_debt" else None,
+               "raw_label": "Interest-bearing borrowings" if sf["key"] == "total_debt" else None,
+               "source": {"page": 1, "quote": cited} if sf["key"] == "total_debt" else None}
+              for sf in dm["fields"]]
+    x.call_llm = lambda *a, **k: {"fields": copy.deepcopy(answer)}
+    out = x.extract([dynavox135], [1], dm, {"fiscal_year": 2025})
+    total = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert total["value"] is None and total["source"] is None, (total, out["warnings"])
+    assert any("cash-flow statement" in warning and "893.8" in warning for warning in out["warnings"]), out["warnings"]
+    dustin_answer = [{"key": sf["key"], "value": 3055 if sf["key"] == "total_debt" else None,
+                      "unit": "MSEK" if sf["key"] == "total_debt" else None,
+                      "period": "2025" if sf["key"] == "total_debt" else None,
+                      "raw_label": "Total" if sf["key"] == "total_debt" else None,
+                      "source": {"page": 1, "quote": dustin_total} if sf["key"] == "total_debt" else None}
+                     for sf in dm["fields"]]
+    x.call_llm = lambda *a, **k: {"fields": copy.deepcopy(dustin_answer)}
+    out = x.extract([dustin117], [1], dm, {"fiscal_year": 2025})
+    total = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert total["value"] is None and any("cash-flow statement" in warning for warning in out["warnings"]), (total, out["warnings"])
+    print("cash-flow citation refusal self-check ok")
+
+
+def test_gross_value_prior_year_citation_refusal():
+    """v155: an MTG-style prior gross-value block cannot stand in for FY2025 debt."""
+    import copy
+    import json
+    import pathlib
+
+    dm = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
+    mtg142 = ("Terms and payback period, gross values\n"
+              "2025 Maturity 2028 Carrying\n"
+              "(SEK million) Total Maturity 2026 Maturity 2027 or later amount\n"
+              "Liabilities to financial institutions 3,900 582 3,318 - 3,487\n"
+              "Lease liabilities 292 69 66 156 253\n"
+              "2024 Maturity 2027 Carrying\n"
+              "(SEK million) Total Maturity 2025 Maturity 2026 or later amount\n"
+              "Lease liabilities 155 37 33 85 151\n")
+    rows, old_lease = x._page_rows(mtg142), "Lease liabilities 155 37 33 85 151"
+    assert x._gross_value_prior_year_block(rows, rows.index(old_lease), 2025) == 2024, rows
+    current_lease = "Lease liabilities 292 69 66 156 253"
+    assert x._gross_value_prior_year_block(rows, rows.index(current_lease), 2025) is None, rows
+    answer = [{"key": sf["key"], "value": 155 if sf["key"] == "due_within_1_year" else None,
+               "unit": "MSEK" if sf["key"] == "due_within_1_year" else None,
+               "period": "2025" if sf["key"] == "due_within_1_year" else None,
+               "raw_label": "Lease liabilities" if sf["key"] == "due_within_1_year" else None,
+               "source": {"page": 1, "quote": old_lease} if sf["key"] == "due_within_1_year" else None}
+              for sf in dm["fields"]]
+    x.call_llm = lambda *a, **k: {"fields": copy.deepcopy(answer)}
+    out = x.extract([mtg142], [1], dm, {"fiscal_year": 2025})
+    current = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
+    assert current["value"] is None and current["source"] is None, (current, out["warnings"])
+    assert any("gross-value maturity block is headed 2024, not 2025" in warning for warning in out["warnings"]), out["warnings"]
+    print("gross-value prior-year citation refusal self-check ok")
+
+
 if __name__ == "__main__":
     test_confidence_never_exceeds_one()
     test_torn_bucket_headers()
+    test_financial_liabilities_rollforward_total()
+    test_cash_flow_citation_refusal()
+    test_gross_value_prior_year_citation_refusal()
     demo()
