@@ -47,9 +47,14 @@ def values_match(expected, got):
         return str(expected).strip().lower() == str(got).strip().lower()
     return abs(e - g) < 0.005  # printed numbers are exact: 11.70 (diluted) is not 11.77
 
-def page_match(expected_page, got_page):
+def page_match(expected_page, got_page, expected_value=None, got_value=None):
     if not expected_page:
         return None  # not asserted for this row
+    if str(expected_value).strip().lower() == "null" and got_value is None:
+        # v132-b: the label wants the value absent and it is absent -- no citation exists, so there is
+        # no page to be right about (the label's expected_page names where the absence was verified).
+        # Unscored, same treatment as a missing expected_page: out of the page denominator.
+        return None
     if got_page is None:
         return False
     try:
@@ -67,7 +72,8 @@ def evaluate(rows, extractions):
         results.append(dict(row, got_value=got_value, got_page=got_page,
                              confidence=field.get("confidence") if field else None,
                              value_ok=values_match(row["expected_value"], got_value),
-                             page_ok=page_match(row.get("expected_page"), got_page)))
+                             page_ok=page_match(row.get("expected_page"), got_page,
+                                                row["expected_value"], got_value)))
     return results
 
 def load_stored_extraction(kb_dir, report_file, section):

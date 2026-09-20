@@ -19,9 +19,9 @@ returned matches the label, but the cited page is not the label page), the scrip
 
 Buckets (precedence top-down, so each row lands in exactly one):
 
-    N  expected_value is "null": the value is correctly ABSENT, so the pipeline has no citation at
-       all and page_match fails on got_page=None. A label/eval convention question (the label asserts
-       a page for a value that must not exist), not a citation defect.
+    N  expected_value is "null" and the pipeline answers null: the value is correctly ABSENT, so no
+       citation exists. Inert since the v132-b convention (eval's page_match leaves null/null rows
+       unscored), kept so the bucket survives if that convention is ever revisited.
     A  the same number is printed on BOTH the pipeline page and the label page: two pages carry it,
        the label took the other one (labelling scope, not a wrong citation).
     B  the pipeline page does not print the number anywhere. Either a by-design derivation
@@ -135,7 +135,8 @@ def analyze(rows: list[dict], kb_dir: str) -> tuple[list[dict], dict]:
                 counts["unscored"] += 1
                 continue
             counts["scored"] += 1
-            page_ok = ev_run.page_match(row.get("expected_page"), got_page)
+            page_ok = ev_run.page_match(row.get("expected_page"), got_page,
+                                        row["expected_value"], got_value)
             if value_ok is False:  # value-wrong: a different problem, counted, not classified
                 counts["value_wrong_page_right" if page_ok else "value_wrong_page_wrong"] += 1
                 continue
