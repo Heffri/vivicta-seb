@@ -56,6 +56,7 @@ def _write_pdf(path: Path, pages: int = 90):
 
 
 KB = Path(__file__).resolve().parents[2] / "data" / "kb"  # the committed corpus: real report page text, no PDFs
+FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"  # test-owned frozen inputs, independent of the corpus
 
 
 def _kb_pages(stem: str):
@@ -69,6 +70,17 @@ def _kb_page_texts(stem: str):
     """(first-three-pages text, full text) for a KB stem."""
     pages = _kb_pages(stem)
     return "".join(pages[:3]), "".join(pages)
+
+
+def _mtg_fy2021_cover_pages():
+    """MTG's real FY2021 first three pages (cover / contents / contents), frozen into
+    fixtures/mtg_fy2021_cover_pages.jsonl from the pre-rebuild KB entry -- the first three lines of
+    `git show 8a0e784~1:data/kb/modern_times_2025/pages.jsonl` byte for byte. That entry was MTG's
+    148-page FY2021 report, the v122 defect; 8a0e784 rebuilt the stem from the real FY2025 document,
+    so the defect text the anchored year check must refuse no longer exists in data/kb and the
+    year-gate tests read it from here (same jsonl shape, same split('\n') rule as _kb_pages)."""
+    lines = (FIXTURES / "mtg_fy2021_cover_pages.jsonl").read_text(encoding="utf-8").split("\n")
+    return [json.loads(l)["text"] for l in lines if l.strip()]
 
 
 def _pdf_from_page_texts(path: Path, page_texts, filler_lines=None, filler_pages=0):
@@ -389,9 +401,10 @@ def demo():
             #     it, and the reason on the tried list must name the year the cover does name.
             os.environ.pop("LLM_PROVIDER", None)  # feeds-only: no model layer between the candidate and the year gate
             dest12 = tmp / "reports12"
-            mtg_head, _ = _kb_page_texts("modern_times_2025")
+            mtg_pages = _mtg_fy2021_cover_pages()  # frozen FY2021 pages; the KB stem is the FY2025 report since 8a0e784
+            mtg_head = "".join(mtg_pages)
             mtg_path = "/mtg-annual-and-cr-report-2021.pdf"
-            _pdf_from_page_texts(tmp / "public" / mtg_path.lstrip("/"), _kb_pages("modern_times_2025")[:3],
+            _pdf_from_page_texts(tmp / "public" / mtg_path.lstrip("/"), mtg_pages,
                                  filler_lines=["Modern Times Group revenue, operating profit and financial statements.",
                                                "Target for 2025: organic growth across our gaming portfolio.",
                                                "Modern Times Group segment performance, cash flow and balance sheet.",
@@ -458,11 +471,13 @@ def demo():
                     assert fetch._year_ok(d, 2025) is want, (body, want)
 
             # 25. five random real reports from the committed corpus pass the same rule on their real
-            #     page text (modern_times_2025 excluded: it is the known defect, case 20's subject --
-            #     scripts/kb_year_audit.py is what lists it, and it must stay listed until re-fetched)
+            #     page text. modern_times_2025 is in the pool like any other stem now: since 8a0e784
+            #     rebuilt the entry from the real FY2025 report, its cover names 2025 and it passes
+            #     the positive check -- the FY2021 defect text case 20 refuses lives on only in the
+            #     fixture, not in the corpus (scripts/kb_year_audit.py is what flags any stem that
+            #     still fails this rule on its stored pages)
             stems = sorted(p.name for p in KB.iterdir() if (p / "meta.json").exists())
             assert len(stems) >= 200, f"expected the committed corpus, found {len(stems)} entries"
-            stems.remove("modern_times_2025")
             for stem in random.Random(122).sample(stems, 5):
                 meta = json.loads((KB / stem / "meta.json").read_text(encoding="utf-8"))
                 head, full = _kb_page_texts(stem)
