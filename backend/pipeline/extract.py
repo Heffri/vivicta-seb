@@ -2026,6 +2026,8 @@ _SEC_HEADING_SUFFIX = re.compile(r"(?i)\s*[,;:]?\s*(?:msek|sek\s*m|sekm|sek|meur
 _REFUSED_SCOPES = ("undiscounted", "all_liabilities", "non_debt", "parent", "cash_flow")  # v103's two refusals + v111's two + v155's cash-flow movement table
 _CASH_FLOW_STATEMENT = re.compile(r"(?i)\b(?:consolidated\s+)?statement\s+of\s+cash\s+flows?\b|\bcash\s+flow\s+statement\b")
 _FINANCING_ACTIVITY_MOVEMENT = re.compile(r"(?i)\bchanges?\s+in\s+(?:financing|financial)\s+activities\b")
+_GROSS_VALUE_MATURITY = re.compile(r"(?i)\bgross\s+values?\b")
+_GROSS_VALUE_BLOCK_YEAR = re.compile(r"(?i)^\s*(20\d\d)\b.*\bmaturity\b")
 
 
 def _debt_subject_words(schema: dict) -> list[str]:
@@ -2104,6 +2106,30 @@ def _scope_zone(rows: list[str], i_header: int | None, i_total: int) -> tuple[li
         title.append(row)
         k -= 1
     return title, body
+
+
+def _gross_value_prior_year_block(rows: list[str], i_total: int, fiscal_year) -> int | None:
+    """The explicitly headed prior-year block of a gross-value maturity table.
+
+    A gross-value table may print the fiscal year's block immediately above its
+    predecessor.  The ordinary year selector sees the next *maturity* years
+    in the predecessor's column headers and can mistake one for the report
+    period.  This only reports a conflict when the table's own short title
+    says ``gross values`` and the nearest block heading is a different year;
+    carrying-value rows and current-year gross blocks remain available to
+    their existing mechanisms.
+    """
+    if not fiscal_year:
+        return None
+    title, _ = _scope_zone(rows, None, i_total)
+    if not any(_GROSS_VALUE_MATURITY.search(row) for row in title):
+        return None
+    for j in range(i_total - 1, max(0, i_total - 25) - 1, -1):
+        match = _GROSS_VALUE_BLOCK_YEAR.match(rows[j])
+        if match:
+            year = int(match.group(1))
+            return year if year != int(fiscal_year) else None
+    return None
 
 
 def _table_scope(rows: list[str], i_header: int | None, i_total: int, basis: str = "carrying",
@@ -2650,6 +2676,10 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
                 continue
             amounts = _row_amounts(rows[idx], len(col_keys), nil=None)
             if len(amounts) != len(col_keys):
+                continue
+            if gross_prior_year := _gross_value_prior_year_block(rows, idx, fiscal_year):
+                warnings.append(f"{total_key}: column reading of {rows[idx]!r} declined -- gross-value maturity "
+                                f"block is headed {gross_prior_year}, not {fiscal_year}")
                 continue
             if scope_words:  # v103/v111: the wrong-table guard -- a table the guard refuses is not filled from,
                 hdr_i = _scope_header(rows, idx, bucket_sfs)  # whatever row of it happens to align
@@ -3542,9 +3572,12 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             scope = _table_scope(qrows, None, qi, basis, scope_words,
                                  debt_scoped=_label_known(_row_label(qrows[qi]), total_voc),
                                  debt_words=debt_voc)
-            if scope in _REFUSED_SCOPES:
+            gross_prior_year = _gross_value_prior_year_block(qrows, qi, fiscal_year)
+            if scope in _REFUSED_SCOPES or gross_prior_year is not None:
+                reason = _scope_reason(qrows, None, qi, scope_words, scope) if scope in _REFUSED_SCOPES else \
+                    f"gross-value maturity block is headed {gross_prior_year}, not {fiscal_year}"
                 warnings.append(f"{sf['key']}: {f['value']} from {src['quote'][:70]!r} refused -- "
-                                f"{_scope_reason(qrows, None, qi, scope_words, scope)}; not read under the {basis} basis")
+                                f"{reason}; not read under the {basis} basis")
                 f.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
     values = {f["key"]: f["value"] for f in fields if isinstance(f["value"], (int, float))}
     units = Counter(f["unit"] for f in fields if f["unit"])

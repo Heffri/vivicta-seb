@@ -3475,13 +3475,13 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     out = x.extract(mtg_texts, [142, 143], dm, {"fiscal_year": 2025})
     got = {f["key"]: f["value"] for f in out["fields"]}
     assert got["total_debt"] == 3487, (got, out["warnings"])
-    assert any("total_debt: kept the model's own 3487 -- the column-order row 'Lease liabilities 155 37 33 85 151' does not close"
+    assert any("total_debt: column reading of 'Lease liabilities 155 37 33 85 151' declined -- gross-value maturity block is headed 2024"
                in w for w in out["warnings"]), out["warnings"]
-    # A null model answer remains the existing deterministic fill's responsibility, even where
-    # this row's arithmetic is not a trustworthy override of an answered total.
+    # A null model answer has no safe deterministic fill: the only aligned row belongs to the
+    # prior gross-value block, not the fiscal-year carrying extraction.
     x.call_llm = lambda *a, **k: mtg_answer(None)
     out = x.extract(mtg_texts, [142, 143], dm, {"fiscal_year": 2025})
-    assert next(f for f in out["fields"] if f["key"] == "total_debt")["value"] == 85151, out["warnings"]
+    assert next(f for f in out["fields"] if f["key"] == "total_debt")["value"] is None, out["warnings"]
     # Stored runs contain the old repair as if it were the model answer: its total points straight
     # back to the same unclosed column-order row.  There is no independent 3,487 left to recover
     # in a replay, so the poisoned stored value must become null rather than retain 85,151.
@@ -3490,7 +3490,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     x.call_llm = lambda *a, **k: mtg_stored
     out = x.extract(mtg_texts, [142, 143], dm, {"fiscal_year": 2025})
     assert next(f for f in out["fields"] if f["key"] == "total_debt")["value"] is None, out["warnings"]
-    assert any("total_debt: dropped 85151 -- its column-order source row 'Lease liabilities 155 37 33 85 151' does not close"
+    assert any("gross-value maturity block is headed 2024, not 2025"
                in w for w in out["warnings"]), out["warnings"]
     # The space pair is split only where the header actually has five cells; with MTG's four
     # recognised headers it remains ambiguous and the closure gate above decides whether it may
@@ -3688,9 +3688,43 @@ def test_cash_flow_citation_refusal():
     print("cash-flow citation refusal self-check ok")
 
 
+def test_gross_value_prior_year_citation_refusal():
+    """v155: an MTG-style prior gross-value block cannot stand in for FY2025 debt."""
+    import copy
+    import json
+    import pathlib
+
+    dm = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
+    mtg142 = ("Terms and payback period, gross values\n"
+              "2025 Maturity 2028 Carrying\n"
+              "(SEK million) Total Maturity 2026 Maturity 2027 or later amount\n"
+              "Liabilities to financial institutions 3,900 582 3,318 - 3,487\n"
+              "Lease liabilities 292 69 66 156 253\n"
+              "2024 Maturity 2027 Carrying\n"
+              "(SEK million) Total Maturity 2025 Maturity 2026 or later amount\n"
+              "Lease liabilities 155 37 33 85 151\n")
+    rows, old_lease = x._page_rows(mtg142), "Lease liabilities 155 37 33 85 151"
+    assert x._gross_value_prior_year_block(rows, rows.index(old_lease), 2025) == 2024, rows
+    current_lease = "Lease liabilities 292 69 66 156 253"
+    assert x._gross_value_prior_year_block(rows, rows.index(current_lease), 2025) is None, rows
+    answer = [{"key": sf["key"], "value": 155 if sf["key"] == "due_within_1_year" else None,
+               "unit": "MSEK" if sf["key"] == "due_within_1_year" else None,
+               "period": "2025" if sf["key"] == "due_within_1_year" else None,
+               "raw_label": "Lease liabilities" if sf["key"] == "due_within_1_year" else None,
+               "source": {"page": 1, "quote": old_lease} if sf["key"] == "due_within_1_year" else None}
+              for sf in dm["fields"]]
+    x.call_llm = lambda *a, **k: {"fields": copy.deepcopy(answer)}
+    out = x.extract([mtg142], [1], dm, {"fiscal_year": 2025})
+    current = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
+    assert current["value"] is None and current["source"] is None, (current, out["warnings"])
+    assert any("gross-value maturity block is headed 2024, not 2025" in warning for warning in out["warnings"]), out["warnings"]
+    print("gross-value prior-year citation refusal self-check ok")
+
+
 if __name__ == "__main__":
     test_confidence_never_exceeds_one()
     test_torn_bucket_headers()
     test_financial_liabilities_rollforward_total()
     test_cash_flow_citation_refusal()
+    test_gross_value_prior_year_citation_refusal()
     demo()
