@@ -43,7 +43,7 @@ verify — locator, parser, label matching. `main` hasn't moved; nothing here ha
 - **Get it**: Sebastijan's CI-built **`desktop-demo`** release (auto-updating, from team `demo`) or the **`desktop-0.3.4`** zip (portable/Setup, unsigned) for this branch's build — both double-click, no toolchain (the first bullet of "How a teammate gets it" above).
 - **Data**: a KB of **206 companies**, 105 with a stored `debt_maturity` extraction — the KB page opens on the Wallenberg collection (issue #4), and its Collection switch (Wallenberg / All saved reports, [v112](evidence/v112.md)) exposes the rest without touching that default; every entry stays visible to Ask, Compare and `eval/run.py --stored-kb` regardless.
 - **Look**: Settings' **Theme** switch (Solid default / Acrylic) — the browser UI flips instantly, the desktop window's real material follows; the rail's tone toggle still picks dark/light within either theme.
-- **Accuracy**: `eval/run.py --stored-kb data/kb` — values **270/327 (82.6%)**, pages **209/327 (63.9%)** over 327 scored rows (231 hand-verified `debt_maturity` labels across 87 companies, plus 96 income rows), zero model calls.
+- **Accuracy**: `eval/run.py --stored-kb data/kb` — values **270/327 (82.6%)** over 327 scored rows (231 hand-verified `debt_maturity` labels across 87 companies, plus 96 income rows); pages **209/272 (76.8%)** — pages scored only where a value is cited: a null label answered null has no citation, hence no page to score ([v132](evidence/v132.md)); zero model calls.
 
 ## Frontend
 
