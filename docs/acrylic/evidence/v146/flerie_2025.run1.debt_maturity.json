@@ -1,0 +1,74 @@
+{
+  "report_id": "up-4be8dca1aff6",
+  "company": null,
+  "fiscal_year": 2025,
+  "currency": "MSEK",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 2.1,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Leasingskuld",
+      "source": {
+        "page": 86,
+        "quote": "Leasingskuld 2,1 0,9 2,1 0,9"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": null,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_within_1_year"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [86, 87] selected from candidates [86, 87, 83, 77, 75, 66, 65, 67, 57]"
+  ]
+}

@@ -269,6 +269,8 @@ KB_DIR=../data/kb                        # optional override
 
 Same variables point at Azure OpenAI / OpenAI / OpenRouter with no code change.
 
+`PAGE_SELECT_HINTS=1` opts debt-maturity pass-1 into the candidate-page markers and carrying-versus-liquidity prompt sentence; unset (the default) retains the prior page-select prompt byte-for-byte.
+
 ## Global Ask and company map
 
 Ask searches saved page text and extracted facts. `@Company` is a UI scope selector, resolved
