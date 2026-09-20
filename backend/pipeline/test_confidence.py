@@ -3835,10 +3835,82 @@ def test_gross_value_prior_year_citation_refusal():
     print("gross-value prior-year citation refusal self-check ok")
 
 
+def test_note_citation_preference():
+    """v157: a literal note row can improve provenance without changing the figure."""
+    schema = {
+        "name": "debt_maturity",
+        "keywords": ["borrowings"],
+        "fields": [{"key": "total_debt", "synonyms": ["total borrowings"]},
+                   {"key": "due_within_1_year", "synonyms": ["within 1 year"]}],
+    }
+    # NCAB's stored total is literally printed both in its capital-management prose and Note 27.
+    # These frozen excerpts keep this assertion independent of the mutable stored KB corpus.
+    ncab_prose = ("Note 3, cont.\n3.2 MANAGEMENT OF CAPITAL\n"
+                  + "The Group reviews its capital structure and funding policy each quarter. " * 3
+                  + "\nTotal borrowings (Note 27) 1,090,075 998,103")
+    ncab_note = ("NOTE 27 BORROWINGS\nCarrying amount\n"
+                 "Total borrowings 1,090,075 998,103")
+    fields = [{"key": "total_debt", "value": 1090075,
+               "source": {"page": 1, "quote": "Total borrowings (Note 27) 1,090,075 998,103"},
+               "evidence": ["quote_on_page"]}]
+    warnings = []
+    x._prefer_note_citations(fields, schema["fields"][:1], schema, [ncab_prose, ncab_note], [1, 2], warnings)
+    assert fields[0]["value"] == 1090075 and fields[0]["source"] == {
+        "page": 2, "quote": "Total borrowings 1,090,075 998,103"}, (fields, warnings)
+    assert warnings == ["total_debt: cited page 2 'Total borrowings 1,090,075 998,103' (note row) instead of page 1 (balance sheet)"], warnings
+
+    # This Boozt-shaped 104 is derived from the liquidity table, but a note-titled candidate prints it. The
+    # source moves to that literal occurrence and stops carrying a derived-value marker.
+    boozt_liquidity = ("LIQUIDITY RISK\nMaturity structure of borrowing\n"
+                       "Lease liabilities 441 26 78 273 63 -")
+    boozt_note = "NOTE 8 BORROWINGS\nWithin 1 year 104 97"
+    fields = [{"key": "due_within_1_year", "value": 104,
+               "source": {"page": 1, "quote": "Lease liabilities 441 26 78 273 63 -"},
+               "evidence": ["quote_on_page", "value_derived"]}]
+    warnings = []
+    x._prefer_note_citations(fields, schema["fields"][1:], schema, [boozt_liquidity, boozt_note], [1, 2], warnings)
+    assert fields[0]["value"] == 104 and fields[0]["source"] == {
+        "page": 2, "quote": "Within 1 year 104 97"}, (fields, warnings)
+    assert fields[0]["evidence"] == ["quote_on_page"], fields
+    assert warnings == ["due_within_1_year: cited page 2 'Within 1 year 104 97' (note row) instead of page 1 (derived)"], warnings
+
+    # Two equally specific note rows are intentionally stable; the preference is not reversible.
+    fields = [{"key": "total_debt", "value": 100,
+               "source": {"page": 1, "quote": "Total borrowings 100 90"},
+               "evidence": ["quote_on_page"]}]
+    warnings = []
+    x._prefer_note_citations(fields, schema["fields"][:1], schema,
+                              ["NOTE 10 BORROWINGS\nTotal borrowings 100 90",
+                               "NOTE 11 BORROWINGS\nTotal borrowings 100 90"], [1, 2], warnings)
+    assert fields[0]["source"]["page"] == 1 and not warnings, (fields, warnings)
+
+    # A familiar row under an unrelated title is not self-proving as a borrowing-note citation.
+    # This avoids moving otherwise page-correct records merely because the number is duplicated.
+    fields = [{"key": "due_within_1_year", "value": 104,
+               "source": {"page": 1, "quote": "Other liabilities 104 97"},
+               "evidence": ["quote_on_page"]}]
+    warnings = []
+    x._prefer_note_citations(fields, schema["fields"][1:], schema,
+                              ["STATEMENT\nOther liabilities 104 97", "Within 1 year 104 97"], [1, 2], warnings)
+    assert fields[0]["source"]["page"] == 1 and not warnings, (fields, warnings)
+
+    # An unknown-label row already in a borrowing note is likewise stable against a second note.
+    fields = [{"key": "due_within_1_year", "value": 104,
+               "source": {"page": 1, "quote": "Other liabilities 104 97"},
+               "evidence": ["quote_on_page"]}]
+    warnings = []
+    x._prefer_note_citations(fields, schema["fields"][1:], schema,
+                              ["NOTE 7 BORROWINGS\nOther liabilities 104 97",
+                               "NOTE 8 BORROWINGS\nWithin 1 year 104 97"], [1, 2], warnings)
+    assert fields[0]["source"]["page"] == 1 and not warnings, (fields, warnings)
+    print("note citation preference ok")
+
+
 if __name__ == "__main__":
     test_confidence_never_exceeds_one()
     test_torn_bucket_headers()
     test_financial_liabilities_rollforward_total()
     test_cash_flow_citation_refusal()
     test_gross_value_prior_year_citation_refusal()
+    test_note_citation_preference()
     demo()
