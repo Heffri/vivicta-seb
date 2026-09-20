@@ -1,0 +1,106 @@
+{
+ "report_id": "lib-modern_times_2025",
+ "company": "Modern Times Group",
+ "fiscal_year": 2025,
+ "currency": "SEK million",
+ "section": "debt_maturity",
+ "maturity_basis": "carrying",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 85151,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "Lease liabilities",
+   "source": {
+    "page": 142,
+    "quote": "Lease liabilities 155 37 33 85 151"
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": 155,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "Lease liabilities",
+   "source": {
+    "page": 142,
+    "quote": "Lease liabilities 155 37 33 85 151"
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": 37,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "Lease liabilities",
+   "source": {
+    "page": 142,
+    "quote": "Lease liabilities 155 37 33 85 151"
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": 33,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "Lease liabilities",
+   "source": {
+    "page": 142,
+    "quote": "Lease liabilities 155 37 33 85 151"
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((155 + 37 + 33) - 85151) <= 2"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [142, 143] selected from candidates [149, 150, 118, 141, 144, 142, 164, 143, 175, 179, 167]",
+  "due_1_to_5_years: model returned null, fill from page 149 row 'One to five years 207 118' refused -- table 'Maturity analysis – Contractual undiscounted cash flow' is undiscounted",
+  "due_after_5_years: model returned null, fill from page 149 row 'More than five years 16 0' refused -- table 'Maturity analysis – Contractual undiscounted cash flow' is undiscounted",
+  "total_debt: 3487 disagrees with the maturity table; 85151 read from 'Lease liabilities 155 37 33 85 151' by its column order",
+  "due_within_1_year: model returned null; 155 read from 'Lease liabilities 155 37 33 85 151' by its column order",
+  "due_1_to_5_years: model returned null; 37 read from 'Lease liabilities 155 37 33 85 151' by its column order",
+  "due_after_5_years: model returned null; 33 read from 'Lease liabilities 155 37 33 85 151' by its column order"
+ ]
+}
