@@ -973,6 +973,78 @@ def _column_values(field: dict, fields: list[dict], defaults: dict, texts: list[
     return cols
 
 
+_FINANCIAL_LIABILITIES_ROLLFORWARD = re.compile(
+    r"(?i)(?:changes?\s+in\s+financial\s+liabilities|förändring(?:ar)?\s+finansiella\s+skulder)"
+)
+_GENERIC_TOTAL_ROW = re.compile(r"(?i)^(?:total|summa)\b")
+_ROLLFORWARD_DEBT_COMPONENT = re.compile(
+    r"(?i)(?:credit\s+institutions?|creditinstitut|bank|loans?|lån|lease|leasing|interest[ -]bearing|räntebärande|borrowing\s+costs?|lånekostnad)"
+)
+
+
+def _rollforward_terminal_amount(row: str) -> float | None:
+    """The rightmost printed figure of a roll-forward total row.
+
+    The roll-forward has no compact year-column header for ``_row_amounts`` to
+    use. Its final total can nevertheless be read without guessing at the
+    preceding movement columns: retain a final Swedish thousands pair unless
+    its leading token carries the previous column's minus sign.
+    """
+    tail = row[len(_row_label(row)):].strip().split()
+    if not tail:
+        return None
+    token = tail[-1].rstrip(",;")
+    if not re.fullmatch(r"[-(]?\d{1,3}(?:[,.']\d{3})*(?:[.,]\d{1,4})?\)?", token):
+        return None
+    if len(tail) >= 2 and re.fullmatch(r"\d{1,3}", tail[-2]) and re.fullmatch(r"\d{3}", token):
+        token = tail[-2] + token  # "12 103" is one closing value, not two columns
+    parsed = _row_amounts("amount " + token)
+    return parsed[-1] if parsed else None
+
+
+def _financial_liabilities_rollforward_total(rows: list[str], fiscal_year) -> tuple[float, str, str] | None:
+    """The current closing total from a narrowly identified debt roll-forward.
+
+    A page can put a currency-by-debt summary and a ``Changes in financial
+    liabilities`` roll-forward beside one another. Both end in a generic
+    ``Total``/``SUMMA`` row, so a model citation of the former has no row
+    label for the normal synonym repair to prefer. The latter is a usable
+    total only when its heading names financial liabilities, its current-year
+    block contains exclusively debt/lease/borrowing-cost components. That
+    leaves generic financial-liabilities tables (payables included), arbitrary
+    total rows, and the comparative roll-forward alone.
+    """
+    year = str(fiscal_year) if fiscal_year else ""
+    if not year:
+        return None
+    for start, heading in enumerate(rows):
+        if not _FINANCIAL_LIABILITIES_ROLLFORWARD.search(heading):
+            continue
+        for end in range(start + 1, min(start + 31, len(rows))):
+            if end > start + 1 and _FINANCIAL_LIABILITIES_ROLLFORWARD.search(rows[end]):
+                break  # a second (normally comparative) roll-forward starts here
+            if not _GENERIC_TOTAL_ROW.match(_row_label(rows[end])):
+                continue
+            # The final balance date lives in the short header block immediately
+            # above the component rows (AcadeMedia: "30 juni 2025"). Do not
+            # infer a fiscal year from the prior block's values.
+            if year not in " ".join(rows[start:end]):
+                continue
+            components: list[str] = []
+            j = end - 1
+            while j > start:
+                label = _row_label(rows[j])
+                if not _ROLLFORWARD_DEBT_COMPONENT.search(label):
+                    break
+                components.append(label)
+                j -= 1
+            closing = _rollforward_terminal_amount(rows[end])
+            if len(components) < 2 or closing is None:
+                continue
+            return closing, rows[end], _row_label(rows[end])
+    return None
+
+
 def _derived_value(field: dict, texts: list[str], fiscal_year, check: dict | None = None, others: list[dict] | None = None, taken: set | None = None,
                    own_syns: set | None = None):
     """(value, quote, label) when the field's figure is proven by the rows around its quote, column by column:
@@ -1951,7 +2023,11 @@ _GROUP_SECTION_WORDS = ("group", "koncernen", "koncern", "koncernens", "consolid
 # section-heading families that re-open the Group's own tables after a Parent Company block
 _SEC_HEADING_SUFFIX = re.compile(r"(?i)\s*[,;:]?\s*(?:msek|sek\s*m|sekm|sek|meur|eur\s*m|usd\s*m|cad\s*m|"
                                  r"gbp\s*m|mkr|mdkk|dkk|nok|isk|tkr|ksek|kkr|million|milljoner|mn)\s*$")
-_REFUSED_SCOPES = ("undiscounted", "all_liabilities", "non_debt", "parent")  # v103's two refusals + v111's two
+_REFUSED_SCOPES = ("undiscounted", "all_liabilities", "non_debt", "parent", "cash_flow")  # v103's two refusals + v111's two + v155's cash-flow movement table
+_CASH_FLOW_STATEMENT = re.compile(r"(?i)\b(?:consolidated\s+)?statement\s+of\s+cash\s+flows?\b|\bcash\s+flow\s+statement\b")
+_FINANCING_ACTIVITY_MOVEMENT = re.compile(r"(?i)\bchanges?\s+in\s+(?:financing|financial)\s+activities\b")
+_GROSS_VALUE_MATURITY = re.compile(r"(?i)\bgross\s+values?\b")
+_GROSS_VALUE_BLOCK_YEAR = re.compile(r"(?i)^\s*(20\d\d)\b.*\bmaturity\b")
 
 
 def _debt_subject_words(schema: dict) -> list[str]:
@@ -2032,6 +2108,30 @@ def _scope_zone(rows: list[str], i_header: int | None, i_total: int) -> tuple[li
     return title, body
 
 
+def _gross_value_prior_year_block(rows: list[str], i_total: int, fiscal_year) -> int | None:
+    """The explicitly headed prior-year block of a gross-value maturity table.
+
+    A gross-value table may print the fiscal year's block immediately above its
+    predecessor.  The ordinary year selector sees the next *maturity* years
+    in the predecessor's column headers and can mistake one for the report
+    period.  This only reports a conflict when the table's own short title
+    says ``gross values`` and the nearest block heading is a different year;
+    carrying-value rows and current-year gross blocks remain available to
+    their existing mechanisms.
+    """
+    if not fiscal_year:
+        return None
+    title, _ = _scope_zone(rows, None, i_total)
+    if not any(_GROSS_VALUE_MATURITY.search(row) for row in title):
+        return None
+    for j in range(i_total - 1, max(0, i_total - 25) - 1, -1):
+        match = _GROSS_VALUE_BLOCK_YEAR.match(rows[j])
+        if match:
+            year = int(match.group(1))
+            return year if year != int(fiscal_year) else None
+    return None
+
+
 def _table_scope(rows: list[str], i_header: int | None, i_total: int, basis: str = "carrying",
                  scope_words: dict | None = None, debt_scoped: bool = False,
                  debt_words: list[str] | None = None) -> str:
@@ -2057,14 +2157,18 @@ def _table_scope(rows: list[str], i_header: int | None, i_total: int, basis: str
         liabilities", whose "Within 1 year 87" the column-order repair wrote over the model's own
         correct current-total 192 with). A debt word anywhere in the table's title or own rows
         rescues it -- debt words win;
-    "parent" -- v111: the table sits in a Parent Company / Moderbolaget / Moderföretaget section
+     "parent" -- v111: the table sits in a Parent Company / Moderbolaget / Moderföretaget section
         (the nearest entity section heading above it, _nearest_entity_section) that no Group/
         Koncernen/Consolidated heading has since closed: the Group's total must not take buckets from
         the parent's own table -- refused under both bases (Momentum p.111's parent lease maturity
         "Within 1 year 2" against the Group's 622 balance-sheet total). v052's paired Koncernen|
-        Moderbolaget column headers are one table's two column groups, not section headings, and
-        keep their own read;
-    "unknown" -- no marker provable on the page: exactly today's behaviour, no refusal. A markerless
+         Moderbolaget column headers are one table's two column groups, not section headings, and
+         keep their own read;
+     "cash_flow" -- v155: the cited row itself names a cash-flow statement, or its own short table
+         title jointly names a financing-activities movement and cash flow. A movement closing balance
+         is not a carrying debt or maturity figure, even when it looks plausible; a navigation/sidebar
+         mention elsewhere on the page is deliberately insufficient;
+     "unknown" -- no marker provable on the page: exactly today's behaviour, no refusal. A markerless
         all-liabilities table (Karnell's earn-outs and accounts-payable rows) is NOT refused here:
         v095's debt-row-first ordering already governs it, and a bare word-list refusal would take
         label-pinned reads off balance sheets and torn pages (Alligo, RaySearch, Svedbergs,
@@ -2085,6 +2189,14 @@ def _table_scope(rows: list[str], i_header: int | None, i_total: int, basis: str
     title, body = _scope_zone(rows, i_header, i_total)
     tlow = " ".join(r.translate(_DASHES).lower() for r in title)
     blow = " ".join(r.translate(_DASHES).lower() for r in body)
+    # v155: a cash-flow movement row can close on a plausible borrowing balance but is not a
+    # carrying-amount or maturity table. Require the target row itself to name the statement, or
+    # both parts of the financing-activity movement title to live in this table's short title/body:
+    # navigation/sidebar labels elsewhere on a page must never classify an unrelated table.
+    scope_text = " ".join((*title, *body))
+    if _CASH_FLOW_STATEMENT.search(rows[i_total]) or (_FINANCING_ACTIVITY_MOVEMENT.search(scope_text)
+                                                       and re.search(r"(?i)\bcash[ -]?flow\b", scope_text)):
+        return "cash_flow"
     if _CARRY_COLUMN.search(tlow) or _CARRY_COLUMN.search(blow) \
             or _CARRY_COLUMN.search(rows[i_total].translate(_DASHES)):
         return "carrying"  # the table's own carrying column -- the carrying read, both bases (v076/v085)
@@ -2122,6 +2234,8 @@ def _scope_reason(rows: list[str], i_header: int | None, i_total: int, scope_wor
         hit = next((r for r in title if any(w in r.translate(_DASHES).lower() for w in nd_words)), None)
         frag = (hit if hit is not None else (title[0] if title else rows[i_total])).strip()
         return f"table {frag!r} is a non-debt subject table"
+    if scope == "cash_flow":
+        return f"row {rows[i_total].strip()!r} is in a cash-flow statement"
     hit = next((r for r in title if any(w in r.translate(_DASHES).lower() for w in und_words)), None)
     frag = (hit if hit is not None else (title[0] if title else rows[i_total])).strip()
     if scope != "all_liabilities":
@@ -2562,6 +2676,10 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
                 continue
             amounts = _row_amounts(rows[idx], len(col_keys), nil=None)
             if len(amounts) != len(col_keys):
+                continue
+            if gross_prior_year := _gross_value_prior_year_block(rows, idx, fiscal_year):
+                warnings.append(f"{total_key}: column reading of {rows[idx]!r} declined -- gross-value maturity "
+                                f"block is headed {gross_prior_year}, not {fiscal_year}")
                 continue
             if scope_words:  # v103/v111: the wrong-table guard -- a table the guard refuses is not filled from,
                 hdr_i = _scope_header(rows, idx, bucket_sfs)  # whatever row of it happens to align
@@ -3333,6 +3451,21 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                         field.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
                         fields.append(field)
                         continue
+                if sf["key"] == "total_debt" and _GENERIC_TOTAL_ROW.match(_row_label(row)) \
+                        and not _label_known(field.get("raw_label"), sf):
+                    # AcadeMedia's page has two generic SUMMA rows: a currency split and
+                    # the closing total of a debt roll-forward. Prefer the latter only
+                    # when _financial_liabilities_rollforward_total proves its narrow
+                    # heading/component/closure shape; generic totals otherwise remain
+                    # model-owned rather than guessed at.
+                    rollforward = _financial_liabilities_rollforward_total(rows, fiscal_year)
+                    if rollforward and rollforward[0] != field["value"]:
+                        value, roll_row, roll_label = rollforward
+                        warnings.append(f"{sf['key']}: generic total {field['value']} replaced by financial-liabilities "
+                                        f"roll-forward closing total {value}")
+                        field["value"], field["raw_label"], field["period"] = value, roll_label, str(fiscal_year)
+                        row = src["quote"] = roll_row
+                        amounts = _row_amounts(row, ncols)
                 label, i = _row_label(row), rows.index(row) if row in rows else -1
                 if not _label_known(field.get("raw_label"), sf) and i >= 0:
                     # ABB: "Basic earnings per share" is a heading, the figure sits on the sub-row "Net income 2.59 2.13"
@@ -3439,9 +3572,12 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             scope = _table_scope(qrows, None, qi, basis, scope_words,
                                  debt_scoped=_label_known(_row_label(qrows[qi]), total_voc),
                                  debt_words=debt_voc)
-            if scope in _REFUSED_SCOPES:
+            gross_prior_year = _gross_value_prior_year_block(qrows, qi, fiscal_year)
+            if scope in _REFUSED_SCOPES or gross_prior_year is not None:
+                reason = _scope_reason(qrows, None, qi, scope_words, scope) if scope in _REFUSED_SCOPES else \
+                    f"gross-value maturity block is headed {gross_prior_year}, not {fiscal_year}"
                 warnings.append(f"{sf['key']}: {f['value']} from {src['quote'][:70]!r} refused -- "
-                                f"{_scope_reason(qrows, None, qi, scope_words, scope)}; not read under the {basis} basis")
+                                f"{reason}; not read under the {basis} basis")
                 f.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
     values = {f["key"]: f["value"] for f in fields if isinstance(f["value"], (int, float))}
     units = Counter(f["unit"] for f in fields if f["unit"])
