@@ -683,4 +683,3 @@ if __name__ == "__main__":
         stem, question = sys.argv[1], sys.argv[2]
         t0 = time.time()
         print(json.dumps(ask([stem], question), ensure_ascii=False, indent=2), f"\n[{time.time() - t0:.1f}s]")
-
