@@ -232,10 +232,18 @@ data/kb/<stem>/
   meta.json                 # company, fiscal_year, language, source_url, pages, sha256 of the PDF
   pages.jsonl               # {"page": 1, "text": "..."} per page — the text layer, committed (public data, ~1 MB/report)
   extractions/<section>.json# the Extraction returned by /extract, latest run wins — committed; doubles as eval + few-shot bank
+  extractions/<section>.run<n>.json # per-run raw answers behind EXTRACT_MERGE_RUNS (audit only — never listed as a section)
   embeddings.jsonl          # {"page", "start", "text", "vec"} per chunk — DERIVED, gitignored, rebuilt by /index
 ```
 
 - Upload or library registration writes `meta.json` + `pages.jsonl`. `/extract` writes `extractions/<section>.json`.
+- `EXTRACT_MERGE_RUNS=off|union|majority` (default `off` — the route is unchanged): with `union` or `majority`, `/extract`
+  runs the extraction a second time on the same pages and merges field by field — the run whose identity check passed
+  wins, then higher confidence, then the second run (v129's rules; values within ±2 count as the same answer). Both raw
+  answers are saved as `extractions/<section>.run1.json` / `.run2.json` beside the merged `<section>.json`, and the merged
+  result carries a top-level `"merge"` block (`mode`, `runs`, per-field `decisions`) plus a `merge:` summary warning.
+  `majority` counts the stored answer as a third vote when it is pipeline-generated (a reviewed extraction never votes);
+  when run 1 already matches it field by field the second run is skipped (`"runs": 1`).
 - `/index` chunks `pages.jsonl` (~800 chars, page-aware) **and** turns each extracted field into a fact chunk
   (`"Atlas Copco FY2025 · Consolidated income statement · Revenue = 176 771 MSEK (p.106)"`), embeds both with `EMBED_MODEL`.
 - `/ask` retrieves top-k chunks — hybrid cosine+BM25 when `LLM_BASE_URL` provides embeddings, pure BM25 otherwise

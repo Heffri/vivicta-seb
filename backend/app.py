@@ -311,6 +311,25 @@ def run_extract(report_id: str, body: ExtractBody):
         pages = locate.candidate_pages(texts, schema)
         print(f"[extract] {report_id} {body.section}: candidate pages {pages}")
         result = extract_mod.extract(texts, pages, schema, report)
+        from pipeline import merge  # v133: EXTRACT_MERGE_RUNS second-run merge; off (default) never reaches it
+        mode = merge.mode()
+        if mode != "off":  # docs/acrylic/evidence/v129.md: per-field union, the stored answer as a third majority vote
+            stored = None
+            if mode == "majority":
+                saved_json = json.loads(saved.read_text(encoding="utf-8")) if saved.exists() else None
+                # v129: the pipeline's own earlier answer votes; a reviewed extraction must not (and the
+                # 409 gate above already refuses to re-extract one -- this is defense in depth).
+                stored = None if saved_json is None or has_reviews(saved_json) else saved_json
+            if mode == "majority" and stored is not None and merge.matches_stored(result, stored):
+                result["warnings"].append("merge: run1 matches the stored answer field by field; second run skipped")
+                result["merge"] = {"mode": mode, "runs": 1, "decisions": {f["key"]: "run1 (matches stored)" for f in result["fields"]}}
+            else:
+                run2 = extract_mod.extract(texts, pages, schema, report)
+                kb.save_run(report["stem"], body.section, 1, result)  # the raw per-run answers, before decorate
+                kb.save_run(report["stem"], body.section, 2, run2)
+                result, decisions = merge.merge_runs(result, run2, stored, mode)
+                merge.recheck(result, schema, texts, pages)  # the winner's own checks would misdescribe a field mix
+            print(f"[extract] {report_id} {body.section}: merge={mode} runs={result['merge']['runs']}")
         result.update(stem=report["stem"], pdf_available=pdf_path(report_id).is_file())
         workbench.decorate(result, schema, {"at": datetime.datetime.now(datetime.timezone.utc).isoformat(), "reason": "Recalculated explicit values after extraction"})
         with review_lock:
