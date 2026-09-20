@@ -13,8 +13,13 @@ run reports (value/confidence/evidence/source) and whether the run's identity ch
 caller recomputes the merged checks with extract's own checker (`recheck`), which is the one part
 that needs the schema and the page texts. Parameter notes: a value "matches" another within +/-2
 absolute (the work order's band; eval/run.py's relative values_match is for scoring, not a rule
-input), and a confidence tie goes to run2 -- v129 measured tie->run1 one company higher (academedia),
-the work order pins run2 as the last tiebreak.
+input). The confidence tie between two answers is not a side to take: v145 measured every
+tie-branch field in the v129/v136/v141 datasets (133 fields; the only three that discriminate are
+conflicts scoring run1 right 1 -- academedia 12103 -- and run2 right 2 -- net_insight 39415/8305),
+so agreeing ties keep run2's field and tie-conflicts publish null (v129 R3's spirit: never publish
+a ~50% coin flip) where v133 had pinned run2 (v129 alone had scored tie->run1 one company higher;
+v136's viva_wine that motivated this work order turned out to be a higher-confidence decision,
+not a tie).
 """
 import copy
 import os
@@ -51,33 +56,51 @@ def _identity_ok(run: dict) -> bool | None:
     return None if check is None else bool(check.get("passed"))
 
 
-def _pick(a: dict, b: dict, ia, ib) -> tuple[dict, str, str]:
+def _pick(a: dict, b: dict, ia, ib) -> tuple[dict | None, str, str]:
     """(field, run name, reason) between two non-null answers: the run whose identity check passed;
-    the same check state -> higher confidence; a tie -> run2 (v129's R2 tiebreak, work order)."""
+    the same check state -> higher confidence. A confidence tie is deliberately not decided here --
+    it returns (None, "tie", ...) and the caller applies the tie rule (_tie_rule), because unlike
+    the check and confidence branches it has no signal: v145 measured the tie-conflicts across the
+    v129/v136/v141 datasets at run1 right 1 / run2 right 2 / both wrong 0."""
     if ia and not ib:
         return a, "run1", "check passed"
     if ib and not ia:
         return b, "run2", "check passed"
     if (a.get("confidence") or 0.0) > (b.get("confidence") or 0.0):
-        return a, "run1", "higher confidence"
+        return a, "run1", "higher conf"
     if (b.get("confidence") or 0.0) > (a.get("confidence") or 0.0):
-        return b, "run2", "higher confidence"
-    return b, "run2", "confidence tie -> run2"
+        return b, "run2", "higher conf"
+    return None, "tie", "confidence tie"
+
+
+def _tie_rule(a: dict, b: dict) -> tuple[dict, str, str]:
+    """v145: a confidence tie between two answers has no distinguishing signal. Agreeing values
+    (+/-2) are one answer -- both sides carry the same verdict on all 130 agreeing ties measured --
+    and keep run2's field. A conflict would publish a ~50% wrong value, so it publishes null in
+    extract()'s own dropped-field shape (v129 R3's spirit): taking a side scored run1 12103 right
+    (academedia) against run2 39415/8305 right (net_insight x2) -- a coin flip."""
+    if _same(a.get("value"), b.get("value")):
+        return b, "run2", "tie -> run2"
+    null = copy.deepcopy(a)
+    null.update(value=None, unit=None, period=None, raw_label=None, source=None, confidence=0.0, evidence=[])
+    return null, "null", "tie -> null"
 
 
 def _union(a: dict, b: dict, ia, ib) -> tuple[dict, str]:
-    """v129 R2 per field: the non-null side wins; two answers go to the check, then confidence,
-    then run2 -- whether they agree within the band or conflict makes no difference to who wins
-    (v129 scored it that way), only to the recorded reason."""
+    """v129 R2 per field with v145's tie rule: the non-null side wins; two answers go to the check,
+    then confidence, then the tie rule (agree -> run2's field, conflict -> null). Whether they agree
+    within the band or conflict changes no decided branch -- only the recorded reason names it."""
     if a.get("value") is None and b.get("value") is None:
-        return a, "null (both null)"
+        return a, "null (union: both null)"
     if a.get("value") is None:
-        return b, "run2 (only non-null)"
+        return b, "run2 (union: only non-null)"
     if b.get("value") is None:
-        return a, "run1 (only non-null)"
+        return a, "run1 (union: only non-null)"
     kind = "agree" if _same(a.get("value"), b.get("value")) else "conflict"
     field, name, reason = _pick(a, b, ia, ib)
-    return field, f"{name} ({kind}: {reason})"
+    if field is None:
+        field, name, reason = _tie_rule(a, b)
+    return field, f"{name} ({kind}: union: {reason})"
 
 
 def _majority(a: dict, b: dict, s: dict, ia, ib) -> tuple[dict, str]:
@@ -92,13 +115,16 @@ def _majority(a: dict, b: dict, s: dict, ia, ib) -> tuple[dict, str]:
             how = "unanimous" if len(agree) == 3 else "+".join(agree)
             return field, f"{name} (majority: {how})"
     if a.get("value") is None and b.get("value") is None:
-        return a, "null (both null)"
+        return a, "null (3-way split -> union: both null)"
     if a.get("value") is None:
         return b, "run2 (3-way split -> union: only non-null)"
     if b.get("value") is None:
         return a, "run1 (3-way split -> union: only non-null)"
+    kind = "agree" if _same(a.get("value"), b.get("value")) else "conflict"
     field, name, reason = _pick(a, b, ia, ib)
-    return field, f"{name} (3-way split -> union: {reason})"
+    if field is None:  # the fallback has no third vote either, so the union tie rule governs it too
+        field, name, reason = _tie_rule(a, b)
+    return field, f"{name} ({kind}: 3-way split -> union: {reason})"
 
 
 def merge_runs(run1: dict, run2: dict, stored: dict | None, mode: str) -> tuple[dict, dict]:
