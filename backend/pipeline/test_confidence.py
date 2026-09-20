@@ -2737,6 +2737,93 @@ def demo():
     got = {f["key"]: f["value"] for f in out["fields"]}
     assert got == {"total_debt": 622, "due_within_1_year": None, "due_1_to_5_years": None, "due_after_5_years": None}, (got, out["warnings"])
     assert sum("refused" in w and "Parent Company" in w for w in out["warnings"]) >= 3, out["warnings"]
+    # v127: CellaVision p.84's "Maturity analysis of lease liabilities" joins the refuse vocabulary. v115's
+    # live pass1 read it four-up at confidence 1.0 through a passing identity (23,300 = 12,213+8,109+2,978;
+    # raw labels unknown to the vocabulary, endorsed by identity_all_columns) against labels 25,651/13,680/
+    # 8,768/3,203 off p.92's Note C9 -- a wrong-scope table whose title carries a debt word (so the v111
+    # non-debt rule's rescue keeps it readable by design) and no refuse-marker (v103's list only had RVRC's
+    # "maturity analysis regarding"). Both new forms are grep-real (the "of" form: 24 stems/25 pages, the
+    # "of the" form: 4 stems/4 pages); the work order's Swedish forms have zero corpus hits and are not added.
+    assert "maturity analysis of lease liabilities" in tsw["undiscounted"]
+    assert "maturity analysis of the lease liabilities" in tsw["undiscounted"]
+    # header level, CellaVision p.84 trimmed to its real rows: refused under the carrying basis anchored at
+    # any of the four rows the pass1 answer cited. Under the undiscounted basis the family's own semantics
+    # keep the read open -- the marker alone never refuses there (RVRC refuses through its payables rows,
+    # all_liabilities; a table without them falls to "unknown"), so the verdict is "unknown", unchanged.
+    cellavision84 = ("Note B8. Leasing\n"
+                     "SEK thousands 2025 2024\n"
+                     "Amounts recognized in the income statement Group Group\n"
+                     "Buildings and land 10,646 10,141\n"
+                     "Equipment, tools, fixtures and fittings 1,602 1,827\n"
+                     "Depreciation on right of use 12,248 11,968\n"
+                     "Interest expenses for leasing liabilities 485 545\n"
+                     "Costs attributable to short-term and leasing contracts of low value 3,684 6,035\n"
+                     "As of December 31, 2025, the Group has obligations regarding short-term and leasing agreements of low value of SEK 3,316\n"
+                     "thousand (5,431).\n"
+                     "SEK thousands 2025 2024\n"
+                     "Maturity analysis of lease liabilities Group Group\n"
+                     "- Within one year 12,213 18,646\n"
+                     "- Later than one but within five years 8,109 8,876\n"
+                     "- Later than within five years 2,978 -\n"
+                     "Total 23,300 27,522\n"
+                     "SEK thousands 2025 2024\n"
+                     "Cash flow Group Group\n"
+                     "Amortization of leasing liabilities 13,852 12,463\n")
+    cv_rows = x._page_rows(cellavision84)
+    for a in ("Total 23,300 27,522", "- Within one year 12,213 18,646",
+              "- Later than one but within five years 8,109 8,876", "- Later than within five years 2,978 -"):
+        assert x._table_scope(cv_rows, None, cv_rows.index(a), "carrying", tsw, debt_words=dsw) == "undiscounted", a
+        assert x._table_scope(cv_rows, None, cv_rows.index(a), "undiscounted", tsw, debt_words=dsw) == "unknown", a
+    # end to end, the v115 pass1 shape: every field's citation is a printed row of the lease table -- the
+    # citation gate nulls all four, each warning naming the table, the check honestly missing
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 23300, "unit": "SEK thousands", "period": "2025", "raw_label": "Total",
+         "source": {"page": 1, "quote": "Total 23,300 27,522"}},
+        {"key": "due_within_1_year", "value": 12213, "unit": "SEK thousands", "period": "2025",
+         "raw_label": "- Within one year", "source": {"page": 1, "quote": "- Within one year 12,213 18,646"}},
+        {"key": "due_1_to_5_years", "value": 8109, "unit": "SEK thousands", "period": "2025",
+         "raw_label": "- Later than one but within five years",
+         "source": {"page": 1, "quote": "- Later than one but within five years 8,109 8,876"}},
+        {"key": "due_after_5_years", "value": 2978, "unit": "SEK thousands", "period": "2025",
+         "raw_label": "- Later than within five years",
+         "source": {"page": 1, "quote": "- Later than within five years 2,978 -"}}]}
+    out = x.extract([cellavision84], [1], dm_ship, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": None, "due_within_1_year": None, "due_1_to_5_years": None, "due_after_5_years": None}, (got, out["warnings"])
+    assert out["checks"][0]["passed"] is False and "missing: due_within_1_year" in out["checks"][0]["detail"], out["checks"]
+    assert sum("refused" in w and "table 'Maturity analysis of lease liabilities Group Group' is undiscounted" in w
+               for w in out["warnings"]) == 4, out["warnings"]
+    # the narrowing the corpus audit forced: Rusta's Group lease table (dash-form title, lease-only issuer,
+    # the label's own source) stays readable -- the new word matches CellaVision's "of" form, not the dash
+    # form; BioInvent p.66's labelled rows (its only debt is leases) stay readable too, and its page's own
+    # pointer line ("For maturity analysis of lease liabilities, see Note 21 ...") never reaches a title
+    # block -- the note reference in it is a digit, and the title walk's digit break stops above such lines
+    # (the corpus's other pointer lines, "see Note 2"/"see note 22"/"Note 27", share that furniture), so the
+    # new words only ever fire on real title rows like CellaVision's own digit-free one
+    rusta_group = ("Lease liabilities\n"
+                   "Group\n"
+                   "Maturity analysis – lease liabilities 30 Apr 2026 30 Apr 2025\n"
+                   "0–6 months 523 490\n"
+                   ">5 years 2,431 2,633\n"
+                   "Total 6,624 6,669\n")
+    rg_rows = x._page_rows(rusta_group)
+    assert x._table_scope(rg_rows, None, rg_rows.index("Total 6,624 6,669"), "carrying", tsw, debt_words=dsw) == "unknown"
+    bioinvent66 = ("Lease liabilities\n"
+                   "SEK thousand 2025 2024 Note 24 Information about the Parent Company\n"
+                   "Long term 1,157 8,215\n"
+                   "Short term 7,370 9,198\n"
+                   "Lease liabilities included in statement of financial position for the Group 8,527 17,413\n"
+                   "For maturity analysis of lease liabilities, see Note 21 Financial assets and liabilities.\n"
+                   "Amounts reported in the statement of comprehensive income for the Group\n"
+                   "SEK thousand 2025 2024\n"
+                   "Depreciation of rights of use assets -8,179 -8,058\n"
+                   "Interest costs, leases -389 -533\n"
+                   "Costs of low value leases -188 -177\n"
+                   "Total -8,756 -8,768\n")
+    bi_rows = x._page_rows(bioinvent66)
+    for a in ("Long term 1,157 8,215", "Short term 7,370 9,198"):
+        assert x._table_scope(bi_rows, None, bi_rows.index(a), "carrying", tsw, debt_words=dsw) == "unknown", a
+    assert x._table_scope(bi_rows, None, bi_rows.index("Total -8,756 -8,768"), "carrying", tsw, debt_words=dsw) == "unknown"
     # v109: the report's own calendar-year maturity columns ride along as top-level buckets_by_year
     # metadata -- never a model answer, only the year columns the bucket-column reader itself
     # aligned (the _bucket_year_hits header fallback behind the recorded pick), re-read on the
