@@ -81,6 +81,7 @@ export type Config = {
   provider: string
   retrieval?: 'hybrid' | 'bm25' | 'fixture'
   maturity_basis?: 'carrying' | 'undiscounted' // v089: the backend's live DEBT_BASIS; absent on older backends
+  merge_runs?: 'off' | 'union' | 'majority' // v140: the backend's live EXTRACT_MERGE_RUNS; absent on older backends
 }
 export const getConfig = () => request<Config>('/api/config')
 // v112: the KB page's collection switch. 'wallenberg' is the curated roster (the page's default,
