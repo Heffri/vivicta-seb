@@ -191,8 +191,8 @@ storytel_2025.pdf,debt_maturity,due_after_5_years,null,114,same
 biogaia_2025.pdf,debt_maturity,total_debt,0,153,"Note 27 p.153: 'The group has no external loans.' (v062's sentence; also printed p.130); zero_if_stated; buckets not written per work order (p.154 age analysis bundles payables+acquisition liability, undiscounted)"
 ctt_systems_2025.pdf,debt_maturity,total_debt,35.5,52,"Note 26: 'Interest-bearing liabilities to credit institutions 35.5 - - - - - 35.5'; principal row = carrying (ties to Note 27 financing reconciliation 35.5, same page); native MSEK"
 ctt_systems_2025.pdf,debt_maturity,due_within_1_year,35.5,52,"same row, 'Within 1 year' column -- the entire liability matures within 1 year; the separate 'Interest rates 1.8' row is future interest, not included; MSEK"
-ctt_systems_2025.pdf,debt_maturity,due_1_to_5_years,null,52,"table prints dashes in the 1-2/2-3/3-4/4-5-year columns -- nil marker, unprinted not 0"
-ctt_systems_2025.pdf,debt_maturity,due_after_5_years,null,52,same: 'Later than 5 years' column prints a dash
+ctt_systems_2025.pdf,debt_maturity,due_1_to_5_years,0,52,"table prints dashes in the 1-2/2-3/3-4/4-5-year columns; 0 per v078's dash-to-0 ruling (supervisor 2026-09-20, same as ework in v128): the row's own figures close on its total (35.5 + 0 + 0 = 35.5), so the dash is the report's explicit 0 for that window"
+ctt_systems_2025.pdf,debt_maturity,due_after_5_years,0,52,"same: 'Later than 5 years' column prints a dash; 0 per the v078/v128 dash-to-0 ruling (row closes on its total)"
 fasadgruppen_2025.pdf,debt_maturity,total_debt,2194.0,136,"Not 23: 'Totala raentebaerande skulder 2 207,7 2 194,0' -- Redovisat vaerde (carrying) column, 2025 first; leases 180.1 sit outside this note (p.30 prose); MSEK"
 fasadgruppen_2025.pdf,debt_maturity,due_within_1_year,159.5,136,"'Summa kortfristiga raentebaerande skulder 165,9 159,5', carrying; the three items mature 2026-12-31; MSEK"
 fasadgruppen_2025.pdf,debt_maturity,due_1_to_5_years,2034.5,136,"'Summa laangfristiga raentebaerande skulder 2 041,8 2 034,5', carrying; every dated facility prints Foerfall 2027-07-31 (1-5y window; undated 16.6 row also long-term); MSEK"
