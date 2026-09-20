@@ -973,6 +973,78 @@ def _column_values(field: dict, fields: list[dict], defaults: dict, texts: list[
     return cols
 
 
+_FINANCIAL_LIABILITIES_ROLLFORWARD = re.compile(
+    r"(?i)(?:changes?\s+in\s+financial\s+liabilities|förändring(?:ar)?\s+finansiella\s+skulder)"
+)
+_GENERIC_TOTAL_ROW = re.compile(r"(?i)^(?:total|summa)\b")
+_ROLLFORWARD_DEBT_COMPONENT = re.compile(
+    r"(?i)(?:credit\s+institutions?|creditinstitut|bank|loans?|lån|lease|leasing|interest[ -]bearing|räntebärande|borrowing\s+costs?|lånekostnad)"
+)
+
+
+def _rollforward_terminal_amount(row: str) -> float | None:
+    """The rightmost printed figure of a roll-forward total row.
+
+    The roll-forward has no compact year-column header for ``_row_amounts`` to
+    use. Its final total can nevertheless be read without guessing at the
+    preceding movement columns: retain a final Swedish thousands pair unless
+    its leading token carries the previous column's minus sign.
+    """
+    tail = row[len(_row_label(row)):].strip().split()
+    if not tail:
+        return None
+    token = tail[-1].rstrip(",;")
+    if not re.fullmatch(r"[-(]?\d{1,3}(?:[,.']\d{3})*(?:[.,]\d{1,4})?\)?", token):
+        return None
+    if len(tail) >= 2 and re.fullmatch(r"\d{1,3}", tail[-2]) and re.fullmatch(r"\d{3}", token):
+        token = tail[-2] + token  # "12 103" is one closing value, not two columns
+    parsed = _row_amounts("amount " + token)
+    return parsed[-1] if parsed else None
+
+
+def _financial_liabilities_rollforward_total(rows: list[str], fiscal_year) -> tuple[float, str, str] | None:
+    """The current closing total from a narrowly identified debt roll-forward.
+
+    A page can put a currency-by-debt summary and a ``Changes in financial
+    liabilities`` roll-forward beside one another. Both end in a generic
+    ``Total``/``SUMMA`` row, so a model citation of the former has no row
+    label for the normal synonym repair to prefer. The latter is a usable
+    total only when its heading names financial liabilities, its current-year
+    block contains exclusively debt/lease/borrowing-cost components. That
+    leaves generic financial-liabilities tables (payables included), arbitrary
+    total rows, and the comparative roll-forward alone.
+    """
+    year = str(fiscal_year) if fiscal_year else ""
+    if not year:
+        return None
+    for start, heading in enumerate(rows):
+        if not _FINANCIAL_LIABILITIES_ROLLFORWARD.search(heading):
+            continue
+        for end in range(start + 1, min(start + 31, len(rows))):
+            if end > start + 1 and _FINANCIAL_LIABILITIES_ROLLFORWARD.search(rows[end]):
+                break  # a second (normally comparative) roll-forward starts here
+            if not _GENERIC_TOTAL_ROW.match(_row_label(rows[end])):
+                continue
+            # The final balance date lives in the short header block immediately
+            # above the component rows (AcadeMedia: "30 juni 2025"). Do not
+            # infer a fiscal year from the prior block's values.
+            if year not in " ".join(rows[start:end]):
+                continue
+            components: list[str] = []
+            j = end - 1
+            while j > start:
+                label = _row_label(rows[j])
+                if not _ROLLFORWARD_DEBT_COMPONENT.search(label):
+                    break
+                components.append(label)
+                j -= 1
+            closing = _rollforward_terminal_amount(rows[end])
+            if len(components) < 2 or closing is None:
+                continue
+            return closing, rows[end], _row_label(rows[end])
+    return None
+
+
 def _derived_value(field: dict, texts: list[str], fiscal_year, check: dict | None = None, others: list[dict] | None = None, taken: set | None = None,
                    own_syns: set | None = None):
     """(value, quote, label) when the field's figure is proven by the rows around its quote, column by column:
@@ -3333,6 +3405,21 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                         field.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
                         fields.append(field)
                         continue
+                if sf["key"] == "total_debt" and _GENERIC_TOTAL_ROW.match(_row_label(row)) \
+                        and not _label_known(field.get("raw_label"), sf):
+                    # AcadeMedia's page has two generic SUMMA rows: a currency split and
+                    # the closing total of a debt roll-forward. Prefer the latter only
+                    # when _financial_liabilities_rollforward_total proves its narrow
+                    # heading/component/closure shape; generic totals otherwise remain
+                    # model-owned rather than guessed at.
+                    rollforward = _financial_liabilities_rollforward_total(rows, fiscal_year)
+                    if rollforward and rollforward[0] != field["value"]:
+                        value, roll_row, roll_label = rollforward
+                        warnings.append(f"{sf['key']}: generic total {field['value']} replaced by financial-liabilities "
+                                        f"roll-forward closing total {value}")
+                        field["value"], field["raw_label"], field["period"] = value, roll_label, str(fiscal_year)
+                        row = src["quote"] = roll_row
+                        amounts = _row_amounts(row, ncols)
                 label, i = _row_label(row), rows.index(row) if row in rows else -1
                 if not _label_known(field.get("raw_label"), sf) and i >= 0:
                     # ABB: "Basic earnings per share" is a heading, the figure sits on the sub-row "Net income 2.59 2.13"

@@ -3595,7 +3595,50 @@ def test_torn_bucket_headers():
     print("torn header self-check ok")
 
 
+def test_financial_liabilities_rollforward_total():
+    """v155: AcadeMedia's current roll-forward beats a sibling generic currency total."""
+    import copy
+    import json
+    import pathlib
+
+    dm = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
+    academedia87 = ("Belopp i MSEK 2025-06-30 2024-06-30\n"
+                    "SEK 7 660 8 450\nNOK 1 648 1 906\nEUR 2 806 2 741\nSUMMA 12 114 13 097\n"
+                    "K28: Skulder\nFÖRÄNDRING FINANSIELLA SKULDER 2024/25\n"
+                    "1 juli 2024 Kassaflöde Förvärv av dotterbolag Orealiserade valutakursdifferenser Andra förändringar 30 juni 2025\n"
+                    "Skulder till kreditinstitut exkl. fastighetslån 1 419 -518 0 -25 -2 874\n"
+                    "Fastighetslån 693 -39 14 -38 0 630\n"
+                    "Leasingskulder 10 982 -1 897 207 93 1 220 10 605\n"
+                    "Övriga räntebärande skulder 0 0 0 0 0 0\n"
+                    "Aktiverade lånekostnader -3 -5 0 0 4 -5\n"
+                    "SUMMA 13 090 -2 460 220 30 1 222 12 103\n"
+                    "FÖRÄNDRING FINANSIELLA SKULDER 2023/24\n"
+                    "1 juli 2023 Kassaflöde Förvärv av dotterbolag Orealiserade valutakursdifferenser Andra förändringar 30 juni 2024\n"
+                    "Skulder till kreditinstitut exkl. fastighetslån 842 582 0 -14 9 1 419\n"
+                    "Fastighetslån 727 -25 0 -10 0 693\nLeasingskulder 9 511 -1 705 1 282 0 1 893 10 982\n"
+                    "Övriga räntebärande skulder 27 -20 0 0 -7 0\nAktiverade lånekostnader -4 0 0 0 0 -3\n"
+                    "SUMMA 11 104 -1 168 1 282 -23 1 895 13 090\n")
+    rows = x._page_rows(academedia87)
+    assert x._financial_liabilities_rollforward_total(rows, 2025) == (
+        12103, "SUMMA 13 090 -2 460 220 30 1 222 12 103", "SUMMA"), rows
+    assert x._financial_liabilities_rollforward_total(rows, 2026) is None, rows
+    answer = [{"key": sf["key"], "value": 12114 if sf["key"] == "total_debt" else None,
+               "unit": "MSEK" if sf["key"] == "total_debt" else None,
+               "period": "2025" if sf["key"] == "total_debt" else None,
+               "raw_label": "SUMMA" if sf["key"] == "total_debt" else None,
+               "source": {"page": 1, "quote": "SUMMA 12 114 13 097"} if sf["key"] == "total_debt" else None}
+              for sf in dm["fields"]]
+    x.call_llm = lambda *a, **k: {"fields": copy.deepcopy(answer)}
+    out = x.extract([academedia87], [1], dm, {"fiscal_year": 2025})
+    total = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert total["value"] == 12103 and total["source"] == {
+        "page": 1, "quote": "SUMMA 13 090 -2 460 220 30 1 222 12 103"}, (total, out["warnings"])
+    assert any("financial-liabilities roll-forward closing total 12103" in warning for warning in out["warnings"]), out["warnings"]
+    print("financial-liabilities roll-forward self-check ok")
+
+
 if __name__ == "__main__":
     test_confidence_never_exceeds_one()
     test_torn_bucket_headers()
+    test_financial_liabilities_rollforward_total()
     demo()
