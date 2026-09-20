@@ -1,0 +1,181 @@
+{
+ "report_id": "lib-hexatronic_2025",
+ "company": "Hexatronic Group",
+ "fiscal_year": 2025,
+ "currency": "SEK million",
+ "section": "debt_maturity",
+ "maturity_basis": "carrying",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 2243,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "Total borrowing",
+   "source": {
+    "page": 160,
+    "quote": "Total borrowing 2,243"
+   },
+   "confidence": 1.0,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "label_known",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": 62,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "Current liabilities to credit institutions",
+   "source": {
+    "page": 162,
+    "quote": "Current liabilities to credit\ninstitutions\n\n152 - -74 -10 - - -6 - 62"
+   },
+   "confidence": 0.25,
+   "evidence": [
+    "arith_ok",
+    "period_ok",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": 2181,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "Non-current liabilities to credit institutions",
+   "source": {
+    "page": 162,
+    "quote": "Non-current liabilities to\ncredit institutions\n\n2,361 8 - 10 - - -200 2 2,181"
+   },
+   "confidence": 0.25,
+   "evidence": [
+    "arith_ok",
+    "period_ok",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": null,
+   "unit": null,
+   "period": null,
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "status": "unavailable",
+   "detail": "Missing explicit values: due_after_5_years"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [160, 161] selected from candidates [160, 161, 162, 131, 159, 126, 154, 114, 175, 116, 129]",
+  "due_within_1_year: quote not found on page 162",
+  "due_1_to_5_years: quote not found on page 162",
+  "due_after_5_years: 'Borrowing from credit institutions' 0 dropped: the same row as total_debt, and not a due after 5 years label"
+ ],
+ "stem": "hexatronic_2025",
+ "pdf_available": true,
+ "check_history": [
+  {
+   "at": "2026-09-20T15:21:11.566007+00:00",
+   "reason": "Recalculated explicit values after extraction",
+   "previous": [
+    {
+     "name": "maturity_sums_to_total",
+     "passed": false,
+     "detail": "missing: due_after_5_years"
+    }
+   ]
+  }
+ ],
+ "issues": [
+  {
+   "kind": "basis",
+   "key": "entity",
+   "detail": "Confirm entity"
+  },
+  {
+   "kind": "basis",
+   "key": "consolidation",
+   "detail": "Confirm consolidation"
+  },
+  {
+   "kind": "basis",
+   "key": "period",
+   "detail": "Confirm period"
+  },
+  {
+   "kind": "basis",
+   "key": "currency",
+   "detail": "Confirm currency"
+  },
+  {
+   "kind": "basis",
+   "key": "scale",
+   "detail": "Confirm scale"
+  },
+  {
+   "kind": "basis",
+   "key": "source",
+   "detail": "Confirm source"
+  },
+  {
+   "kind": "basis",
+   "key": "restatement",
+   "detail": "Confirm restatement"
+  },
+  {
+   "kind": "basis",
+   "key": "debt_basis",
+   "detail": "Confirm debt basis"
+  },
+  {
+   "kind": "basis",
+   "key": "leases",
+   "detail": "Confirm leases"
+  },
+  {
+   "kind": "basis",
+   "key": "bucket_mapping",
+   "detail": "Confirm bucket mapping"
+  },
+  {
+   "kind": "field",
+   "key": "due_within_1_year",
+   "detail": "Due within 1 year: verify value, unit, period and source"
+  },
+  {
+   "kind": "field",
+   "key": "due_1_to_5_years",
+   "detail": "Due 1–5 years: verify value, unit, period and source"
+  },
+  {
+   "kind": "field",
+   "key": "due_after_5_years",
+   "detail": "Due after 5 years: missing value (not zero)"
+  },
+  {
+   "kind": "check",
+   "key": "maturity_sums_to_total",
+   "detail": "maturity_sums_to_total: Missing explicit values: due_after_5_years"
+  }
+ ],
+ "ready": false
+}

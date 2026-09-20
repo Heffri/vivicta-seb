@@ -1,0 +1,233 @@
+{
+ "report_id": "lib-cloetta_2025",
+ "company": "Cloetta",
+ "fiscal_year": 2025,
+ "currency": "SEKm",
+ "section": "debt_maturity",
+ "maturity_basis": "carrying",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 1605,
+   "unit": "SEKm",
+   "period": "2025",
+   "raw_label": "Total",
+   "source": {
+    "page": 169,
+    "quote": "Total 197 22 1,377 9 1,605"
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": 197,
+   "unit": "SEKm",
+   "period": "2025",
+   "raw_label": "Total",
+   "source": {
+    "page": 169,
+    "quote": "Total 197 22 1,377 9 1,605"
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": 1399,
+   "unit": "SEKm",
+   "period": "2025",
+   "raw_label": "Total",
+   "source": {
+    "page": 169,
+    "quote": "Total 197 22 1,377 9 1,605"
+   },
+   "confidence": 1.0,
+   "evidence": [
+    "quote_on_page",
+    "value_derived",
+    "arith_ok",
+    "label_known",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": 9,
+   "unit": "SEKm",
+   "period": "2025",
+   "raw_label": "Total",
+   "source": {
+    "page": 169,
+    "quote": "Total 197 22 1,377 9 1,605"
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": true,
+   "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((197 + 1399 + 9) - 1605) <= 2",
+   "status": "passed"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [169, 170] selected from candidates [169, 170, 179, 171, 39, 38, 177, 46, 205, 155]",
+  "due_1_to_5_years: 1399 is printed on none of pages [169, 170]; dropped as computed, not read",
+  "due_1_to_5_years: model returned null; 1399 read from 'Total 197 22 1,377 9 1,605' by its column order"
+ ],
+ "prior_year": {
+  "fiscal_year": 2024,
+  "fields": {
+   "total_debt": {
+    "value": 2509,
+    "source": {
+     "page": 169,
+     "quote": "Total 203 2,262 32 12 2,509"
+    }
+   },
+   "due_within_1_year": {
+    "value": 203,
+    "source": {
+     "page": 169,
+     "quote": "Total 203 2,262 32 12 2,509"
+    }
+   },
+   "due_1_to_5_years": {
+    "value": 2294,
+    "source": {
+     "page": 169,
+     "quote": "Total 203 2,262 32 12 2,509"
+    }
+   },
+   "due_after_5_years": {
+    "value": 12,
+    "source": {
+     "page": 169,
+     "quote": "Total 203 2,262 32 12 2,509"
+    }
+   }
+  },
+  "check": {
+   "passed": true,
+   "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((203 + 2294 + 12) - 2509) <= 2"
+  }
+ },
+ "stem": "cloetta_2025",
+ "pdf_available": true,
+ "check_history": [
+  {
+   "at": "2026-09-20T15:03:16.003688+00:00",
+   "reason": "Recalculated explicit values after extraction",
+   "previous": [
+    {
+     "name": "maturity_sums_to_total",
+     "passed": true,
+     "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((197 + 1399 + 9) - 1605) <= 2"
+    }
+   ]
+  }
+ ],
+ "issues": [
+  {
+   "kind": "basis",
+   "key": "entity",
+   "detail": "Confirm entity"
+  },
+  {
+   "kind": "basis",
+   "key": "consolidation",
+   "detail": "Confirm consolidation"
+  },
+  {
+   "kind": "basis",
+   "key": "period",
+   "detail": "Confirm period"
+  },
+  {
+   "kind": "basis",
+   "key": "currency",
+   "detail": "Confirm currency"
+  },
+  {
+   "kind": "basis",
+   "key": "scale",
+   "detail": "Confirm scale"
+  },
+  {
+   "kind": "basis",
+   "key": "source",
+   "detail": "Confirm source"
+  },
+  {
+   "kind": "basis",
+   "key": "restatement",
+   "detail": "Confirm restatement"
+  },
+  {
+   "kind": "basis",
+   "key": "debt_basis",
+   "detail": "Confirm debt basis"
+  },
+  {
+   "kind": "basis",
+   "key": "leases",
+   "detail": "Confirm leases"
+  },
+  {
+   "kind": "basis",
+   "key": "bucket_mapping",
+   "detail": "Confirm bucket mapping"
+  },
+  {
+   "kind": "field",
+   "key": "total_debt",
+   "detail": "Total borrowings: verify value, unit, period and source"
+  },
+  {
+   "kind": "field",
+   "key": "due_within_1_year",
+   "detail": "Due within 1 year: verify value, unit, period and source"
+  },
+  {
+   "kind": "field",
+   "key": "due_1_to_5_years",
+   "detail": "Due 1–5 years: verify value, unit, period and source"
+  },
+  {
+   "kind": "field",
+   "key": "due_after_5_years",
+   "detail": "Due after 5 years: verify value, unit, period and source"
+  }
+ ],
+ "ready": false
+}

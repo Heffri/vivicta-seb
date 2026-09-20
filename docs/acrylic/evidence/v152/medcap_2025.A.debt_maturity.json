@@ -1,0 +1,186 @@
+{
+ "report_id": "lib-medcap_2025",
+ "company": "MedCap",
+ "fiscal_year": 2025,
+ "currency": "MSEK",
+ "section": "debt_maturity",
+ "maturity_basis": "carrying",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 718.7,
+   "unit": "MSEK",
+   "period": "2025",
+   "raw_label": "Totalt",
+   "source": {
+    "page": 101,
+    "quote": "Totalt 718,7 377,6 – –"
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": 102.3,
+   "unit": "MSEK",
+   "period": "2025",
+   "raw_label": "6 månader eller mindre + 6 – 12 månader",
+   "source": {
+    "page": 101,
+    "quote": "6 månader eller mindre 54,3 41,8 – –"
+   },
+   "confidence": 1.0,
+   "evidence": [
+    "quote_on_page",
+    "value_derived",
+    "arith_ok",
+    "label_known",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": 616.5,
+   "unit": "MSEK",
+   "period": "2025",
+   "raw_label": "1 – 5 år",
+   "source": {
+    "page": 101,
+    "quote": "1 – 5 år 616,5 316,7 – –"
+   },
+   "confidence": 1.0,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "label_known",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": null,
+   "unit": "MSEK",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "status": "unavailable",
+   "detail": "Missing explicit values: due_after_5_years"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [101, 102] selected from candidates [101, 102, 92, 91, 96, 33, 82, 97, 100, 74]",
+  "due_within_1_year: 102.3 is the sum of 2 rows on page 101 inside its window ('6 månader eller mindre' … '6 – 12 månader'); kept as value_derived"
+ ],
+ "stem": "medcap_2025",
+ "pdf_available": true,
+ "check_history": [
+  {
+   "at": "2026-09-20T15:24:26.575007+00:00",
+   "reason": "Recalculated explicit values after extraction",
+   "previous": [
+    {
+     "name": "maturity_sums_to_total",
+     "passed": false,
+     "detail": "missing: due_after_5_years"
+    }
+   ]
+  }
+ ],
+ "issues": [
+  {
+   "kind": "basis",
+   "key": "entity",
+   "detail": "Confirm entity"
+  },
+  {
+   "kind": "basis",
+   "key": "consolidation",
+   "detail": "Confirm consolidation"
+  },
+  {
+   "kind": "basis",
+   "key": "period",
+   "detail": "Confirm period"
+  },
+  {
+   "kind": "basis",
+   "key": "currency",
+   "detail": "Confirm currency"
+  },
+  {
+   "kind": "basis",
+   "key": "scale",
+   "detail": "Confirm scale"
+  },
+  {
+   "kind": "basis",
+   "key": "source",
+   "detail": "Confirm source"
+  },
+  {
+   "kind": "basis",
+   "key": "restatement",
+   "detail": "Confirm restatement"
+  },
+  {
+   "kind": "basis",
+   "key": "debt_basis",
+   "detail": "Confirm debt basis"
+  },
+  {
+   "kind": "basis",
+   "key": "leases",
+   "detail": "Confirm leases"
+  },
+  {
+   "kind": "basis",
+   "key": "bucket_mapping",
+   "detail": "Confirm bucket mapping"
+  },
+  {
+   "kind": "field",
+   "key": "total_debt",
+   "detail": "Total borrowings: verify value, unit, period and source"
+  },
+  {
+   "kind": "field",
+   "key": "due_within_1_year",
+   "detail": "Due within 1 year: verify value, unit, period and source"
+  },
+  {
+   "kind": "field",
+   "key": "due_after_5_years",
+   "detail": "Due after 5 years: missing value (not zero)"
+  },
+  {
+   "kind": "check",
+   "key": "maturity_sums_to_total",
+   "detail": "maturity_sums_to_total: Missing explicit values: due_after_5_years"
+  }
+ ],
+ "ready": false
+}
