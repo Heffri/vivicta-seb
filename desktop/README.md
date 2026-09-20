@@ -37,10 +37,13 @@ npm run dist                    # nsis installer + portable exe, in desktop/dist
 ```
 
 The packaged app loads `http://127.0.0.1:<random free port>/` — the backend itself serves
-`frontend/dist` as a static site at `/` and the API at `/api` (same origin, zero CORS). First
-launch copies the bundled `data/` (companies, report index, knowledge base — no PDFs) into
-`app.getPath('userData')/data`; later launches reuse it, so a user's uploads/index rebuilds
-survive an upgrade.
+`frontend/dist` as a static site at `/` and the API at `/api` (same origin, zero CORS). The bundled
+`data/` (companies, report index, knowledge base — no PDFs) is synced into
+`app.getPath('userData')/data` on every launch: files the user never modified follow the app's
+bundled copy (tracked by a `.bundle-manifest.json` hash manifest), while user uploads (`kb/up-*`),
+reviewed extractions and anything the user changed are kept. Launch with `--user-data-dir <dir>`
+(or `--user-data-dir=<dir>`) to relocate the whole userData directory — logs, data, single-instance
+lock — for isolated test runs; both the packaged exe and `npm run dev` honor it.
 
 ### Packaging without backend.exe
 
