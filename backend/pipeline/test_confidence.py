@@ -2892,6 +2892,124 @@ def demo():
     out = x.extract([bts93], [1], dm, {"fiscal_year": 2025})
     assert {f["key"]: f["value"] for f in out["fields"]}["total_debt"] == 548320, out["warnings"]
     assert "buckets_by_year" not in out, out.get("buckets_by_year")
+    # v126: the note that classifies each instrument's balance by REPAYMENT TIMING instead of printing
+    # bucket rows -- Stillfront Note 21, p.109 (the fixture above is this note's top half; here it is in
+    # full). The model summed the note's own rows correctly (710 = the current-classified rows 675 + 35;
+    # 5,152 = the five "Repayment within 2–5 yr." component rows 620 + 2,835 + 649 + 984 + 64) but no row
+    # prints either figure, so the computed-not-read guard dropped both (v118 finding 3: labels 710/5152,
+    # stored null). The rescue is window geometry, not vocabulary: every row of the page whose label
+    # parses inside ONE bucket's window (_row_bucket_span -> _span_bucket), at least two of them, summed
+    # in the one column where the note's own total row ties to the verified total_debt, equal to the
+    # model's value -> kept as value_derived. "Repayment within 2–5 yr." parses ONLY behind the
+    # "repayment" prefix (bare yr/y stays a non-unit in _bucket_span, v096's exclusion above).
+    # The glued two-column page: _row_bucket_span reads the wording at the row's figure edge.
+    assert x._row_bucket_span("0–6 months 523 490") == ((0, 6), "0–6 months")  # clean interval rows: unchanged _bucket_span territory
+    assert x._row_bucket_span("Bond loans 2,835 2,829 Repayment within 2–5 yr. 620 1,170") == ((24, 60), "Repayment within 2–5 yr.")
+    assert x._row_bucket_span("Repayment within 2–5 yr. 2,835 2,829") == ((24, 60), "Repayment within 2–5 yr.")
+    assert x._row_bucket_span("Repayment after more than 5 yr. 4 –") == ((60, float("inf")), "Repayment after more than 5 yr.")
+    assert x._row_bucket_span("Leasing liabilities 103 105 Current liability 675 862") == ((0, 12), "Current liability")  # the current classification IS the 1-year window
+    assert x._row_bucket_span("Contingent considerations interest 46 56 Current liability (overdraft facilities) – –") is None  # another row's label follows: not the figure edge
+    assert x._row_bucket_span("Total 1,294 2,032 Repayment within 2–5 yr. 620 1,170") is None  # a total never joins the sum of its own parts
+    assert x._row_bucket_span("Total within 1 year 710") is None and x._row_bucket_span("Term loan 649 688 Non-current liability 620 1,170") is None
+    assert x._close(5152, 5150) and x._close(710, 712.5) and not x._close(5152, 5120)  # ±2 or ±0.5%
+    stillfront109_full = stillfront109 + (
+        "Movement in the year\n"
+        "Opening balance 7,053 7,003 Repayment after more than 5 yr. – –\n"
+        "Cashflows\n"
+        "Proceeds from borrowings – 1,833 Current liability – –\n"
+        "Repayment of loans –1 –1,500 Total bond loans 2,835 2,829\n"
+        "Net change in revolving credit facility –272 –404 Term Loans\n"
+        "Net change in overdraft facility – –27 Repayment within 2–5 yr. 649 688\n"
+        "Contingent considerations paid out in cash –576 –432 Non-current liability 649 688\n"
+        "Payment of lease liabilities –41 –39\n"
+        "Non cash changes\n"
+        "New/changed IFRS16 lease liabilities 40 69 Non-current liability 984 1,376\n"
+        "Contingent considerations interest 46 56 Current liability (overdraft facilities) – –\n"
+        "Contingent considerations settled –221 –163 Total liabilities to credit institutions 984 1,376\n"
+        "Contingent considerations revaluation 266 368\n"
+        "Equity swap – 3\n"
+        "Translation differences –408 286 Repayment within 2–5 yr. 64 65\n"
+        "Closing balance 5,887 7,053 Repayment after more than 5 yr. 4 –\n"
+        "Maturity structure Group\n"
+        "MSEK 31 Dec 2025 31 Dec 2024\n"
+        "Bond loans\n"
+        "Repayment within 2–5 yr. 2,835 2,829\n"
+        "Non-current liability 2,835 2,829\n"
+        "Liabilities to credit institutions\n"
+        "Repayment within 2–5 yr. 984 1,376\n"
+        "Repayment after more than 5 yr. – –\n"
+        "Other non-current liabilities and non-current lease liabilities\n"
+        "Non-current liability 67 65\n"
+        "Current liability 35 40\n"
+        "Total other non-current liabilities and non-current lease liabilities 103 105\n")
+    sf_v126 = [
+        {"key": "total_debt", "value": 5887, "unit": "MSEK", "period": "2025", "raw_label": "Total",
+         "source": {"page": 1, "quote": "Total 5,887 7,053"}},
+        {"key": "due_within_1_year", "value": 710, "unit": "MSEK", "period": "2025", "raw_label": "Current liability",
+         "source": {"page": 1, "quote": "Current liability 675 862"}},  # the model's own read, first row of its sum
+        {"key": "due_1_to_5_years", "value": 5152, "unit": "MSEK", "period": "2025", "raw_label": "Repayment within 2–5 yr.",
+         "source": {"page": 1, "quote": "Repayment within 2–5 yr. 620 1,170"}},
+        {"key": "due_after_5_years", "value": 4, "unit": "MSEK", "period": "2025", "raw_label": "Repayment after more than 5 yr.",
+         "source": {"page": 1, "quote": "Closing balance 5,887 7,053 Repayment after more than 5 yr. 4 –"}}]
+    x.call_llm = lambda *a, **k: {"fields": [dict(f) for f in sf_v126]}
+    out = x.extract([stillfront109_full], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f for f in out["fields"]}
+    assert got["total_debt"]["value"] == 5887 and got["due_after_5_years"]["value"] == 4, (got, out["warnings"])
+    w1 = got["due_within_1_year"]
+    assert w1["value"] == 710 and "value_derived" in w1["evidence"] and "quote_on_page" in w1["evidence"], (w1, out["warnings"])
+    assert w1["source"]["quote"] == "Leasing liabilities 103 105 Current liability 675 862", w1["source"]  # scattered rows: the run's first row is the quote
+    assert w1["raw_label"] == "Current liability + Current liability + Current liability", w1  # 675 + the nil bond row + 35
+    w15 = got["due_1_to_5_years"]
+    assert w15["value"] == 5152 and "value_derived" in w15["evidence"], (w15, out["warnings"])
+    assert w15["source"]["quote"] == "Bond loans 2,835 2,829 Repayment within 2–5 yr. 620 1,170", w15["source"]
+    assert w15["raw_label"].count("Repayment within 2–5 yr.") == 5, w15["raw_label"]  # 620 + 2,835 + 649 + 984 + 64
+    assert any("is the sum of 5 rows on page 1 inside its window ('Repayment within 2–5 yr.' … 'Repayment within 2–5 yr.'); kept as value_derived" in w
+               for w in out["warnings"]), out["warnings"]
+    assert any("is the sum of 3 rows on page 1 inside its window ('Current liability' … 'Current liability')" in w
+               for w in out["warnings"]), out["warnings"]
+    # the identity stays honestly unresolved: the note classes 710 + 5,152 + 4 = 5,866 of the 5,887 total
+    # ("Other interest-bearing liabilities 22" has no timing split on the page) -- the labels' own values
+    assert not out["checks"][0]["passed"] and "abs((710 + 5152 + 4) - 5887) <= 2" in out["checks"][0]["detail"], out["checks"]
+    # the same answers with the model's multi-row-merged quotes: the suffix of a merged quote verifies
+    # (v051's MedCap mechanism), so both forms reach the same guard -- and the same rescue
+    merged = [dict(f, source={"page": 1, "quote": q}) for f, q in zip(sf_v126, [
+        "Total 5,887 7,053",
+        "Current liability 675 862 Current liability 35 40",
+        "Repayment within 2–5 yr. 620 1,170 Repayment within 2–5 yr. 2,835 2,829 Repayment within 2–5 yr. 649 688 "
+        "Repayment within 2–5 yr. 984 1,376 Repayment within 2–5 yr. 64 65",
+        "Closing balance 5,887 7,053 Repayment after more than 5 yr. 4 –"])]
+    x.call_llm = lambda *a, **k: {"fields": merged}
+    out = x.extract([stillfront109_full], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got["due_within_1_year"] == 710 and got["due_1_to_5_years"] == 5152, (got, out["warnings"])
+    # counter-examples: a model value that equals a sum the page does not prove stays null --
+    # the Total row never completes the family, the prior-year column never substitutes, rows on
+    # another page never join, and another window's rows never mix in (docs/acrylic/evidence/v126.md)
+    counter_p1 = ("Note 20 Borrowings\nMSEK 2025 2024\n"
+                  "Bond A Repayment within 2–5 yr. 100 90\n"
+                  "Bond B Repayment within 2–5 yr. 50 40\n"
+                  "Total Repayment within 2–5 yr. 200 190\n"  # a total row carrying the window wording: refused as a summand
+                  "Total 150 999\n")
+    counter_p2 = "Bond C Repayment within 2–5 yr. 60 55\n"  # another page's same-window row: never a summand either
+    for name, value, quote in [
+        ("total row completes the sum", 350, "Bond A Repayment within 2–5 yr. 100 90"),  # 100 + 50 + 200(total)
+        ("prior-year column substitutes", 130, "Bond A Repayment within 2–5 yr. 100 90"),  # 90 + 40, the non-total column
+        ("another page's row completes the sum", 210, "Bond A Repayment within 2–5 yr. 100 90"),  # 100 + 50 + 60(p.2)
+        ("another window's rows mix in", 464, "Bond A Repayment within 2–5 yr. 100 90"),  # 100 + 50 + 60 + 200 + 4(no >5y row exists)
+        ("within-1-year value off the current rows", 710, "Bond A Repayment within 2–5 yr. 100 90"),  # no current rows here at all
+    ]:
+        x.call_llm = lambda *a, v=value, q=quote, **k: {"fields": [
+            {"key": "total_debt", "value": 150, "unit": "MSEK", "period": "2025", "raw_label": "Total",
+             "source": {"page": 1, "quote": "Total 150 999"}},
+            {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+            {"key": "due_1_to_5_years", "value": v, "unit": "MSEK", "period": "2025", "raw_label": "Repayment within 2–5 yr.",
+             "source": {"page": 1, "quote": q}},
+            {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+        out = x.extract([counter_p1, counter_p2], [1, 2], dm, {"fiscal_year": 2025})
+        got = {f["key"]: f for f in out["fields"]}
+        assert got["due_1_to_5_years"]["value"] is None, (name, got["due_1_to_5_years"], out["warnings"])
+        assert any("dropped as computed, not read" in w for w in out["warnings"]), (name, out["warnings"])
+        assert not any("kept as value_derived" in w for w in out["warnings"]), (name, out["warnings"])
     print("confidence self-check ok")
 
 
