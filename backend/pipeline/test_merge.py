@@ -1,6 +1,8 @@
-"""v133 self-check: the two-run merge behind EXTRACT_MERGE_RUNS (v129's rules with the work order's
-parameters) and its /extract route wiring. Synthetic extract()-shaped runs only -- no model calls,
-isolated KB_DIR, no data/kb reads. Run: python -m pipeline.test_merge"""
+"""Self-check: the two-run merge behind EXTRACT_MERGE_RUNS (v129's rules; the same-check-state
+rule re-decided on the v129/v136/v141 data in v145 and folded further by the v145-b ruling: a
+conflict has no signal and publishes null) and its /extract route wiring. Synthetic
+extract()-shaped runs only -- no model calls, isolated KB_DIR, no data/kb reads.
+Run: python -m pipeline.test_merge"""
 import copy
 import json
 import os
@@ -75,46 +77,88 @@ def test_union_lone_value():
     from . import merge
     r1, r2 = _run({"revenue": 12103}, check_passed=False), _run({"revenue": None}, check_passed=False)
     merged, decisions = merge.merge_runs(r1, r2, None, "union")
-    assert _value(merged, "revenue") == 12103 and decisions["revenue"] == "run1 (only non-null)"
+    assert _value(merged, "revenue") == 12103 and decisions["revenue"] == "run1 (union: only non-null)"
     assert merged["fields"][0]["source"] == {"page": 1, "quote": "revenue 12103"}  # the winner's full field
     merged, decisions = merge.merge_runs(_run({"revenue": None}), _run({"revenue": None}), None, "union")
-    assert _value(merged, "revenue") is None and decisions["revenue"] == "null (both null)"
+    assert _value(merged, "revenue") is None and decisions["revenue"] == "null (union: both null)"
     print("merge union lone value ok")
 
 
-def test_union_conflict_check_then_confidence_then_run2():
+def test_union_conflict_check_then_agree_conf():
     """Two non-null answers: the run whose identity check passed wins even against higher confidence;
-    the same check state goes to higher confidence; a confidence tie goes to run2 (the work order's
-    tiebreak; cellavision-shaped conflict with both checks passing)."""
+    with the same check state, agreeing values (one answer within the band) still pick their copy by
+    confidence; a conflict has no signal left (v145-b: the fold of tie->null and the 0/4
+    higher-confidence branch) and publishes null."""
     from . import merge
     r1 = _run({"total_debt": 3821}, conf={"total_debt": 0.8}, check_passed=True)
     r2 = _run({"total_debt": 1659}, conf={"total_debt": 1.0}, check_passed=False)
     merged, decisions = merge.merge_runs(r1, r2, None, "union")
-    assert _value(merged, "total_debt") == 3821 and decisions["total_debt"] == "run1 (conflict: check passed)"
-    r1 = _run({"total_debt": 3821}, conf={"total_debt": 1.0}, check_passed=True)
-    r2 = _run({"total_debt": 1659}, conf={"total_debt": 0.8}, check_passed=True)
+    assert _value(merged, "total_debt") == 3821 and decisions["total_debt"] == "run1 (conflict: union: check passed)"
+    r1 = _run({"total_debt": 3821}, conf={"total_debt": 1.0}, check_passed=True)  # agree: conf still picks the copy
+    r2 = _run({"total_debt": 3820}, conf={"total_debt": 0.8}, check_passed=True)
     merged, decisions = merge.merge_runs(r1, r2, None, "union")
-    assert _value(merged, "total_debt") == 3821 and decisions["total_debt"] == "run1 (conflict: higher confidence)"
+    assert _value(merged, "total_debt") == 3821 and decisions["total_debt"] == "run1 (agree: union: higher conf)"
     merged, decisions = merge.merge_runs(r2, r1, None, "union")  # swapped: higher confidence wins wherever it sits
-    assert _value(merged, "total_debt") == 3821 and decisions["total_debt"] == "run2 (conflict: higher confidence)"
-    r1 = _run({"total_debt": 3821}, conf={"total_debt": 1.0}, check_passed=True)  # cellavision: both pass, conf tie
-    r2 = _run({"total_debt": 1659}, conf={"total_debt": 1.0}, check_passed=True)
+    assert _value(merged, "total_debt") == 3821 and decisions["total_debt"] == "run2 (agree: union: higher conf)"
+    r1 = _run({"total_debt": 3821}, conf={"total_debt": 1.0}, check_passed=True)  # cellavision: conflict, conf differs...
+    r2 = _run({"total_debt": 1659}, conf={"total_debt": 0.5}, check_passed=True)
     merged, decisions = merge.merge_runs(r1, r2, None, "union")
-    assert _value(merged, "total_debt") == 1659 and decisions["total_debt"] == "run2 (conflict: confidence tie -> run2)"
+    assert _value(merged, "total_debt") is None  # ...and conf is no signal for a conflict (v145-b)
+    f = merged["fields"][0]
+    assert f["source"] is None and f["confidence"] == 0.0 and f["evidence"] == []  # extract()'s dropped-field shape
+    assert decisions["total_debt"] == "null (union: conflict, no signal -> null)"
     print("merge union conflict order ok")
+
+
+def test_union_conflict_null_rule():
+    """v145-b's rule, from the v129/v136/v141 data: with the same identity-check state, agreeing
+    values are one answer and keep a copy (conf decides, a conf tie -> run2), while a conflict has
+    no distinguishing signal -- the tie-conflicts score run1 right 1 (academedia 12103) / run2
+    right 2 (net_insight 39415, 8305) / both wrong 0, and the higher-confidence branch scored 0/4
+    on the datasets' conflicts (bergman_beving, viva_wine and storytel's wrong side against
+    bonava's one hit) -- so any same-state conflict publishes null in extract()'s own dropped-field
+    shape (R3's spirit). Check-state differences still decide (v141 alligo), and the majority
+    voting path never sees this (third vote)."""
+    from . import merge
+    r1 = _run({"total_debt": 12103}, conf={"total_debt": 0.9}, check_passed=False)  # academedia's shape
+    r2 = _run({"total_debt": 12114}, conf={"total_debt": 0.9}, check_passed=False)
+    merged, decisions = merge.merge_runs(r1, r2, None, "union")
+    assert _value(merged, "total_debt") is None and decisions["total_debt"] == "null (union: conflict, no signal -> null)"
+    assert merged["fields"][0]["label"] == "total_debt" and merged["fields"][0]["key"] == "total_debt"
+    r1 = _run({"total_debt": 81489}, check_passed=True)  # net_insight's v141 shape: both checks pass, conf tie
+    r2 = _run({"total_debt": 39415}, check_passed=True)
+    merged, decisions = merge.merge_runs(r1, r2, None, "union")
+    assert _value(merged, "total_debt") is None and decisions["total_debt"] == "null (union: conflict, no signal -> null)"
+    r1 = _run({"total_debt": 1002}, conf={"total_debt": 0.9}, check_passed=False)  # viva_wine's v136 shape: conf differs
+    r2 = _run({"total_debt": 1203}, conf={"total_debt": 0.85}, check_passed=False)
+    merged, decisions = merge.merge_runs(r1, r2, None, "union")
+    assert _value(merged, "total_debt") is None and decisions["total_debt"] == "null (union: conflict, no signal -> null)"
+    r1 = _run({"revenue": 100}, conf={"revenue": 0.9}, check_passed=True)  # agreeing tie: one answer, run2's copy
+    r2 = _run({"revenue": 101.5}, conf={"revenue": 0.9}, check_passed=True)
+    merged, decisions = merge.merge_runs(r1, r2, None, "union")
+    assert _value(merged, "revenue") == 101.5 and decisions["revenue"] == "run2 (agree: union: tie -> run2)"
+    r1 = _run({"revenue": 32703}, conf={"revenue": 1.0}, check_passed=True)  # ericsson v136: agree, higher conf keeps its copy
+    r2 = _run({"revenue": 32703}, conf={"revenue": 0.95}, check_passed=True)
+    merged, decisions = merge.merge_runs(r1, r2, None, "union")
+    assert _value(merged, "revenue") == 32703 and decisions["revenue"] == "run1 (agree: union: higher conf)"
+    r1 = _run({"total_debt": 3629}, conf={"total_debt": 0.9}, check_passed=False)  # not this branch: checks decide (v141 alligo)
+    r2 = _run({"total_debt": 3630}, conf={"total_debt": 0.9}, check_passed=True)
+    merged, decisions = merge.merge_runs(r1, r2, None, "union")
+    assert _value(merged, "total_debt") == 3630 and decisions["total_debt"] == "run2 (agree: union: check passed)"
+    print("merge union conflict null rule ok")
 
 
 def test_union_agree_band():
     """Values within +/-2 are one answer; the winner among agreeing runs still goes by check, then
-    confidence, then run2."""
+    confidence, then the tie rule (agree -> run2)."""
     from . import merge
     r1 = _run({"revenue": 100}, conf={"revenue": 1.0}, check_passed=False)
     r2 = _run({"revenue": 101.5}, conf={"revenue": 0.9}, check_passed=True)
     merged, decisions = merge.merge_runs(r1, r2, None, "union")
-    assert _value(merged, "revenue") == 101.5 and decisions["revenue"] == "run2 (agree: check passed)"
+    assert _value(merged, "revenue") == 101.5 and decisions["revenue"] == "run2 (agree: union: check passed)"
     r2 = _run({"revenue": 101.5}, conf={"revenue": 1.0}, check_passed=False)
-    merged, decisions = merge.merge_runs(r1, r2, None, "union")  # both fail the check, conf tie -> run2
-    assert _value(merged, "revenue") == 101.5 and decisions["revenue"] == "run2 (agree: confidence tie -> run2)"
+    merged, decisions = merge.merge_runs(r1, r2, None, "union")  # both fail the check, conf tie, agree -> run2
+    assert _value(merged, "revenue") == 101.5 and decisions["revenue"] == "run2 (agree: union: tie -> run2)"
     print("merge union agree band ok")
 
 
@@ -142,17 +186,18 @@ def test_majority_votes():
 
 def test_majority_three_way_splits_back_to_union():
     """Three mutually distinct answers (stored null, or a third value) fall back to union over the
-    two runs. academedia's real field shape (12103 vs 12114, both checks failing, conf tie) lands on
-    run2 -- the work order's tiebreak, one company below v129's tie->run1 scoring (evidence notes it)."""
+    two runs -- including v145-b's conflict rule. academedia's real field shape (12103 vs 12114,
+    both checks failing, stored null: no third vote to break it) publishes null, the same answer
+    v129's R5 scored for it."""
     from . import merge
     r1, r2 = _run({"total_debt": 12103}, check_passed=False), _run({"total_debt": 12114}, check_passed=False)
     merged, decisions = merge.merge_runs(r1, r2, _run({"total_debt": None}), "majority")
-    assert _value(merged, "total_debt") == 12114
-    assert decisions["total_debt"] == "run2 (3-way split -> union: confidence tie -> run2)"
-    r2 = _run({"total_debt": 12114}, conf={"total_debt": 0.5}, check_passed=False)
-    third = _run({"total_debt": 99999}, conf={"total_debt": 1.0}, check_passed=True)  # a third distinct answer
+    assert _value(merged, "total_debt") is None
+    assert decisions["total_debt"] == "null (3-way split -> union: conflict, no signal -> null)"
+    r2 = _run({"total_debt": 12114}, check_passed=True)  # agreeing runs can never reach the fallback (2 votes), so the
+    third = _run({"total_debt": 99999}, check_passed=False)  # decided fallback branches are check-state and null only
     merged, decisions = merge.merge_runs(r1, r2, third, "majority")  # no 2-vote value -> union over the runs
-    assert _value(merged, "total_debt") == 12103 and decisions["total_debt"] == "run1 (3-way split -> union: higher confidence)"
+    assert _value(merged, "total_debt") == 12114 and decisions["total_debt"] == "run2 (conflict: 3-way split -> union: check passed)"
     print("merge majority 3-way fallback ok")
 
 
@@ -193,10 +238,11 @@ def test_merge_is_pure_and_shapes_the_record():
     snap1, snap2 = copy.deepcopy(r1), copy.deepcopy(r2)
     merged, decisions = merge.merge_runs(r1, r2, None, "union")
     assert r1 == snap1 and r2 == snap2, "merge_runs mutated an input"
+    assert _value(merged, "revenue") is None  # 100 vs 103: |d| = 3 is outside the band, conf tie -> null (v145)
     assert merged["warnings"][0] == "run1: revenue: filled from page 1"
     assert merged["warnings"][1] == "run2: llm: timeout (pages [1, 2])"
     assert merged["warnings"][-1].startswith("merge: union, per-field: ")
-    assert "revenue=run2 (conflict: confidence tie -> run2)" in merged["warnings"][-1]  # |100-103| = 3, outside the band
+    assert "revenue=null (union: conflict, no signal -> null)" in merged["warnings"][-1]
     assert merged["merge"] == {"mode": "union", "runs": 2, "decisions": decisions}
     assert merged["section"] == "income_statement" and merged["fiscal_year"] == 2025  # run1's shell
     assert merged["checks"] == r1["checks"]  # stale on purpose: recheck() replaces them
@@ -315,17 +361,17 @@ def test_route_union_two_runs_two_records():
             x = r.json()
             assert len(calls) == 2, f"union must run the extraction twice ({len(calls)} calls)"
             assert calls[0]["pages"] == calls[1]["pages"] == [1, 2]  # same window both runs
-            assert _value(x, "revenue") == 250  # conflict, checks pass, conf tie -> run2
+            assert _value(x, "revenue") is None  # conflict (100 vs 250), checks pass -> no signal, null (v145-b)
             assert _value(x, "gross_profit") == 40  # only run1 answered
             assert _value(x, "cost_of_sales") == -60  # only run2 answered
             assert x["merge"]["mode"] == "union" and x["merge"]["runs"] == 2
-            assert x["merge"]["decisions"]["revenue"] == "run2 (conflict: confidence tie -> run2)"
+            assert x["merge"]["decisions"]["revenue"] == "null (union: conflict, no signal -> null)"
             assert x["warnings"][0] == "run1: revenue: filled from page 1"
             assert x["warnings"][1] == "run2: llm: slow (pages [1, 2])"
             assert x["warnings"][-1].startswith("merge: union, per-field: ")
             assert _run_files() == ["income_statement.run1.json", "income_statement.run2.json"], _run_files()
             saved = json.loads((kb.kb_dir() / "acme_2025" / "extractions" / "income_statement.json").read_text(encoding="utf-8"))
-            assert saved["merge"]["runs"] == 2 and _value(saved, "revenue") == 250
+            assert saved["merge"]["runs"] == 2 and _value(saved, "revenue") is None
             assert saved["checks"] and all("name" in c for c in saved["checks"])  # recheck() filled them
             assert "issues" in saved  # decorate ran on the merged result
         finally:
@@ -384,7 +430,8 @@ def test_route_majority_stored_votes_when_pipeline_generated():
 if __name__ == "__main__":
     test_mode_env()
     test_union_lone_value()
-    test_union_conflict_check_then_confidence_then_run2()
+    test_union_conflict_check_then_agree_conf()
+    test_union_conflict_null_rule()
     test_union_agree_band()
     test_majority_votes()
     test_majority_three_way_splits_back_to_union()
