@@ -21,6 +21,8 @@ import math
 import os
 import re
 import time
+import threading
+from datetime import datetime, timezone
 from collections import Counter
 from heapq import nlargest
 from pathlib import Path
@@ -51,6 +53,11 @@ ANSWER_SCHEMA = {
 _dot = getattr(math, "sumprod", lambda a, b: sum(x * y for x, y in zip(a, b)))  # 3.12+; fallback for older venvs
 _vecs: dict[str, tuple[float, list[dict]]] = {}   # stem -> (embeddings.jsonl mtime, rows)
 _pages_cache: dict[str, tuple[float, dict[int, str]]] = {}
+_locks = {}
+_locks_guard = threading.Lock()
+_status_cache = {}
+CHUNKER_VERSION = 3  # validated facts combined with BM25 and the current parser
+
 BM25_K1, BM25_B = 1.5, 0.75  # Okapi defaults
 
 
@@ -73,28 +80,28 @@ def _meta(stem: str) -> dict:
 
 def _pages(stem: str) -> dict[int, str]:
     p = kb_dir() / stem / "pages.jsonl"
-    mtime = p.stat().st_mtime
-    if stem not in _pages_cache or _pages_cache[stem][0] != mtime:
+    key, mtime = str(p), (p.stat().st_mtime_ns, p.stat().st_size)
+    if key not in _pages_cache or _pages_cache[key][0] != mtime:
         rows = (json.loads(l) for l in p.read_text(encoding="utf-8").split('\n') if l)  # not splitlines(): page text may hold U+2028
-        _pages_cache[stem] = (mtime, {r["page"]: r["text"] for r in rows})
-    return _pages_cache[stem][1]
+        _pages_cache[key] = (mtime, {r["page"]: r["text"] for r in rows})
+    return _pages_cache[key][1]
 
 
 # ---- writing -------------------------------------------------------------------------------
 
 def save_report(stem: str, meta: dict, texts: list[str]) -> Path:
     """meta.json + pages.jsonl; no-op when the PDF's sha256 is already there."""
-    d = kb_dir() / stem
-    from .parse import PARSER_VERSION
-    meta = {**meta, "parser": PARSER_VERSION}
-    if _meta(stem).get("sha256") == meta["sha256"] and _meta(stem).get("parser") == PARSER_VERSION and (d / "pages.jsonl").exists():
+    with report_lock(stem):
+        d = kb_dir() / stem
+        from .parse import PARSER_VERSION
+        meta = {**meta, "parser": PARSER_VERSION}
+        if cached_texts(stem, meta["sha256"]) is not None:
+            if _meta(stem) != meta:
+                atomic_write(d / "meta.json", json.dumps(meta, ensure_ascii=False, indent=2))
+            return d
+        atomic_write(d / "pages.jsonl", "".join(json.dumps({"page": i, "text": t}, ensure_ascii=False) + "\n" for i, t in enumerate(texts, 1)))
+        atomic_write(d / "meta.json", json.dumps(meta, ensure_ascii=False, indent=2))
         return d
-    d.mkdir(parents=True, exist_ok=True)
-    (d / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
-    with open(d / "pages.jsonl", "w", encoding="utf-8") as f:
-        for i, t in enumerate(texts, 1):
-            f.write(json.dumps({"page": i, "text": t}, ensure_ascii=False) + "\n")
-    return d
 
 
 def save_extraction(stem: str, section: str, extraction: dict) -> Path:
@@ -156,16 +163,33 @@ def _title(section: str) -> str:
 
 def chunks(stem: str) -> list[dict]:
     """Page windows + one fact chunk per extracted field (page = the field's source page)."""
-    out = [{"page": n, "start": s, "text": t} for n, text in sorted(_pages(stem).items()) for s, t in _windows(text)]
+    from .extract import _value_in_quote
+    from .maturity import verified_source
+    pages = _pages(stem)
+    texts = [pages[n] for n in sorted(pages)]
+    out = [{"page": n, "start": s, "text": t} for n, text in sorted(pages.items()) for s, t in _windows(text)]
     meta = _meta(stem)
     who = f"{meta.get('company') or stem} FY{meta.get('fiscal_year') or '?'}"
     for p in _section_files(stem):
-        x = json.loads(p.read_text(encoding="utf-8"))
+        try:
+            x = json.loads(p.read_text(encoding="utf-8"))
+            if not isinstance(x, dict) or not isinstance(x.get("fields"), list):
+                continue
+        except (OSError, ValueError):
+            continue  # broken saved facts must not prevent indexing source pages
+        if any(not c.get("passed") and not c.get("detail", "").startswith("missing:") for c in x.get("checks", [])):
+            continue
+        if x.get("section") == "debt_maturity" and not (x.get("context_source") or x.get("maturity_basis")):
+            continue  # legacy debt extractions did not distinguish leases/parent-company scopes
         title = _title(x.get("section") or p.stem)
         for f in x.get("fields", []):
-            if f.get("value") is None or not f.get("source"):
+            if (f.get("value") is None or f.get("confidence", 0) < 0.7
+                    or (meta.get("fiscal_year") and str(f.get("period")) != str(meta["fiscal_year"]))
+                    or len(f.get("components", [])) > 1 or not verified_source(f.get("source"), texts, pages)):
                 continue
             page, quote = f["source"].get("page"), f["source"].get("quote") or ""
+            if not _value_in_quote(f["value"], quote):
+                continue  # a computed amount cannot be cited as printed on its first component's page
             # sentence-ish wording embeds ~0.03 cosine closer to questions than "Label = value (p.N)" alone
             text = f"{who} · {title} (p.{page}): {f['label']} {f.get('period') or ''} = {_fmt(f['value'])} {f.get('unit') or ''}, printed as \"{f.get('raw_label') or f['label']}\"."
             if quote and quote != f.get("raw_label"):
@@ -177,30 +201,40 @@ def chunks(stem: str) -> list[dict]:
 # ---- embeddings ----------------------------------------------------------------------------
 
 def _unit(v: list[float]) -> list[float]:
+    if not v or any(not isinstance(x, (int, float)) or isinstance(x, bool) or not math.isfinite(x) for x in v) or not any(v):
+        raise ValueError("Embedding endpoint returned an invalid vector")
     n = math.sqrt(_dot(v, v)) or 1.0
     return [round(x / n, 6) for x in v]
 
 
 def embed(texts: list[str]) -> list[list[float]]:
-    client = OpenAI(base_url=os.environ["LLM_BASE_URL"], api_key=os.getenv("LLM_API_KEY") or "none")
     out: list[list[float]] = []
-    for i in range(0, len(texts), BATCH):
-        resp = client.embeddings.create(model=embed_model(), input=texts[i:i + BATCH])
-        out += [_unit(d.embedding) for d in sorted(resp.data, key=lambda d: d.index)]
+    with OpenAI(base_url=embed_base_url(), api_key=os.getenv("EMBED_API_KEY") or os.getenv("LLM_API_KEY") or "none",
+                timeout=float(os.getenv("EMBED_TIMEOUT", "120")), max_retries=0) as client:
+        for i in range(0, len(texts), BATCH):
+            batch = texts[i:i + BATCH]
+            resp = client.embeddings.create(model=embed_model(), input=batch)
+            data = sorted(resp.data, key=lambda d: d.index)
+            if [d.index for d in data] != list(range(len(batch))):
+                raise ValueError("Embedding endpoint returned an incomplete batch")
+            out += [_unit(d.embedding) for d in data]
     return out
 
 
 def _rows(stem: str) -> list[dict]:
     p = kb_dir() / stem / "embeddings.jsonl"
-    mtime = p.stat().st_mtime
-    if stem not in _vecs or _vecs[stem][0] != mtime:
-        _vecs[stem] = (mtime, [r for r in (json.loads(l) for l in p.read_text(encoding="utf-8").split('\n') if l) if "text" in r])
-    return _vecs[stem][1]
+    key, mtime = str(p), (p.stat().st_mtime_ns, p.stat().st_size)
+    if key not in _vecs or _vecs[key][0] != mtime:
+        _vecs[key] = (mtime, [json.loads(l) for l in p.read_text(encoding="utf-8").split('\n') if l])
+    return _vecs[key][1]
 
 
 def _emb_model(stem: str) -> str | None:
     """The EMBED_MODEL recorded on embeddings.jsonl's first line (v034). None = legacy file without the
     line, or no file -- index() treats both as needing one rebuild against the current embed_model()."""
+    manifest = kb_dir() / stem / "index.json"
+    if manifest.exists():
+        return json.loads(manifest.read_text(encoding="utf-8")).get("embed_model")
     p = kb_dir() / stem / "embeddings.jsonl"
     if not p.exists():
         return None
@@ -213,31 +247,50 @@ def _emb_model(stem: str) -> str | None:
 
 
 def index(stem: str, force=False) -> dict:
-    """Build embeddings.jsonl unless it is newer than pages.jsonl and every extraction AND was built by
-    the current embed_model(). A model switch rebuilds from scratch: vectors from two models must never
-    share a cosine space, so the old file is not mined for reuse either."""
-    d = kb_dir() / stem
-    emb = d / "embeddings.jsonl"
-    deps = [d / "pages.jsonl", *_section_files(stem)]
-    same_model = _emb_model(stem) == embed_model()
-    if not force and same_model and emb.exists() and emb.stat().st_mtime >= max(x.stat().st_mtime for x in deps):
-        return {"chunks": len(_rows(stem)), "embed_model": embed_model(), "cached": True}
-    t0 = time.time()
-    rows = chunks(stem)
-    old = {r["text"]: r["vec"] for r in _rows(stem)} if emb.exists() and same_model else {}  # reuse: a new extraction only adds facts
-    todo = [r["text"] for r in rows if r["text"] not in old]
-    fresh = dict(zip(todo, embed(todo)))
-    for r in rows:
-        r["vec"] = old.get(r["text"]) or fresh[r["text"]]
-    tmp = emb.with_suffix(f".{os.getpid()}.tmp")  # per-process name: two backends indexing the same stem never share a temp file
-    with open(tmp, "w", encoding="utf-8") as f:
-        f.write(json.dumps({"embed_model": embed_model()}) + "\n")  # meta line; _rows/_emb_model skip it
+    """One-process demo: serialize each report and never reuse incompatible vectors."""
+    with report_lock(stem):
+        d = kb_dir() / stem
+        status = index_status(stem)
+        if not force and status["status"] == "ready":
+            return status | {"cached": True}
+        identity, sources = embedding_identity(), index_dependencies(stem)
+        old = {}
+        if not force and status["status"] in {"ready", "outdated"} and (d / "index.json").exists():
+            m = json.loads((d / "index.json").read_text(encoding="utf-8"))
+            if all(m.get(k) == v for k, v in identity.items()):
+                old = {r["text"]: r["vec"] for r in _rows(stem)}
+        rows = chunks(stem)
+        if not rows:
+            raise ValueError("Report contains no indexable text. A scanned PDF requires OCR.")
+        todo = list(dict.fromkeys(r["text"] for r in rows if r["text"] not in old))
+        vectors = embed(todo) if todo else []
+        if len(vectors) != len(todo):
+            raise ValueError("Embedding endpoint returned the wrong number of vectors")
+        fresh = dict(zip(todo, vectors))
         for r in rows:
-            f.write(json.dumps(r, ensure_ascii=False) + "\n")
-    os.replace(tmp, emb)  # atomic: a second backend on the same KB_DIR never reads a half-written file
-    _vecs.pop(stem, None)
-    print(f"[kb] index {stem}: {len(rows)} chunks ({len(todo)} embedded) in {time.time() - t0:.1f}s")
-    return {"chunks": len(rows), "embed_model": embed_model(), "cached": False}
+            r["vec"] = old.get(r["text"]) or fresh[r["text"]]
+        dimensions = len(rows[0]["vec"]) if rows else 0
+        validate_rows(rows, dimensions)
+        if sources != index_dependencies(stem):
+            raise ValueError("Report changed during indexing; retry")
+        content = "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows)
+        manifest = {**identity, "sources": sources, "dimensions": dimensions, "chunks": len(rows),
+                    "page_chunks": sum(r["start"] >= 0 for r in rows), "fact_chunks": sum(r["start"] == -1 for r in rows),
+                    "built_at": datetime.now(timezone.utc).isoformat(), "content_sha256": sha256(content.encode())}
+        # Publish data first. A crash between replacements yields an invalid index, never a false cache hit.
+        embedding_path = d / "embeddings.jsonl"
+        previous = embedding_path.read_text(encoding="utf-8") if embedding_path.exists() else None
+        try:
+            atomic_write(embedding_path, content)
+            atomic_write(d / "index.json", json.dumps(manifest, indent=2))
+        except OSError:
+            if previous is None:
+                embedding_path.unlink(missing_ok=True)
+            else:
+                atomic_write(embedding_path, previous)
+            raise
+        _vecs.pop(str(d / "embeddings.jsonl"), None)
+        return index_status(stem) | {"cached": False}
 
 
 # ---- retrieval -----------------------------------------------------------------------------
@@ -266,7 +319,7 @@ def retrieval_mode() -> str:
     0.6/0.4) when an embeddings endpoint exists, "bm25" (keyword-only, embed() never called) under a
     codex/claude-only subscription -- neither CLI has an embeddings endpoint, and Ask must still work
     there -- and "fixture" when no model at all is configured (app.py then serves the canned answer)."""
-    if os.getenv("LLM_BASE_URL"):
+    if os.getenv("EMBED_BASE_URL") or os.getenv("LLM_BASE_URL"):
         return "hybrid"
     if llm.provider() in ("codex", "claude"):
         return "bm25"
@@ -283,7 +336,7 @@ def _bm25(stem: str) -> dict:
     d = kb_dir() / stem
     pages = d / "pages.jsonl"
     exs = _section_files(stem)
-    key = (pages.stat().st_mtime, max((p.stat().st_mtime for p in exs), default=0.0))
+    key = (str(d), CHUNKER_VERSION, pages.stat().st_mtime_ns, tuple((p.name, p.stat().st_mtime_ns, p.stat().st_size) for p in exs))
     if stem in _bm25_cache and _bm25_cache[stem][0] == key:
         return _bm25_cache[stem][1]
     rows = chunks(stem)
@@ -332,6 +385,8 @@ def search(stems: list[str], query: str, k=8, *, keyword_only=False) -> list[dic
                 hits[i] = hits.get(i, 0) + 1  # distinct query terms on this chunk -> the share/ride-along rule
                 part[i] = part.get(i, 0.0) + idf * f * (BM25_K1 + 1.0) / (f + BM25_K1 * (1.0 - BM25_B + BM25_B * dls[i] / avgdl))
         vecs = [r["vec"] for r in _rows(s)] if mode == "hybrid" else ()
+        if mode == "hybrid" and (len(vecs) != len(ix["rows"]) or any(len(v) != len(q) for v in vecs)):
+            raise ValueError("Query and index vector dimensions or chunk counts differ; rebuild the index")
         for i, r in enumerate(ix["rows"]):
             cos = _dot(q, vecs[i]) if mode == "hybrid" else 0.0
             cand.append((cos, part.get(i, 0.0), (hits.get(i, 0) / len(qt)) if qt else 0.0, s, r))
@@ -384,6 +439,8 @@ def ask(stems: list[str], question: str, k=8, ids: dict[str, str] | None = None,
             + "\n\n".join(f"[{label[h['stem']]} p.{h['page']}; report_stem={h['stem']}]\n{h['text']}" for h in hits))
     try:
         raw = json.loads(llm.chat(ASK_SYSTEM, user, ANSWER_SCHEMA, "answer"))
+        if not isinstance(raw, dict) or not isinstance(raw.get("answer"), str) or not isinstance(raw.get("citations"), list):
+            raise ValueError("Malformed answer")
     except Exception as e:  # ponytail: no retry, same as extract
         raw = {"answer": "", "citations": []}
         warnings.append(f"llm: {type(e).__name__}: {e}")
@@ -392,6 +449,7 @@ def ask(stems: list[str], question: str, k=8, ids: dict[str, str] | None = None,
     citations, seen = [], set()
     for c in raw.get("citations") or []:
         if not isinstance(c, dict):
+            warnings.append("citation dropped: malformed citation")
             continue
         name, page, quote = str(c.get("company") or ""), c.get("page"), str(c.get("quote") or "")
         n = _norm_name(name)
@@ -423,6 +481,10 @@ def ask(stems: list[str], question: str, k=8, ids: dict[str, str] | None = None,
         score = max((h["score"] for h in hits if h["stem"] == stem and h["page"] == page), default=0)
         citations.append({"report_id": ids.get(stem, stem), "stem": stem, "company": metas[stem].get("company"), "fiscal_year": metas[stem].get("fiscal_year"),
                           "page": page, "quote": quote, "score": round(min(score, 1.0), 3)})
+    if any(w.startswith("citation dropped:") for w in warnings):
+        raw["answer"] = "Answer withheld because its citations could not all be verified. Try a more specific question."
+    elif raw.get("answer") and not citations:
+        warnings.append("No verified citations support this answer.")
     return {"question": question, "answer": raw.get("answer") or "", "citations": citations, "warnings": warnings,
             "model": os.getenv("LLM_MODEL", "")}
 
@@ -435,9 +497,10 @@ def entries() -> list[dict]:
     for d in sorted(p for p in kb_dir().glob("*") if re.fullmatch(r"[a-z0-9_-]+", p.name)
                     and (p / "meta.json").is_file() and (p / "pages.jsonl").is_file()):
         m = _meta(d.name)
+        status = index_status(d.name)
         out.append({"stem": d.name, "report_id": None, "company": m.get("company"), "fiscal_year": m.get("fiscal_year"),
                     "pages": m.get("pages", 0), "sections": sorted(p.stem for p in _section_files(d.name)),
-                    "indexed": (d / "embeddings.jsonl").exists()})
+                    "indexed": status["status"] == "ready", **status})
     return out
 
 
@@ -449,7 +512,12 @@ def fewshot_examples(section: str, exclude_stem: str | None, n: int) -> list[dic
         stem = p.parent.parent.name
         if stem == exclude_stem or len(out) >= n:
             continue
-        x = json.loads(p.read_text(encoding="utf-8"))
+        try:
+            x = json.loads(p.read_text(encoding="utf-8"))
+            if not isinstance(x, dict) or not isinstance(x.get("fields"), list):
+                continue
+        except (OSError, ValueError):
+            continue
         if x.get("warnings") or not all(c.get("passed") for c in x.get("checks", [])):
             continue
         out.append({"company": x.get("company") or stem, "fields": [
@@ -463,17 +531,146 @@ def fewshot_examples(section: str, exclude_stem: str | None, n: int) -> list[dic
 
 def build() -> None:
     """meta + pages + embeddings for every data/reports/index.json entry present on disk."""
-    from .parse import page_texts
     lib = paths.reports_dir()
     for e in json.loads((lib / "index.json").read_text(encoding="utf-8")):
         pdf = lib / e["file"]
         if not pdf.exists():
             continue
         stem, t0 = pdf.stem, time.time()
-        texts = page_texts(pdf)
-        meta = {k: e.get(k) for k in ("company", "fiscal_year", "language", "source_url")} | {"pages": len(texts), "sha256": sha256(pdf.read_bytes()), "filename": e["file"]}
-        save_report(stem, meta, texts)
+        digest = sha256(pdf.read_bytes())
+        texts, parsing = load_texts(stem, pdf, digest)
+        meta = {k: e.get(k) for k in ("company", "fiscal_year", "language", "source_url")} | {"pages": len(texts), "sha256": digest, "filename": e["file"]}
+        save_report(stem, meta | parsing, texts)
         print(f"[kb] {stem}: {len(texts)} pages saved in {time.time() - t0:.1f}s; index -> {index(stem)}")
+
+
+
+
+def report_lock(stem, operation="index"):
+    with _locks_guard:
+        return _locks.setdefault((str(kb_dir() / stem), operation), threading.RLock())
+
+
+def atomic_write(path: Path, content: str):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as stream:
+            stream.write(content)
+        os.replace(name, path)
+    finally:
+        Path(name).unlink(missing_ok=True)
+
+
+def fingerprint(value):
+    return sha256(json.dumps(value, sort_keys=True, ensure_ascii=False).encode())
+
+
+def embed_base_url():
+    return os.getenv("EMBED_BASE_URL") or os.getenv("LLM_BASE_URL") or "http://localhost:11434/v1"
+
+
+def cached_texts(stem, digest):
+    from .parse import PARSER_VERSION, ocr_settings
+    meta = _meta(stem)
+    legacy_ocr = {"language": "eng+swe", "tessdata": str((paths.data_dir() / "tessdata").resolve())}
+    if (meta.get("sha256") == digest and meta.get("parser") == PARSER_VERSION
+            and meta.get("ocr_settings", legacy_ocr) == ocr_settings()):
+        try:
+            pages = _pages(stem)
+            if len(pages) == meta.get("pages") and sorted(pages) == list(range(1, len(pages) + 1)):
+                return [pages[n] for n in sorted(pages)]
+        except (OSError, ValueError, KeyError):
+            pass
+    return None
+
+
+def load_texts(stem, path, digest):
+    """Use the same OCR provenance/cache behavior for uploads, library, reopen and CLI."""
+    from .parse import page_texts, ocr_settings
+    texts = cached_texts(stem, digest)
+    parsing = {"ocr_pages": _meta(stem).get("ocr_pages", []), "ocr_settings": ocr_settings()}
+    if texts is None:
+        texts = page_texts(path, parsing)
+    return texts, parsing
+
+
+def index_dependencies(stem):
+    d = kb_dir() / stem
+    paths = [d / "meta.json", d / "pages.jsonl", *_section_files(stem)]
+    return {str(p.relative_to(d)): sha256(p.read_bytes()) for p in paths}
+
+
+def embedding_identity():
+    return {"embed_model": embed_model(), "provider": embed_base_url(), "chunker": CHUNKER_VERSION,
+            "chunk_size": CHUNK, "overlap": OVERLAP}
+
+
+def validate_rows(rows, dimensions):
+    if not isinstance(dimensions, int) or dimensions <= 0:
+        raise ValueError("Invalid vector dimensions")
+    for row in rows:
+        v = row["vec"]
+        if (len(v) != dimensions or any(not isinstance(x, (int, float)) or isinstance(x, bool) or not math.isfinite(x) for x in v)
+                or not 0.98 < _dot(v, v) < 1.02 or not isinstance(row["text"], str)
+                or not isinstance(row["page"], int) or row["page"] < 1
+                or not isinstance(row["start"], int) or row["start"] < -1):
+            raise ValueError("Invalid embedding row")
+
+
+def index_status(stem):
+    """Hash/validate once per file revision; repeated listings only stat the dependencies."""
+    guard = report_lock(stem)
+    if not guard.acquire(blocking=False):
+        previous = _status_cache.get(str(kb_dir() / stem), (None, {}))[1]
+        return {"embed_model": None, "dimensions": None, "chunks": 0, "page_chunks": 0,
+                "fact_chunks": 0, "built_at": None, **previous,
+                "status": "building", "reason": "Report update in progress"}
+    try:
+        d = kb_dir() / stem
+        paths = [d / n for n in ("meta.json", "pages.jsonl", "embeddings.jsonl", "index.json")]
+        paths += _section_files(stem)
+        signature = (fingerprint(embedding_identity()), tuple((str(p), p.stat().st_mtime_ns, p.stat().st_size) for p in paths if p.exists()))
+        key = str(d)
+        if key not in _status_cache or _status_cache[key][0] != signature:
+            _status_cache[key] = (signature, _index_status(stem))
+        return dict(_status_cache[key][1])
+    finally:
+        guard.release()
+
+
+def _index_status(stem):
+    with report_lock(stem):
+        d = kb_dir() / stem
+        status = {"status": "missing", "reason": "No embeddings built", "embed_model": None,
+                  "dimensions": None, "chunks": 0, "page_chunks": 0, "fact_chunks": 0, "built_at": None}
+        if not (d / "embeddings.jsonl").exists():
+            return status
+        if not (d / "index.json").exists():
+            return status | {"status": "outdated", "reason": "Legacy index has no model metadata; rebuild required"}
+        try:
+            m = json.loads((d / "index.json").read_text(encoding="utf-8"))
+            status.update({k: m[k] for k in ("embed_model", "dimensions", "chunks", "page_chunks", "fact_chunks", "built_at")})
+            if sha256((d / "embeddings.jsonl").read_bytes()) != m["content_sha256"]:
+                raise ValueError("Embedding file does not match its manifest")
+            rows = _rows(stem)
+            validate_rows(rows, m["dimensions"])
+            if len(rows) != m["chunks"]:
+                raise ValueError("Chunk count does not match manifest")
+            if any(m.get(k) != v for k, v in embedding_identity().items()) or m["sources"] != index_dependencies(stem):
+                return status | {"status": "outdated", "reason": "Model, sources or chunk settings changed"}
+            return status | {"status": "ready", "reason": "Index matches current sources and model"}
+        except (OSError, ValueError, KeyError, TypeError) as e:
+            return status | {"status": "invalid", "reason": str(e)}
+
+
+def inspect_chunks(stem, query="", offset=0, limit=25):
+    with report_lock(stem):
+        path = kb_dir() / stem / "embeddings.jsonl"
+        rows = _rows(stem) if path.exists() else []
+        hits = [{k: r[k] for k in ("page", "start", "text")} | {"kind": "fact" if r["start"] == -1 else "page"}
+                for r in rows if query.casefold() in r["text"].casefold()]
+        return {"items": hits[offset:offset + limit], "total": len(hits), "offset": offset, "limit": limit}
 
 
 if __name__ == "__main__":

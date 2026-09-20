@@ -80,7 +80,7 @@ def demo_codex():
             tmp = Path(tmpdir)
             shim = _fake_codex(tmp)
             debug = tmp / "debug.json"
-            os.environ.update(LLM_PROVIDER="codex", LLM_MODEL="test-model-1", CODEX_BIN=str(shim),
+            os.environ.update(LLM_STRICT_SCHEMA="0", LLM_PROVIDER="codex", LLM_MODEL="test-model-1", CODEX_BIN=str(shim),
                                FAKE_CODEX_MODE="ok", FAKE_CODEX_REPLY=json.dumps(REPLY), FAKE_CODEX_DEBUG=str(debug))
 
             # CODEX_BIN + happy path: the reply round-trips, and the CLI got the flags/prompt we intend
@@ -233,7 +233,7 @@ def demo_claude():
             tmp = Path(tmpdir)
             shim = _fake_claude(tmp)
             debug = tmp / "debug.json"
-            os.environ.update(LLM_PROVIDER="claude", LLM_MODEL="test-claude-model-1", CLAUDE_BIN=str(shim),
+            os.environ.update(LLM_STRICT_SCHEMA="0", LLM_PROVIDER="claude", LLM_MODEL="test-claude-model-1", CLAUDE_BIN=str(shim),
                                FAKE_CLAUDE_MODE="ok", FAKE_CLAUDE_REPLY=json.dumps(REPLY), FAKE_CLAUDE_DEBUG=str(debug))
 
             # CLAUDE_BIN + happy path: the reply round-trips, and the CLI got the flags/prompt we intend

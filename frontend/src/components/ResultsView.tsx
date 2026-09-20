@@ -1,7 +1,7 @@
 import { BasisPanel, YearComparison } from '@/components/AnalystWorkbench'
 import { ArrowLeft, Download } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { csvUrl, pptxUrl } from '@/api'
+import { csvUrl, pptxUrl, extractSection } from '@/api'
 import { AskPanel } from '@/components/AskPanel'
 import { HumanReviewForm } from '@/components/results/HumanReviewForm'
 import { FieldsTable } from '@/components/results/FieldsTable'
@@ -45,6 +45,14 @@ const loadViewer = (): Viewer => {
 export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBack, initialPage, initialField }: Props) {
   const { report_id, company, fiscal_year, currency, section, maturity_basis, fields, checks, warnings } = extraction
   const [selectedKey, setSelectedKey] = useState<string | null>(() => initialField ?? fields.find((f) => f.source)?.key ?? null)
+  const [rerunning, setRerunning] = useState(false)
+  const [runError, setRunError] = useState<string | null>(null)
+  const rerun = async () => {
+    setRerunning(true); setRunError(null)
+    try { onUpdated(await extractSection(report_id, section, true)) }
+    catch (e) { setRunError((e as Error).message) }
+    finally { setRerunning(false) }
+  }
   const [comparison, setComparison] = useState<Comparison | null>(null)
   const [brokenPage, setBrokenPage] = useState<number | null>(null)
   const [askPage, setAskPage] = useState<number | null>(initialPage ?? null) // citation chip override; a row click clears it
@@ -87,6 +95,9 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
 
   return (
     <div className="space-y-6">
+      {runError && <p role="alert" className="text-sm text-destructive">{runError}</p>}
+      {extraction.stale && <p role="status" className="text-sm text-amber-700">This saved result predates the current source, model or extraction settings. Human-reviewed results are preserved.</p>}
+      {extraction.timings && <p className="text-sm text-muted-foreground">{extraction.cached ? 'Saved result' : 'Fresh extraction'} · {extraction.timings.total ?? 0} s · {extraction.timings.attempts ?? 0} model calls</p>}
       {/* Top bar: who, what, how well verified; exports on the right. */}
       <header className="flex flex-wrap items-start justify-between gap-4 border-b pb-5">
         <div>
@@ -127,6 +138,7 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
           <a href={pptxUrl(report_id, extraction.stem ? section : undefined, comparison?.previous_stem, priorYear || undefined, perYear || undefined)} download className={buttonVariants({ variant: 'outline' })}>
             <Download /> Export PPTX
           </a>
+          <Button variant="outline" disabled={rerunning || !!extraction.basis_history?.length || fields.some((f) => f.review_history?.length)} onClick={rerun}>{rerunning ? "Extracting…" : "Run again"}</Button>
           <Button onClick={onReset}>New report</Button>
         </div>
       </header>

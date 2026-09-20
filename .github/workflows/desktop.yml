@@ -56,6 +56,12 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python test_workbench.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m pipeline.test_runtime
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m pipeline.test_maturity_ocr
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python ../scripts/setup_ocr.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python build_exe.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build installer

@@ -26,3 +26,7 @@ desktop/icons/icon.png
 # misc
 .DS_Store
 *.log
+
+data/tessdata/
+backend/uploads/
+data/kb/*/index.json

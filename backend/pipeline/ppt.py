@@ -11,7 +11,7 @@ from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION
 from pptx.util import Inches, Pt
 
 BUCKET_ORDER = ["due_within_1_year", "due_1_to_5_years", "due_after_5_years"]
-BUCKET_LABELS = {"due_within_1_year": "< 1 year", "due_1_to_5_years": "1–5 years", "due_after_5_years": "> 5 years"}
+BUCKET_LABELS = {"due_within_1_year": "Within 1 year", "due_1_to_5_years": "1–5 years", "due_after_5_years": "> 5 years"}
 
 
 def build_pptx(x: dict, prior_year: bool = False, per_year: bool = False) -> bytes:
@@ -22,6 +22,8 @@ def build_pptx(x: dict, prior_year: bool = False, per_year: bool = False) -> byt
     title = f"{x['company'] or 'Unknown company'} — {x.get('section', '').replace('_', ' ').title()}"
     sub = f"FY {x['fiscal_year'] or '—'} · {x['currency'] or ''}"
     _textbox(slide, title, Pt(28), bold=True, top=Inches(0.4))
+    if x.get("stale"):
+        sub += " · Saved result predates current extraction settings"
     _textbox(slide, sub, Pt(14), top=Inches(0.95), color=(100, 100, 100))
 
     by_key = {f["key"]: f for f in x["fields"]}
@@ -32,7 +34,7 @@ def build_pptx(x: dict, prior_year: bool = False, per_year: bool = False) -> byt
     _textbox(slide, status, Pt(16), bold=True, top=Inches(1.35), color=(30, 100, 60) if x.get("ready") else (160, 70, 20))
     summary = " | ".join(str(basis.get(k) or "Unknown " + k) for k in ("entity", "consolidation", "currency", "scale"))
     _textbox(slide, summary[:160], Pt(12), top=Inches(1.75))
-    if buckets:
+    if len(buckets) == 3 and all(c.get("passed") for c in x.get("checks", [])):
         debt_basis = f"{basis.get('debt_basis') or 'Debt basis unknown'} | Leases: {basis.get('leases') or 'unknown'}"
         _textbox(slide, debt_basis, Pt(12), top=Inches(2.05))
         # v091: the prior year rides along only when the caller asked for it (?prior_year=1) and the
@@ -84,6 +86,8 @@ def _debt_chart(slide, by_key, buckets, prior=None, by_year=None):
     plot.data_labels.number_format_is_linked = False
     chart.value_axis.has_title = True
     chart.value_axis.axis_title.text_frame.text = unit or ""
+    for element in chart._chartSpace.xpath(".//c:axId | .//c:crossAx"):
+        element.set("val", str(int(element.get("val")) % (1 << 32)))
 
 
 def _table(slide, fields):
@@ -95,7 +99,7 @@ def _table(slide, fields):
     for r, f in enumerate(rows, start=1):
         v = f["value"]
         table.cell(r, 0).text = f["label"]
-        table.cell(r, 1).text = f"{v:,.6f}".rstrip("0").rstrip(".").replace(",", " ") if isinstance(v, (int, float)) else str(v) if v is not None else "Unknown"
+        table.cell(r, 1).text = f"{v:,.6f}".rstrip("0").rstrip(".").replace(",", " ") if isinstance(v, (int, float)) else str(v) if v is not None else "Not available"
         table.cell(r, 2).text = f["unit"] or "Unknown"
     for row in table.rows:
         for cell in row.cells:

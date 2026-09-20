@@ -36,6 +36,9 @@ Next for a teammate: scanned reports need an OCR fallback (pymupdf + tesseract v
 `page.get_textpage_ocr()`).
 """
 import re
+import os
+from pathlib import Path
+from . import paths
 
 import pymupdf
 
@@ -44,7 +47,7 @@ _DIGIT_SPACE = re.compile(r" (?=\d)|(?<=\d) ")  # any space touching a digit
 _CHARMAP = str.maketrans({"\u00a0": " ", "\u202f": " ", "\u2013": "-", "\u2212": "-"})  # NBSP, narrow NBSP, en dash, minus
 
 
-PARSER_VERSION = 6  # bump when page_text changes so kb.save_report rewrites cached pages.jsonl -- v068's transposed-header rebuild changes output on the pages it fires on
+PARSER_VERSION = 7  # bump when page_text changes so kb.save_report rewrites cached pages.jsonl -- v068's transposed-header rebuild changes output on the pages it fires on
 NUMERIC_RUN = 12  # consecutive letterless lines: a column-major text layer (Arion Bank prints every figure first, then every label, in no order)
 _LEADERS = re.compile(r"(?:\s*\.){3,}")
 _PURE_VALUE = re.compile(r"[\s\d.,()\-–—%*]+")  # a figures-only line ("164,155 164,155", " - "), as opposed to a label
@@ -58,16 +61,29 @@ _HEADER_TOL = 2.0  # a header phrase's own right edge must land within this many
 _HEADER_MAX_LINES = 3  # a transposed header is at most this many physical lines above its anchor row (v060: Ework and XANO each wrap at most 2; a 4th line reaching this deep is a different shape, not this one)
 
 
-def page_texts(pdf_path) -> list[str]:
+def page_texts(pdf_path, metadata: dict | None = None) -> list[str]:
     """0-based list; page n (1-based) is texts[n-1]."""
+    if metadata is not None:
+        metadata.update(ocr_pages=[], ocr_settings=ocr_settings())
     with pymupdf.open(pdf_path) as doc:
-        return [page_text(page) for page in doc]
+        return [page_text(page, metadata) for page in doc]
 
 
-def page_text(page) -> str:
+def page_text(page, metadata: dict | None = None) -> str:
     """Plain text; a text layer that splits table rows (a row label on one line, its figures on the next) gets its
     lines rebuilt so each printed row is one line. Prose-only pages are returned as get_text() wrote them."""
     text = page.get_text()
+    if len(re.sub(r"\W", "", text)) < 20 and (page.get_images() or len(page.get_drawings()) > 100):
+        # PyMuPDF bundles the OCR engine. Language files stay local, no report upload.
+        settings = ocr_settings()
+        tessdata, language = Path(settings["tessdata"]), settings["language"]
+        missing = [lang for lang in language.split("+") if not (tessdata / f"{lang}.traineddata").is_file()]
+        if missing:
+            raise OCRUnavailable("Scanned PDF needs OCR language files. Run python scripts/setup_ocr.py (missing: " + ", ".join(missing) + ").")
+        tp = page.get_textpage_ocr(language=language, dpi=200, full=True, tessdata=str(tessdata))
+        if metadata is not None:
+            metadata.setdefault("ocr_pages", []).append(page.number + 1)
+        return _words_to_lines([w[:5] for w in page.get_text("words", textpage=tp)])
     if _numeric_run(text) >= NUMERIC_RUN:
         return _best_words(page)
     if not _split_rows(text):
@@ -550,3 +566,12 @@ def quote_on_page(quote: str, text: str) -> str:
         if re.search(_GAP.join(parts), ntext, re.I):
             return cand
     return ""
+
+
+class OCRUnavailable(RuntimeError):
+    pass
+
+
+def ocr_settings():
+    return {"language": os.getenv("OCR_LANGUAGE", "eng+swe"),
+            "tessdata": str(Path(os.getenv("TESSDATA_PREFIX") or paths.data_dir() / "tessdata").resolve())}

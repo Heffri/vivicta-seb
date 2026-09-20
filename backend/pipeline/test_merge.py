@@ -255,7 +255,7 @@ def _seed_kb(kb):
     stem = "acme_2025"
     meta = {"company": "Acme", "fiscal_year": 2025, "language": "en", "source_url": None,
             "pages": 2, "sha256": "beef", "filename": "acme.pdf"}
-    kb.save_report(stem, meta, ["revenue page", "second page"])
+    kb.save_report(stem, meta, ["revenue 100\ngross_profit 40", "second page"])
     kb.save_extraction(stem, "income_statement", _run({"revenue": 100, "gross_profit": 40}))
     return stem
 
