@@ -1,0 +1,73 @@
+{
+ "report_id": "lib-ratos_2025",
+ "company": "Ratos",
+ "fiscal_year": 2025,
+ "currency": "SEKm",
+ "section": "debt_maturity",
+ "maturity_basis": "carrying",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 7907,
+   "unit": "SEKm",
+   "period": "2025",
+   "raw_label": "Total liabilities from financing activities",
+   "source": {
+    "page": 138,
+    "quote": "Total liabilities from financing activities 8,890 3,269 –4,603 –128 –225 –5 –148 524 334 7,907"
+   },
+   "confidence": 0.85,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": null,
+   "unit": "SEKm",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": null,
+   "unit": "SEKm",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": null,
+   "unit": "SEKm",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "detail": "missing: due_within_1_year"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [131, 132] selected from candidates [131, 132, 138, 121, 87, 31, 129, 93, 83, 110]"
+ ]
+}

@@ -1705,6 +1705,15 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     x._select_pages(prompt_dm, [80, 81, 27], avarda)
     assert "=== PAGE 27 [balance sheet] ===" in captured["user"], captured["user"]
     assert x.PAGE_SELECT_DEBT_MATURITY_HINT in captured["system"], captured["system"]
+    # v162: the retry route can override that process-wide opt-in for one of its two runs.
+    captured.clear()
+    x._select_pages(prompt_dm, [80, 81, 27], avarda, page_select_hints=False)
+    assert "[balance sheet]" not in captured["user"], captured["user"]
+    assert x.PAGE_SELECT_DEBT_MATURITY_HINT not in captured["system"], captured["system"]
+    captured.clear()
+    x._select_pages(prompt_dm, [80, 81, 27], avarda, page_select_hints=True)
+    assert "=== PAGE 27 [balance sheet] ===" in captured["user"], captured["user"]
+    assert x.PAGE_SELECT_DEBT_MATURITY_HINT in captured["system"], captured["system"]
     if page_select_hints_env is None:
         del os.environ["PAGE_SELECT_HINTS"]
     else:

@@ -269,7 +269,7 @@ KB_DIR=../data/kb                        # optional override
 
 Same variables point at Azure OpenAI / OpenAI / OpenRouter with no code change.
 
-`PAGE_SELECT_HINTS=1` opts debt-maturity pass-1 into the candidate-page markers and carrying-versus-liquidity prompt sentence; unset (the default) retains the prior page-select prompt byte-for-byte.
+`PAGE_SELECT_HINTS=1` opts debt-maturity pass-1 into the candidate-page markers and carrying-versus-liquidity prompt sentence; unset (the default) retains the prior page-select prompt byte-for-byte. `PAGE_SELECT_HINTS=retry` requires `EXTRACT_MERGE_RUNS=union|majority`: run 1 stays unhinted, and run 2 gets the markers only when run 1's first identity check fails or any schema field is null (an exact majority match still skips run 2). A hinted retry records `"hints": "run2"` in the merged result.
 
 ## Global Ask and company map
 

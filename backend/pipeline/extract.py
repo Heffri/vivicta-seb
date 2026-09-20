@@ -345,7 +345,7 @@ def _page_select_tags(schema: dict, pages: list[int], texts: list[str]) -> dict[
     return tagged
 
 
-def _select_pages(schema: dict, pages: list[int], texts: list[str]) -> list[int] | None:
+def _select_pages(schema: dict, pages: list[int], texts: list[str], page_select_hints: bool | None = None) -> list[int] | None:
     """EXTRACT_TWO_PASS pass 1: ask the model which of the candidate pages (locate.candidate_pages, up to
     top_n=8) holds the statement itself, from a head-of-page snippet of each (_page_snippet) -- cheaper
     than handing over the full prompt budget's worth of pages, and lets the model reach a candidate ranked
@@ -360,7 +360,12 @@ def _select_pages(schema: dict, pages: list[int], texts: list[str]) -> list[int]
         return None
     keywords = [k.lower() for k in schema.get("keywords", [])]
     cleaned = locate.strip_boilerplate(texts)
-    hints_enabled = schema.get("name") == "debt_maturity" and os.getenv("PAGE_SELECT_HINTS") == "1"
+    # A caller may override the environment for one extraction run.  v162's retry route needs an
+    # ordinary first selection and a hinted second selection in the same request; None preserves
+    # the v146-b environment-only behaviour for every other caller.
+    hints_enabled = schema.get("name") == "debt_maturity" and (
+        os.getenv("PAGE_SELECT_HINTS") == "1" if page_select_hints is None else page_select_hints
+    )
     tags = _page_select_tags(schema, pages, cleaned) if hints_enabled else {}
     user = "\n\n".join(
         f"=== PAGE {n}{''.join(f' [{tag}]' for tag in tags.get(n, []))} ===\n{_page_snippet(cleaned[n - 1], keywords)}"
@@ -3465,7 +3470,8 @@ def _buckets_by_year_fill(schema: dict, texts: list[str], fiscal_year, bucket_pi
     return _year_rows_read(schema, texts, fiscal_year, bucket_pick, total, basis)
 
 
-def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict) -> dict:
+def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
+            page_select_hints: bool | None = None) -> dict:
     fiscal_year = report_meta.get("fiscal_year")
     basis = debt_basis()  # v089: which maturity table total_debt and the buckets are read from
     system, warnings, raw = system_prompt(schema, report_meta.get("stem")), [], []
@@ -3473,7 +3479,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
     windows = [tuple(pages[:2])]  # the statement spread first: a quick call (four pages timed out on NOBA / Nordnet)
     two_pass_pages = None  # pass 1's own pick, if EXTRACT_TWO_PASS is on and it succeeded -- also stands in for
     if os.getenv("EXTRACT_TWO_PASS") == "1" and len(pages) >= 2:  # pages[:2] below wherever that means "the statement", not "cast a wider net"
-        selected = _select_pages(schema, pages, texts)
+        selected = _select_pages(schema, pages, texts, page_select_hints)
         if selected:
             warnings.append(f"two_pass: page {selected} selected from candidates {pages}")
             windows = [tuple(selected)]
