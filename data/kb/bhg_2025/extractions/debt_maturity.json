@@ -9,21 +9,30 @@
     {
       "key": "total_debt",
       "label": "Total borrowings",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "value": 1297.4,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "Loans from banks",
+      "source": {
+        "page": 128,
+        "quote": "The translation reserve encompasses all exchange-rate Loans from banks 1,297.4 1,496.2 1,297.4 1,496.2"
+      },
+      "confidence": 0.85,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "unit_ok"
+      ]
     },
     {
       "key": "due_within_1_year",
       "label": "Due within 1 year",
       "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -32,9 +41,9 @@
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
       "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -42,13 +51,20 @@
     {
       "key": "due_after_5_years",
       "label": "Due after 5 years",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "value": 0,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "Liabilities due for payment later than five years after the closing date",
+      "source": {
+        "page": 128,
+        "quote": "Liabilities due for payment later than five years after the closing date - - - -"
+      },
+      "confidence": 0.25,
+      "evidence": [
+        "arith_ok",
+        "period_ok",
+        "unit_ok"
+      ]
     }
   ],
   "checks": [
@@ -59,7 +75,8 @@
     }
   ],
   "warnings": [
-    "two_pass: page [134, 135] selected from candidates [150, 151, 134, 97, 102, 147]",
-    "published: seedseed-rex-kb run replayed with extract.py @ d3eb5fc8"
+    "two_pass: page [131, 132] selected from candidates [150, 151, 128, 97, 102, 134, 147, 25, 132, 120, 131]",
+    "due_after_5_years: quote not found on page 128",
+    "published: seedv124-publish-kb run replayed with extract.py @ 3089ab08"
   ]
 }
