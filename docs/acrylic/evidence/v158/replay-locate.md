@@ -1,5 +1,5 @@
 mechanism_only: sections ['debt_maturity'], pages locate, variants ['mechanism']; extract() with the model's values nulled, zero model calls
-  kb: C:\Users\xingyi chen\.ao\data\worktrees\vivicta-glm\vivicta-glm-91\data\kb
+  kb: C:\Users\<owner>\.ao\data\worktrees\vivicta-glm\vivicta-glm-91\data\kb
   labels: 271 rows over due_1_to_5_years 43, due_after_5_years 39, due_within_1_year 84, total_debt 105
   kb/academedia_2025  shape=total-only  window=[97, 98]  labels=1
     stored     total_debt=12103 due_within_1_year=None due_1_to_5_years=None due_after_5_years=None   labels 1/1  non-null 1
