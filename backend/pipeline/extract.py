@@ -239,6 +239,84 @@ def _schema_keyword_in_title(title: str, keywords: list[str]) -> bool:
     return False
 
 
+def _prefer_note_citations(fields: list[dict], sfs: list[dict], schema: dict, texts: list[str], pages: list[int],
+                            warnings: list[str]) -> None:
+    """Prefer an equally literal, field-labelled note row over a weaker duplicate citation.
+
+    A repeated figure is not a value repair: its value, period, unit and raw label remain untouched.
+    This last provenance pass only selects the better of two already printed rows in the locator's
+    candidate window.  It is deliberately asymmetric: an established known-label citation is not
+    displaced by another known-label row unless the latter is in a schema-keyword note title and
+    the former is not.  That keeps same-kind duplicates (such as a note continued on the next page)
+    stable.  A derived/unprinted source may instead move to a known-label row under a
+    schema-keyword note title, and drops ``value_derived`` only once the new quote literally
+    prints the value.
+    """
+    if schema.get("name") != "debt_maturity":
+        return  # v157 is calibrated only against debt-maturity's note-page labels
+    keywords = schema.get("keywords", [])
+    candidates = []
+    seen = set()
+    for page in pages:
+        if isinstance(page, int) and not isinstance(page, bool) and 1 <= page <= len(texts) and page not in seen:
+            candidates.append(page)
+            seen.add(page)
+    title_match = {
+        page: _schema_keyword_in_title(" ".join(texts[page - 1].split())[:locate.HEADING_CHARS], keywords)
+        or any(_schema_keyword_in_title(title, keywords) for title in _page_title_blocks(texts[page - 1]))
+        for page in candidates
+    }
+    for field, sf in zip(fields, sfs):
+        source = field.get("source") or {}
+        old_page, old_quote = source.get("page"), source.get("quote") or ""
+        if field.get("value") is None or not isinstance(old_page, int) or not 1 <= old_page <= len(texts) or not old_quote:
+            continue
+        if old_page not in title_match:
+            title_match[old_page] = _schema_keyword_in_title(
+                " ".join(texts[old_page - 1].split())[:locate.HEADING_CHARS], keywords) \
+                or any(_schema_keyword_in_title(title, keywords) for title in _page_title_blocks(texts[old_page - 1]))
+        source_is_derived = "value_derived" in field.get("evidence", []) \
+            or not quote_on_page(old_quote, texts[old_page - 1]) \
+            or not _value_in_quote(field["value"], old_quote)
+        source_label_known = _label_known(_row_label(old_quote), sf)
+        options = []
+        for order, page in enumerate(candidates):
+            if page == old_page:
+                continue
+            for row_order, row in enumerate(_page_rows(texts[page - 1])):
+                # _value_in_quote intentionally accepts a whole-number prefix of a decimal for
+                # ordinary provenance repair. A preference must not move a derived 0 to prose
+                # saying 0.8, so its small-number match also requires a token boundary.
+                literal = _value_in_quote(field["value"], row)
+                if isinstance(field["value"], (int, float)) and not isinstance(field["value"], bool) \
+                        and abs(field["value"]) < 10:
+                    strict = (_num_pattern(field["value"]) or "").replace(r"(?![\d])", r"(?![\d.,])")
+                    literal = bool(strict and re.search(strict, _FOOTNOTE.sub("", row)))
+                if not literal:
+                    continue
+                row_label_known = _label_known(_row_label(row), sf)
+                if source_is_derived:
+                    allowed = row_label_known and title_match[page]
+                else:
+                    # An existing note-page citation is already the kind of provenance this pass
+                    # prefers.  Even an unknown-label row must not bounce between two note pages.
+                    allowed = row_label_known and title_match[page] and not title_match[old_page] and (
+                        not source_label_known or (not title_match[old_page] and title_match[page]))
+                if allowed:
+                    # All candidates are verified note-title rows. Candidate order keeps ties
+                    # deterministic without displacing same-kind citations.
+                    rank = (row_label_known, -order, -row_order)
+                    options.append((rank, page, row))
+        if not options:
+            continue
+        _, page, row = max(options)
+        field["source"] = {"page": page, "quote": row}
+        if source_is_derived and "value_derived" in field["evidence"]:
+            field["evidence"].remove("value_derived")
+        prior_kind = "derived" if source_is_derived else "balance sheet"
+        warnings.append(f"{field['key']}: cited page {page} {row!r} (note row) instead of page {old_page} ({prior_kind})")
+
+
 def _page_select_tags(schema: dict, pages: list[int], texts: list[str]) -> dict[int, list[str]]:
     """Zero-model debt-page hints for pass 1. The balance-sheet anchor is locate.balance_sheet_page
     (v139), and the liquidity title-zone test is _scope_zone, the exact bounded title-block logic used
@@ -3903,6 +3981,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
             f["unit"] = _ccy(currency) if sf.get("unit_hint") == "currency_per_share" else currency
     fiscal_year = fiscal_year or (int(periods.most_common(1)[0][0]) if periods else None)
     statement_pages = set(two_pass_pages or pages[:2])  # the locator's statement spread: best page + the one after it; pass 1's own pick under EXTRACT_TWO_PASS
+    _prefer_note_citations(fields, sfs, schema, texts, pages, warnings)
     for sf, field in zip(sfs, fields):
         if field["value"] is not None:
             score_field(field, sf, checks, schema, currency, fiscal_year, statement_pages)
