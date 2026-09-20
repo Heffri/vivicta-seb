@@ -540,10 +540,28 @@ def _row_year_column(rows: list[str], i: int, fiscal_year) -> tuple[int, int] | 
         run = _year_run(_DEC_DATE.sub(lambda m: m.group(1), " ".join(rows[j:i])))
         if not run:
             continue
+        orphan_start = None
+        # A four-column Group | Parent header can be torn into one visible two-year run below two
+        # one-year orphan lines (BICO Note 20: "2025" / "2024" / "2025 2024").  The nearest
+        # run alone would call it a two-column header, then the subtotal-pair closure declines the
+        # four-amount rows.  Rejoin only directly adjacent calendar-year-only lines and only when
+        # they double that visible run exactly; a stray date, a third fragment, or a line with any
+        # non-year number remains the pre-existing nearest two-column run.
+        if len(run) == 2 and _year_only_header(rows[j]):
+            start = j
+            while start and _year_only_header(rows[start - 1]):
+                start -= 1
+            joined = _year_run(_DEC_DATE.sub(lambda m: m.group(1), " ".join(rows[start:i])))
+            if start < j and len(joined) == 2 * len(run):
+                run, orphan_start = joined, start
         if run.count(str(fiscal_year)) == 1:
             return (run.index(str(fiscal_year)), len(run))
         if run.count(str(fiscal_year)) == 2:  # Group | Parent pairs on one page
-            near = " ".join(rows[max(j - 1, 0):j + 1]).lower()  # the run's own row and the one above it
+            # The two-line date stub between the joined years and "Group Parent Company" is also
+            # part of BICO's torn header.  Only the exact orphan rejoin may look those two lines
+            # further up; normal repeated-year headers retain v052's one-line context.
+            near_start = max((orphan_start - 2) if orphan_start is not None else (j - 1), 0)
+            near = " ".join(rows[near_start:j + 1]).lower()
             g, e = locate.GROUP.search(near), locate.ENTITY.search(near)
             if g and e:
                 if g.start() < e.start():
@@ -551,6 +569,38 @@ def _row_year_column(rows: list[str], i: int, fiscal_year) -> tuple[int, int] | 
                 return (len(run) - 1 - run[::-1].index(str(fiscal_year)), len(run))
         return None  # the nearest run wins even when it names no usable column: climbing past it would cross into the table above
     return None
+
+
+def _year_only_header(row: str) -> bool:
+    """True for a physical table-header line whose only parsed figures are calendar years.
+
+    This deliberately excludes a day/month stub (``Dec 31,``) and any amount-bearing row.  It is
+    used only to prove the contiguous orphan-year shape in ``_row_year_column``; it is not a broad
+    heading classifier.
+    """
+    amounts = _row_amounts(row)
+    return bool(amounts) and all(isinstance(a, int) and 1900 <= a <= 2100 for a in amounts)
+
+
+def _torn_orphan_year_header(rows: list[str], i: int) -> bool:
+    """Whether ``rows[i]`` belongs to the exact two-year-plus-orphan header rejoined above.
+
+    The subtotal-pair closure may only infer a trailing blank amount in this proven four-column
+    Group | Parent shape.  Keeping the shape test separate makes that one sparse-row concession
+    unavailable to ordinary two- or four-column tables.
+    """
+    for j in range(i - 1, -1, -1):
+        run = _year_run(_DEC_DATE.sub(lambda m: m.group(1), " ".join(rows[j:i])))
+        if not run:
+            continue
+        if len(run) != 2 or not _year_only_header(rows[j]):
+            return False
+        start = j
+        while start and _year_only_header(rows[start - 1]):
+            start -= 1
+        joined = _year_run(_DEC_DATE.sub(lambda m: m.group(1), " ".join(rows[start:i])))
+        return start < j and len(joined) == 2 * len(run)
+    return False
 
 
 def _operand_table_rows(texts: list[str], fields: list[dict], keys: list[str], naz: list[str]) -> list[str] | None:
@@ -1492,7 +1542,7 @@ def _window_row_sum(field: dict, fields: list[dict], schema: dict, texts: list[s
 
 _NONCURRENT_WORDS = ("långfristig", "non-current", "noncurrent", "long-term", "long term")  # v110: the two
 _CURRENT_WORDS = ("kortfristig", "current", "short-term", "short term")  # section-heading families, structure not vocabulary
-_PAIR_TITLE_WINDOW = 8  # rows the section heading may sit below the note title (NOTE's sits directly under it)
+_PAIR_TITLE_WINDOW = 9  # rows the section heading may sit below the note title (BICO's torn three-line year header occupies the ninth)
 _PAIR_SECTION_WINDOW = 14  # rows a section's own rows may span before its Summa
 _PAIR_TAIL_WINDOW = 6  # rows after the second Summa that may still print the block's own grand total
 
@@ -1546,6 +1596,17 @@ def _subtotal_pair_fill(fields: list[dict], sfs: list[dict], schema: dict, texts
     def _heading_like(r: str) -> bool:  # prints no figures, or only calendar years (a header line)
         return all(isinstance(a, int) and 1900 <= a <= 2100 for a in _row_amounts(r))
 
+    def _section_heading(r: str) -> bool:
+        """A compact current/non-current heading, not prose that happens to name its two scopes.
+
+        BICO's accounting-principles sentence says "non-current or current liabilities" directly
+        above the torn date header.  It is figure-free, so it is heading-like furniture, but it
+        cannot be the section heading that starts a subtotal block.  Real headings remain short;
+        the paragraph/full-stop gate leaves them, and existing wrapped heading handling, intact.
+        """
+        return (_heading_like(r) and _vocab(r) is not None and not r.rstrip().endswith(".")
+                and len(re.findall(r"[^\W\d_]+", r)) <= 8)
+
     def _vocab(r: str) -> str | None:  # which section family a heading names; "non-current" contains "current", so A rules first
         # v131: the non-breaking hyphen U+2011 is a print variant of the dash _DASHES already folds --
         # Enea p.76 heads section A "Non‑current liabilities, interest‑bearing", and untranslated the
@@ -1568,18 +1629,18 @@ def _subtotal_pair_fill(fields: list[dict], sfs: list[dict], schema: dict, texts
             if not _heading_like(r) or not any(w in " ".join(r.translate(_DASHES).lower().split()) for w in title_words):
                 continue
             hA = next((i for i in range(t + 1, min(t + 1 + _PAIR_TITLE_WINDOW, len(rows)))
-                       if _heading_like(rows[i]) and _vocab(rows[i]) == "A"), None)
+                       if _section_heading(rows[i]) and _vocab(rows[i]) == "A"), None)
             if hA is None or any(not _heading_like(rows[i]) for i in range(t + 1, hA)):
                 continue  # printed figures before any section heading: a table, not a sectioned note
             sumA = next((i for i in range(hA + 1, min(hA + 1 + _PAIR_SECTION_WINDOW, len(rows))) if _subtotal_row(rows[i])), None)
-            if sumA is None or any(_heading_like(rows[i]) and _vocab(rows[i]) for i in range(hA + 1, sumA)):
+            if sumA is None or any(_section_heading(rows[i]) for i in range(hA + 1, sumA)):
                 continue  # section A runs into another section before its own Summa: never totalled alone
             hB = next((i for i in range(sumA + 1, min(sumA + 1 + _PAIR_SECTION_WINDOW, len(rows)))
-                       if _heading_like(rows[i]) and _vocab(rows[i]) == "B"), None)
+                       if _section_heading(rows[i]) and _vocab(rows[i]) == "B"), None)
             if hB is None or any(not _heading_like(rows[i]) for i in range(sumA + 1, hB)):
                 continue  # another table's rows between the two Summas (the stacked-table shape): not one note
             sumB = next((i for i in range(hB + 1, min(hB + 1 + _PAIR_SECTION_WINDOW, len(rows))) if _subtotal_row(rows[i])), None)
-            if sumB is None or any(_heading_like(rows[i]) and _vocab(rows[i]) for i in range(hB + 1, sumB)):
+            if sumB is None or any(_section_heading(rows[i]) for i in range(hB + 1, sumB)):
                 continue
             tail = next((i for i in range(sumB + 1, min(sumB + 1 + _PAIR_TAIL_WINDOW, len(rows)))
                          if not _heading_like(rows[i])), None)
@@ -1588,12 +1649,20 @@ def _subtotal_pair_fill(fields: list[dict], sfs: list[dict], schema: dict, texts
             return hA, sumA, hB, sumB
         return None
 
-    def _closes(h: int, si: int, am: list) -> bool:  # the section's own rows sum to its Summa in every column
+    def _closes(h: int, si: int, am: list, allow_torn_trailing_blank: bool = False) -> bool:
+        """The section's own rows sum to its Summa in every column.
+
+        In the exact BICO-style torn Group | Parent header, a printer can omit only the final
+        blank Parent comparative cell (three values under a proven four-column header).  Restoring
+        that trailing nil still requires every column to close; any other short row declines.
+        """
         parts = []
         for i in range(h + 1, si):
             if _heading_like(rows[i]):
                 continue  # a wrapped label line
             a = _row_amounts(rows[i], ncols)
+            if allow_torn_trailing_blank and len(a) == ncols - 1:
+                a.append(0)
             if len(a) != ncols:
                 return False
             parts.append(a)
@@ -1628,7 +1697,9 @@ def _subtotal_pair_fill(fields: list[dict], sfs: list[dict], schema: dict, texts
             continue  # the two Summas must share one year header -- one note, one table
         col, ncols = header
         amA, amB = _row_amounts(rows[sumA], ncols), _row_amounts(rows[sumB], ncols)
-        if len(amA) != ncols or len(amB) != ncols or not _closes(hA, sumA, amA) or not _closes(hB, sumB, amB):
+        sparse_torn_group = ncols == 4 and _torn_orphan_year_header(rows, sumA) and _torn_orphan_year_header(rows, sumB)
+        if len(amA) != ncols or len(amB) != ncols or not _closes(hA, sumA, amA, sparse_torn_group) \
+                or not _closes(hB, sumB, amB, sparse_torn_group):
             continue
         pair_total = round(amA[col] + amB[col], 2)
         model_total = by_key[total_key].get("value")
@@ -2070,6 +2141,43 @@ def _scope_header(rows: list[str], i_total: int, bucket_sfs: dict, max_back: int
     return None
 
 
+_TORN_BUCKET_START = re.compile(r"(?i)(?P<within>\bwithin\s+\d{1,2})\s+(?P<later>later\s+than)\s*$")
+_TORN_BARE_YEAR = re.compile(r"(?i)(?<![\w-])year\b")
+_TORN_FIVE_YEARS = re.compile(r"(?i)(?<![\d\-–])\b5\s+years?\b")
+_TORN_BUCKET_CONTEXT = re.compile(r"(?i)^\s*due\s+for\s+payment\s+as\s+follows:\s*")
+
+
+def _rejoin_torn_bucket_headers(rows: list[str]) -> list[str]:
+    """Join the two physical tiers of a narrowly proven bucket header, without changing source rows.
+
+    CTT's print order puts ``Within 1 Later than`` at the end of one row and its two continuations
+    (a bare ``year`` and ``5 years``) in the immediately following row.  Reading the rows in order
+    leaves the second phrase as a lone ``5 years`` and loses the after-five-years column.  The two
+    top fragments and the two matching continuations are required together: not-adjacent rows,
+    another top fragment, or a non-bucket continuation return byte-identical rows.  The transformed
+    copy is only a header-reading aid; quotes and indices still point to the original page rows.
+    """
+    fixed = list(rows)
+    for i in range(len(rows) - 1):
+        top, bottom = rows[i], rows[i + 1]
+        start = _TORN_BUCKET_START.search(top)
+        bare_year = _TORN_BARE_YEAR.search(bottom)
+        five_years = list(_TORN_FIVE_YEARS.finditer(bottom))
+        five_years = five_years[-1] if five_years else None  # ``4-5 years`` is an earlier, complete middle column
+        context = _TORN_BUCKET_CONTEXT.match(bottom)
+        if not start or not bare_year or not five_years or not context or bare_year.start() > five_years.start():
+            continue
+        # ``Later than`` must genuinely be missing below: otherwise this is already a complete
+        # header, and reparsing it would double-count a column.
+        if re.search(r"(?i)\blater\s+than\s+5\s+years?\b", bottom):
+            continue
+        fixed[i] = " ".join(part for part in (top[:start.start()].strip(), start["within"], bare_year.group()) if part)
+        remainder = _TORN_BUCKET_CONTEXT.sub("", bottom[:bare_year.start()] + bottom[bare_year.end():], count=1)
+        five_years = list(_TORN_FIVE_YEARS.finditer(remainder))[-1]
+        fixed[i + 1] = " ".join((remainder[:five_years.start()] + " " + start["later"] + " " + remainder[five_years.start():]).split())
+    return fixed
+
+
 def _bucket_header(rows: list[str], idx: int, bucket_sfs: dict, fiscal_year, max_back: int = 25,
                    total_sf: dict | None = None, ignore_syns: list | None = None, basis: str = "carrying",
                    year_cols: list | None = None) -> list[str] | None:
@@ -2131,7 +2239,7 @@ def _bucket_header(rows: list[str], idx: int, bucket_sfs: dict, fiscal_year, max
     v109: `year_cols`, when a list is passed, receives the calendar-year fallback's own column labels
     (see _bucket_year_hits) -- buckets_by_year's "year header -> column" mapping, exposed where it is
     computed instead of re-derived. Every pre-existing caller passes nothing and is unchanged."""
-    window = rows[max(0, idx - max_back):idx]
+    window = _rejoin_torn_bucket_headers(rows[max(0, idx - max_back):idx])
     per_row = []
     row_ci = []  # v085: this row's own total:carrying/_ignore hits, kept aside because it names no bucket of
     # its own -- a candidate for the contiguous-run fallback below, not yet admitted
