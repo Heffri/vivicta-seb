@@ -1,0 +1,87 @@
+{
+  "report_id": "lib-orron_energy_2025",
+  "company": "Orrön Energy",
+  "fiscal_year": 2025,
+  "currency": "MEUR",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 106.4,
+      "unit": "MEUR",
+      "period": "2025",
+      "raw_label": "Bank loans",
+      "source": {
+        "page": 67,
+        "quote": "Bank loans 106.4 83.6 106.4 83.6"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 0,
+      "unit": "MEUR",
+      "period": "2025",
+      "raw_label": "Bank loans",
+      "source": {
+        "page": 67,
+        "quote": "Bank loans - 0.6 - 0.6"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "MEUR",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "MEUR",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_1_to_5_years"
+    }
+  ],
+  "warnings": [
+    "run1: two_pass: page [67, 68] selected from candidates [64, 65, 67, 48, 62, 81, 91, 45, 14, 54]",
+    "run2: two_pass: page [67, 68] selected from candidates [64, 65, 67, 48, 62, 81, 91, 45, 14, 54]",
+    "merge: union, per-field: total_debt=run2 (agree: confidence tie -> run2), due_within_1_year=run2 (agree: confidence tie -> run2), due_1_to_5_years=null (both null), due_after_5_years=null (both null)",
+    "published: seedv136-publish-kb run replayed with extract.py @ 3089ab08"
+  ]
+}

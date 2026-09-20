@@ -1,0 +1,77 @@
+{
+  "report_id": "lib-svolder_2025",
+  "company": "Svolder",
+  "fiscal_year": 2025,
+  "currency": "MSEK",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 0,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Per balansdagen 2025-08-31 var krediten outnyttjad.",
+      "source": {
+        "page": 77,
+        "quote": "Per balansdagen\n2025-08-31 var krediten outnyttjad."
+      },
+      "confidence": 0.25,
+      "evidence": [
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": null,
+      "unit": null,
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": null,
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": null,
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_within_1_year"
+    }
+  ],
+  "warnings": [
+    "run1: two_pass: page [77, 78] selected from candidates [77, 78, 18, 71]",
+    "run1: total_debt: quote not found on page 77",
+    "run2: two_pass: page [77, 78] selected from candidates [77, 78, 18, 71]",
+    "run2: total_debt: quote not found on page 77",
+    "merge: majority, per-field: total_debt=run1 (majority: run1+run2), due_within_1_year=run1 (majority: unanimous), due_1_to_5_years=run1 (majority: unanimous), due_after_5_years=run1 (majority: unanimous)",
+    "published: seedv160-publish-kb run replayed with extract.py @ be8b2c4e"
+  ]
+}

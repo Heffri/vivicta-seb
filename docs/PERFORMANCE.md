@@ -120,3 +120,21 @@ page 33 with a verified citation and no warnings. This first request rebuilt its
 index under the new fact rules. A concurrency check additionally verifies that KB
 status listing returns `building` immediately while a report index lock is held,
 rather than waiting for the embedding request to finish.
+
+
+## Main-branch integration (21 September 2026)
+
+The September 20 measurements above describe that revision, not a new performance
+claim for the integrated app. The current main branch's analyst reviews, saved-year
+comparisons, desktop update channels and deterministic debt extraction are retained.
+Its shared `pipeline.llm` replaces the earlier standalone runtime adapter, with
+isolated Codex calls and low reasoning by default. Retrieval now combines the newer
+BM25 scorer with independent local embeddings and verified index manifests. Parser 7
+retains the newer geometric table/header fixes and adds selective OCR. Existing
+source caches/indexes refresh once when used.
+
+The integration suite contains 11 runtime checks plus the existing confidence, KB,
+global Ask, provider, parser, locator, multi-run merge, path, collection, review and
+workbench checks. Frontend type checking and production build pass. Desktop releases
+include English/Swedish OCR language files and run the runtime/OCR checks before
+packaging. Historical benchmark artifacts remain available for comparison.

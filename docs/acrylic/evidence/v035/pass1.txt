@@ -1,0 +1,12 @@
+low   Flat Capital                 0/0 fields at 1.0, checks ok, 12s    []
+low   Cloetta                      0/3 fields at 1.0, checks FAIL, 21s  total_debt=1605@0.5 due_within_1_year=197@0.5 due_after_5_years=9@0.5  []
+low   Bergman & Beving             0/2 fields at 1.0, checks FAIL, 70s  total_debt=2062@0.5 due_within_1_year=476@0.5  []
+low   XANO Industri                0/2 fields at 1.0, checks FAIL, 30s  total_debt=904522@0.5 due_within_1_year=51075@0.5  []
+low   Better Collective            0/0 fields at 1.0, checks ok, 64s    []
+ok    Knowit                       1/1 fields at 1.0, checks ok, 126s    []
+ok    Catella                      1/1 fields at 1.0, checks ok, 55s    []
+low   NCAB Group                   0/1 fields at 1.0, checks ok, 35s  total_debt=1090075@0.95  []
+low   Apotea                       0/2 fields at 1.0, checks ok, 21s  total_debt=21.6@0.9 due_within_1_year=21.6@0.9  []
+low   Ework Group                  0/3 fields at 1.0, checks FAIL, 36s  total_debt=156410@0.5 due_1_to_5_years=1677@0.5 due_after_5_years=0@0.5  []
+
+2/10 companies at full confidence (10 tried, seed 1, Mid Cap, Real Estate)

@@ -1,0 +1,85 @@
+{
+ "report_id": "creades_2025",
+ "company": "Creades",
+ "fiscal_year": 2025,
+ "currency": "SEK mn",
+ "section": "debt_maturity",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 0,
+   "unit": "SEK mn",
+   "period": "2025",
+   "raw_label": "räntebärande skulder",
+   "source": {
+    "page": 61,
+    "quote": "Investmentföretaget har varken räntebärande skulder eller kundfordringar."
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "stated_zero",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": null,
+   "unit": "SEK mn",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": null,
+   "unit": "SEK mn",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": null,
+   "unit": "SEK mn",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": true,
+   "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((0 (due_within_1_year null) + 0 (due_1_to_5_years null) + 0 (due_after_5_years null)) - 0) <= 2"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [61, 62] selected from candidates [61, 62]",
+  "total_debt: 0 is printed on none of pages [61, 62]; kept on the report's own words, page 61: 'Investmentföretaget har varken räntebärande skulder eller kundfordringar.'",
+  "total_debt: quote not found on page 61"
+ ],
+ "_calls": [
+  "page_select",
+  "extraction"
+ ],
+ "_candidates": [
+  61,
+  62
+ ],
+ "_retry_prompt_fired": false,
+ "_seconds": 18.0
+}

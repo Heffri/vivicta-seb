@@ -1,0 +1,87 @@
+{
+  "report_id": "lib-byggmax_2025",
+  "company": "Byggmax Group",
+  "fiscal_year": 2025,
+  "currency": "SEK M",
+  "section": "debt_maturity",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 2021,
+      "unit": "SEK M",
+      "period": "2025",
+      "raw_label": "Total borrowing",
+      "source": {
+        "page": 99,
+        "quote": "Total borrowing 2,021 2,477 CREDIT FACILITIES"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "label_known",
+        "period_ok",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 779,
+      "unit": "SEK M",
+      "period": "2025",
+      "raw_label": "Total",
+      "source": {
+        "page": 99,
+        "quote": "Total 779 1,067"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "period_ok",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "SEK M",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "SEK M",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((779 + 0 (due_1_to_5_years null) + 0 (due_after_5_years null)) - 2021) <= 2"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [87, 88] selected from candidates [64, 65, 76, 87]"
+  ],
+  "_driver_meta": {
+    "company": "Byggmax Group",
+    "stem": "byggmax_2025",
+    "pass": 1,
+    "status": 200,
+    "seconds": 116.1
+  }
+}

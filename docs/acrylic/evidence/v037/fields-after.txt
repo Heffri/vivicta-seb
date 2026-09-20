@@ -1,0 +1,19 @@
+=== humana_2025 === fy=2025 ccy=SEK million
+  total_debt = 4401 @ 0.5 ev= ['quote_on_page', 'value_in_quote', 'period_ok', 'page_is_statement', 'unit_ok'] page= 149 raw_label= 'interest-bearing liabilities'
+  due_within_1_year = 543 @ 0.5 ev= ['quote_on_page', 'value_in_quote', 'period_ok', 'page_is_statement', 'unit_ok'] page= 149 raw_label= 'current liabilities'
+  due_1_to_5_years = None @ 0.0 ev= [] page= None raw_label= ''
+  due_after_5_years = None @ 0.0 ev= [] page= None raw_label= ''
+ check maturity_sums_to_total False due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((543 + 0 (due_1_to_5_years null) + 0 (due_after_5_years null)) - 4401) <= 2
+=== academedia_2025 === fy=2025 ccy=MSEK
+  total_debt = None @ 0.0 ev= [] page= None raw_label= None
+  due_within_1_year = None @ 0.0 ev= [] page= None raw_label= None
+  due_1_to_5_years = None @ 0.0 ev= [] page= None raw_label= None
+  due_after_5_years = None @ 0.0 ev= [] page= None raw_label= None
+ check maturity_sums_to_total False missing: due_within_1_year
+=== storytel_2025 === fy=2025 ccy=MSEK
+  total_debt = 550 @ 0.9 ev= ['quote_on_page', 'value_in_quote', 'arith_ok', 'period_ok', 'page_is_statement', 'unit_ok'] page= 114 raw_label= 'Group’s total loan liabilities'
+  due_within_1_year = 550 @ 0.25 ev= ['arith_ok', 'period_ok', 'page_is_statement', 'unit_ok'] page= 114 raw_label= 'the entire loan classified as current'
+  due_1_to_5_years = None @ 0.0 ev= [] page= None raw_label= ''
+  due_after_5_years = None @ 0.0 ev= [] page= None raw_label= ''
+ check maturity_sums_to_total True due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((550 + 0 (due_1_to_5_years null) + 0 (due_after_5_years null)) - 550) <= 2
+ warn: due_within_1_year: quote not found on page 114

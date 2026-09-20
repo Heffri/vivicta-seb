@@ -1,0 +1,73 @@
+{
+ "report_id": "lib-viaplay_2025",
+ "company": "Viaplay Group",
+ "fiscal_year": 2025,
+ "currency": "SEK m",
+ "section": "debt_maturity",
+ "maturity_basis": "carrying",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 6422,
+   "unit": "SEK m",
+   "period": "2025",
+   "raw_label": "the Group’s total borrowings",
+   "source": {
+    "page": 17,
+    "quote": "the Group’s total borrowings amounted to SEK 6,422m (2,058)."
+   },
+   "confidence": 0.25,
+   "evidence": [
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": null,
+   "unit": "SEK m",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": null,
+   "unit": "SEK m",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": null,
+   "unit": "SEK m",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "detail": "missing: due_within_1_year"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [17, 18] selected from candidates [17, 18]",
+  "total_debt: quote not found on page 17"
+ ]
+}

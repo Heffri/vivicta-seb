@@ -1,0 +1,77 @@
+{
+  "report_id": "lib-cavotec_2025",
+  "company": "Cavotec Group",
+  "fiscal_year": 2025,
+  "currency": "Euro thousands",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 23702,
+      "unit": "Euro thousands",
+      "period": "2025",
+      "raw_label": "Total interest bearing liabilities",
+      "source": {
+        "page": 71,
+        "quote": "Total interest bearing liabilities 23,702 26,854"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": null,
+      "unit": "Euro thousands",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "Euro thousands",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "Euro thousands",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_within_1_year"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [71, 72] selected from candidates [71, 72, 61]",
+    "total_debt: 'Lease liabilities 3,805 8,756 4,621 2,689' names fiscal year 2024, not 2025; not this year's bucket row",
+    "total_debt: 'Total 39,403 23,112 4,621 2,689' is a Total*/Summa* row with no total column in its own header (due_within_1_year, due_after_5_years, due_within_1_year, due_after_5_years); its own total cannot be checked, left for another path",
+    "published: seedseed-rerun-v114-kb run replayed with extract.py @ d3eb5fc8"
+  ]
+}

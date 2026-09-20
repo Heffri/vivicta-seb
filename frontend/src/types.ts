@@ -31,6 +31,7 @@ export type IndexStatus = { report_id: string; chunks: number; embed_model: stri
 
 export type Citation = {
   report_id: string;
+  stem?: string;            // saved report source for text-only citations
   company: string | null;
   fiscal_year: number | null;
   page: number;
@@ -48,12 +49,12 @@ export type Answer = {
 
 export type KbEntry = {
   stem: string;             // data/kb/<stem>/, = report filename without .pdf
-  report_id: string | null; // set while the backend has it registered this run
+  report_id: string | null; // stable ID, restored after restart
   company: string | null;
   fiscal_year: number | null;
   pages: number;
   sections: string[];       // extractions present, e.g. ["income_statement"]
-  indexed: boolean;
+  indexed: boolean;         // embeddings cached
   status: 'ready' | 'missing' | 'outdated' | 'invalid' | 'building';
   reason: string;
   embed_model: string | null;
@@ -62,6 +63,8 @@ export type KbEntry = {
   page_chunks: number;
   fact_chunks: number;
   built_at: string | null;
+  sector: string | null;
+  pdf_available: boolean;
 };
 
 export type Source = {
@@ -69,7 +72,10 @@ export type Source = {
   quote: string;            // verbatim text from that page that supports the value
 };
 
+export type HumanReview = { decision: 'confirmed' | 'corrected' | 'unresolved'; reviewer: string; note: string; at: string };
 export type Field = {
+  human_review?: HumanReview;
+  review_history?: (HumanReview & { previous: Omit<Field, 'review_history'> })[];
   key: string;              // canonical key from the schema, e.g. "revenue"
   label: string;            // human label from the schema
   value: number | string | null;  // null = not found
@@ -77,37 +83,56 @@ export type Field = {
   period: string | null;    // "2025", "2024", "2025-Q4"
   raw_label: string | null; // the label as printed in the report, e.g. "Intäkter"
   source: Source | null;
-  components?: { value: number; source: Source }[];
-  calculation?: string | null;
   confidence: number;       // 0..1, computed from evidence by the backend — see docs/CONFIDENCE.md. Never the model's opinion.
   evidence: string[];       // satisfied evidence codes, e.g. ["quote_on_page","value_in_quote","arith_ok"]; 1.0 <=> all seven present
 };
 
 export type Check = {
+  status?: "passed" | "failed" | "unavailable";
+  stale?: boolean;
   name: string;             // from schema.checks[].name
   passed: boolean;
   detail: string;           // human-readable, e.g. "152340 + -88120 = 64220 == 64220"
 };
 
-export type ChunkPage = {
-  items: { page: number; start: number; text: string; kind: 'page' | 'fact' }[];
-  total: number; offset: number; limit: number;
+export type Basis = { values: Record<string, string>; reviewer: string; note: string; at: string };
+export type ReviewIssue = { kind: 'basis' | 'field' | 'check'; key: string; detail: string };
+export type Comparison = { candidates: KbEntry[]; previous_stem?: string; current_year?: number; previous_year?: number; reasons: string[]; restatement?: Record<string, string>; rows: { key: string; label: string; current: Field['value']; previous: Field['value']; delta: number | null; percent: number | null; sign_change: boolean; reason: string }[] };
+export type QueueIssue = ReviewIssue & { report: KbEntry; section: string };
+// v091: the prior fiscal year's own figures, read deterministically from the same table as the
+// current year (identity-gated on explicit values) — absent entirely when they could not be.
+export type PriorYear = {
+  fiscal_year: number;
+  fields: Record<string, { value: number; source: Source | null }>; // one entry per readable field (a bucket the prior-year table never prints is absent)
+  check: { passed: boolean; detail: string };
 };
-
+// v109: the report's own calendar-year maturity columns (the years must sum to total_debt within
+// the identity check's own tolerance) — absent entirely when the report prints named buckets
+// instead, or the year columns cannot be read deterministically.
+export type BucketsByYear = {
+  basis: 'carrying' | 'undiscounted'; // the same maturity basis total_debt + the buckets were read on
+  years: { label: string; value: number; source: Source | null }[]; // one per printed column, label as printed ("2026" … "Later")
+};
 export type Extraction = {
-  stale?: boolean;
-  debt_scope?: string;
-  context_source?: Source | null;
   cached?: boolean;
+  stale?: boolean;
   model?: string;
-  provider?: string;
-  created_at?: string;
-  timings?: { parse: number; locate: number; model: number; validate: number; total: number; attempts: number };
+  timings?: { total?: number; attempts?: number; model?: number };
+  basis?: Basis;
+  basis_history?: (Basis & { previous: Partial<Basis> })[];
+  check_history?: unknown[];
+  issues?: ReviewIssue[];
+  ready?: boolean;
   report_id: string;
+  stem?: string;            // saved source, provided when opening the knowledge base
+  pdf_available?: boolean; // false means use saved page text instead of the PDF
   company: string | null;
   fiscal_year: number | null;
   currency: string | null;  // dominant unit in the section
   section: string;          // schema name
+  maturity_basis?: 'carrying' | 'undiscounted'; // v089, debt_maturity only: which maturity table total_debt + the buckets were read from (env DEBT_BASIS)
+  prior_year?: PriorYear;   // v091, debt_maturity only: FY-1 alongside FY for the maturity chart
+  buckets_by_year?: BucketsByYear; // v109, debt_maturity only: the report's own calendar-year columns for the maturity chart
   fields: Field[];          // one entry per schema field, in schema order (value null if missing)
   checks: Check[];
   warnings: string[];       // free text, e.g. "revenue: quote not found on page 64"
@@ -126,4 +151,9 @@ export type Result = {
   sectionTitle: string;
   extraction?: Extraction;
   error?: string;
+};
+
+export type ChunkPage = {
+  items: { page: number; start: number; text: string; kind: 'page' | 'fact' }[];
+  total: number; offset: number; limit: number;
 };

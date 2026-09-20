@@ -1,0 +1,95 @@
+{
+  "report_id": "lib-synsam_2025",
+  "company": "Synsam",
+  "fiscal_year": 2025,
+  "currency": "SEK million",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 2718,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "Loans from financial institutions",
+      "source": {
+        "page": 122,
+        "quote": "Swedbank. Loans from financial institutions amounted to SEK 2,718 million (2,608) on 31 December 2025, of"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 0,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "current liabilities",
+      "source": {
+        "page": 122,
+        "quote": "which current liabilities amounted to SEK 0 million (0)."
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": 2718,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "Loans from financial institutions",
+      "source": {
+        "page": 122,
+        "quote": "Loans from financial institutions amounted to SEK 2,718 million (2,608) on 31 December 2025, of which current liabilities amounted to SEK 0 million (0). The loans are payable in full upon maturity and run for five years"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_after_5_years"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [121, 122] selected from candidates [123, 124, 130, 121]",
+    "published: seed6 run replayed with extract.py @ d3eb5fc8"
+  ]
+}

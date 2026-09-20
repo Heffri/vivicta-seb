@@ -1,0 +1,76 @@
+{
+  "report_id": "lib-powercell_sweden_2025",
+  "company": "PowerCell Sweden",
+  "fiscal_year": 2025,
+  "currency": "KSEK",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 19055,
+      "unit": "KSEK",
+      "period": "2025",
+      "raw_label": "Total borrowings (Note 27)",
+      "source": {
+        "page": 44,
+        "quote": "Total borrowings (Note 27) 19,055 73,819"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": null,
+      "unit": "KSEK",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "KSEK",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "KSEK",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_within_1_year"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [44, 45] selected from candidates [44, 45]",
+    "published: seedseed-rerun-v119-kb run replayed with extract.py @ d3eb5fc8"
+  ]
+}

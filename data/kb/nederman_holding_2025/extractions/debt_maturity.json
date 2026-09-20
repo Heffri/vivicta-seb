@@ -1,0 +1,86 @@
+{
+  "report_id": "lib-nederman_holding_2025",
+  "company": "Nederman Holding",
+  "fiscal_year": 2025,
+  "currency": "SEKm",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 2475.3,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "Total interest-bearing liabilities",
+      "source": {
+        "page": 150,
+        "quote": "As of 31 December 2025, the group had pension provisions of SEK 37.5m (42.3) Total interest-bearing liabilities 2,475.3 2,479.7"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 117.3,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "Total",
+      "source": {
+        "page": 150,
+        "quote": "Total 117.3 136.2"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_1_to_5_years"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [150, 151] selected from candidates [150, 151]",
+    "published: seedseed-rerun-v118-kb run replayed with extract.py @ d3eb5fc8"
+  ]
+}

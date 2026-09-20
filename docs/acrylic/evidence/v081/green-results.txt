@@ -1,0 +1,84 @@
+v081 green -- LLM_PROVIDER=codex (gpt-5.6-terra default), real Codex web-search calls: 4 used out of
+the 6 allowed (2 kept in reserve, unused). dest_dir was a local scratch dir outside the repo in every
+call (redacted below to <lane-tmp>/...); nothing here touched the committed index.json.
+
+1/4 -- Shell 2025, fetch_report (uses up to 2 calls: the direct-link ask, then -- only because that
+       and the generic IR-path guesses both failed -- the v081 second ask)
+  ddg failed: WinError 10054 (this network's usual DDG block; level 3 contributes nothing, unrelated
+    to this lane)
+  https://www.shell.com/investors/results-and-reporting/annual-report/_jcr_content/root/main/section/
+    promo/links/item0.stream/1773292272508/5e49e127579b77081f032b6088b348694aac0d14/
+    shell-annual-report-2025.pdf -> HTTP Error 404: Not Found
+  IR page crawl https://www.shell.com/investor-relations/annual-report.html -> HTTP Error 404
+  IR page crawl https://www.shell.com/investor-relations.html -> HTTP Error 404
+  IR page crawl https://www.shell.com/en/investors -> HTTP Error 404
+  RESULT: 404, tried: [the one direct-link candidate above], note: null (59.4s)
+
+  The model's direct-link candidate (call 1) is byte-identical to the exact expired-token URL v080's
+  own follow-up call already recorded (same item0.stream token, same hash) -- still 404, the token is
+  still expired, unchanged since v074/v080. _host_guesses correctly fired (www.shell.com names the
+  company) and fed 5 generic IR-path guesses to the first _ir_page_report attempt; 3 of the 4
+  attempted (MAX_CRAWL_SEEDS=4; the 4th did not get a print line before the fifth source's own 90s
+  crawl budget elapsed, a pre-existing v080 budget mechanic this lane does not touch) also 404d.
+
+  With the direct link and the generic guesses both exhausted, the v081 second ask fired (call 2).
+  Isolated afterwards at zero extra model cost (see 3/4 below): it returned two real, specific Shell
+  URLs distinct from the generic guess list. Feeding those two into fetch._ir_page_report directly
+  (zero-model, network-only -- also below) found no PDF link and no usable hop on either page, so the
+  live run's own second ask correctly found nothing to add and fell through to the same 404 -- the
+  code path ran exactly as designed; today's obstacle is what is actually reachable on shell.com's
+  pages via plain server-rendered HTML, not the ask itself.
+
+2/4 -- Nestle 2025 (fetch_report; only 1 of its allotted 2 calls used, since the direct-link ask
+       succeeded and the second ask is only for when that fails)
+  https://www.nestle.com/sites/default/files/2026-02/annual-review-2025-en.pdf -> ok (67 pages, 1s)
+  RESULT: 200, note "model search (codex); summary volume", tags ["fetched","foreign"] (34.5s)
+
+  The model's SEARCH_SYSTEM now explicitly asks for the complete report, not a summary/highlights/
+  at-a-glance/review excerpt -- and still returns exactly the same single 67-page Annual Review URL
+  v074 and v080 both independently recorded (this is the third consecutive real call, across three
+  separate lanes, to return this identical URL as Nestle's only candidate). With one candidate, there
+  is nothing to rank; v081's new behaviour is that this candidate is now correctly recognised as a
+  summary volume (67 < FULL_REPORT_MIN_PAGES=80) and labelled as such in `note`, rather than silently
+  passed off as a plain, unqualified hit -- verified live, not just in the loopback tests.
+
+3/4 -- diagnostic (no fetch_report call; direct fetch._ir_page_candidates("Shell", 2025), the v081
+       second ask function in isolation, to see exactly what it returned during the live run above)
+  IR_PAGE_CANDIDATES {"urls": [
+    "https://www.shell.com/investors/results-and-reporting/annual-report",
+    "https://www.shell.com/investors/results-and-reporting/annual-report-archive.html"
+  ], "note": null}
+
+  Both are genuine, plausible Shell investor-relations URLs (neither is the generic _IR_PATHS guess
+  list, and neither is a PDF) -- proof the second ask is doing its intended job (asking a narrower
+  question gets a narrower, more specific answer than the direct-link ask's stale token). Model
+  search is non-deterministic call to call (v080 already documented this for Shell's direct-link
+  ask); this diagnostic call's own reply may or may not match word-for-word what call 2 inside the
+  live run above returned, which is why 4/4 below crawls these two URLs directly to check them on
+  their own merits rather than assuming they are identical to whatever call 2 saw.
+
+4/4 (zero model calls -- pure network, run against fetch._ir_page_report directly) -- crawling the
+     two URLs from 3/4:
+  FOUND None
+  TRIED []
+
+  Both pages returned 200 with no exception (no "IR page crawl <url> -> <error>" line), so both were
+  reachable; TRIED staying empty means zero PDF candidates were ever harvested from either page --
+  neither page's static HTML contains a matching href, and neither offers a same-domain hop this
+  lane's one-hop crawl (regex-based, v080) recognises. Shell's real site most likely renders its
+  report link client-side (JS) rather than as a plain server-rendered <a href> the way Nestle's or
+  the loopback fixtures do; going further (a headless browser, recursive crawling) is out of this
+  lane's scope (work order: "不做...不加依赖").
+
+Summary: Shell remains unfetchable live today, for a now precisely diagnosed reason -- the model's
+direct link is a persistently stale token, the second ask correctly surfaces two better-targeted real
+IR pages instead of only ever the generic guess list, but neither page's HTML exposes a scrapeable
+PDF link to this lane's one-hop, regex-based crawler. Nestle is fetched exactly as before (the model
+has not offered a fuller alternative across three lanes now) but is now honestly labelled as a
+summary volume instead of passing as an unqualified hit. Both mechanisms this lane adds -- the second
+ask, and the complete-report-over-summary ranking -- are proven working end to end on live data (the
+second ask produced two real, useful URLs the generic guesses didn't have; the ranking correctly
+flagged Nestle's real single candidate as a summary) even though neither company's *end file* is
+different from before. The ranking-among-multiple-candidates half of "prefer the complete report" is
+proven deterministically in test_fetch.py's new groups 17-18 instead, since neither live company
+handed back more than one validating candidate today for it to choose between.

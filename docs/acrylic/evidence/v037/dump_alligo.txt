@@ -1,0 +1,464 @@
+----- PAGE 141 -----
+ORG. NR. 559072-1352 ALLIGO AB | ÅRS- OCH HÅLLBARHETSREDOVISNING 2025 139
+Inledning Strategisk riktning Verksamheten Förvaltningsberättelse Finansiella rapporter Övrigt
+Omräkningsexponering av eget kapital
+Värdet på utländska dotterbolags nettotillgångar omräknas till svenska
+kronor vid årets slut till balansdagens kurs. Kursdifferensen mellan åren förs
+mot eget kapital via övrigt totalresultat. Omräkningsexponering avseende
+utländska dotterbolags nettotillgångar säkras för närvarande i begränsad
+omfattning genom upptagande av extern finansiering i annan valuta än SEK.
+Nettotillgångar i utländska dotterbolag per valuta (MSEK)
+Valuta 2025-12-31 2024-12-31
+NOK 711 678
+EUR 839 867
+Ränterisker
+Med ränterisk avses risken att förändringar i marknadsräntan påverkar
+koncernens räntenetto negativt. Hur snabbt en ränteförändring får genom­
+slag beror på lånens räntebindningstid samt vilka säkringsinstrument som
+används. Såväl marknadsräntan som koncernens resultat förväntas följa
+konjunkturcykeln. Därför anger koncernens finanspolicy att räntebindnings­
+tiden i normalfallet ska vara kort där minst 50 procent av lånen ska ha en
+räntebindningstid kortare än 12 månader. I syfte att vidare hantera risken för
+höjda marknadsräntor i framtiden anger även finanspolicyn i Alligo rätten att
+utnyttja olika former av räntederivat för att begränsa ränterisken. Per den 31
+december 2025 innehar koncernen inga räntederivatinstrument.
+Skuldportföljen består av en checkräkningskredit, revolverande kredit­
+faciliteter med räntebindningstider på tre månader samt banklån. Lån och
+krediter om sammanlagt cirka 2,6 miljarder SEK är hållbarhetslänkade,
+vilket innebär att räntan justeras utifrån utfallen av tre hållbarhetsnyckel­
+tal. Den genomsnittliga räntebindningstiden uppgår till 3 månader på hela
+skuldportföljen. Koncernen redovisar även räntebärande skulder avseende
+leasingavtal. De viktigaste rörliga räntorna är STIBOR och EURIBOR. Skulder
+till kreditinstitut per underliggande valuta framgår av tabellen nedan.
+Givet samma genomsnittliga låneskuld under året och samma ränte­
+bindningstider skulle en förändring av marknadsräntan med 1 procentenhet
+förändra räntekostnaderna med cirka 25 MSEK per år.
+Skulder till kreditinstitut per valuta
+2025-12-31 SEK EUR Summa
+Revolverande kreditfacilitet 1 050 108 1 158
+Banklån 1 100 - 1 100
+2024-12-31 SEK EUR Summa
+Revolverande kreditfacilitet 1 080 115 1 195
+Banklån 1 100 - 1 100
+Likviditets- och refinansieringsrisker
+Med likviditets- och refinansieringsrisk menas risken att betalningsförpliktel­
+ser inte kan uppfyllas som en följd av otillräcklig likviditet samt att finansie­
+ringsmöjligheterna är begränsade när lån ska omsättas. I koncernens finans­
+policy anges att upplåning samt handel med finansiella instrument endast
+skall ske genom någon av de stora nordiska affärsbankerna. Kortfristiga
+placeringar av eventuell överlikviditet sker med löptider på 1–6 månader till
+aktuell marknadsränta. Motpart vid inlåning är alltid en av de stora nordiska
+affärsbankerna. Vid räkenskapsårets utgång fanns i moderbolaget tillgång
+till två separata checkräkningskrediter om 400 MSEK respektive 10 MEUR av
+vilken 400 MSEK respektive 10 MEUR var outnyttjade. Checkräkningskrediten
+omsätts årligen och har efter balansdagen förlängts till och med februari
+2027. Utöver denna checkräkningskredit finns en revolverande kreditfacilitet
+om totalt 1 500 MSEK, av vilken 342 MSEK var outnyttjad. Den nuvarande
+revolverande kreditfaciliteten togs upp i mars 2022 i samband med utdel­
+ningen av Momentum Group och utökades under det första kvartalet 2025
+med 180 MSEK, 120 MSEK i andra kvartalet och minskades med 150 MSEK i
+det fjärde kvartalet. Kreditfaciliteten löper till mars 2027. Under februari 2026
+refinansierades verksamheten och kreditfaciliteten hos Svenska Handels­
+banken AB utökades med 500 MSEK till totalt 3 100 MSEK. Den nya faciliteten
+löper till februari 2029, med möjlighet till två förlängningar om ett år vardera.
+Kopplat till finansieringen finns finansiella åtaganden som koncernen
+kvartalsvis är skyldig att uppnå. De åtaganden som Alligo huvudsakligen
+mäts på är räntetäckningsgrad och soliditet. För respektive komponent finns
+särskilda definitioner. De finansiella åtagandena per den 31 december 2025
+var uppfyllda.
+Koncernens finansieringsrisk är också avhängig av möjligheten att
+refinansiera förfallande lån. Koncernens finansiella skulder uppgick vid års­
+skiftet till 4 886 miljoner kronor och förfallostruktur på låneskulden framgår
+av tabellen nedan. Tabell avseende koncernens finansiella tillgångar och
+skulder framgår av not 25 Finansiella tillgångar och skulder.
+Förfallostruktur finansiella skulder (odiskonterade kassaflöden)
+Förfaller
+2025-12-31, Koncernen, MSEK Redovisat värde Framtida likvidbelopp Inom ett år Inom fem år Efter fem år
+Räntebärande finansiella skulder till kreditinstitut 2 258 2 340 68 2 272 -
+Räntebärande leasingskulder 1 369 1 499 472 922 105
+Leverantörsskulder 1 086 1 086 1 086 - -
+Villkorade tilläggsköpeskillingar 44 45 38 7 -
+Köp- och säljoptioner 71 75 - 75 -
+Övriga kortfristiga räntebärande skulder 2 2 2 - -
+Derivat säkringsinstrument 3 3 3 - -
+Finansiella skulder 4 833 5 050 1 669 3 276 105
+2024-12-31, Koncernen, MSEK
+Räntebärande finansiella skulder till kreditinstitut 2 295 2 477 83 2 394 -
+Räntebärande leasingskulder 1 269 1 395 451 830 114
+Leverantörsskulder 1 135 1 135 1 135 - -
+Villkorade köpeskillingar 119 120 84 36 -
+Köp- och säljoptioner 59 62 - 62 -
+Övriga kortfristiga räntebärande skulder 9 9 9 - -
+Derivat säkringsinstrument - - - - -
+Finansiella skulder 4 886 5 198 1 762 3 322 114
+
+----- PAGE 142 -----
+140 ALLIGO AB | ÅRS- OCH HÅLLBARHETSREDOVISNING 2025 ORG. NR. 559072-1352
+Inledning Strategisk riktning Verksamheten Förvaltningsberättelse Finansiella rapporter Övrigt
+23 Fortsättning: Finansiella risker och riskhantering
+Förfallostruktur finansiella skulder (odiskonterade kassaflöden) forts.
+Förfaller
+2025-12-31, Moderbolaget, MSEK Redovisat värde Framtida likvidbelopp Inom ett år Inom fem år Efter fem år
+Räntebärande finansiella skulder till kreditinstitut 2 258 2 372 68 2 304 -
+Finansiella skulder 2 258 2 372 68 2 304 -
+2024-12-31, Moderbolaget, MSEK
+Räntebärande finansiella skulder till kreditinstitut 2 295 2 477 83 2 394 -
+Finansiella skulder 2 295 2 477 83 2 394 -
+Kreditrisker
+Koncernens kommersiella och finansiella transaktioner ger upphov till kredit­
+risker gentemot Alligos motparter. Med kreditrisk eller motpartsrisk avses
+risken för förlust om motparten inte fullgör sina förpliktelser. Koncernen
+exponeras för kreditrisk dels i sina finansiella affärer, det vill säga i placering
+av överskottslikviditet och genomförande av valutaterminsaffärer och dels
+i den kommersiella rörelsen i samband med kundfordringar och förskotts­
+betalningar till leverantörer.
+För att utnyttja den operativa affärsverksamhetens kännedom om kunder
+och leverantörer hanteras kreditriskbedömningen i de kommersiella affärerna
+av respektive bolag. Kreditrisken är utspridd över ett stort antal kunder och
+speglar koncernens handelsverksamhet väl där den totala omsättningen
+byggs upp av många affärstransaktioner och en god riskspridning av försälj­
+ningen på olika branscher och företag. Ingen enskild kund står för mer än fem
+procent av den totala kreditexponeringen sett över ett år. För att begränsa
+risken för kreditförluster använder sig koncernbolagen av kreditpolicyer som
+begränsar utestående belopp och kredittid för enskilda kunder. Storleken
+på respektive kunds kredit bedöms individuellt. För alla nya kunder görs
+en kreditprövning. Avsikten är att kreditgränserna ska avspegla kundens
+betalningsförmåga. Historiskt sett har kreditförlusterna varit små inom Alligo.
+Kreditkvaliteten i de kundfordringar som inte har förfallit till betalning och
+inte heller skrivits ned bedöms som god. Koncernen har också reserver för
+förväntade kreditförluster vilka uppgår till 19 MSEK (20).
+Kundfordringar
+MSEK 2025-12-31 2024-12-31
+Kundfordringar 1 237 1 199
+Ackumulerad reserv för förväntade kreditförluster -19 -20
+Kundfordringar netto 1 218 1 179
+Specifikation av förändring i reserv för förväntade kreditförluster
+MSEK 2025-12-31 2024-12-31
+Redovisat värde vid periodens ingång -20 -28
+Förändringar avseende förvärvade verksamheter 0 -1
+Förändring relaterat till bekräftade kreditförluster 10 10
+Förändring relaterat till förväntade kreditförluster -10 -1
+Omräkningsdifferens 1 0
+Redovisat värde vid peridens utgång -19 -20
+Åldersanalys
+- ej förfallet 1 092 1 025
+- fordringar förfallna 1-30 dagar 108 118
+- fordringar förfallna 31-60 dagar 12 33
+- fordringar förfallna 61-90 dagar 6 4
+- fordringar förfallna > 90 dagar 19 19
+Summa fordringar 1 237 1 199
+Moderbolaget
+Alligos verksamhet medför exponering mot ett antal finansiella risker.
+Förändringar i framförallt valutakurser och räntenivåer påverkar koncernens
+resultat och kassaflöden, men även finansieringsrisker uppstår och hanteras
+inom ramen för koncernens fastställda policyer. Alligo AB hanterar koncer­
+nens externa upplåning och är därav exponerat för samma refinansierings-
+och ränterisk som koncernen. Moderbolaget påverkas även indirekt av övriga
+beskrivna risker genom sin funktion i koncernen. Se ovan för ytterligare
+beskrivning.
+NOT 24 Specifikation av räntebärande nettolåneskuld per tillgång och skuld
+2025-12-31 2024-12-31
+Koncernen, MSEK Räntebärande Ej räntebärande Summa Räntebärande Ej räntebärande Summa
+TILLGÅNGAR
+Anläggningstillgångar
+Immateriella anläggningstillgångar - 3 149 3 149 - 3 083 3 083
+Nyttjanderättstillgångar - 1 295 1 295 - 1 230 1 230
+Materiella anläggningstillgångar - 651 651 - 668 668
+Finansiella anläggningstillgångar 11 16 27 12 23 35
+Uppskjutna skattefordringar - 75 75 - 62 62
+Summa anläggningstillgångar 11 5 186 5 197 12 5 066 5 078
+Omsättningstillgångar
+Varulager - 2 481 2 481 - 2 471 2 471
+Skattefordringar - 31 31 - 34 34
+Kundfordringar - 1 218 1 218 - 1 179 1 179
+Förutbetalda kostnader och upplupna intäkter - 36 36 - 56 56
+Övriga fordringar - 208 208 - 185 185
+Kassa och bank 486 - 486 670 - 670
+Summa omsättningstillgångar 486 3 974 4 460 670 3 925 4 595
+SUMMA TILLGÅNGAR 497 9 160 9 657 682 8 991 9 673
+
+----- PAGE 143 -----
+ORG. NR. 559072-1352 ALLIGO AB | ÅRS- OCH HÅLLBARHETSREDOVISNING 2025 141
+Inledning Strategisk riktning Verksamheten Förvaltningsberättelse Finansiella rapporter Övrigt
+2025-12-31 2024-12-31
+Koncernen, MSEK Räntebärande Ej räntebärande Summa Räntebärande Ej räntebärande Summa
+SKULDER
+Långfristiga skulder
+Långfristiga räntebärande skulder 3 156 - 3 156 3 121 - 3 121
+Långfristiga ej räntebärande skulder - 78 78 - 107 107
+Avsättningar till pensioner 0 - 0 0 - 0
+Övriga avsättningar - 16 16 - 12 12
+Uppskjutna skatteskulder - 418 418 - 408 408
+Summa långfristiga skulder 3 156 512 3 668 3 121 527 3 648
+Kortfristiga skulder
+Kortfristiga räntebärande skulder 473 - 473 452 - 452
+Leverantörsskulder - 1 086 1 086 - 1 135 1 135
+Skatteskulder - 17 17 - 12 12
+Övriga skulder - 239 239 - 251 251
+Upplupna kostnader och förutbetalda intäkter - 378 378 - 419 419
+Summa kortfristiga skulder 473 1 720 2 193 452 1 817 2 269
+SUMMA SKULDER 3 629 2 232 5 861 3 573 2 344 5 917
+Räntebärande nettoskuld -3 132 -2 891
+NOT 25 Finansiella tillgångar och skulder
+Koncernen, MSEK 2025-12-31 2024-12-31
+FINANSIELLA TILLGÅNGAR
+Finansiella tillgångar värderade till
+verkligt värde
+Finansiella placeringar 2 2
+Derivat säkringsinstrument 0 10
+Finansiella tillgångar värderade till
+upplupet anskaffningsvärde
+Långfristiga fordringar 9 10
+Kundfordringar 1 218 1 179
+Likvida medel 486 670
+Summa finansiella tillgångar 1 715 1 871
+FINANSIELLA SKULDER
+Finansiella skulder värderade till
+verkligt värde via resultatet
+Derivat säkringsinstrument 3 -
+Villkorade köpeskillingar 44 119
+Köp-och säljoptioner¹ 71 59
+Finansiella skulder värderade till
+upplupet anskaffningsvärde
+Räntebärande skulder 3 629 3 573
+Leverantörsskulder 1 086 1 135
+Summa finansiella skulder 4 833 4 886
+1) Värdeförändringar på köp-och säljoptioner utställda till ägare utan bestämmande
+inflytande redovisas direkt över eget kapital.
+För koncernens finansiella tillgångar och skulder bedöms redovisat värde
+vara en rimlig approximation av verkligt värde. Tillgångar värderade till
+verkligt värde utgörs av säkringsinstrument där det verkliga värdet är baserat
+på observerbar marknadsdata. Skulder värderade till verkligt värde utgörs
+av villkorade köpeskillingar vilka är värderade genom diskonterat beräknat
+kassaflöde.
+Finansiella skulder värderade till verkligt värde via resultatet avser ännu ej
+utbetalda tilläggsköpeskillingar och uppgick vid årets början till 119 MSEK.
+Under 2025 utbetalades tilläggsköpeskillingar om 78 MSEK. Nya tillkommande
+tilläggsköpeskillingar uppgick totalt till 6 MSEK och ännu ej utbetalda
+tilläggsköpeskillingar uppgick vid periodens slut till 44 MSEK. Tilläggskö­
+peskillingarna baseras på omsättningstillväxt och bruttovinst för åren 2024
+till 2027. Tilläggsköpeskillingarna värderas löpande genom en sannolikhets­
+bedömning där det bedöms om de kommer att betalas ut med avtalade
+belopp. Ledningen har här beaktat risken för utfallet av framtida kassaflöden.
+Per den 31 december 2025 har ännu ej utbetalda tilläggsköpeskillingar
+omvärderats med netto -3 MSEK och redovisats i koncernens resultat. Verk­
+ligt värde på koncernens finansiella tillgångar och skulder uppskattas vara
+lika med dess redovisade värden.
+Köp- och säljoptioner utställda till ägare utan bestämmande inflytande
+värderas med utgångspunkt i villkoren i köpeavtal och aktieägaravtal och
+diskonteras till balansdagen. Den viktigaste parametern är aktiens värde­
+utveckling, vilken baseras på resultat fram till estimerad förfallotidpunkt.
+Koncernen tillämpar inte nettoredovisning för några av sina väsentliga
+tillgångar eller skulder. Det förekom inga överföringar mellan nivåer eller
+värderingskategorier under året.
+
+----- PAGE 144 -----
+142 ALLIGO AB | ÅRS- OCH HÅLLBARHETSREDOVISNING 2025 ORG. NR. 559072-1352
+Inledning Strategisk riktning Verksamheten Förvaltningsberättelse Finansiella rapporter Övrigt
+25 Fortsättning: Finansiella tillgångar och skulder
+I tabellen nedan presenteras en avstämning mellan ingående och
+utgående balans för finansiella instrument värderade i nivå 3.
+Villkorade köpeskillingar Köp- och säljoptioner
+Koncernen, MSEK 2025-12-31 2024-12-31 2025-12-31 2024-12-31
+Värde vid årets början 119 26 59 47
+Anskaffningsvärde förvärv 6 103 10 7
+Utbetalade tilläggsköpeskillingar -78 -9
+Redovisat i rörelseresultatet -3 -2
+Redovisat i finansnettot 3 1
+Redovisat mot eget kapital - - 2 5
+Omräkningsdifferenser -3 0
+Värde vid årets slut 44 119 71 59
+Moderbolaget, MSEK 2025-12-31 2024-12-31
+FINANSIELLA TILLGÅNGAR
+Finansiella tillgångar värderade till upplupet anskaffningsvärde
+Fordringar på koncernbolag 2 771 2 259
+Kassa och bank 432 594
+Summa finansiella tillgångar 3 203 2 853
+FINANSIELLA SKULDER
+Finansiella skulder värderade till upplupet anskaffningsvärde
+Skulder till kreditinstitut 2 258 2 295
+Skulder till koncernbolag 1 177 765
+Leverantörsskulder 2 1
+Summa finansiella skulder 3 437 3 061
+För moderbolagets samtliga finansiella tillgångar bedöms redovisat
+värde vara en rimlig approximation av verkligt värde.
+NOT 26 Förväntade återvinningstider på tillgångar, avsättningar och skulder
+Belopp som förväntas återvinnas
+Koncernen, MSEK Inom 12 månader Efter 12 månader Totalt
+TILLGÅNGAR
+Immateriella anläggningstillgångar¹ 102 3 047 3 149
+Nyttjanderättstillgångar¹ 379 916 1 295
+Materiella anläggningstillgångar¹ 99 552 651
+Finansiella anläggningstillgångar
+Finansiella placeringar 2 0 2
+Andra långfristiga fordringar 1 24 25
+Uppskjutna skattefordringar 21 54 75
+Summa anläggningstillgångar 604 4 593 5 197
+Omsättningstillgångar
+Varulager 2 481 2 481
+Skattefordringar 31 31
+Kundfordringar 1 218 1 218
+Övriga fordringar 36 36
+Förutbetalda kostnader och upplupna intäkter 208 208
+Likvida medel 486 486
+Summa omsättningstillgångar 4 460 4 460
+SUMMA TILLGÅNGAR 5 064 4 593 9 657
+1) Med belopp som förväntas återvinnas inom 12 månader har förväntad årlig avskrivning redovisats.
+Belopp som förväntas betalas
+Koncernen, MSEK Inom 12 månader Efter 12 månader Efter 5 år Totalt
+SKULDER
+Långfristiga skulder
+Långfristiga räntebärande skulder 0 2 258 - 2 258
+Långfristiga leasingskulder 0 812 86 898
+Långfristiga ej räntebärande skulder 0 78 - 78
+Avsättningar till pensioner 0 0 0 0
+Övriga avsättningar 2 14 0 16
+Uppskjutna skatteskulder 44 195 179 418
+Summa långfristiga skulder 46 3 357 265 3 668
+Kortfristiga skulder
+Kortfristiga räntebärande skulder 2 2
+Kortfristiga leasingskulder 471 471
+Leverantörsskulder 1 086 1 086
+Skatteskulder 17 17
+Övriga skulder 239 239
+Upplupna kostnader och förutbetalda intäkter 378 378
+Summa kortfristiga skulder 2 193 2 193
+SUMMA SKULDER 2 239 3 357 265 5 861
+
+----- PAGE 159 -----
+ALLIGO AB  |  ÅRS- OCH HÅLLBARHETSREDOVISNING 2025
+157
+Nyckeltal över finansiell ställning
+Finansiell nettoskuld
+Finansiell nettoskuld mätt som långfristiga 
+räntebärande skulder och kortfristiga ränte­
+bärande skulder med avdrag för likvida 
+medel vid periodens utgång. 
+>> Används för att följa skuldutvecklingen 
+och analysera koncernens totala skuld­
+sättning inklusive leasingskulder.
+Finansiell nettoskuld i relation 
+till justerad EBITDA
+Finansiell nettoskuld dividerat med 
+justerad EBITDA för rullande tolv månader.
+>> Nyckeltalet visar hur många av den 
+senaste tolvmånadersperiodens justerade 
+EBITDA-resultat som skulle behövas för 
+att betala av den finansiella nettoskulden. 
+Som skuldsättningsgrad visar måttet på 
+koncernens motståndskraft och ränte­
+känslighet.
+
+
+Operativ nettoskuld
+Operativ nettoskuld mätt som långfristiga 
+räntebärande skulder och kortfristiga ränte­
+bärande skulder exklusive leasingskulder och 
+nettoavsättningar till pensioner med avdrag 
+för likvida medel vid periodens utgång. 
+>> Används för att följa skuldutvecklingen 
+och analysera koncernens totala skuld-
+sättning exklusive leasingskulder och 
+nettoavsättningar till pensioner.
+Operativ nettoskuld i relation 
+till justerad EBITDA, exkl. IFRS 16
+Operativ nettoskuld dividerat med justerad 
+EBITDA, exkl. IFRS 16 för rullande tolv månader.
+>> Nyckeltalet visar hur många av den senaste 
+tolvmånadersperiodens justerade EBITDA-
+resultat exklusive effekter från redovisningen 
+enligt IFRS 16 som skulle behövas för att 
+betala av den operativa nettoskulden. Som 
+skuldsättningsgrad visar måttet på koncer­
+nens motståndskraft och räntekänslighet.
+Soliditet
+Eget kapital hänförligt till moderbolagets 
+aktieägare i procent av balansomslutningen 
+vid periodens utgång.
+>> Används för att analysera den finansiella 
+risken i koncernen och visar hur stor 
+andel av koncernens tillgångar som är 
+finansierade med eget kapital.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Övriga definitioner
+Organisk tillväxt
+Organisk tillväxt avser försäljning i lokal 
+valuta från butiker som var del av koncernen 
+under innevarande period och hela motsva­
+rande period föregående år samt försäljning 
+från nya butiker som etablerats under året.
+>> Används för att analysera den underliggande 
+försäljningstillväxten drivet av förändring 
+i volym, produkt- och tjänsteutbud och pris 
+för liknande produkter och tjänster mellan 
+olika perioder, inklusive tillväxt driven av 
+nyetablerade butiker.
+Övriga enheter
+Övriga enheter avser förvärvade eller 
+avyttrade enheter under motsvarande period.
+Integrerad verksamhet
+Integrerad verksamhet avser den verksamhet 
+som bedrivs under konceptvarumärkena 
+Swedol och Tools.
+Fristående bolag
+Fristående bolag avser verksamheter 
+som bedrivs under eget varumärke, skiljt 
+från Alligos konceptvarumärken Swedol 
+och Tools.
+Heltidsekvivalenter
+Definitionen av genomsnittligt antal heltids­
+anställda är summan av arbetstimmar 
+dividerat med normalarbetstid motsvarande 
+en heltidsanställning under en viss tidsperiod. 
+Definitionen av arbetstid avser att sådan tid 
+kompenseras med lön eller annan ersättning 
+i utbyte mot arbete. Därutöver ingår även 
+sådan tid som avser betald semester, betald 
+sjukledighet och kompensationsledighet.
+Inledning
+Strategisk riktning
+Verksamheten
+Förvaltningsberättelse
+Finansiella rapporter
+Övrigt
+
+
+----- PAGE 160 -----
+Inledning Strategisk riktning Verksamheten Förvaltningsberättelse Finansiella rapporter Övrigt
+Information till aktieägarna
+FINANSIELL KALENDER
+Delårsrapport Q1 jan–mar 2026 24 april 2026
+Årsstämma 2026 20 maj 2026
+Delårsrapport Q2 jan–jun 2026 17 juli 2026
+Delårsrapport Q3 jan–sep 2026 23 oktober 2026
+ÅRSSTÄMMA
+Alligos årsstämma 2026 äger rum den 20 maj 2026 på Kapitel 8,
+Klarabergsviadukten 90 i Stockholm klockan 10.00. Inregistrering till
+årsstämman börjar klockan 09.30. Handlingar som ska läggas fram
+på årsstämman finns tillgängliga på bolagets webbplats under
+minst tre veckor närmast före stämman.
+WWW.ALLIGO.COM
+På koncernens webbplats återfinns finansiella rapporter, press­
+meddelanden, aktieinformation och annan relevant bolagsinformation.
+Här finns även en prenumerationstjänst genom vilken det finns
+möjlighet att följa pressmeddelanden och finansiella rapporter.
+FRÅGOR KRING ÅRSREDOVISNINGEN BESVARAS AV:
+CLEIN JOHANSSON ULLENVIK IRENE WISENBORN BELLANDER
+VD och koncernchef CFO och vice VD
++46 70 558 84 17 +46 72 452 60 40
+clein.ullenvik@alligo.com irene.bellander@alligo.com
+158 ALLIGO AB | ÅRS- OCH HÅLLBARHETSREDOVISNING 2025
+

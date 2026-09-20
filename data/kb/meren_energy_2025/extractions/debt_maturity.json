@@ -1,0 +1,87 @@
+{
+  "report_id": "lib-meren_energy_2025",
+  "company": "Meren Energy",
+  "fiscal_year": 2025,
+  "currency": "USD m",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 333.8,
+      "unit": "USD m",
+      "period": "2025",
+      "raw_label": "At December 31, 2025",
+      "source": {
+        "page": 73,
+        "quote": "At December 31, 2025 330.0 3.8 333.8"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 68.6,
+      "unit": "USD m",
+      "period": "2025",
+      "raw_label": "Current",
+      "source": {
+        "page": 73,
+        "quote": "Current 67.7 0.9 68.6"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "USD m",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "USD m",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_1_to_5_years"
+    }
+  ],
+  "warnings": [
+    "run1: two_pass: page [73, 74] selected from candidates [32, 33, 73, 15, 23, 3, 81, 36, 31, 48, 16, 82]",
+    "run2: two_pass: page [73, 74] selected from candidates [32, 33, 73, 15, 23, 3, 81, 36, 31, 48, 16, 82]",
+    "merge: union, per-field: total_debt=run2 (agree: confidence tie -> run2), due_within_1_year=run2 (agree: confidence tie -> run2), due_1_to_5_years=null (both null), due_after_5_years=null (both null)",
+    "published: seedv143-meren-kb run replayed with extract.py @ 3089ab08"
+  ]
+}

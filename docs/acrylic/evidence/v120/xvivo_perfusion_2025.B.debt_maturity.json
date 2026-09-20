@@ -1,0 +1,73 @@
+{
+ "report_id": "lib-xvivo_perfusion_2025",
+ "company": "Xvivo Perfusion",
+ "fiscal_year": 2025,
+ "currency": "SEK 000",
+ "section": "debt_maturity",
+ "maturity_basis": "carrying",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": null,
+   "unit": "SEK 000",
+   "period": "2025",
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": 11556,
+   "unit": "SEK 000",
+   "period": "2025",
+   "raw_label": "Lease liabilities",
+   "source": {
+    "page": 65,
+    "quote": "Lease liabilities 9 11,556 10,917"
+   },
+   "confidence": 0.85,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": null,
+   "unit": "SEK 000",
+   "period": "2025",
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": null,
+   "unit": "SEK 000",
+   "period": "2025",
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "detail": "missing: due_1_to_5_years"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [72, 73] selected from candidates [93, 94, 72, 65]"
+ ]
+}

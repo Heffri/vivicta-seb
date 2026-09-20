@@ -1,0 +1,87 @@
+{
+  "report_id": "lib-gentoo_media_2025",
+  "company": "Gentoo Media",
+  "fiscal_year": 2025,
+  "currency": "EUR’000",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 111798,
+      "unit": "EUR’000",
+      "period": "2025",
+      "raw_label": "Total loans and borrowings",
+      "source": {
+        "page": 88,
+        "quote": "Total loans and borrowings 111,798 96,627"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 111798,
+      "unit": "EUR’000",
+      "period": "2025",
+      "raw_label": "Borrowings, current",
+      "source": {
+        "page": 88,
+        "quote": "Borrowings, current 111,798 7,151"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "EUR’000",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "EUR’000",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_1_to_5_years"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [88, 89] selected from candidates [92, 93, 89, 86, 88]",
+    "published: seedseed-rerun-v118-kb run replayed with extract.py @ d3eb5fc8"
+  ]
+}

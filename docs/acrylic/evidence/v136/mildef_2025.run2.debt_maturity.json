@@ -1,0 +1,75 @@
+{
+ "report_id": "lib-mildef_2025",
+ "company": "Mildef Group",
+ "fiscal_year": 2025,
+ "currency": "SEK million",
+ "section": "debt_maturity",
+ "maturity_basis": "carrying",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 772.9,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "Total borrowing",
+   "source": {
+    "page": 112,
+    "quote": "Total borrowing 772.9 220.4"
+   },
+   "confidence": 1.0,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "label_known",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": null,
+   "unit": null,
+   "period": "2025",
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": null,
+   "unit": null,
+   "period": "2025",
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": null,
+   "unit": null,
+   "period": "2025",
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "detail": "missing: due_within_1_year"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [112, 113] selected from candidates [95, 96, 112, 88, 86, 115, 75, 74, 107, 97]"
+ ]
+}

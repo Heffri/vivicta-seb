@@ -1,16 +1,19 @@
-import { FileText, Loader2, Search, UploadCloud, X } from 'lucide-react'
+import { Globe, Loader2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { type ApiError, extractSection, fetchReport, getCompanies, getLibrary, getSchemas, registerLibraryReport, uploadReport } from '@/api'
-import { Badge } from '@/components/ui/badge'
+import { type ApiError, extractSection, fetchReport, getCompanies, getConfig, getLibrary, getSchemas, registerLibraryReport, uploadReport } from '@/api'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ErrorBlock, LoadingLine } from '@/components/ui/state'
+import { CachedReports } from '@/components/upload/CachedReports'
+import { CompanySearch } from '@/components/upload/CompanySearch'
+import { Dropzone } from '@/components/upload/Dropzone'
 import type { Company, LibraryEntry, Report, Result, Schema } from '@/types'
 
 type Props = { onDone: (results: Result[]) => void }
 
-const fmtSize = (bytes: number) =>
-  bytes < 1_000_000 ? `${Math.round(bytes / 1000)} kB` : `${(bytes / 1_000_000).toFixed(1)} MB`
+type QueueItem = { label: string; prep?: string; getReport: () => Promise<Report>; fromUpload?: boolean; web?: boolean }
+
+const isPdf = (f: File) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
 
 export function UploadView({ onDone }: Props) {
   const [schemas, setSchemas] = useState<Schema[]>([])
@@ -21,19 +24,14 @@ export function UploadView({ onDone }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set()) // LibraryEntry.file
   const [query, setQuery] = useState('')
   const [year, setYear] = useState('2025')
+  const [downloadPdf, setDownloadPdf] = useState(false)
   const [companies, setCompanies] = useState<Company[]>([])
   const [dirError, setDirError] = useState<string | null>(null)
+  const [provider, setProvider] = useState<string | null>(null) // backend /api/config provider; null = not loaded yet
   const [picked, setPicked] = useState<Company[]>([]) // directory picks, deduped by name
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([]) // uploads, in drop/pick order, deduped by name+size
   const [dragging, setDragging] = useState(false)
   const [progress, setProgress] = useState<string | null>(null) // non-null = busy
-  const [started, setStarted] = useState<number | null>(null)
-  const [elapsed, setElapsed] = useState(0)
-  useEffect(() => {
-    if (!started) return
-    const timer = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000)
-    return () => clearInterval(timer)
-  }, [started])
   const [error, setError] = useState<string | null>(null)
   const [tried, setTried] = useState<Record<string, string[]>>({}) // label → URLs /fetch tried, for the all-failed block
 
@@ -65,19 +63,35 @@ export function UploadView({ onDone }: Props) {
     getLibrary()
       .then(setLibrary)
       .catch((e: Error) => setLibraryError(e.message))
+    // v074: the web-search action is only offerable when the backend runs on a provider that has a
+    // web-search tool (codex/claude); fixture/openai get the "needs a model provider" hint instead.
+    getConfig()
+      .then((c) => setProvider(c.provider))
+      .catch(() => setProvider(null))
   }, [])
 
-  const pickFile = (f: File | undefined) => {
-    if (!f) return
-    if (f.type !== 'application/pdf' && !f.name.toLowerCase().endsWith('.pdf')) {
-      setError('Only PDF files are supported.')
-      return
-    }
-    setError(null)
-    setFile(f)
+  // Reject non-PDFs individually (named in the error) and keep the rest; re-picking/re-dropping appends.
+  const pickFiles = (incoming: File[]) => {
+    if (incoming.length === 0) return
+    const rejected = incoming.filter((f) => !isPdf(f))
+    const accepted = incoming.filter(isPdf)
+    setError(rejected.length > 0 ? `Only PDF files are supported: ${rejected.map((f) => f.name).join(', ')}` : null)
+    if (accepted.length === 0) return
+    setFiles((prev) => {
+      const seen = new Set(prev.map((f) => `${f.name}:${f.size}`))
+      const next = [...prev]
+      for (const f of accepted) {
+        const key = `${f.name}:${f.size}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        next.push(f)
+      }
+      return next
+    })
   }
 
-  const tags = [...new Set(library.flatMap((e) => e.tags))].sort()
+  const removeFile = (target: File) => setFiles((prev) => prev.filter((f) => f !== target))
+
   const allSelected = (files: string[]) => files.length > 0 && files.every((f) => selected.has(f))
   // Chip semantics: all of the tag already selected → deselect them, otherwise select them.
   const toggleAll = (files: string[]) =>
@@ -98,40 +112,44 @@ export function UploadView({ onDone }: Props) {
     setPicked((prev) => (prev.some((p) => p.name === c.name) ? prev.filter((p) => p.name !== c.name) : [...prev, c]))
 
   const busy = progress !== null
-  const count = picked.length + selected.size + (file ? 1 : 0)
+  const count = picked.length + selected.size + files.length
   const canExtract = count > 0 && !!section && !busy
+  // The directory is Swedish-listed only; a no-hit query can still be fetched through the backend's
+  // fourth source (the model's own web search), which only a codex/claude provider has.
+  const noDirHit = query.trim().length > 0 && companies.length === 0 && dirError === null
+  const webSearchAvailable = provider === 'codex' || provider === 'claude'
 
-  const run = async () => {
+  const run = async (extra: QueueItem[] = []) => {
     if (!section) return
     setError(null)
-    setStarted(Date.now())
-    setElapsed(0)
     setTried({})
     const sectionTitle = schemas.find((s) => s.name === section)?.title ?? section
-    // Queue = directory picks (fetched on demand) + selected cached entries (library order) + the uploaded file.
-    // Sequential on purpose: the local LLM is one GPU, parallel requests would only queue there and we'd lose the
+    // Queue = web-search jobs (v074, run immediately on click) + directory picks (fetched on demand)
+    // + selected cached entries (library order) + the uploaded files, in drop order. Sequential on
+    // purpose: the local LLM is one GPU, parallel requests would only queue there and we'd lose the
     // per-report progress line.
-    const queue = [
+    const queue: QueueItem[] = [
+      ...extra,
       ...picked.map((c) => ({
         label: c.name,
-        prep: `Fetching ${c.name} annual report ${year}…`,
-        getReport: () => fetchReport(c.name, Number(year)),
+        prep: `Opening ${c.name} annual report ${year}…`,
+        getReport: () => fetchReport(c.name, Number(year), { download_pdf: downloadPdf }),
       })),
       ...library
         .filter((e) => selected.has(e.file))
         .map((e) => ({ label: e.company, getReport: () => registerLibraryReport(e.file) })),
-      ...(file ? [{ label: file.name, getReport: () => uploadReport(file) }] : []),
-    ] as { label: string; prep?: string; getReport: () => Promise<Report> }[]
+      ...files.map((f) => ({ label: f.name, getReport: () => uploadReport(f), fromUpload: true })),
+    ]
     const results: Result[] = []
     for (const [i, item] of queue.entries()) {
-      const n = `(${i + 1}/${queue.length}${item.prep ? ', can take a minute' : ''})`
+      const n = `(${i + 1}/${queue.length}${item.web ? ', can take 10–90 s' : item.prep ? ', can take a minute' : ''})`
       try {
         setProgress(`${item.prep ?? `Preparing ${item.label}`} ${n}`)
         const report = await item.getReport()
-        setProgress(`Extracting ${item.label} ${n}… ${i} completed.`)
+        setProgress(`Extracting ${item.label} ${n}… about a minute per report with a local model.`)
         const extraction = await extractSection(report.report_id, section)
-        // Library entries keep the curated name; the upload gets whatever the backend/LLM guessed.
-        const label = item.label === file?.name ? (extraction.company ?? report.company ?? item.label) : item.label
+        // Library entries keep the curated name; each upload gets whatever the backend/LLM guessed.
+        const label = item.fromUpload ? (extraction.company ?? report.company ?? item.label) : item.label
         results.push({ label, sectionTitle, extraction })
       } catch (e) {
         results.push({ label: item.label, sectionTitle, error: (e as Error).message })
@@ -141,222 +159,98 @@ export function UploadView({ onDone }: Props) {
       }
     }
     setProgress(null)
-    setStarted(null)
     if (results.every((r) => r.error)) setError(results.map((r) => `${r.label}: ${r.error}`).join('\n'))
     else onDone(results)
   }
 
+  // v074: a name the directory doesn't know goes straight through fetch → extract as its own run.
+  const runWeb = (name: string) => {
+    void run([
+      {
+        label: name,
+        prep: `Searching the web for ${name} annual report ${year}…`,
+        getReport: () => fetchReport(name, Number(year), { download_pdf: true }),
+        web: true,
+      },
+    ])
+  }
+
   return (
-    <div className="mx-auto max-w-3xl">
-      <header className="mb-8">
+    <div className="mx-auto w-full max-w-3xl min-[1280px]:max-w-none">
+      <header className="mb-6">
         <p className="text-xs text-muted-foreground uppercase tracking-wide">Extract</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">Pick reports, get source-linked numbers</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Search the directory, tick cached reports or drop a PDF. One report opens Results, several open Compare.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Wallenberg collection: reuse saved figures and page text, choose a local report or upload your own. PDFs are never downloaded automatically.
+        </p>
       </header>
 
-      <Card>
-        <CardContent className="space-y-6">
-          {/* Directory search (primary path): pick listed companies, /fetch pulls the PDF on demand. */}
-          <div className="space-y-3">
-            <label htmlFor="company-q" className="text-sm font-medium">
-              Companies
-            </label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  id="company-q"
-                  type="search"
-                  value={query}
-                  disabled={busy}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search listed companies… e.g. Sandvik"
-                  className="h-8 w-full rounded-lg border bg-transparent pr-3 pl-8 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
-                />
-              </div>
-              <Select value={year} onValueChange={(v) => v && setYear(v)} items={{ 2025: '2025', 2024: '2024', 2023: '2023' }} disabled={busy}>
-                <SelectTrigger aria-label="Fiscal year" className="w-24">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {['2025', '2024', '2023'].map((y) => (
-                    <SelectItem key={y} value={y}>
-                      {y}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {dirError !== null ? (
-              <p className="text-xs text-muted-foreground">Company directory unavailable{dirError && ` (${dirError})`}.</p>
+      {/* One material: the whole screen is a single flat translucent step over the shell glass —
+          a --bg-1..2 gradient, hairline border, specular top edge, no backdrop-filter of its own
+          (DESIGN.md: one blurred pane per window, everything inside is a flat --bg-N step). */}
+      <section
+        aria-busy={busy || undefined}
+        className="overflow-hidden rounded-xl border border-border bg-linear-to-b from-background to-muted/60 shadow-[inset_0_1px_0_var(--glass-hi)]"
+      >
+        {/* The three paths. Busy dims the faces as a whole; the action bar below stays live. */}
+        <div
+          className={`grid transition-opacity duration-200 min-[1280px]:grid-cols-[1.1fr_1.1fr_1fr] ${
+            busy ? 'pointer-events-none opacity-60' : ''
+          }`}
+        >
+          <CompanySearch
+            query={query}
+            year={year}
+            companies={companies}
+            dirError={dirError}
+            picked={picked}
+            busy={busy}
+            onQueryChange={setQuery}
+            onYearChange={setYear}
+            onTogglePick={togglePick}
+          />
+          <CachedReports
+            library={library}
+            libraryError={libraryError}
+            selected={selected}
+            busy={busy}
+            onSelectAll={() => setSelected(new Set(library.map((e) => e.file)))}
+            onSelectNone={() => setSelected(new Set())}
+            onToggleTag={toggleAll}
+            onToggleOne={toggleOne}
+          />
+          <Dropzone
+            files={files}
+            dragging={dragging}
+            busy={busy}
+            onDragStage={setDragging}
+            onPick={pickFiles}
+            onRemove={removeFile}
+          />
+        </div>
+
+        {/* v074: no directory hit for a non-empty query — offer the model's web search for that
+            name (available only on a codex/claude provider; fixture/openai get the pointer to
+            Settings instead). Same fetch → extract flow, same progress and error states. */}
+        {noDirHit && downloadPdf && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border bg-background/50 px-5 py-3">
+            <span className="text-sm text-muted-foreground">No match in the directory for “{query.trim()}”.</span>
+            {webSearchAvailable ? (
+              <Button variant="outline" size="sm" disabled={busy || !section} onClick={() => runWeb(query.trim())}>
+                <Globe className="size-3.5" />
+                Find and download PDF for ‘{query.trim()}’ FY {year}
+              </Button>
             ) : (
-              <ul className="max-h-56 divide-y overflow-y-auto rounded-lg border text-sm">
-                {companies.length === 0 && <li className="px-3 py-2 text-xs text-muted-foreground">No matches.</li>}
-                {companies.map((c) => {
-                  const on = picked.some((p) => p.name === c.name)
-                  return (
-                    <li key={c.name}>
-                      <button
-                        type="button"
-                        disabled={busy}
-                        aria-pressed={on}
-                        onClick={() => togglePick(c)}
-                        className={`flex w-full flex-wrap items-center gap-1.5 px-3 py-1.5 text-left hover:bg-muted/50 disabled:opacity-60 ${
-                          on ? 'bg-primary/5' : ''
-                        }`}
-                      >
-                        <span className="font-medium">{c.name}</span>
-                        <span className="text-xs text-muted-foreground">{c.ticker}</span>
-                        {c.sector && <span className="text-xs text-muted-foreground">· {c.sector}</span>}
-                        {c.cached_years.includes(Number(year)) && (
-                          <Badge variant="secondary" className="ml-auto">
-                            cached
-                          </Badge>
-                        )}
-                      </button>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-            {picked.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-xs text-muted-foreground">Selected:</span>
-                {picked.map((c) => (
-                  <Badge key={c.name} variant="secondary" className="gap-1 pr-1">
-                    {c.name}
-                    <button
-                      type="button"
-                      aria-label={`Remove ${c.name}`}
-                      disabled={busy}
-                      onClick={() => togglePick(c)}
-                      className="rounded-sm hover:bg-muted"
-                    >
-                      <X className="size-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
+              <span className="text-xs text-muted-foreground">Web search needs a model provider (Settings).</span>
             )}
           </div>
+        )}
 
-          {/* Cached reports (secondary): chips = tag collections, grid = individual reports. */}
-          <details className="space-y-3">
-            <summary className="cursor-pointer text-xs text-muted-foreground select-none">
-              Cached reports ({library.length}){selected.size > 0 && ` · ${selected.size} selected`}
-            </summary>
-            {libraryError ? (
-              <p className="text-xs text-muted-foreground">Report cache unavailable ({libraryError}).</p>
-            ) : library.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                Nothing cached yet — pick a company above to fetch its report, or upload a PDF below.
-              </p>
-            ) : (
-              <>
-                <div className="flex flex-wrap gap-1.5">
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => setSelected(new Set(library.map((e) => e.file)))}
-                  >
-                    All
-                  </Button>
-                  <Button size="xs" variant="outline" disabled={busy} onClick={() => setSelected(new Set())}>
-                    None
-                  </Button>
-                  {tags.map((t) => {
-                    const files = library.filter((e) => e.tags.includes(t)).map((e) => e.file)
-                    return (
-                      <Button
-                        key={t}
-                        size="xs"
-                        variant={allSelected(files) ? 'default' : 'outline'}
-                        disabled={busy}
-                        onClick={() => toggleAll(files)}
-                      >
-                        {t}
-                      </Button>
-                    )
-                  })}
-                </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {library.map((e) => (
-                    <label
-                      key={e.file}
-                      className={`flex cursor-pointer gap-3 rounded-lg border p-3 text-sm transition-colors hover:bg-muted/50 ${
-                        selected.has(e.file) ? 'border-primary bg-primary/5' : ''
-                      } ${busy ? 'pointer-events-none opacity-60' : ''}`}
-                    >
-                      <input
-                        type="checkbox"
-                        className="mt-0.5 accent-primary"
-                        checked={selected.has(e.file)}
-                        disabled={busy}
-                        onChange={() => toggleOne(e.file)}
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="flex flex-wrap items-center gap-1.5">
-                          <span className="font-medium">{e.company}</span>
-                          <span className="text-muted-foreground">FY {e.fiscal_year}</span>
-                          <Badge variant="secondary" className="uppercase">
-                            {e.language}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">{e.pages} p</span>
-                        </span>
-                        {e.note && <span className="mt-0.5 block text-xs text-muted-foreground">{e.note}</span>}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </>
-            )}
-          </details>
-
-          {/* Dropzone. The <label> makes the whole area click-to-open the hidden input. */}
-          <label
-            htmlFor="pdf"
-            onDragOver={(e) => {
-              e.preventDefault()
-              setDragging(true)
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault()
-              setDragging(false)
-              pickFile(e.dataTransfer.files[0])
-            }}
-            className={[
-              'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed px-6 py-8 text-center transition-colors',
-              dragging ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50',
-              busy ? 'pointer-events-none opacity-60' : '',
-            ].join(' ')}
-          >
-            {file ? (
-              <>
-                <FileText className="size-6 text-primary" />
-                <span className="text-sm font-medium">{file.name}</span>
-                <span className="text-xs text-muted-foreground">{fmtSize(file.size)} · click or drop to replace</span>
-              </>
-            ) : (
-              <>
-                <UploadCloud className="size-6 text-muted-foreground" />
-                <span className="text-sm font-medium">…or upload your own annual report PDF</span>
-                <span className="text-xs text-muted-foreground">drop it here or click to browse</span>
-              </>
-            )}
-            <input
-              id="pdf"
-              type="file"
-              accept="application/pdf"
-              className="sr-only"
-              disabled={busy}
-              onChange={(e) => pickFile(e.target.files?.[0])}
-            />
-          </label>
-
-          <div className="space-y-1.5">
-            <label htmlFor="section" className="text-sm font-medium">
+        <label className="flex items-start gap-2 border-t px-5 py-3 text-sm"><input type="checkbox" className="mt-1" checked={downloadPdf} disabled={busy} onChange={e => setDownloadPdf(e.target.checked)} /><span>Allow PDF download for this request<span className="block text-xs text-muted-foreground">Off by default. Saved text and figures work without the original PDF. Turn on only to fetch a missing report or its original PDF.</span></span></label>
+        {/* Action bar: section choice, run button, progress line. */}
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-3 border-t border-border bg-background/50 px-5 py-4">
+          <div className="w-full max-w-80 space-y-1 min-[1280px]:flex-1">
+            <label htmlFor="section" className="text-xs text-muted-foreground">
               Section
             </label>
             <Select
@@ -377,27 +271,30 @@ export function UploadView({ onDone }: Props) {
               </SelectContent>
             </Select>
             {schemasError && (
-              <p className="text-xs text-destructive">
-                Could not load sections ({schemasError}). Is the backend running on :8000?
-              </p>
+              <ErrorBlock className="px-3 py-2 text-xs">
+                Could not load sections ({schemasError}). Is the backend running?
+              </ErrorBlock>
             )}
           </div>
+          <Button
+            onClick={() => {
+              void run()
+            }}
+            disabled={!canExtract}
+          >
+            {busy && <Loader2 className="animate-spin" />}
+            {downloadPdf && picked.length ? 'Download PDF and extract' : count > 1 ? `Extract ${count} reports` : 'Extract'}
+          </Button>
+          {progress && <LoadingLine className="w-full">{progress}</LoadingLine>}
+        </div>
 
-          <div className="flex items-center gap-4">
-            <Button onClick={run} disabled={!canExtract}>
-              {busy && <Loader2 className="animate-spin" />}
-              {count > 1 ? `Extract ${count} reports` : 'Extract'}
-            </Button>
-            {progress && <span className="text-sm text-muted-foreground">{progress} {elapsed}s elapsed</span>}
-          </div>
-
-          {error && (
-            <div
-              role="alert"
-              className="whitespace-pre-wrap rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
-            >
-              {error}
-              {Object.entries(tried).map(([label, urls]) => (
+        {/* All-failed block. The shared danger block (v010); the tried URL list stays inside
+            it as collapsible details for the /fetch 404 case, where the backend reports
+            what it attempted. */}
+        {error && (
+          <div className="border-t border-border px-5 py-4">
+            <ErrorBlock
+              details={Object.entries(tried).map(([label, urls]) => (
                 <details key={label} className="mt-1 text-xs">
                   <summary className="cursor-pointer">
                     {label}: tried {urls.length} URL{urls.length === 1 ? '' : 's'}
@@ -409,10 +306,12 @@ export function UploadView({ onDone }: Props) {
                   </ul>
                 </details>
               ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            >
+              {error}
+            </ErrorBlock>
+          </div>
+        )}
+      </section>
     </div>
   )
 }

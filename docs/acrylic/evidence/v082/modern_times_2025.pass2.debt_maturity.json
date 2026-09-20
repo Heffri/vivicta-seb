@@ -1,0 +1,71 @@
+{
+  "report_id": "lib-modern_times_2025",
+  "company": "Modern Times Group",
+  "fiscal_year": 2025,
+  "currency": "SEK million",
+  "section": "debt_maturity",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_within_1_year"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [99, 100] selected from candidates [106, 107, 99, 87, 77, 105, 102, 74]",
+    "total_debt: 'Total -14 -10' is a Total*/Summa* row with no total column in its own header (due_1_to_5_years, due_after_5_years); its own total cannot be checked, left for another path"
+  ],
+  "_driver_meta": {
+    "company": "Modern Times Group",
+    "stem": "modern_times_2025",
+    "pass": 2,
+    "status": 200,
+    "seconds": 28.8
+  }
+}

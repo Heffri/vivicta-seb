@@ -1,0 +1,97 @@
+{
+  "report_id": "lib-enea_2025",
+  "company": "Enea",
+  "fiscal_year": 2025,
+  "currency": "SEK thousands",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 305555,
+      "unit": "SEK thousands",
+      "period": "2025",
+      "raw_label": "Total non‑current liabilities, interest‑bearing (Non‑current liabilities, interest‑bearing) + Total current liabilities, interest-bearing (Current liabilities, interest-bearing)",
+      "source": {
+        "page": 76,
+        "quote": "Total non‑current liabilities, interest‑bearing 169,152 226,747 169,152 226,747 Current liabilities, interest-bearing Liabilities to credit institutions1) 136,403 51,314 136,403 51,314 Total current liabilities, interest-bearing 136,403 51,314 136,403 51,314"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_derived",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 136403,
+      "unit": "SEK thousands",
+      "period": "2025",
+      "raw_label": "Within 1 year after the balance sheet date",
+      "source": {
+        "page": 76,
+        "quote": "Within 1 year after the balance sheet date 136,403 51,314 136,403 51,314"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": 169152,
+      "unit": "SEK thousands",
+      "period": "2025",
+      "raw_label": "Later than 1 year but within 3 years after the balance sheet date",
+      "source": {
+        "page": 76,
+        "quote": "Later than 1 year but within 3 years after the balance sheet date 169,152 226,747 169,152 226,747"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": null,
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_after_5_years"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [76, 77] selected from candidates [76, 77, 64, 35]",
+    "published: seedv131-enea-kb run replayed with extract.py @ 1220743a"
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "report_id": "lib-bico_2025",
+  "company": "BICO Group",
+  "fiscal_year": 2025,
+  "currency": "MSEK",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 1286.8,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Total (Non-current liabilities) + Total (Current liabilities)",
+      "source": {
+        "page": 111,
+        "quote": "Total 218.3 1,669.6 - 1,332.3 Current liabilities Liabilities to credit institutions1 2.7 5.7 - - Convertible bonds 1,001.5 - 1,001.5 Lease liabilities 63.8 87.1 - - Other interest-bearing liabilities 0.5 1.0 - - Total 1,068.5 93.9 1,001.5 -"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_derived",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 1068.5,
+      "unit": "MSEK",
+      "period": "2021",
+      "raw_label": "Total",
+      "source": {
+        "page": 111,
+        "quote": "Total 1,068.5 93.9 1,001.5 -"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": null,
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": null,
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_1_to_5_years"
+    }
+  ],
+  "warnings": [
+    "run1: two_pass: page [111, 112] selected from candidates [86, 87, 114, 111, 141, 83, 32, 113, 80, 120]",
+    "run1: due_within_1_year: page 111 is headed 2021, not 2025; period set to 2021",
+    "run2: two_pass: page [111, 112] selected from candidates [86, 87, 114, 111, 141, 83, 32, 113, 80, 120]",
+    "run2: due_within_1_year: page 111 is headed 2021, not 2025; period set to 2021",
+    "merge: union, per-field: total_debt=null (both null), due_within_1_year=run2 (agree: confidence tie -> run2), due_1_to_5_years=null (both null), due_after_5_years=null (both null)",
+    "published: seedv136-publish-kb run replayed with extract.py @ 3089ab08",
+    "published: seedv151-publish-kb run replayed with extract.py @ dde42d05"
+  ]
+}

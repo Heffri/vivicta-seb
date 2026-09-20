@@ -1,0 +1,86 @@
+{
+ "report_id": "knowit_2025",
+ "company": "Knowit",
+ "fiscal_year": 2025,
+ "currency": "KSEK",
+ "section": "debt_maturity",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 758938,
+   "unit": "KSEK",
+   "period": "2025",
+   "raw_label": "Summa räntebärande skulder",
+   "source": {
+    "page": 152,
+    "quote": "Summa räntebärande skulder 758 938 995 882 KSEK Totalt Ränta Kapitalbelopp Totalt Ränta Kapitalbelopp"
+   },
+   "confidence": 1.0,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "label_known",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": null,
+   "unit": "KSEK",
+   "period": "2025",
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": null,
+   "unit": "KSEK",
+   "period": "2025",
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": null,
+   "unit": "KSEK",
+   "period": "2025",
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "detail": "missing: due_within_1_year"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [152, 153] selected from candidates [152, 153, 135]"
+ ],
+ "_calls": [
+  "page_select",
+  "extraction",
+  "extraction"
+ ],
+ "_candidates": [
+  152,
+  153,
+  135
+ ],
+ "_retry_prompt_fired": false,
+ "_seconds": 105.5
+}

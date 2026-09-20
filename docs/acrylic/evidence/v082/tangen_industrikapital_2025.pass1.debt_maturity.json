@@ -1,0 +1,87 @@
+{
+  "report_id": "lib-tangen_industrikapital_2025",
+  "company": "Tången Industrikapital",
+  "fiscal_year": 2025,
+  "currency": "KSEK",
+  "section": "debt_maturity",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": 57486,
+      "unit": "KSEK",
+      "period": "2024",
+      "raw_label": "Senare än 5 år Summa: Lån Kreditinstitut",
+      "source": {
+        "page": 62,
+        "quote": "Lån Kreditinstitut 141 734 137 898 251 081 57 486 588 199"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_1_to_5_years"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [62, 63] selected from candidates [57, 58, 63, 60]",
+    "total_debt: page 62 is headed 2024, not 2025; period set to 2024",
+    "due_within_1_year: page 62 is headed 2024, not 2025; period set to 2024",
+    "due_1_to_5_years: page 62 is headed 2024, not 2025; period set to 2024",
+    "due_after_5_years: page 62 is headed 2024, not 2025; period set to 2024",
+    "total_debt: 'Lån Kreditinstitut' 588199 dropped: the same row as due_1_to_5_years, and not a total borrowings label",
+    "due_within_1_year: 'Lån Kreditinstitut' 141734 dropped: the same row as due_1_to_5_years, and not a due within 1 year label",
+    "due_1_to_5_years: 388979 is printed on none of pages [57, 58, 62]; dropped as computed, not read"
+  ],
+  "_driver_meta": {
+    "company": "Tången Industrikapital",
+    "stem": "tangen_industrikapital_2025",
+    "pass": 1,
+    "status": 200,
+    "seconds": 96.4
+  }
+}

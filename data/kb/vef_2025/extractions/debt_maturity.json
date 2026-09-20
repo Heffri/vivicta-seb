@@ -1,0 +1,74 @@
+{
+  "report_id": "lib-vef_2025",
+  "company": "VEF",
+  "fiscal_year": 2025,
+  "currency": "KUSD",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 25721,
+      "unit": "KUSD",
+      "period": "2025",
+      "raw_label": "Borrowings",
+      "source": {
+        "page": 23,
+        "quote": "Borrowings 25,721 – thus are not included in the weighted calculation, but they are however"
+      },
+      "confidence": 0.85,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": null,
+      "unit": "KUSD",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "KUSD",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "KUSD",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_within_1_year"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [20, 21] selected from candidates [20, 21, 19, 23, 28]",
+    "published: seedv124-publish-kb run replayed with extract.py @ 3089ab08"
+  ]
+}

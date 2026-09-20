@@ -1,0 +1,105 @@
+{
+  "report_id": "lib-ctt_systems_2025",
+  "company": "CTT Systems",
+  "fiscal_year": 2025,
+  "currency": "SEK m",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 35.5,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Liabilities to credit institutions",
+      "source": {
+        "page": 52,
+        "quote": "Liabilities to credit\ninstitutions 44.1 - -1.4 -7.1 35.5"
+      },
+      "confidence": 0.25,
+      "evidence": [
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 35.5,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Interest-bearing liabilities to credit institutions",
+      "source": {
+        "page": 52,
+        "quote": "Interest-bearing liabilities to credit institutions 35.5 - - - - - 35.5"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": 0,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Interest-bearing liabilities to credit institutions",
+      "source": {
+        "page": 52,
+        "quote": "Interest-bearing liabilities to credit institutions 35.5 - - - - - 35.5"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "printed_nil",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": 0,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Interest-bearing liabilities to credit institutions",
+      "source": {
+        "page": 52,
+        "quote": "Interest-bearing liabilities to credit institutions 35.5 - - - - - 35.5"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "printed_nil",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": true,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((35.5 + 0 + 0) - 35.5) <= 2"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [52, 53] selected from candidates [41, 42, 36, 33, 35, 52, 51]",
+    "total_debt: quote not found on page 52",
+    "published: seedv124-publish-kb run replayed with extract.py @ 3089ab08",
+    "published: seedv151-publish-kb run replayed with extract.py @ dde42d05"
+  ]
+}

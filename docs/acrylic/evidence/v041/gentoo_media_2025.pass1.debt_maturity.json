@@ -1,0 +1,81 @@
+{
+  "report_id": "lib-gentoo_media_2025",
+  "company": "Gentoo Media",
+  "fiscal_year": 2025,
+  "currency": "EUR’000",
+  "section": "debt_maturity",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 111798,
+      "unit": "EUR’000",
+      "period": "2025",
+      "raw_label": "Borrowings, current",
+      "source": {
+        "page": 92,
+        "quote": "amount of funding to meet the Group’s obligations as they Borrowings, current 119,218 - - - 119,218 111,798 / Interest payments on borrowings with variable interest"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 111798,
+      "unit": "EUR’000",
+      "period": "2025",
+      "raw_label": "Borrowings, current",
+      "source": {
+        "page": 92,
+        "quote": "amount of funding to meet the Group’s obligations as they Borrowings, current 119,218 - - - 119,218 111,798 / Interest payments on borrowings with variable interest"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "EUR’000",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "EUR’000",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": true,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((111798 + 0 (due_1_to_5_years null) + 0 (due_after_5_years null)) - 111798) <= 2"
+    }
+  ],
+  "warnings": []
+}

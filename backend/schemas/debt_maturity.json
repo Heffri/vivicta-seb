@@ -2,7 +2,8 @@
   "name": "debt_maturity",
   "component_sums": true,
   "title": "Debt maturity structure",
-  "description": "Total interest-bearing debt and when it falls due, as printed in the borrowings note (often 'Note 20' but the number varies by issuer). Amounts only — no interest rates, no covenants.",
+  "description": "Total interest-bearing debt and when it falls due, as printed in the borrowings note (often 'Note 20' but the number varies by issuer). Amounts only — no interest rates, no covenants. Some reports print two maturity tables on nearby pages: the borrowings note's carrying amounts, and a liquidity-risk note's contractual undiscounted cash flows (includes future interest, a higher total). Read the carrying-amount table — the one whose total ties to interest-bearing borrowings on the balance sheet. Banks and other deposit-taking issuers often print no borrowings note at all: their only maturity table is the liquidity-risk note's undiscounted contractual cash flows — assets and liabilities side by side, future interest included, explicitly not reconcilable to the balance sheet — so never read buckets from it. Their carrying-amount debt instead sits on the balance sheet as separate liability rows (deposits from the public, debt securities issued, liabilities to credit institutions, subordinated debt). For such an issuer a 'total interest-bearing liabilities' row — if the report prints one — is total borrowings; where no such total is printed, the buckets and the total cannot be read as single printed numbers: leave them null rather than summing rows yourself or borrowing a single instrument's row.",
+  "description_undiscounted": "Total interest-bearing debt and when it falls due, as printed in the report (often 'Note 20' but the number varies by issuer). Amounts only — no interest rates, no covenants. Some reports print two maturity tables on nearby pages: the borrowings note's carrying amounts, and a liquidity-risk note's contractual undiscounted cash flows (includes future interest, a higher total). Read the contractual undiscounted cash flows table — the liquidity-risk note's maturity table, whose total includes future interest — not the borrowings note's carrying-amount table.",
   "keywords": [
     "borrowings",
     "financial liabilities",
@@ -19,9 +20,12 @@
     "förfallostruktur",
     "återstående löptid",
     "förfallotidpunkt",
-    "long-term borrowings",
-    "short-term borrowings",
-    "liquidity risk"
+    "förfall",
+    "liquidity risk",
+    "loans from banks",
+    "credit institutions",
+    "skulder som härör",
+    "reserves based lending"
   ],
   "exclude_keywords": [
     "five-year summary",
@@ -31,46 +35,130 @@
     "quarterly",
     "kvartal"
   ],
-  "value_convention": "Numbers exactly as printed in the maturity table. Unit = the unit stated in the table header (MSEK, SEK m, MEUR, USD m ...). Bucket boundaries follow the report's own columns; a report with finer splits (e.g. 1-2y, 2-5y) should have its 1-5y bucket taken as the sum of those columns.",
+  "toc_keywords": [
+    "borrowings",
+    "upplåning",
+    "räntebärande skulder",
+    "interest-bearing liabilities",
+    "interest bearing liabilities",
+    "maturity",
+    "maturities",
+    "förfall",
+    "loans payable",
+    "liquidity risk",
+    "likviditetsrisk"
+  ],
+  "value_convention": "Numbers exactly as printed in the maturity table. Unit = the unit stated in the table header (MSEK, SEK m, MEUR, USD m ...). Bucket boundaries follow the report's own columns, which do not always match the three buckets below one-for-one — sum whichever of the report's own columns fall entirely inside a bucket's range (e.g. a first-year split of <3 months + 3-12 months into due_within_1_year, 1-2y + 2-5y into due_1_to_5_years, or 6-10y + >10y into due_after_5_years); see each field's own description.",
+  "ignore_header_synonyms": [
+    "total undiscounted", "undiscounted cash flows", "odiskonterade kassaflöden", "total contractual"
+  ],
+  "table_scope_words": {
+    "undiscounted": [
+      "undiscounted", "non-discounted", "contractual cash flows", "odiskonterade", "kontraktsenliga",
+      "liquidity risk", "likviditetsrisk", "maturity analysis regarding",
+      "maturity analysis of lease liabilities", "maturity analysis of the lease liabilities"
+    ],
+    "all_liabilities": [
+      "trade payables", "accounts payable", "accounts payables", "leverantörsskulder",
+      "other liabilities", "other liabilites", "other current liabilities", "other current liabilites",
+      "övriga skulder", "expected returns", "derivatives", "derivate", "acquisition-related liabilities",
+      "contingent considerations"
+    ],
+    "non_debt_subject": [
+      "contract liabilities", "contract liability", "avtalsskulder", "avtalsskuld",
+      "timing of revenue", "intäktsredovisning",
+      "customer advances", "customer advance", "förskott från kunder",
+      "warranty", "garanti", "provisions", "provision",
+      "avsättningar", "avsättning", "deferred revenue", "upplupna"
+    ],
+    "parent_company": [
+      "parent company", "moderbolaget", "moderföretaget", "parent"
+    ]
+  },
   "fields": [
     {
       "key": "total_debt",
       "label": "Total borrowings",
-      "description": "Total interest-bearing debt / borrowings, the row the maturity table sums to (or the note's own total if the maturity table has no total row).",
+      "description": "Total interest-bearing debt / borrowings, the row the maturity table sums to (or the note's own total if the maturity table has no total row). Must be a carrying amount that reconciles to interest-bearing borrowings on the balance sheet, not an undiscounted contractual cash-flow total. Include lease liabilities (IFRS 16) only if the report's own note includes them in this total — do not add or remove leases yourself; keep the row's own wording in raw_label so the choice is traceable. 0 if the report states in plain words that it has no interest-bearing debt/borrowings (e.g. an investment company's note saying it holds none) — a sentence, not a numeric row, still makes the value 0, not null. For a deposit-taking bank: borrowings = the report's own 'total interest-bearing liabilities' row when it is printed — such totals include customer deposits (deposits from the public + issued debt securities + subordinated debt) — and customer deposits are then borrowings; when no such total row exists, customer deposits ('deposits from the public/customers') are the bank's operating funding, not borrowings, and no borrowed-money sub-row (issued securities, liabilities to credit institutions, subordinated debt alone) may stand in for the total: leave total_debt null instead of summing rows.",
+      "description_undiscounted": "Total interest-bearing debt / borrowings on the contractual undiscounted basis: the maturity table's own undiscounted contractual cash-flow total (its total column or total row). It includes future interest and is typically higher than the carrying amount — take it, not the carrying-amount column; on this basis the total deliberately does not reconcile to interest-bearing borrowings on the balance sheet, it reconciles to the undiscounted table's own bucket columns. Include lease liabilities (IFRS 16) only if the report's own note includes them in this total — do not add or remove leases yourself; keep the row's own wording in raw_label so the choice is traceable. 0 if the report states in plain words that it has no interest-bearing debt/borrowings (e.g. an investment company's note saying it holds none) — a sentence, not a numeric row, still makes the value 0, not null.",
       "unit_hint": "currency_millions",
       "synonyms": [
-        "total borrowings", "total loans", "total interest-bearing liabilities", "total debt",
+        "total borrowings", "total borrowing", "total loans", "total interest-bearing liabilities", "total debt",
+        "total secured borrowings",
         "räntebärande skulder totalt", "summa upplåning", "total upplåning", "summa räntebärande skulder"
-      ]
+      ],
+      "header_synonyms": [
+        "carrying amount", "carrying value", "redovisat värde", "bokfört värde"
+      ],
+      "row_synonyms": [
+        "borrowing", "borrowings", "bank loans", "bank loan",
+        "interest-bearing liabilities", "interest bearing liabilities", "short-term interest-bearing liabilities",
+        "lease liabilities", "lease liability",
+        "upplåning", "räntebärande skulder",
+        "lån kreditinstitut", "liabilities to credit institutions"
+      ],
+      "zero_if_stated": {
+        "negations": [
+          "varken", "ingen", "inga", "inget", "inte", "icke", "ej", "utan", "saknar", "noll",
+          "skuldfri", "skuldfritt", "skuldfria",
+          "no", "not", "neither", "nor", "none", "without", "lacks", "zero", "nil", "debt-free"
+        ],
+        "subject_terms": ["loan", "loans"]
+      }
     },
     {
       "key": "due_within_1_year",
       "label": "Due within 1 year",
-      "description": "Amount falling due within one year of the balance sheet date (current portion of borrowings).",
+      "description": "Amount falling due within one year of the balance sheet date (current portion of borrowings). If the report splits the first year further (e.g. <3 months, 3-12 months), sum those columns. null if the table has no such row — do not enter 0 for a bucket the report doesn't print.",
       "unit_hint": "currency_millions",
       "synonyms": [
         "within 1 year", "less than 1 year", "0-1 year", "0-1 years", "within one year",
-        "inom 1 år", "förfaller inom 1 år", "< 1 år"
+        "under 1 year", "under one year", "within 3 months", "3-12 months",
+        "less than 3 months", "0-3 months", "less than 6 months", "6-12 months",
+        "6 månader eller mindre", "6 – 12 månader",
+        "inom 1 år", "inom ett år", "förfaller inom 1 år", "< 1 år", "kortfristiga räntebärande skulder",
+        "borrowings, current", "total borrowings in current liabilities"
+      ],
+      "header_synonyms": [
+        "within 12 months", "< 1 month", "1-3 months",
+        "3 months", "three to twelve months",
+        "-30 dgr", "31-90 dgr", "91-360 dgr",
+        "inom 12 månader", "mindre än 12 månader",
+        "within 6 months",
+        "summa inom 1 år", "total within 1 year"
       ]
     },
     {
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
-      "description": "Amount falling due between one and five years from the balance sheet date. If the report splits this further (e.g. 1-2y, 2-5y), sum those columns.",
+      "description": "Amount falling due between one and five years from the balance sheet date. If the report splits this further (e.g. 1-2y, 2-5y), sum those columns. null if the table has no such row — do not enter 0 for a bucket the report doesn't print.",
       "unit_hint": "currency_millions",
       "synonyms": [
-        "1-5 years", "1 to 5 years", "between 1 and 5 years", "1-2 years", "2-5 years",
-        "1-5 år", "1–5 år", "mellan 1 och 5 år"
+        "1-5 years", "1 to 5 years", "between 1 and 5 years", "one to five years",
+        "1-2 years", "1-3 years", "2-3 years", "3-4 years", "4-5 years", "2-5 years",
+        "within 2-3 years", "within 4-5 years", "within 2–3 years", "within 4–5 years",
+        "between 1 and 2 years", "between 2 and 3 years", "between 3 and 4 years",
+        "between 4 and 5 years", "between 2 and 5 years",
+        "1-5 år", "1–5 år", "mellan 1 och 5 år", "mellan ett och fem år", "inom fem år",
+        "1-2 år", "mellan 1 och 3 år", "mellan 3 och 5 år", "2-5 år"
+      ],
+      "header_synonyms": [
+        "3-5 years", "mellan 1 och 2 år"
       ]
     },
     {
       "key": "due_after_5_years",
       "label": "Due after 5 years",
-      "description": "Amount falling due more than five years from the balance sheet date.",
+      "description": "Amount falling due more than five years from the balance sheet date. If the report splits this further (e.g. 6-10y, >10y), sum those columns. null if the table has no such row — do not enter 0 for a bucket the report doesn't print.",
       "unit_hint": "currency_millions",
       "synonyms": [
         "after 5 years", "more than 5 years", "later than 5 years", "over 5 years",
-        "senare än 5 år", "efter 5 år", "> 5 år"
+        "after five years", "more than five years", "later than five years",
+        "senare än 5 år", "efter 5 år", "> 5 år",
+        "senare än fem år", "efter fem år", "över 5 år", "över fem år"
+      ],
+      "header_synonyms": [
+        "five to nie years", "after nine years"
       ]
     }
   ],
@@ -79,7 +167,10 @@
       "name": "maturity_sums_to_total",
       "expr": "abs((due_within_1_year + due_1_to_5_years + due_after_5_years) - total_debt) <= 2",
       "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding)",
-      "identity": true
+      "description": "All buckets need explicit source values or documented human corrections. Missing values remain unknown and cannot produce a passing reconciliation.",
+      "identity": true,
+      "require_explicit_values": true,
+      "null_as_zero": ["due_within_1_year", "due_1_to_5_years", "due_after_5_years"]
     }
   ]
 }

@@ -1,0 +1,86 @@
+{
+  "report_id": "lib-duni_2025",
+  "company": "Duni",
+  "fiscal_year": 2025,
+  "currency": "SEK m",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 1498,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "Total borrowing",
+      "source": {
+        "page": 181,
+        "quote": "Total borrowing 1,498 885 1,282 687"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 0,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "6 months or less; 6-12 months",
+      "source": {
+        "page": 181,
+        "quote": "6-12 months 0 35"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "SEK m",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_1_to_5_years"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [181, 182] selected from candidates [176, 177, 181]",
+    "published: seedseed-rerun-v119-kb run replayed with extract.py @ d3eb5fc8"
+  ]
+}

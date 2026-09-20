@@ -1,0 +1,76 @@
+{
+  "report_id": "lib-linc_2025",
+  "company": "Linc",
+  "fiscal_year": 2025,
+  "currency": "TSEK",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 0,
+      "unit": "TSEK",
+      "period": "2025",
+      "raw_label": "Räntebärande skulder – –",
+      "source": {
+        "page": 100,
+        "quote": "Räntebärande skulder – –"
+      },
+      "confidence": 0.5,
+      "evidence": [
+        "quote_on_page",
+        "printed_nil",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": null,
+      "unit": "TSEK",
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "TSEK",
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "TSEK",
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_within_1_year"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [100, 101] selected from candidates [67, 68, 100, 88, 70, 71, 40]",
+    "total_debt: 0 kept -- 'Räntebärande skulder – –' prints a dash in the fiscal-year column under a known label (printed nil)",
+    "published: seedv124-publish-kb run replayed with extract.py @ 3089ab08"
+  ]
+}

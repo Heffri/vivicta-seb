@@ -1,0 +1,93 @@
+{
+ "report_id": "lib-bergman_beving_2025",
+ "company": "Bergman & Beving",
+ "fiscal_year": 2025,
+ "currency": "MSEK",
+ "section": "debt_maturity",
+ "maturity_basis": "carrying",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 2390,
+   "unit": "MSEK",
+   "period": "2025",
+   "raw_label": "Total interest-bearing liabilities",
+   "source": {
+    "page": 120,
+    "quote": "Total interest-bearing liabilities 2,390 2,062"
+   },
+   "confidence": 1.0,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "label_known",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": null,
+   "unit": null,
+   "period": null,
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": 2116,
+   "unit": "MSEK",
+   "period": "2025",
+   "raw_label": "Interest-bearing financial liabilities bank; Interest-bearing financial liabilities leases",
+   "source": {
+    "page": 119,
+    "quote": "Interest-bearing financial liabilities leases 352 385 39 118 196 32"
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "arith_ok",
+    "period_ok",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": 32,
+   "unit": "MSEK",
+   "period": "2025",
+   "raw_label": "Interest-bearing financial liabilities bank; Interest-bearing financial liabilities leases",
+   "source": {
+    "page": 119,
+    "quote": "Interest-bearing financial liabilities leases 352 385 39 118 196 32"
+   },
+   "confidence": 0.85,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "unit_ok"
+   ]
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "detail": "missing: due_within_1_year"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [120, 121] selected from candidates [119, 120, 123]",
+  "due_within_1_year: 511 is printed on none of pages [119, 120]; dropped as computed, not read"
+ ]
+}

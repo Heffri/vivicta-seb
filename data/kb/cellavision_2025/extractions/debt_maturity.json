@@ -1,0 +1,108 @@
+{
+  "report_id": "lib-cellavision_2025",
+  "company": "CellaVision",
+  "fiscal_year": 2025,
+  "currency": "SEK thousands",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 25651,
+      "unit": "SEK thousands",
+      "period": "2025",
+      "raw_label": "As of December 31, 2025",
+      "source": {
+        "page": 92,
+        "quote": "As of December 31, 2025 3,821 21,830 25,651"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 13680,
+      "unit": "SEK thousands",
+      "period": "2025",
+      "raw_label": "within: 1 year",
+      "source": {
+        "page": 92,
+        "quote": "The table below presents this year’s change in the Group’s liabilities linked to financing the business. The table includes current and non-current liabilities. The part that falls due for payment within: 1 year amounts to SEK 13,680 thousand"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": 8768,
+      "unit": "SEK thousands",
+      "period": "2025",
+      "raw_label": "1-5 years",
+      "source": {
+        "page": 92,
+        "quote": "(14,171), 1-5 years SEK 8,768 thousand (12,237), after 5 years SEK 3,203 thousand (442)."
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": 3203,
+      "unit": "SEK thousands",
+      "period": "2025",
+      "raw_label": "after 5 years",
+      "source": {
+        "page": 92,
+        "quote": "(14,171), 1-5 years SEK 8,768 thousand (12,237), after 5 years SEK 3,203 thousand (442)."
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": true,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((13680 + 8768 + 3203) - 25651) <= 2"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [92, 93] selected from candidates [77, 78, 92, 100, 84]",
+    "total_debt: 'Total 969 969 2,268 2,268' is a Total*/Summa* row with no total column in its own header (due_within_1_year, due_after_5_years, due_within_1_year); its own total cannot be checked, left for another path",
+    "published: seedv124-publish-kb run replayed with extract.py @ 3089ab08"
+  ]
+}

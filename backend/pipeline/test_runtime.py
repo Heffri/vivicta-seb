@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 import pymupdf
 
 import app
-from . import kb, runtime
+from . import kb, llm
 
 
 class RuntimeChecks(unittest.TestCase):
@@ -124,6 +124,8 @@ class RuntimeChecks(unittest.TestCase):
             path = kb.kb_dir() / self.stem / "extractions/income_statement.json"
             before = path.read_bytes()
             fixture["warnings"] = ["llm: RuntimeError: login expired"]
+            for field in fixture["fields"]:
+                field["value"] = None
             response = self.client.post(url, json={"section": "income_statement", "force": True})
             self.assertEqual(response.status_code, 502)
             self.assertEqual(path.read_bytes(), before)
@@ -141,10 +143,6 @@ class RuntimeChecks(unittest.TestCase):
         self.assertEqual(self.client.get(f"/api/reports/{self.stem}/extraction.csv").status_code, 200)
         self.assertEqual(self.client.get(f"/api/reports/{self.stem}/extraction.pptx").status_code, 200)
 
-    def test_cli_failure_is_actionable(self):
-        with patch.object(runtime.shutil, "which", return_value=None):
-            with self.assertRaisesRegex(RuntimeError, "CLI not found"):
-                runtime.codex_call("system", "user", {})
 
     def test_exports_stay_with_requested_section_and_preserve_missing_values(self):
         app.reports[self.stem] = {"report_id": self.stem, "stem": self.stem}
@@ -206,11 +204,11 @@ class RuntimeChecks(unittest.TestCase):
         other = "test_2024"
         kb.save_report(other, {"company": "Test AB", "fiscal_year": 2024, "pages": 1, "sha256": "old"}, ["Revenue 80 70"])
         hits = [{"stem": s, "page": 1, "text": t, "score": 0.9} for s, t in [(self.stem, "Revenue 100 90"), (other, "Revenue 80 70")]]
-        raw = {"answer": "2024 revenue was 80.", "citations": [{"report": other, "page": 1, "quote": "Revenue 80 70"}]}
-        with patch.object(kb, "search", return_value=hits), patch.object(extract, "call_llm", return_value=raw):
+        raw = {"answer": "2024 revenue was 80.", "citations": [{"company": "Test AB", "report_stem": other, "fiscal_year": 2024, "page": 1, "quote": "Revenue 80 70"}]}
+        with patch.object(kb, "search", return_value=hits), patch.object(kb.llm, "chat", side_effect=lambda *a: json.dumps(raw)):
             answer = kb.ask([self.stem, other], "Compare revenue")
             self.assertEqual(answer["citations"][0]["fiscal_year"], 2024)
-            raw["citations"][0]["report"] = self.stem
+            raw["citations"][0]["report_stem"] = self.stem
             answer = kb.ask([self.stem, other], "Compare revenue")
             self.assertEqual(answer["citations"], [])
             self.assertIn("withheld", answer["answer"])
@@ -234,24 +232,19 @@ class RuntimeChecks(unittest.TestCase):
             kb.index(self.stem, force=True)
             self.assertEqual(embed.call_count, 2)
 
-    def test_cli_timeout_cleanup_and_malformed_output(self):
-        with patch.object(runtime.shutil, "which", return_value="codex"), patch.object(runtime.subprocess, "Popen") as popen:
-            process = popen.return_value
-            process.communicate.side_effect = [subprocess.TimeoutExpired("codex", 1), ("", "")]
-            with self.assertRaises(TimeoutError):
-                runtime.codex_call("system", "untrusted input", {})
-            process.kill.assert_called_once()
-            args = popen.call_args.args[0]
+
+    def test_codex_inference_is_isolated(self):
+        from unittest.mock import Mock
+        def run(args, **kwargs):
+            Path(args[args.index("-o") + 1]).write_text('{"answer":"ok"}', encoding="utf-8")
+            return Mock(returncode=0)
+        with patch.object(llm, "_codex_executable", return_value="codex"), patch.object(llm.subprocess, "run", side_effect=run) as call:
+            self.assertIn("ok", llm._codex_chat("system", "untrusted input"))
+            args = call.call_args.args[0]
             self.assertIn("--ignore-user-config", args)
             self.assertIn("features.shell_tool=false", args)
+            self.assertIn('web_search="disabled"', args)
             self.assertNotIn("untrusted input", args)
-        def fake_process(args, **kwargs):
-            Path(args[args.index("--output-last-message") + 1]).write_text("bad JSON", encoding="utf-8")
-            from unittest.mock import Mock
-            return Mock(communicate=lambda *a, **kw: ("", ""), returncode=0)
-        with patch.object(runtime.shutil, "which", return_value="codex"), patch.object(runtime.subprocess, "Popen", side_effect=fake_process):
-            with self.assertRaisesRegex(RuntimeError, "malformed JSON"):
-                runtime.codex_call("system", "user", {})
 
 
 if __name__ == "__main__":

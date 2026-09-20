@@ -1,0 +1,102 @@
+{
+ "report_id": "lib-net_insight_2025",
+ "company": "Net Insight",
+ "fiscal_year": 2025,
+ "currency": "SEK thousands",
+ "section": "debt_maturity",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 81489,
+   "unit": "SEK thousands",
+   "period": "2025",
+   "raw_label": "Total",
+   "source": {
+    "page": 101,
+    "quote": "Total 81,489 - 57,647 3,790"
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": 81489,
+   "unit": "SEK thousands",
+   "period": "2025",
+   "raw_label": "Total",
+   "source": {
+    "page": 101,
+    "quote": "Total 81,489 57,647"
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": 31110,
+   "unit": "SEK thousands",
+   "period": "2025",
+   "raw_label": "1-5 yeas",
+   "source": {
+    "page": 101,
+    "quote": "1-5 yeas 31,110 1,555"
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": 57647,
+   "unit": "SEK thousands",
+   "period": "2025",
+   "raw_label": "Total",
+   "source": {
+    "page": 101,
+    "quote": "Total 81,489 57,647"
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((81489 + 31110 + 57647) - 81489) <= 2"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [101, 102] selected from candidates [79, 80, 101, 91]",
+  "due_after_5_years: quote not found on page 101",
+  "due_within_1_year: 50379 disagrees with the maturity table; 81489 read from 'Total 81,489 57,647' by its column order",
+  "due_after_5_years: 0 disagrees with the maturity table; 57647 read from 'Total 81,489 57,647' by its column order"
+ ]
+}

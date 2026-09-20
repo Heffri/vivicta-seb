@@ -1,0 +1,85 @@
+{
+  "report_id": "lib-nelly_2025",
+  "company": "nelly",
+  "fiscal_year": 2025,
+  "currency": "Miljoner kronor",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 287.1,
+      "unit": "Miljoner kronor",
+      "period": "2025",
+      "raw_label": "Leasingskulder som ingår i ­rapporten över finansiell ställning",
+      "source": {
+        "page": 89,
+        "quote": "­rapporten över finansiell ställning 287,1 287,2"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 36.2,
+      "unit": "Miljoner kronor",
+      "period": "2025",
+      "raw_label": "Kortfristiga",
+      "source": {
+        "page": 89,
+        "quote": "Kortfristiga 36,2 35,7"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "Miljoner kronor",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "Miljoner kronor",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_1_to_5_years"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [89, 90] selected from candidates [88, 89, 57, 78, 84]",
+    "published: seedseed-rerun-v115-kb run replayed with extract.py @ d3eb5fc8"
+  ]
+}

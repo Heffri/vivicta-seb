@@ -15,7 +15,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 import app
-from pipeline import kb, runtime
+from pipeline import kb, llm
 
 
 def main():
@@ -73,7 +73,7 @@ def main():
                                     "citations": len(answer["citations"]), "warnings": answer["warnings"]})
                 except Exception as e:
                     results.append({"report": stem, "index_error": str(e)})
-    output = {"provider": runtime.provider(), "model": runtime.model(), "live": args.live, "results": results}
+    output = {"provider": llm.provider(), "model": app.config()["model"], "live": args.live, "results": results}
     if args.output:
         args.output.write_text(json.dumps(output, indent=2), encoding="utf-8")
 

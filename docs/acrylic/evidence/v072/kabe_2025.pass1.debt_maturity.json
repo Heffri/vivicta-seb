@@ -1,0 +1,73 @@
+{
+  "report_id": "lib-kabe_2025",
+  "company": "KABE Group",
+  "fiscal_year": 2025,
+  "currency": "Mkr",
+  "section": "debt_maturity",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 50,
+      "unit": "Mkr",
+      "period": "2025",
+      "raw_label": "räntebärande skuld",
+      "source": {
+        "page": 94,
+        "quote": "Ränterisken består i att förändringar i räntenivån påverkar koncer­ nens resultat negativt genom ökade lånekostnader. Koncernens räntebärande skuld uppgick per balansdagen till 50 Mkr (62). Den"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": null,
+      "unit": "Mkr",
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "Mkr",
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "Mkr",
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_within_1_year"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [93, 94] selected from candidates [29, 30, 93]"
+  ]
+}

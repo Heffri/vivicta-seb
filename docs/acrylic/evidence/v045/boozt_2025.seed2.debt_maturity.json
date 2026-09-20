@@ -1,0 +1,192 @@
+{
+  "seed": 2,
+  "stem": "boozt_2025",
+  "candidate_pages": [
+    121,
+    122,
+    98,
+    139,
+    108
+  ],
+  "before": {
+    "report_id": "lib-boozt_2025",
+    "company": "Boozt",
+    "fiscal_year": 2025,
+    "currency": "SEK million",
+    "section": "debt_maturity",
+    "fields": [
+      {
+        "key": "total_debt",
+        "label": "Total borrowings",
+        "value": 441,
+        "unit": "SEK million",
+        "period": "2025",
+        "raw_label": "Lease liabilities",
+        "source": {
+          "page": 121,
+          "quote": "Lease liabilities 441 26 78 273 63 -"
+        },
+        "confidence": 0.5,
+        "evidence": [
+          "quote_on_page",
+          "value_in_quote",
+          "period_ok",
+          "page_is_statement",
+          "unit_ok"
+        ]
+      },
+      {
+        "key": "due_within_1_year",
+        "label": "Due within 1 year",
+        "value": null,
+        "unit": null,
+        "period": null,
+        "raw_label": null,
+        "source": null,
+        "confidence": 0.0,
+        "evidence": []
+      },
+      {
+        "key": "due_1_to_5_years",
+        "label": "Due 1–5 years",
+        "value": 273,
+        "unit": "SEK million",
+        "period": "2025",
+        "raw_label": "Lease liabilities",
+        "source": {
+          "page": 121,
+          "quote": "Lease liabilities 441 26 78 273 63 -"
+        },
+        "confidence": 0.5,
+        "evidence": [
+          "quote_on_page",
+          "value_in_quote",
+          "period_ok",
+          "page_is_statement",
+          "unit_ok"
+        ]
+      },
+      {
+        "key": "due_after_5_years",
+        "label": "Due after 5 years",
+        "value": 63,
+        "unit": "SEK million",
+        "period": "2025",
+        "raw_label": "Lease liabilities",
+        "source": {
+          "page": 121,
+          "quote": "Lease liabilities 441 26 78 273 63 -"
+        },
+        "confidence": 0.5,
+        "evidence": [
+          "quote_on_page",
+          "value_in_quote",
+          "period_ok",
+          "page_is_statement",
+          "unit_ok"
+        ]
+      }
+    ],
+    "checks": [
+      {
+        "name": "maturity_sums_to_total",
+        "passed": false,
+        "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((0 (due_within_1_year null) + 273 + 63) - 441) <= 2"
+      }
+    ],
+    "warnings": [
+      "due_within_1_year: 104 is printed on none of pages [121, 122]; dropped as computed, not read"
+    ]
+  },
+  "after": {
+    "report_id": "lib-boozt_2025",
+    "company": "Boozt",
+    "fiscal_year": 2025,
+    "currency": "SEK million",
+    "section": "debt_maturity",
+    "fields": [
+      {
+        "key": "total_debt",
+        "label": "Total borrowings",
+        "value": 441,
+        "unit": "SEK million",
+        "period": "2025",
+        "raw_label": "Lease liabilities",
+        "source": {
+          "page": 121,
+          "quote": "Lease liabilities 441 26 78 273 63 -"
+        },
+        "confidence": 0.5,
+        "evidence": [
+          "quote_on_page",
+          "value_in_quote",
+          "period_ok",
+          "page_is_statement",
+          "unit_ok"
+        ]
+      },
+      {
+        "key": "due_within_1_year",
+        "label": "Due within 1 year",
+        "value": null,
+        "unit": null,
+        "period": null,
+        "raw_label": null,
+        "source": null,
+        "confidence": 0.0,
+        "evidence": []
+      },
+      {
+        "key": "due_1_to_5_years",
+        "label": "Due 1–5 years",
+        "value": 273,
+        "unit": "SEK million",
+        "period": "2025",
+        "raw_label": "Lease liabilities",
+        "source": {
+          "page": 121,
+          "quote": "Lease liabilities 441 26 78 273 63 -"
+        },
+        "confidence": 0.5,
+        "evidence": [
+          "quote_on_page",
+          "value_in_quote",
+          "period_ok",
+          "page_is_statement",
+          "unit_ok"
+        ]
+      },
+      {
+        "key": "due_after_5_years",
+        "label": "Due after 5 years",
+        "value": 63,
+        "unit": "SEK million",
+        "period": "2025",
+        "raw_label": "Lease liabilities",
+        "source": {
+          "page": 121,
+          "quote": "Lease liabilities 441 26 78 273 63 -"
+        },
+        "confidence": 0.5,
+        "evidence": [
+          "quote_on_page",
+          "value_in_quote",
+          "period_ok",
+          "page_is_statement",
+          "unit_ok"
+        ]
+      }
+    ],
+    "checks": [
+      {
+        "name": "maturity_sums_to_total",
+        "passed": false,
+        "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((0 (due_within_1_year null) + 273 + 63) - 441) <= 2"
+      }
+    ],
+    "warnings": [
+      "two_pass: page selection failed or illegal for candidates [121, 122, 98, 139, 108]; fell back to the single-pass window",
+      "due_within_1_year: 104 is printed on none of pages [121, 122]; dropped as computed, not read"
+    ]
+  }
+}

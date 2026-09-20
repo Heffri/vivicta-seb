@@ -59,8 +59,8 @@ def main():
         except parse.OCRUnavailable:
             pass
         (Path(root) / "eng.traineddata").touch()
-        with patch.object(parse, "_lines_from_words", return_value="OCR revenue 100"):
-            assert parse.page_text(page) == "OCR revenue 100"
+        page.get_text.side_effect = lambda kind=None, **kw: [(0, 0, 40, 10, "Revenue", 0, 0, 0), (45, 0, 60, 10, "100", 0, 0, 1)] if kind == "words" else ""
+        assert parse.page_text(page) == "Revenue 100"
         assert page.get_textpage_ocr.call_args.kwargs["full"] is True
     print("maturity component and selective OCR checks passed")
 

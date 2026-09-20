@@ -1,0 +1,170 @@
+{
+ "report_id": "lib-creades_2025",
+ "company": "Creades",
+ "fiscal_year": 2025,
+ "currency": "SEK mn",
+ "section": "debt_maturity",
+ "maturity_basis": "carrying",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 0,
+   "unit": "SEK mn",
+   "period": "2025",
+   "raw_label": "Investmentföretaget har varken räntebärande skulder eller kundfordringar.",
+   "source": {
+    "page": 61,
+    "quote": "Investmentföretaget har varken räntebärande skulder eller kundfordringar."
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "stated_zero",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": null,
+   "unit": "SEK mn",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": null,
+   "unit": "SEK mn",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": null,
+   "unit": "SEK mn",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "status": "unavailable",
+   "detail": "Missing explicit values: due_within_1_year, due_1_to_5_years, due_after_5_years"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [61, 62] selected from candidates [61, 62]",
+  "total_debt: 0 is printed on none of pages [61, 62]; kept on the report's own words, page 61: 'Investmentföretaget har varken räntebärande skulder eller kundfordringar.'",
+  "total_debt: quote not found on page 61"
+ ],
+ "stem": "creades_2025",
+ "pdf_available": true,
+ "check_history": [
+  {
+   "at": "2026-09-19T22:18:02.757835+00:00",
+   "reason": "Recalculated explicit values after extraction",
+   "previous": [
+    {
+     "name": "maturity_sums_to_total",
+     "passed": false,
+     "detail": "missing: due_within_1_year"
+    }
+   ]
+  }
+ ],
+ "issues": [
+  {
+   "kind": "basis",
+   "key": "entity",
+   "detail": "Confirm entity"
+  },
+  {
+   "kind": "basis",
+   "key": "consolidation",
+   "detail": "Confirm consolidation"
+  },
+  {
+   "kind": "basis",
+   "key": "period",
+   "detail": "Confirm period"
+  },
+  {
+   "kind": "basis",
+   "key": "currency",
+   "detail": "Confirm currency"
+  },
+  {
+   "kind": "basis",
+   "key": "scale",
+   "detail": "Confirm scale"
+  },
+  {
+   "kind": "basis",
+   "key": "source",
+   "detail": "Confirm source"
+  },
+  {
+   "kind": "basis",
+   "key": "restatement",
+   "detail": "Confirm restatement"
+  },
+  {
+   "kind": "basis",
+   "key": "debt_basis",
+   "detail": "Confirm debt basis"
+  },
+  {
+   "kind": "basis",
+   "key": "leases",
+   "detail": "Confirm leases"
+  },
+  {
+   "kind": "basis",
+   "key": "bucket_mapping",
+   "detail": "Confirm bucket mapping"
+  },
+  {
+   "kind": "field",
+   "key": "total_debt",
+   "detail": "Total borrowings: verify value, unit, period and source"
+  },
+  {
+   "kind": "field",
+   "key": "due_within_1_year",
+   "detail": "Due within 1 year: missing value (not zero)"
+  },
+  {
+   "kind": "field",
+   "key": "due_1_to_5_years",
+   "detail": "Due 1–5 years: missing value (not zero)"
+  },
+  {
+   "kind": "field",
+   "key": "due_after_5_years",
+   "detail": "Due after 5 years: missing value (not zero)"
+  },
+  {
+   "kind": "check",
+   "key": "maturity_sums_to_total",
+   "detail": "maturity_sums_to_total: Missing explicit values: due_within_1_year, due_1_to_5_years, due_after_5_years"
+  }
+ ],
+ "ready": false
+}

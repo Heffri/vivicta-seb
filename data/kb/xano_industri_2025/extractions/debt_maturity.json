@@ -1,0 +1,150 @@
+{
+  "report_id": "lib-xano_industri_2025",
+  "company": "XANO Industri",
+  "fiscal_year": 2025,
+  "currency": "TSEK",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 904522,
+      "unit": "TSEK",
+      "period": "2025",
+      "raw_label": "Summa räntebärande skulder",
+      "source": {
+        "page": 84,
+        "quote": "Summa räntebärande skulder 4 090 8 680 38 305 51 075 768 885 33 784 50 778 904 522"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 51075,
+      "unit": "TSEK",
+      "period": "2025",
+      "raw_label": "Summa räntebärande skulder",
+      "source": {
+        "page": 84,
+        "quote": "Summa räntebärande skulder 4 090 8 680 38 305 51 075 768 885 33 784 50 778 904 522"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": 802669,
+      "unit": "TSEK",
+      "period": "2025",
+      "raw_label": "Summa räntebärande skulder",
+      "source": {
+        "page": 84,
+        "quote": "Summa räntebärande skulder 4 090 8 680 38 305 51 075 768 885 33 784 50 778 904 522"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_derived",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": 50778,
+      "unit": "TSEK",
+      "period": "2025",
+      "raw_label": "Summa räntebärande skulder",
+      "source": {
+        "page": 84,
+        "quote": "Summa räntebärande skulder 4 090 8 680 38 305 51 075 768 885 33 784 50 778 904 522"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": true,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((51075 + 802669 + 50778) - 904522) <= 2"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [84, 85] selected from candidates [84, 85, 102]",
+    "due_within_1_year: 'Summa räntebärande skulder' 51075 dropped: the same row as total_debt, and not a due within 1 year label",
+    "due_1_to_5_years: 'Summa räntebärande skulder' 802669 dropped: the same row as total_debt, and not a due 1–5 years label",
+    "due_after_5_years: 'Summa räntebärande skulder' 50778 dropped: the same row as total_debt, and not a due after 5 years label",
+    "due_within_1_year: model returned null; 51075 read from 'Summa räntebärande skulder 4 090 8 680 38 305 51 075 768 885 33 784 50 778 904 522' by its column order",
+    "due_1_to_5_years: model returned null; 802669 read from 'Summa räntebärande skulder 4 090 8 680 38 305 51 075 768 885 33 784 50 778 904 522' by its column order",
+    "due_after_5_years: model returned null; 50778 read from 'Summa räntebärande skulder 4 090 8 680 38 305 51 075 768 885 33 784 50 778 904 522' by its column order",
+    "published: seedseed-rerun-v119-kb run replayed with extract.py @ d3eb5fc8"
+  ],
+  "prior_year": {
+    "fiscal_year": 2024,
+    "fields": {
+      "total_debt": {
+        "value": 1146303,
+        "source": {
+          "page": 84,
+          "quote": "Summa räntebärande skulder 22 391 9 533 42 254 74 178 1 002 777 27 177 42 171 1 146 303"
+        }
+      },
+      "due_within_1_year": {
+        "value": 74178,
+        "source": {
+          "page": 84,
+          "quote": "Summa räntebärande skulder 22 391 9 533 42 254 74 178 1 002 777 27 177 42 171 1 146 303"
+        }
+      },
+      "due_1_to_5_years": {
+        "value": 1029954,
+        "source": {
+          "page": 84,
+          "quote": "Summa räntebärande skulder 22 391 9 533 42 254 74 178 1 002 777 27 177 42 171 1 146 303"
+        }
+      },
+      "due_after_5_years": {
+        "value": 42171,
+        "source": {
+          "page": 84,
+          "quote": "Summa räntebärande skulder 22 391 9 533 42 254 74 178 1 002 777 27 177 42 171 1 146 303"
+        }
+      }
+    },
+    "check": {
+      "passed": true,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((74178 + 1029954 + 42171) - 1146303) <= 2"
+    }
+  }
+}

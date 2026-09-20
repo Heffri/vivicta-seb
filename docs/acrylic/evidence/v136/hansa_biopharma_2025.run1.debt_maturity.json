@@ -1,0 +1,75 @@
+{
+ "report_id": "lib-hansa_biopharma_2025",
+ "company": "Hansa Biopharma",
+ "fiscal_year": 2025,
+ "currency": "THOUSANDS OF SEK",
+ "section": "debt_maturity",
+ "maturity_basis": "carrying",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 927403,
+   "unit": "THOUSANDS OF SEK",
+   "period": "2025",
+   "raw_label": "Long-term and short-term loan",
+   "source": {
+    "page": 66,
+    "quote": "Long-term and short-term loan 927,403 1,064,645"
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": null,
+   "unit": "THOUSANDS OF SEK",
+   "period": "2025",
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": null,
+   "unit": "THOUSANDS OF SEK",
+   "period": "2025",
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": null,
+   "unit": "THOUSANDS OF SEK",
+   "period": "2025",
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "detail": "missing: due_within_1_year"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [65, 66] selected from candidates [65, 66, 64]",
+  "currency: the model says thousands of SEK, but the statement names only EUR/GBP/SEK/USD and the report mostly SEK; SEK it is"
+ ]
+}

@@ -1,0 +1,205 @@
+{
+ "report_id": "lib-fagerhult_2025",
+ "company": "Fagerhult Group",
+ "fiscal_year": 2025,
+ "currency": "MSEK",
+ "section": "debt_maturity",
+ "maturity_basis": "carrying",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 3449.5,
+   "unit": "MSEK",
+   "period": "2025",
+   "raw_label": "Total",
+   "source": {
+    "page": 140,
+    "quote": "Financial expenses 6.3 7.9 6.1 7.9 Total 3,449.5 3,219.9 3,329.2 3,069.6 Shipping 6.3 6.9 – –"
+   },
+   "confidence": 1.0,
+   "evidence": [
+    "quote_on_page",
+    "identity_kept",
+    "value_derived",
+    "arith_ok",
+    "label_known",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": 56,
+   "unit": "MSEK",
+   "period": "2025",
+   "raw_label": "Within one year",
+   "source": {
+    "page": 140,
+    "quote": "Taxes and social security contributions 0.8 0.8 – – Within one year 56.0 58.8 9.4 12.1 Rent 5.2 8.0 – –"
+   },
+   "confidence": 1.0,
+   "evidence": [
+    "quote_on_page",
+    "identity_kept",
+    "value_derived",
+    "arith_ok",
+    "label_known",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": 3390,
+   "unit": "MSEK",
+   "period": "2025",
+   "raw_label": "Between one and five years",
+   "source": {
+    "page": 140,
+    "quote": "Non-invoiced income 27.5 21.6 – – Between one and five years 3,390.0 3,153.4 3,319.8 3,057.5 Royalties 6.0 12.2 – –"
+   },
+   "confidence": 1.0,
+   "evidence": [
+    "quote_on_page",
+    "identity_kept",
+    "value_derived",
+    "arith_ok",
+    "label_known",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": 3.5,
+   "unit": "MSEK",
+   "period": "2025",
+   "raw_label": "After five years",
+   "source": {
+    "page": 140,
+    "quote": "Maintenance of property, plant and equipment 13.5 8.5 – – After five years 3.5 7.7 – – Audit fees 13.1 13.3 0.4 0.3"
+   },
+   "confidence": 1.0,
+   "evidence": [
+    "quote_on_page",
+    "identity_kept",
+    "value_derived",
+    "arith_ok",
+    "label_known",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": true,
+   "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((56 + 3390 + 3.5) - 3449.5) <= 2",
+   "status": "passed"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [140, 141] selected from candidates [140, 141, 144, 142]",
+  "total_debt: 3449.5 kept: closes the identity exactly, even though column 1 of 4 prints 6.3",
+  "due_within_1_year: 56 kept: closes the identity exactly, even though column 1 of 4 prints 5.2",
+  "due_1_to_5_years: 3390 kept: closes the identity exactly, even though column 1 of 4 prints 6",
+  "due_after_5_years: 3.5 kept: closes the identity exactly, even though column 1 of 4 prints 13.1"
+ ],
+ "stem": "fagerhult_2025",
+ "pdf_available": true,
+ "check_history": [
+  {
+   "at": "2026-09-19T22:10:30.264465+00:00",
+   "reason": "Recalculated explicit values after extraction",
+   "previous": [
+    {
+     "name": "maturity_sums_to_total",
+     "passed": true,
+     "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((56 + 3390 + 3.5) - 3449.5) <= 2"
+    }
+   ]
+  }
+ ],
+ "issues": [
+  {
+   "kind": "basis",
+   "key": "entity",
+   "detail": "Confirm entity"
+  },
+  {
+   "kind": "basis",
+   "key": "consolidation",
+   "detail": "Confirm consolidation"
+  },
+  {
+   "kind": "basis",
+   "key": "period",
+   "detail": "Confirm period"
+  },
+  {
+   "kind": "basis",
+   "key": "currency",
+   "detail": "Confirm currency"
+  },
+  {
+   "kind": "basis",
+   "key": "scale",
+   "detail": "Confirm scale"
+  },
+  {
+   "kind": "basis",
+   "key": "source",
+   "detail": "Confirm source"
+  },
+  {
+   "kind": "basis",
+   "key": "restatement",
+   "detail": "Confirm restatement"
+  },
+  {
+   "kind": "basis",
+   "key": "debt_basis",
+   "detail": "Confirm debt basis"
+  },
+  {
+   "kind": "basis",
+   "key": "leases",
+   "detail": "Confirm leases"
+  },
+  {
+   "kind": "basis",
+   "key": "bucket_mapping",
+   "detail": "Confirm bucket mapping"
+  },
+  {
+   "kind": "field",
+   "key": "total_debt",
+   "detail": "Total borrowings: verify value, unit, period and source"
+  },
+  {
+   "kind": "field",
+   "key": "due_within_1_year",
+   "detail": "Due within 1 year: verify value, unit, period and source"
+  },
+  {
+   "kind": "field",
+   "key": "due_1_to_5_years",
+   "detail": "Due 1–5 years: verify value, unit, period and source"
+  },
+  {
+   "kind": "field",
+   "key": "due_after_5_years",
+   "detail": "Due after 5 years: verify value, unit, period and source"
+  }
+ ],
+ "ready": false
+}

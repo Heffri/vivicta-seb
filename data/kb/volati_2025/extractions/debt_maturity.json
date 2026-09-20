@@ -1,0 +1,89 @@
+{
+  "report_id": "lib-volati_2025",
+  "company": "Volati",
+  "fiscal_year": 2025,
+  "currency": "MSEK",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 3246,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "31 December",
+      "source": {
+        "page": 177,
+        "quote": "unutilised portion of the revolving credit facility was 31 December 3,246 2,944"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 192,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Current liabilities",
+      "source": {
+        "page": 177,
+        "quote": "Current liabilities 2025 2024\nOverdraft facilities – –\nLiabilities to credit institutions 12 7\nLease liabilities 180 185\n192 191"
+      },
+      "confidence": 0.25,
+      "evidence": [
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_1_to_5_years"
+    }
+  ],
+  "warnings": [
+    "run1: two_pass: page [177, 178] selected from candidates [177, 178, 182, 184, 181, 145, 146, 175, 157, 156]",
+    "run1: due_within_1_year: quote not found on page 177",
+    "run1: due_within_1_year: fill from page 177 row 'Within 1 year 87 87 1' refused -- table 'Timing of revenue recognition, contract liabilities' is a non-debt subject table",
+    "run2: two_pass: page [177, 178] selected from candidates [177, 178, 182, 184, 181, 145, 146, 175, 157, 156]",
+    "run2: due_within_1_year: quote not found on page 177",
+    "run2: due_within_1_year: fill from page 177 row 'Within 1 year 87 87 1' refused -- table 'Timing of revenue recognition, contract liabilities' is a non-debt subject table",
+    "merge: union, per-field: total_debt=run2 (agree: confidence tie -> run2), due_within_1_year=run2 (agree: confidence tie -> run2), due_1_to_5_years=null (both null), due_after_5_years=null (both null)",
+    "published: seedv136-publish-kb run replayed with extract.py @ 3089ab08"
+  ]
+}

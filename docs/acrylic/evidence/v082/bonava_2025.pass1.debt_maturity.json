@@ -1,0 +1,98 @@
+{
+  "report_id": "lib-bonava_2025",
+  "company": "Bonava",
+  "fiscal_year": 2025,
+  "currency": "SEK M",
+  "section": "debt_maturity",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 3592,
+      "unit": "SEK M",
+      "period": "2025",
+      "raw_label": "Total",
+      "source": {
+        "page": 156,
+        "quote": "Total 3,592 100"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 3142,
+      "unit": "SEK M",
+      "period": "2025",
+      "raw_label": "2026",
+      "source": {
+        "page": 156,
+        "quote": "2026 3,142 87"
+      },
+      "confidence": 0.25,
+      "evidence": [
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": 449,
+      "unit": "SEK M",
+      "period": "2025",
+      "raw_label": "2028; 2030",
+      "source": {
+        "page": 156,
+        "quote": "2028 432 13\n2029 — —\n2030 17 0"
+      },
+      "confidence": 0.25,
+      "evidence": [
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "SEK M",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": true,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((3142 + 449 + 0 (due_after_5_years null)) - 3592) <= 2"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [156, 157] selected from candidates [152, 153, 167, 156]",
+    "due_within_1_year: quote not found on page 156",
+    "due_1_to_5_years: quote not found on page 156"
+  ],
+  "_driver_meta": {
+    "company": "Bonava",
+    "stem": "bonava_2025",
+    "pass": 1,
+    "status": 200,
+    "seconds": 73.2
+  }
+}

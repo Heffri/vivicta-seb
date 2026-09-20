@@ -1,0 +1,54 @@
+| company | field | printed label | before | after | note |
+|---|---|---|---|---|---|
+| cloetta_2025 | due_within_1_year | '< 1 year' | label_known=False bucket_hits=['due_within_1_year'] | label_known=False bucket_hits=['due_within_1_year'] | unchanged (already ok) -- p.169, bucket-as-columns header, already-covered digit form |
+| cloetta_2025 | due_1_to_5_years | '1–2 years' | label_known=True bucket_hits=['due_1_to_5_years'] | label_known=True bucket_hits=['due_1_to_5_years'] | unchanged (already ok) -- p.169, already covered |
+| cloetta_2025 | due_1_to_5_years | '2–5 years' | label_known=True bucket_hits=['due_1_to_5_years'] | label_known=True bucket_hits=['due_1_to_5_years'] | unchanged (already ok) -- p.169, already covered |
+| cloetta_2025 | due_after_5_years | '> 5 years' | label_known=False bucket_hits=['due_after_5_years'] | label_known=False bucket_hits=['due_after_5_years'] | unchanged (already ok) -- p.169, already covered |
+| xano_industri_2025 | due_1_to_5_years | 'Mellan 1 och 3 år' | label_known=False bucket_hits=[] | label_known=True bucket_hits=['due_1_to_5_years'] | **NEW HIT** -- p.84 header (reconstructed -- v041/v044's diagnosed 2-col scramble; not literally contiguous on the page) |
+| xano_industri_2025 | due_1_to_5_years | 'Mellan 3 och 5 år' | label_known=False bucket_hits=[] | label_known=True bucket_hits=['due_1_to_5_years'] | **NEW HIT** -- p.84 header (same scramble) |
+| xano_industri_2025 | due_after_5_years | 'Efter 5 år' | label_known=True bucket_hits=['due_after_5_years'] | label_known=True bucket_hits=['due_after_5_years'] | unchanged (already ok) -- p.84 header, already covered (this is the one v044 already shipped) |
+| xano_industri_2025 | due_after_5_years | 'Senare än fem år' | label_known=False bucket_hits=[] | label_known=True bucket_hits=['due_after_5_years'] | **NEW HIT** -- p.85, a DIFFERENT note (option-liability maturity), same company |
+| xano_industri_2025 | due_1_to_5_years | 'Mellan ett och fem år' | label_known=False bucket_hits=[] | label_known=True bucket_hits=['due_1_to_5_years'] | **NEW HIT** -- p.85, same different note |
+| ework_2025 | due_within_1_year | '< 1 month' | label_known=False bucket_hits=[] | label_known=False bucket_hits=[] | still no hit -- p.70, real bucket-as-columns table |
+| ework_2025 | due_within_1_year | '1-3 months' | label_known=False bucket_hits=[] | label_known=False bucket_hits=[] | still no hit -- p.70, same table |
+| ework_2025 | due_within_1_year | '3-12 months' | label_known=False bucket_hits=[] | label_known=True bucket_hits=['due_within_1_year'] | **NEW HIT** -- p.70, same table |
+| ework_2025 | due_1_to_5_years | '1-5 years' | label_known=True bucket_hits=['due_1_to_5_years'] | label_known=True bucket_hits=['due_1_to_5_years'] | unchanged (already ok) -- p.70, already covered |
+| ework_2025 | due_after_5_years | '> 5 years' | label_known=False bucket_hits=['due_after_5_years'] | label_known=False bucket_hits=['due_after_5_years'] | unchanged (already ok) -- p.70, already covered |
+| better_collective_2025 | due_within_1_year | '< 1 year' | label_known=False bucket_hits=['due_within_1_year'] | label_known=False bucket_hits=['due_within_1_year'] | unchanged (already ok) -- p.161/158/181, real table, already covered |
+| better_collective_2025 | due_1_to_5_years | '2 – 5 years' | label_known=True bucket_hits=[] | label_known=True bucket_hits=[] | unchanged (already ok) -- p.161, already covered |
+| better_collective_2025 | due_1_to_5_years | 'One to five years' | label_known=False bucket_hits=[] | label_known=True bucket_hits=['due_1_to_5_years'] | **NEW HIT** -- p.158/181, real lease-maturity table, same debt_maturity candidate pages |
+| better_collective_2025 | due_after_5_years | 'More than five years' | label_known=False bucket_hits=[] | label_known=True bucket_hits=['due_after_5_years'] | **NEW HIT** -- p.158/181, same table |
+| alligo_2025 | due_within_1_year | 'Inom ett år' | label_known=False bucket_hits=[] | label_known=True bucket_hits=['due_within_1_year'] | **NEW HIT** -- p.141/142, the real table (locator miss -- not a candidate page, but the report's own words) |
+| alligo_2025 | due_1_to_5_years | 'Inom fem år' | label_known=False bucket_hits=[] | label_known=True bucket_hits=['due_1_to_5_years'] | **NEW HIT** -- p.141/142, same table -- verified as the middle bucket by the report's own arithmetic (68+2272+0=2340) |
+| alligo_2025 | due_after_5_years | 'Efter fem år' | label_known=False bucket_hits=[] | label_known=True bucket_hits=['due_after_5_years'] | **NEW HIT** -- p.141/142, same table |
+| bico_2025 | due_within_1_year | '<1 year' | label_known=False bucket_hits=['due_within_1_year'] | label_known=False bucket_hits=['due_within_1_year'] | unchanged (already ok) -- p.86, real table, already covered |
+| humana_2025 | due_within_1_year | '3–12' | label_known=False bucket_hits=[] | label_known=False bucket_hits=[] | still no hit -- p.149, real table (column header word 'months' is on a separate fragment) |
+| humana_2025 | due_1_to_5_years | '1–5' | label_known=False bucket_hits=[] | label_known=False bucket_hits=[] | still no hit -- p.149, same table (word 'years' on a separate fragment) |
+| humana_2025 | due_after_5_years | '>5 years' | label_known=False bucket_hits=['due_after_5_years'] | label_known=False bucket_hits=['due_after_5_years'] | unchanged (already ok) -- p.149, same table, already covered |
+| academedia_2025 | due_within_1_year | 'inom ett år' | label_known=False bucket_hits=[] | label_known=True bucket_hits=['due_within_1_year'] | **NEW HIT** -- p.97, narrative prose describing the company's own debt (not the p.87 table itself) |
+| boozt_2025 | due_within_1_year | 'Within 3 months' | label_known=False bucket_hits=[] | label_known=True bucket_hits=['due_within_1_year'] | **NEW HIT** -- p.108 lease table / p.121 debt table, already covered |
+| boozt_2025 | due_within_1_year | 'Between 3-12 months' | label_known=False bucket_hits=[] | label_known=False bucket_hits=['due_within_1_year'] | **NEW HIT** -- p.108 lease table |
+| boozt_2025 | due_1_to_5_years | 'Between 2 and 5 years' | label_known=False bucket_hits=[] | label_known=True bucket_hits=['due_1_to_5_years'] | **NEW HIT** -- p.108 lease table |
+| coor_service_management_hold_2025 | due_within_1_year | 'Within 1 year' | label_known=True bucket_hits=['due_within_1_year'] | label_known=True bucket_hits=['due_within_1_year'] | unchanged (already ok) -- p.159, real table, already covered |
+| coor_service_management_hold_2025 | due_1_to_5_years | 'Between 1–2 years' | label_known=False bucket_hits=['due_1_to_5_years'] | label_known=False bucket_hits=['due_1_to_5_years'] | unchanged (already ok) -- p.159, real table, dash form (not scrambled) |
+| coor_service_management_hold_2025 | due_1_to_5_years | 'Between 2–3 years' | label_known=False bucket_hits=[] | label_known=False bucket_hits=['due_1_to_5_years'] | **NEW HIT** -- p.159, real table, dash form |
+| coor_service_management_hold_2025 | due_1_to_5_years | 'Between 3–4 years' | label_known=False bucket_hits=[] | label_known=False bucket_hits=['due_1_to_5_years'] | **NEW HIT** -- p.159, real table, dash form |
+| coor_service_management_hold_2025 | due_1_to_5_years | 'Between 4–5 years' | label_known=False bucket_hits=[] | label_known=False bucket_hits=['due_1_to_5_years'] | **NEW HIT** -- p.159, real table, dash form |
+| coor_service_management_hold_2025 | due_after_5_years | 'More than 5 years' | label_known=True bucket_hits=['due_after_5_years'] | label_known=True bucket_hits=['due_after_5_years'] | unchanged (already ok) -- p.159, real table, already covered |
+| storytel_2025 | due_1_to_5_years | '1-3 years' | label_known=False bucket_hits=[] | label_known=True bucket_hits=['due_1_to_5_years'] | **NEW HIT** -- p.114, real table |
+| storytel_2025 | due_1_to_5_years | '3-5 years' | label_known=False bucket_hits=[] | label_known=False bucket_hits=[] | still no hit -- p.114, real table -- deliberately NOT added as a synonym (see evidence: high false-positive rate elsewhere in the corpus) |
+| medcap_2025 | due_1_to_5_years | '1 – 5 år' | label_known=True bucket_hits=[] | label_known=True bucket_hits=[] | unchanged (already ok) -- p.101, real carrying table, already covered |
+| medcap_2025 | due_1_to_5_years | '1 – 2 år' | label_known=True bucket_hits=[] | label_known=True bucket_hits=[] | unchanged (already ok) -- p.102, contractual table (not the one used), already covered |
+| hansa_biopharma_2025 | due_within_1_year | '0−3 months' | label_known=False bucket_hits=[] | label_known=False bucket_hits=[] | still no hit -- p.64/65, real contractual table |
+| hansa_biopharma_2025 | due_within_1_year | '3−12 months' | label_known=False bucket_hits=[] | label_known=True bucket_hits=['due_within_1_year'] | **NEW HIT** -- p.64/65, same table |
+| hansa_biopharma_2025 | due_1_to_5_years | '1−5 years' | label_known=True bucket_hits=['due_1_to_5_years'] | label_known=True bucket_hits=['due_1_to_5_years'] | unchanged (already ok) -- p.64/65, same table, already covered |
+| gentoo_media_2025 | due_within_1_year | 'Less than 1 year' | label_known=True bucket_hits=['due_within_1_year'] | label_known=True bucket_hits=['due_within_1_year'] | unchanged (already ok) -- p.92 (reconstructed -- 2-col scramble, not literally contiguous), already covered |
+| gentoo_media_2025 | due_1_to_5_years | 'Between 1 and 2 years' | label_known=False bucket_hits=[] | label_known=True bucket_hits=['due_1_to_5_years'] | **NEW HIT** -- p.92 (reconstructed, scrambled) |
+| gentoo_media_2025 | due_1_to_5_years | 'Between 2 and 5 years' | label_known=False bucket_hits=[] | label_known=True bucket_hits=['due_1_to_5_years'] | **NEW HIT** -- p.92 (reconstructed, scrambled) |
+| gentoo_media_2025 | due_after_5_years | 'More than 5 years' | label_known=True bucket_hits=['due_after_5_years'] | label_known=True bucket_hits=['due_after_5_years'] | unchanged (already ok) -- p.92 (reconstructed, scrambled), already covered |
+| ependion_2025 | due_within_1_year | 'Within 12 months' | label_known=False bucket_hits=[] | label_known=False bucket_hits=[] | still no hit -- p.155 (reconstructed -- 2-col scramble, v041/v044's own diagnosis; not literally contiguous) |
+| ependion_2025 | due_1_to_5_years | 'Between 1 and 2 years' | label_known=False bucket_hits=[] | label_known=True bucket_hits=['due_1_to_5_years'] | **NEW HIT** -- p.155 (reconstructed, scrambled) |
+| ependion_2025 | due_1_to_5_years | 'Between 2 and 3 years' | label_known=False bucket_hits=[] | label_known=True bucket_hits=['due_1_to_5_years'] | **NEW HIT** -- p.155 (reconstructed, scrambled) |
+
+Newly-hit rows: 23
+Companies with >=1 newly-hit bucket: 11 -- ['academedia_2025', 'alligo_2025', 'better_collective_2025', 'boozt_2025', 'coor_service_management_hold_2025', 'ependion_2025', 'ework_2025', 'gentoo_media_2025', 'hansa_biopharma_2025', 'storytel_2025', 'xano_industri_2025']

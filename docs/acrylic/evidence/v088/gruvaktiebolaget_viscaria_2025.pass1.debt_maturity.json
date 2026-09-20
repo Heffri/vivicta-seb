@@ -1,0 +1,93 @@
+{
+ "report_id": "lib-gruvaktiebolaget_viscaria_2025",
+ "company": "Gruvaktiebolaget Viscaria",
+ "fiscal_year": 2025,
+ "currency": "SEK MILLION",
+ "section": "debt_maturity",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 677.8,
+   "unit": "SEK MILLION",
+   "period": "2025",
+   "raw_label": "Total interest-bearing liabilities",
+   "source": {
+    "page": 110,
+    "quote": "Total interest-bearing liabilities 677.8 22.2 670.2 15.5"
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "label_known",
+    "period_ok",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": 2.2,
+   "unit": "SEK MILLION",
+   "period": "2025",
+   "raw_label": "Lease liabilities",
+   "source": {
+    "page": 100,
+    "quote": "Lease liabilities 0.7 2.2 3.0 2.6 -"
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": 5.6,
+   "unit": "SEK MILLION",
+   "period": "2025",
+   "raw_label": "Lease liabilities",
+   "source": {
+    "page": 100,
+    "quote": "Lease liabilities 0.7 2.2 3.0 2.6 -"
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "value_derived",
+    "label_known",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": null,
+   "unit": "SEK MILLION",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((2.2 + 5.6 + 0 (due_after_5_years null)) - 677.8) <= 2"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [100, 101] selected from candidates [100, 101, 110]",
+  "due_within_1_year: 661.8 disagrees with the maturity table; 2.2 read from 'Lease liabilities 0.7 2.2 3.0 2.6 -' by its column order",
+  "due_1_to_5_years: model returned null; 5.6 read from 'Lease liabilities 0.7 2.2 3.0 2.6 -' by its column order"
+ ]
+}

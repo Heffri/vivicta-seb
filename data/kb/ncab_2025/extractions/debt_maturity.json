@@ -1,0 +1,75 @@
+{
+  "report_id": "lib-ncab_2025",
+  "company": "NCAB Group",
+  "fiscal_year": 2025,
+  "currency": "kSEK",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 1090075,
+      "unit": "kSEK",
+      "period": "2025",
+      "raw_label": "Total borrowings (Note 27)",
+      "source": {
+        "page": 93,
+        "quote": "Total borrowings (Note 27) 1,090,075 998,103 be made (Note 18)."
+      },
+      "confidence": 0.95,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": null,
+      "unit": "kSEK",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "kSEK",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "kSEK",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_within_1_year"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [117, 118] selected from candidates [93, 94, 117]",
+    "published: seedseed-rerun-v118-kb run replayed with extract.py @ d3eb5fc8"
+  ]
+}

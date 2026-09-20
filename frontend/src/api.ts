@@ -1,4 +1,4 @@
-import type { Answer, ChunkPage, Company, Extraction, IndexStatus, KbEntry, LibraryEntry, Report, Schema } from './types'
+import type { ChunkPage, Answer, Company, Extraction, IndexStatus, KbEntry, LibraryEntry, Report, Schema } from './types'
 
 export type ApiError = Error & { status: number; tried?: string[] }
 
@@ -23,7 +23,7 @@ export function uploadReport(file: File) {
   return request<Report>('/api/reports', { method: 'POST', body })
 }
 
-export const getLibrary = () => request<LibraryEntry[]>('/api/library')
+export const getLibrary = () => request<LibraryEntry[]>('/api/library?collection_name=wallenberg')
 
 export const registerLibraryReport = (file: string) =>
   request<Report>('/api/reports/from-library', {
@@ -32,44 +32,77 @@ export const registerLibraryReport = (file: string) =>
     body: JSON.stringify({ file }),
   })
 
-export const getCompanies = (q: string) => request<Company[]>(`/api/companies?q=${encodeURIComponent(q)}`)
+export const getCompanies = (q: string) => request<Company[]>(`/api/companies?q=${encodeURIComponent(q)}&collection_name=wallenberg`)
 
-export const fetchReport = (company: string, year: number) =>
+// v074: country/hint are optional context for the backend's model search (its fourth fetch source,
+// used when the directory has no hit); they are ignored by the feed levels.
+export const fetchReport = (company: string, year: number, opts?: { country?: string; hint?: string; download_pdf?: boolean }) =>
   request<Report>('/api/reports/fetch', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ company, year }),
+    body: JSON.stringify({ company, year, ...opts }),
   })
 
 export const extractSection = (reportId: string, section: string, force = false) =>
   request<Extraction>(`/api/reports/${reportId}/extract`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ section, force }),
+    body: JSON.stringify({ section, reuse_saved: !force, force }),
   })
 
 export const indexReport = (reportId: string) =>
   request<IndexStatus>(`/api/reports/${reportId}/index`, { method: 'POST' })
 
-export const ask = (question: string, reportIds: string[]) =>
+export const ask = (question: string, reportIds?: string[], reportStems?: string[]) =>
   request<Answer>('/api/ask', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question, report_ids: reportIds }),
+    body: JSON.stringify({ question, ...(reportIds === undefined ? {} : { report_ids: reportIds }), ...(reportStems === undefined ? {} : { report_stems: reportStems }) }),
   })
 
 export const pageUrl = (reportId: string, page: number) => `/api/reports/${reportId}/pages/${page}.png`
-export const csvUrl = (reportId: string, section: string) => `/api/reports/${reportId}/extraction.csv?${new URLSearchParams({ section })}`
-export const pptxUrl = (reportId: string, section: string) => `/api/reports/${reportId}/extraction.pptx?${new URLSearchParams({ section })}`
+export const csvUrl = (reportId: string, section?: string, previous?: string) => `/api/reports/${reportId}/extraction.csv?${new URLSearchParams({ ...(section ? { section } : {}), ...(previous ? { previous_stem: previous } : {}) })}`
+// v091: prior=1 asks the pptx for the prior-year series alongside the current one (ignored by the
+// backend when the extraction carries no prior_year). v109: perYear=1 asks for the report's own
+// calendar-year columns instead of the three buckets (ignored without buckets_by_year).
+export const pptxUrl = (reportId: string, section?: string, previous?: string, prior?: boolean, perYear?: boolean) => `/api/reports/${reportId}/extraction.pptx?${new URLSearchParams({ ...(section ? { section } : {}), ...(previous ? { previous_stem: previous } : {}), ...(prior ? { prior_year: '1' } : {}), ...(perYear ? { per_year: '1' } : {}) })}`
 export const pdfUrl = (reportId: string, page?: number) =>
   `/api/reports/${reportId}/pdf${page ? `#page=${page}` : ''}`
 
-export type Config = { provider: string; reasoning: string; embed_base_url: string; model: string; embed_model: string; base_url: string | null; llm: boolean }
+// provider added in v031 (backend/app.py); this type lagged behind until v033's Settings view needed it.
+// retrieval (v034, consumed by KbView since v059) is how /ask retrieves: embeddings+keywords or keywords only.
+// Optional: main.tsx's SetSettingsResult (desktop save path) predates it and is outside lane territory —
+// an absent field just keeps KbView's column on the pre-v059 wording.
+export type Config = {
+  model: string
+  embed_model: string
+  base_url: string | null
+  llm: boolean
+  provider: string
+  retrieval?: 'hybrid' | 'bm25' | 'fixture'
+  maturity_basis?: 'carrying' | 'undiscounted' // v089: the backend's live DEBT_BASIS; absent on older backends
+  merge_runs?: 'off' | 'union' | 'majority' // v140: the backend's live EXTRACT_MERGE_RUNS; absent on older backends
+}
 export const getConfig = () => request<Config>('/api/config')
-export const getKb = () => request<KbEntry[]>('/api/kb')
+// v112: the KB page's collection switch. 'wallenberg' is the curated roster (the page's default,
+// issue #4); 'all' lists every saved extraction in data/kb. The backend default is 'all' — pass one explicitly.
+export const getKb = (collection: 'wallenberg' | 'all' = 'wallenberg') =>
+  request<KbEntry[]>(`/api/kb?collection_name=${collection}`)
 // Stored extraction, no model call; the backend re-registers the PDF so pageUrl/csvUrl work.
 export const openKbExtraction = (stem: string, section: string) =>
   request<Extraction>(`/api/kb/${encodeURIComponent(stem)}/${encodeURIComponent(section)}`)
+
+export const getKbPage = (stem: string, page: number) =>
+  request<{ page: number; text: string }>(`/api/kb/${encodeURIComponent(stem)}/pages/${page}`)
+
+export const reviewField = (reportId: string, body: { section: string; key: string; expected: import('./types').Field; decision: import('./types').HumanReview['decision']; reviewer: string; note: string; value?: number | string | null; unit?: string | null; period?: string | null }) =>
+  request<Extraction>(`/api/reports/${encodeURIComponent(reportId)}/review`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+
+export const getReviewQueue = () => request<import('./types').QueueIssue[]>('/api/review-queue')
+export const saveBasis = (reportId: string, body: { section: string; expected: Partial<import('./types').Basis>; values: Record<string, string>; reviewer: string; note: string }) =>
+  request<Extraction>(`/api/reports/${encodeURIComponent(reportId)}/basis`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+export const getComparison = (stem: string, section: string, previous?: string) =>
+  request<import('./types').Comparison>(`/api/kb/${encodeURIComponent(stem)}/${encodeURIComponent(section)}/comparison${previous ? `?previous_stem=${encodeURIComponent(previous)}` : ''}`)
 
 export const getChunks = (stem: string, q = '', offset = 0) =>
   request<ChunkPage>(`/api/knowledge/${encodeURIComponent(stem)}/chunks?${new URLSearchParams({ q, offset: String(offset) })}`)

@@ -1,0 +1,612 @@
+----- PAGE 85 -----
+NOTES
+Note 2 Financial risk management comprehensive income and equity in the event of currency Local currency SEKm
+exchange rate changes. The exchange rate difference, which is Currency 2024 2024
+recognized in other comprehensive income, is attributable to EUR 71.6 822.6
+BICO’s operations are exposed to various types of financial changes in the USD/SEK exchange rate (for US subsidiaries USD 175.3 1,928.1
+risks that may affect the Company’s performance and cash and related surplus values) and the EUR/SEK exchange rate
+flows. This is primarily as a result of exchange rate fluctu- (for European subsidiaries and associated surplus values). The Group’s policy is not to hedge against transaction and
+ations, but also credit and counterparty risks, liquidity and translation fluctuations in exchange rates.
+refinancing risk and, to a certain extent, interest rate risks. Due to the acquisition of American subsidiaries, intra-Group
+receivables in USD arose in the Parent Company. Due to a
+Liquidity and refinancing risk
+The Group’s financial risks are managed in accordance planned settlement in the near future, it was determined that Financing risk refers to the risk that costs will be higher and
+with the Group’s Finance Policy. The CEO is responsible for these do not form part of the net investment in the foreign funding opportunities will be limited when loans are to be
+conducting the business in accordance with the instructions operation. This means that the currency exchange differences renewed, and that payment obligations might not be met
+from the Board of Directors and is joined by the CFO on the on the receivables affect the Group's total net finance income due to insufficient liquidity or difficulties in obtaining financ-
+reporting on compliance with policies and potential risks. The and are therefore not recognized in other comprehensive in- ing. The Company shall be an attractive borrower and plan
+CFO is responsible for the Company’s financial reporting and come. Nevertheless, the effect on net finance income is offset sufficiently in advance so that it can receive financing on good
+for complying with the Board of Directors’ authorization to by a corresponding effect in other comprehensive income terms.
+the CEO and senior executives in relation to risk and report- from the translated equity of the subsidiary, which means
+ing. The CFO participates in Audit Committee meetings and is that total equity is not affected to any material extent. The Company currently has mainly external financing in the
+responsible for following up and reporting on the Company’s form of convertible bonds that mature in March 2026. For
+internal control and financial risks to the Audit Committee A 10 percent increase in EUR and USD, respectively, over the further information on the convertible bonds, see Note 20.
+and the Board of Directors. The Group’s financial risks are financial year would have resulted in the following transaction
+monitored and reported by the CFO to the Board of Directors, exposure effect on the Group’s operating profit, mainly be- In other respects, the Company has financed its growth
+the Audit Committee and the CEO. cause the operating profit in the foreign subsidiaries fluctu- through equity raised from the Company’s shareholders.
+ates with the currency, but also because the amortization and
+Foreign currency risk impairment of surplus values denominated in EUR and USD Interest rate risk
+Exchange rate fluctuations affect the Group’s performance would have increased in the accounting currency (SEK). Interest rate risk is the risk that interest rate changes will af-
+and equity in various ways, either as a transaction exposure fect the Group’s earnings and cash flow (cash flow risks). The
+or as a translation exposure. Transaction exposures comprise Currency 2025 2024 vast majority of the Company’s external financing currently
+commercial flows in foreign currencies. For the Group, these consists of convertible bonds with a nominal value of SEK
+mainly arise because European companies purchase most of EUR -28.3 -29.2 1,500m that mature in 2026, whereof a nominal value of SEK
+their products in EUR but partly invoice in USD, mainly to Asia USD -86.5 28.8 1,008m is externally outstanding on the balance sheet date.
+and North America. Also, Swedish companies report costs in The bonds have a fixed interest rate of 2.875 percent, which
+SEK, while the Group has limited invoicing in SEK. There are corresponds to SEK 29.0m a year in coupon interest based on
+also transactions where American companies invoice cus- The net translation exposure (in thousands) for the Group is the current outstanding balance. In addition, finance costs
+tomers or have costs in EUR. As a consequence, the reported divided into the currencies below. A 10 percent change in each includes amortizations of fees and equity component amount
+numbers in SEK are exposed to currency fluctuations, mainly closing rate would have affected the respective SEK amount according to the effective interest method. Consequently,
+between EUR, USD and SEK. by 10 percent, which would have entailed a corresponding the interest expense is mostly predictable at present, and the
+change in other comprehensive income and equity. interest rate risk linked to loans is considered to be low.
+The amortization and impairment of acquired surplus values The summary below shows the effect that a change in market
+from foreign subsidiaries is also affected by a change in Local currency SEKm interest rates of one percentage point would have had on the
+exchange rates as the values are calculated in the foreign Currency 2025 2025 consolidated income statement and equity.
+currency and translated into SEK. EUR 57.0 616.4
+When the earnings and net assets of subsidiaries are trans- USD 48.5 446.0
+lated, a translation exposure affects the Group’s other
+BICO GROUP AB (PUBL) ANNUAL REPORT / 2025 85
+
+----- PAGE 86 -----
+Maturity structure for financial liabilities, including future interest payments (non-discounted amounts)
+Group, Dec 31, 2025 <1 year 2 years 3 years 4 years >4 years Total
+Interest-bearing liabilities 1,025.7 0.2 - - - 1,025.9
+Trade payables 69.6 - - 0.1 - 69.7
+Lease liabilities 66.8 50.2 41.1 36.2 153.1 347.5
+Other liabilities 17.6 0.4 2.6 3.0 0.6 24.2
+Group, Dec 31, 2024 <1 year 2 years 3 years 4 years >4 years Total
+Interest-bearing liabilities 46.7 1,394.6 0.5 0.2 - 1,441.9
+Trade payables 77.8 - - 0.1 - 77.9
+Lease liabilities 87.3 83.0 65.5 57.4 197.3 490.5
+Other liabilities 19.7 5.1 4.4 0.2 2.2 31.6
+Parent Company, Dec 31, 2025 <1 year 2 years 3 years 4 years >4 years Total
+Interest-bearing liabilities 1,022.5 - - - - 1,022.5
+Trade payables 6.9 - - - - 6.9
+Other liabilities 8.0 - - - - 8.0
+Parent Company, Dec 31, 2024 <1 year 2 years 3 years 4 years >4 years Total
+Interest-bearing liabilities 39.7 1,390.5 - - - 1,430.3
+Trade payables 9.6 - - - - 9.6
+Other liabilities 8.3 - - - - 8.3
+Change, % 2025 2024
+Market interest
+rate (+/-) 1 0.0 0.0
+Credit and counterparty risk
+Credit risk is the risk of losses caused by a counterparty’s
+inability to meet its contractual obligations. The risk for
+BICO is mainly linked to trade receivables and contract assets.
+To control the risk, the Company continuously evaluates out-
+standing receivables and historical credit losses.
+The Company requests advance payments from new custom-
+ers if there are doubts about the counterparty’s ability to pay.
+For BICO, there is no significant concentration of credit risk
+related to any individual customer, counterparty or geograph-
+ical region. The Company has a broad customer portfolio
+with the majority of sales coming from a large number of
+customers. In individual fiscal years, larger projects within Lab
+Automation could cause increased customer concentration.
+The Company also works with distributors in certain regions,
+which has some effect on the concentration risk, mainly in
+relation to the Asian market.
+A customer is deemed to be in default if it has payment diffi-
+culties or if a receivable is more than 90 days overdue. The rea-
+soning for this is that several customers routinely pay late. At
+that point, there is a notable increase in expected credit losses
+according to BICO’s model. Credit risk is handled in the ac-
+counts by recognizing a loss allowance based on how long the
+receivable has been overdue and on an individual review of the
+customer based on previous payment patterns and external
+factors. The loss allowance is measured at an amount equal
+to the expected credit losses for the entire remaining payment
+term, which means that a loss allowance is also recognized for
+receivables that are not yet due for payment. Improved collec-
+tion procedures and a lower outstanding gross balance have
+contributed to the decreased loss allowance (both in nominal
+and relative amounts) compared with prior year.
+Receivables are only written off when the counterparty is
+declared bankrupt or if changes to the nominal value of the
+receivable are agreed. See also Note 16 for further informa-
+tion on the Group’s trade receivables. The work on collecting
+overdue receivables is continuous.
+NOTES
+86 BICO GROUP AB (PUBL) ANNUAL REPORT / 2025
+NOTES
+
+----- PAGE 87 -----
+The Company also has credit and counterparty risk for cash 
+and cash equivalents. To control the risk, the Company has 
+consistently invested cash in well-established counterparties 
+with a low determined risk of default. Total liquidity amounts 
+to SEK 1,282m (946), where of 84.6m (348.4) is restricted and 
+the main counterpart is SEB. No expected credit loss has been 
+booked.
+Capital risk management
+The Group’s capital structure must be kept at a level that 
+ensures the opportunity to continue operations and create 
+returns for shareholders and benefits for other stakeholders, 
+while maintaining an optimal structure for the reduction of 
+capital costs. 
+To maintain or adjust the capital structure, the Group may, 
+subject to shareholder approval, when appropriate, vary 
+the dividends to shareholders, reduce the share capital for 
+payment to shareholders, issue new shares or sell assets to 
+reduce the debt/equity ratio. The Group analyzes the debt/
+equity ratio continuously. Net debt includes interest-bearing 
+financial liabilities. The Group’s capital consists of assets less 
+interest-bearing liabilities. The Group is not subject to any 
+external capital requirements (covenants).
+From time to time, the Group has more liquid assets than 
+required to conduct the Company’s operations. On such 
+occasions, the excess liquidity can be invested in fixed income 
+funds and bonds, in accordance with the Group’s Finance 
+Policy. It can also be used to repurchase outstanding debt. 
+The purpose is to manage the Group’s capital at the lowest 
+risk possible for when the Company needs the capital, e.g., 
+for acquisitions or other investments. Any investments should 
+preserve value rather than generate significant capital gains. 
+The Company’s liquidity must be available at short notice to 
+support continued growth.
+Note 3  Critical accounting estimates  
+and judgments 
+      
+Preparation of the financial statements in accordance with 
+IFRS requires the Board of Directors and Group management 
+to make assessments, estimates and assumptions that affect 
+the application of the accounting principles and the figures 
+reported for assets, liabilities, income and expenses. 
+ 
+Estimates and assumptions are based on historic experiences 
+and a number of other factors that are considered reasonable 
+under the prevailing circumstances. The result of these esti-
+mates and assumptions is then used to assess the carrying 
+amounts of assets and liabilities which are not otherwise 
+apparent from other sources. The actual outcome may devi-
+ate from these estimates and judgments. Assessments and 
+assumptions are reviewed regularly depending on their nature, 
+but at least annually. Changes in estimates are reported in 
+the period in which they are made if they only affect that 
+period, or in the period in which they are made and in future 
+periods, if the change affects both the period concerned and 
+future periods. Assessments made by Group management 
+that have a significant impact on the financial statements 
+and estimates that may result in significant adjustments in 
+future financial statements are described below. 
+Assessment of cash-generating units and impairment testing of 
+goodwill and other intangible assets 
+Impairment testing requires the identification of the Group’s 
+smallest cash-generating units, which requires estimates to be 
+made. Per December 31, 2025, the Group was deemed to com-
+prise 7 cash-generating units, which reflects the Group’s revenue 
+streams and historical acquisitions. Testing for impairment has 
+been carried out at this level. A change in this estimate could have 
+significant consequences on the Group’s earnings in future periods. 
+See Note 13 for further information.
+In the calculation of recoverable amounts of cash-generating 
+units when goodwill and other intangible assets were tested 
+for impairment, several assumptions were made about future 
+conditions and estimates of parameters. See Note 13 for further 
+information. 
+Loss allowance for trade receivables 
+BICO recognizes loss allowances for trade receivables based on 
+the provisions on expected credit losses in IFRS 9. 
+NOTES
+In relation to this, accounting estimates are made as to whether 
+trade receivables will be recoverable at their full value, and at what 
+level any loss allowance should be recognized. BICO’s cash-gen-
+erating units have a varying history related to bad debt losses. 
+Estimates are therefore required to assess the risk of future credit 
+losses. The principles are described in more detail in Notes 2 and 16. 
+Deferred tax 
+Deferred tax assets attributable to tax losses were capitalized in 
+the Group to the extent that they can be used against future taxa-
+ble profits in the near future. To determine this, the Group manage-
+ment has produced forecasts for the companies that include tax 
+losses, and assumed that companies who have been loss-making 
+from a tax perspective in recent years do not fulfil the criteria to 
+capitalize deferred taxes of tax loss carry forwards. Assumptions 
+and estimates used in the calculation generally require significant 
+estimates of forecasted cash flows and growth per legal entity. A 
+change in any of these factors could lead to changes in the reported 
+amounts. See Note 12 for further information.
+Leases
+The recognition of leases in accordance with IFRS 16 requires a 
+certain degree of judgment, primarily regarding the lease term. 
+The Group defines lease term as the non-cancellable period of a 
+lease, plus any periods covered by options to extend if it is reason-
+ably certain that such options will be exercised.
+The Group has several leases that include options to extend or 
+terminate. At the beginning of the lease term, the Group deter-
+mines whether or not it is reasonably certain that the option to 
+extend or terminate the lease will be exercised. This assessment 
+considers all relevant factors that create an economic incentive 
+to extend or terminate the lease. After the start date, the Group 
+reviews the lease term if a significant event occurs or if there is a 
+change in circumstances within the Group’s control that affects 
+its ability to exercise or not exercise the option to extend or 
+terminate the lease (e.g., the expense of major improvements or 
+adaptations to the leased asset). 
+The Group generally includes the extension period in the lease 
+term for leases of premises with non-cancellable periods of less 
+than three years. Within this period, it is usually considered to be 
+reasonably certain that the Group will exercise its option to renew 
+the leases. The extension periods for leases with longer non-can-
+cellable periods are not included in the lease term as it is not 
+reasonably certain that they will be exercised. 
+See Note 25 for further information on the Group’s leases.  
+BICO GROUP AB (PUBL) ANNUAL REPORT / 2025
+87
+NOTES
+
+
+----- PAGE 88 -----
+Capitalization of development expenditures 
+Recognition of capitalized development expenses requires 
+assessments to determine whether expenses can be capitalized 
+during the course of a project. Factors affecting the assessment 
+include the project’s development stage and its future earnings 
+capacity. To ensure that this is managed correctly, the Group 
+continuously works with project documentation and follow-up, 
+monitors expenditure incurred in relation to the project budget 
+and forecasts future earnings capacity. 
+A changed estimate of the projects’ earnings capacity could have 
+significant impact on the Group’s earnings in future periods. See 
+also Note 13 for further information on the Group’s capitalized 
+development expenses.   
+Convertible bonds 
+On March 19, 2021, the Group issued senior, unsecured converti-
+ble bonds with a total nominal value of SEK 1,500m. Convertible 
+bonds are a hybrid instrument that mainly comprises two parts: a 
+liability portion and an equity portion. To determine the portion of 
+the convertible loan that should be classified as equity, the implicit 
+market rate is used, i.e., the interest rate at which the Company 
+would likely have been able to borrow without the embedded op-
+tion to convert into shares. This interest rate is used to discount the 
+liability, and the difference between the discounted value and the 
+issued convertible debt is the portion of the loan that is classified 
+as equity. In 2021, the Company determined that this interest rate 
+was 5.5 percent. A change in this estimate could have had material 
+effects on the consolidated income statement and consolidated 
+balance sheet, both over the year and in future periods.
+See also Note 20 for information on the convertible bonds.
+Revenue recognition over time
+BICO applies revenue recognition over time for some larger Lab 
+Automation projects. This means that, based on projected final 
+project results, income is recognized successively during the course 
+of the project according to its degree of completion. In order to 
+do this, project revenue and project expenses must be possible to 
+be reliably determined. This in turn requires that the Group has 
+efficient, coordinated systems for calculation, forecasting and 
+revenue/expense reporting.
+The method also requires consistent assessment (forecasts) of the 
+final outcome of the project, including analysis of deviations from 
+earlier assessments. However, actual future project outcomes may 
+deviate, either positively or negatively, from this assessment.
+Lab Automation 
+Lab Automation consists of Biosero. The business area pro-
+vides the proprietary and hardware-agnostic Green Button 
+Go Suite software for connected and smart workflows.Work-
+ing on a project basis, Biosero provides automation technolo-
+gy integration, consulting and engineering services to design, 
+build, and install automated laboratory systems. 
+Group 
+Group consists of costs that could not be allocated to a 
+specific segment, such as Group-wide administration and 
+shareholder costs.
+Note 4  Segments
+      
+ACCOUNTING PRINCIPLES
+The operating segments’ earnings include directly attrib-
+utable items and items that can reasonably and reliably be 
+attributed to the segments. The recognized items in the 
+operating segments’ earnings are measured in accordance 
+with the earnings monitored by the Company’s chief operat-
+ing decision-maker. Assets and liabilities are not measured by 
+segment by the Company’s chief operating decision-maker.
+Segments 
+The Group consists of two reporting segments:
+Life Science Solutions and Lab Automation.
+The Group’s operations are divided into operating segments 
+based on which parts of the operations the company’s highest 
+executive decision-maker, the Group’s CEO, follows up. The 
+business is organized in such a way that the CEO monitors the 
+sales and earnings generated by the Group’s segments. Since 
+the CEO monitors the results of operations and decides on the 
+distribution of resources based on the description of segments 
+below, these constitute the Group’s operating segments.
+The Group’s segments are identified on the basis that differ-
+ent market offerings have been merged into one segment in 
+cases where they have similar financial properties, products, 
+production processes, customers and distribution methods. 
+Follow-up of the Group’s segments is mainly on sales and 
+EBITDA, which is why these performance measures are pre-
+sented in tables to the right. 
+Life Science Solutions 
+Life Science Solutions consists of CYTENA, DISPENDIX, 
+Discover Echo, QInstruments, SCIENION, Cellenion, 
+CELLINK and Advanced BioMatrix. The segment supplies 
+advanced lab instrumentation, consumables and applications 
+in cell culture, cell imaging, cell sorting, and sample preparation 
+for different analytics, such as genomics as well as 3D bioprint-
+ers and bioinks with a wide range of technologies for differ-
+ent demanding applications, resolutions, and volume/speed 
+requirements. In addition the segment also offers instruments 
+and solutions for scalable manufacturing of diagnostics, as 
+well as consumables to enable single-cell proteomics and other 
+workflows and contract manufacturing services.
+BICO GROUP AB (PUBL) ANNUAL REPORT / 2025
+88
+NOTES
+
+
+----- PAGE 113 -----
+Note 24 Financial assets and liabilities
+ACCOUNTING PRINCIPLES
+Financial instruments that are recognized in the balance
+sheet include the following assets and liabilities: long-term
+investments, non-current receivables, trade receivables, deriv-
+atives, intra-Group receivables and liabilities, cash and cash
+equivalents, interest-bearing liabilities, contingent considera-
+tions and trade payables. Trade receivable and debt instru-
+ments are recognized when they are issued. Other financial
+assets and financial liabilities are reported when the Group
+becomes a party in the instrument’s contractual terms and
+conditions. On initial recognition, a financial asset or financial
+liability is measured at fair value.
+Assets and liabilities measured at amortized cost
+After initial recognition, non-current receivables, trade receiv-
+ables, intra-Group receivables and liabilities, cash and cash
+equivalents, interest-bearing liabilities and trade payable are
+measured at amortized cost including any transaction costs.
+Interest income and expenses and exchange rate gains and
+losses are recognized in profit or loss. Gains or losses arising
+out of derecognition are recognized directly in profit or loss.
+Financial assets measured at amortized cost are subject
+to ongoing impairment testing and allowances for expect-
+ed credit losses. See also Note 16 for a description of the
+management of expected credit losses related to the Group’s
+trade receivables.
+Financial assets and liabilities measured at fair
+value through profit or loss
+Long-term investments are measured at fair value through
+profit or loss after initial recognition. This means that net
+gains and losses, including all interest and dividend income,
+are recognized in profit or loss. The Group does not apply
+hedge accounting. The Group’s long-term investments consist
+of strategic investments in unlisted companies. The invest-
+ments are measured at fair value in accordance with IFRS 13,
+level 3 (inputs not based on observable market data).
+When long-term investments are acquired, the cost is deemed
+to correspond to the fair value, as the transaction is carried
+out between two independent parties. Thereafter, finan-
+cial changes to the acquisition target, such as valuations in
+connection with new share issues, earnings and sales trends,
+are considered to constitute factors that affect the fair value.
+The fair value of long-term investments is remeasured every
+reporting period, and any difference from the previously
+reported amount is recognized in net finance income in the
+period in which the change arises.
+Derecognition from the statement of financial position
+A financial asset is derecognized from the balance sheet
+when the rights in the agreement are realized, expire or the
+Company loses control of it. The same applies to parts of a
+financial asset. A financial liability is derecognized from the
+balance sheet when the obligation in the agreement is met or
+otherwise terminated. The same applies to parts of a finan-
+cial liability.
+Acquisitions and disposals of financial assets are recognized
+on the date when the Company undertakes to acquire or
+divest the asset, except when the Company acquires or sells
+quoted securities, in which case settlement date accounting is
+applied.
+Fair values in level 3
+The table below presents the reconciliation between the open-
+ing and closing balances for financial instruments measured in
+level 3 according to IFRS 13.
+Group
+Long-term
+investments
+Fair value, January 1, 2025 5.3
+Acquisitions -
+Total gains and losses recognized in operating
+profit/loss for the year -
+Total gains and losses recognized in net finance
+income for the year 2.7
+Fair value, Dec 31, 2025 8.0
+NOTES
+113 BICO GROUP AB (PUBL) ANNUAL REPORT / 2025
+
+----- PAGE 114 -----
+Group Dec 31, 2025 Dec 31, 2024
+IFRS 13 fair
+value level
+Financial assets
+Financial assets at fair value through profit or loss
+Long-term investments 8.0 5.3 3
+Financial assets measured at amortized cost
+Non-current receivables 34.6 43.0
+Trade receivables 376.7 450.7
+Cash and cash equivalents 1,282.2 946.3
+Total financial assets 1,701.4 1,445.3
+Financial liabilities
+Financial liabilities measured at amortized cost
+Liabilities to credit institutions -2.7 -8.6
+Convertible bonds -1,001.5 -1,332.3
+Other interest-bearing liabilities -0.7 -3.0
+Lease liabilities -281.9 -419.7
+Trade payables -69.6 -77.9
+Total financial liabilities -1,356.4 -1,841.4
+Parent Company Dec 31, 2025 Dec 31, 2024
+IFRS 13 fair
+value level
+Financial assets
+Financial assets at fair value through profit or loss
+Long-term investments 8.0 5.3 3
+Financial assets at amortized cost
+Non-current receivables 3.1 1.8
+Trade receivables 0.3 7.6
+Receivables from Group companies 1,658.7 2,309.4
+Cash and cash equivalents 1,227.9 738.9
+Total financial assets 2,898.0 3,063.1
+Financial liabilities
+Financial liabilities measured at amortized cost
+Liabilities to credit institutions - -
+Convertible bonds -1,001.5 -1,332.3
+Other interest-bearing liabilities - -
+Liabilities to Group companies -235.3 -280.8
+Trade payables -6.9 -9.6
+Total financial liabilities -1,243.8 -1,622.7
+NOTES
+Valuation techniques and significant unobservable inputs
+Instruments Valuation technique Significant unobservable inputs Relationship of unobservable inputs to fair value
+Long-term
+investments
+If a transaction occurred recently, the valuation model is based on the most recent trans-
+action for the specific company. If there were significant changes in conditions between
+the transaction date and the reporting date and BICO is of the view that these could
+have a significant impact on the fair value, the carrying amount is adjusted to reflect
+such changes.
+• Multiple on equity
+• Valuation at the most recent issue of new
+shares
+The estimated fair value would increase (decrease) if:
+• The multiple on equity was higher (lower)
+• The valuation at the most recent new issue of shares
+was higher (lower)
+Financial assets or liabilities were offset to the extent that
+they had the same counterparties and maturity structure,
+which affects certain intra-Group receivables and liabilities in
+the Parent Company.
+The carrying amounts above for financial assets and liabilities
+correspond in all essentials to the fair values, except with re-
+gard to convertible bonds. These are traded on the Frankfurt
+Stock Exchange, and per December 31, 2025, the market price
+was approximately 97 percent of the nominal amount.
+BICO GROUP AB (PUBL) ANNUAL REPORT / 2025 114
+
+----- PAGE 115 -----
+Note 25  Leases
+      
+ACCOUNTING PRINCIPLES	
+	
+	
+ 
+At the inception of a contract, the Group assesses whether 
+the contract is, or contains, a lease. A contract is, or contains, 
+a lease if the contract conveys the right to control the use  
+of an identified asset for a period of time in exchange for 
+consideration.
+At the beginning of the lease, or when reviewing a lease that 
+contains multiple components – lease and non-lease compo-
+nents – the Group allocates the consideration in the contract 
+to each lease component on the basis of the relative stand-
+alone price of the lease component. However, for leases of 
+buildings and land where the Group is the lessee, the Group 
+has decided not to differentiate between non-lease compo-
+nents, so both lease and non-lease components that are paid 
+with fixed amounts are treated as a single lease component.
+	
+	
+Leases where the Group is the lessee
+The Group recognizes a right-of-use asset and a lease liability 
+at the commencement date of the lease. The right-of- use as-
+set is initially measured at cost, which includes the initial value 
+of the lease liability plus lease payments paid at or before the 
+commencement date plus any initial direct costs. The right-
+of-use asset is then depreciated on a straight-line basis from 
+the commencement date to the end of the asset’s useful life 
+or the end of the lease term, whichever is earlier, which for the 
+Group is usually the end of the lease term.
+The lease liability, which is divided into non-current and current 
+portions, is initially measured at the present value of the 
+remaining lease payments for the estimated lease term. The 
+lease term consists of the non-cancellable period together with 
+any additional periods in the lease if, at the commencement 
+date, it is deemed reasonably certain that they will be utilized. 
+The lease payments are usually discounted by using the 
+Group’s incremental borrowing rate, which, in addition to the 
+Group’s credit risk, reflects each lease’s lease term, currency, 
+and the quality of the underlying asset as intended securi-
+ty. Where the interest rate implicit in the lease can readily 
+be determined, that rate is used instead. The lease liability 
+comprises the present value of fixed payments and variable 
+lease payments that depend on an index or a rate over the 
+estimated lease term. The value of the liability is increased 
+by the interest expense for each period and decreased by the 
+lease payments. Interest expense is calculated as the value of 
+the liability multiplied by the discount rate.
+The lease liability for the Group’s premises with index-linked 
+rent is calculated based on the rent that applies at the end 
+of each reporting period. At this point, the liability is adjust-
+ed and a corresponding adjustment is made to the carrying 
+amount of the right-of-use asset. 
+In a corresponding manner, the values of the liability and the 
+asset are adjusted if the lease term is revised. This occurs when 
+the last date for terminating the lease in the previously deter-
+mined lease term for the lease of premises has passed, or upon 
+the occurrence of significant events or a significant change in 
+circumstances in a way that is within the Group’s control and 
+affects the prevailing determination of the lease term.
+The Group presents right-of-use assets and lease liabilities as 
+separate items in the balance sheet.
+No right-of-use asset or lease liability is recognized for leases 
+with a lease term of 12 months or less or for leases with an 
+underlying asset of low value (less than SEK 50 thousand). 
+Lease payments for such leases are expensed on a straight-
+line basis over the lease term.
+Lessee
+The Group’s property, plant and equipment consist of both 
+owned and leased assets. 
+Leased assets mainly consist of real estate and premises and 
+to a lesser extent of vehicles and office equipment. No leases 
+contain covenants or other restrictions in addition to the 
+security in the leased assets.	
+	
+ 
+ 
+Real estate leases
+The Group leases buildings for offices, production and stor-
+age. The leases generally have a term from one to ten years. 
+Some leases contain an option to extend the lease for an 
+additional period. 
+Sometimes the leases contain lease payments based on 
+changes in local price indices. Some leases also require the 
+Group to pay fees relating to real estate taxes and other 
+expenses that are imposed on the lessee.	
+	
+	
+	
+	
+	
+	
+Options to extend or terminate
+Certain leases contain options to extend or terminate the 
+lease, which the Group may or may not exercise up to one year 
+before the end of the non-cancellable period. When possible, 
+the Group attempts to include such options in new leases, as 
+they contribute to operational flexibility. The options may only 
+be exercised by the Group and not by the lessor. 
+It is determined at the commencement date of the lease 
+whether it is reasonably certain that an option to extend will 
+be exercised. The Group reassesses whether it is reasonably 
+certain that an option to extend will be exercised upon the 
+occurrence of either a significant event or a significant change 
+in circumstances that is within the Group’s control.
+The Group’s leases usually have non-cancellable periods of one 
+to ten years, with options for the Group to extend for further 
+periods. The leases contain no final end date. For leases with 
+a non-cancellable period of 3–10 years, it has been determined 
+that it is not reasonably certain that additional periods will be 
+utilized. For leases with a non-cancellable period of less than 
+three years, it has been determined in most cases that it is 
+reasonably certain that additional period(s) will be utilized, 
+which usually results in lease terms of three to five years. 	
+	
+	
+	
+	
+	
+	
+NOTES
+BICO GROUP AB (PUBL) ANNUAL REPORT / 2025
+115
+
+

@@ -1,0 +1,114 @@
+name: Desktop releases
+on:
+  push:
+    branches: [main, demo]
+  pull_request:
+    branches: [main, demo]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: desktop-${{ github.ref_name }}
+  cancel-in-progress: false
+jobs:
+  windows:
+    if: github.event_name == 'pull_request' || github.ref_name == 'main' || github.ref_name == 'demo'
+    runs-on: windows-latest
+    env:
+      RELEASE_CHANNEL: ${{ github.base_ref || github.ref_name }}
+      RELEASE_VERSION: 1.${{ github.run_number }}.${{ github.run_attempt }}
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            desktop/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build backend
+        working-directory: backend
+        run: |
+          python -m pip install -r requirements-build.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python ../scripts/check_codex_discovery.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m pipeline.test_global_ask
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m pipeline.test_kb
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python test_human_review.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python test_collection.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python test_workbench.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m pipeline.test_runtime
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m pipeline.test_maturity_ocr
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python ../scripts/setup_ocr.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python build_exe.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build installer
+        working-directory: desktop
+        run: |
+          npm ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --test updates.test.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/prepare-resources.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npx electron-builder --win nsis --config release-config.cjs --publish never
+      - name: Save installer for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ env.RELEASE_CHANNEL }}
+          path: |
+            desktop/dist/*.exe
+            desktop/dist/*.blockmap
+            desktop/dist/latest.yml
+  publish:
+    if: github.event_name != 'pull_request' && (github.ref_name == 'main' || github.ref_name == 'demo')
+    needs: windows
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      RELEASE_CHANNEL: ${{ github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: desktop-${{ env.RELEASE_CHANNEL }}
+          path: desktop/dist
+      - name: Publish branch update
+        shell: pwsh
+        run: |
+          $tag = "desktop-$env:RELEASE_CHANNEL"
+          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Desktop ($env:RELEASE_CHANNEL)" --notes "Automatic desktop updates from the $env:RELEASE_CHANNEL branch." --prerelease
+            if ($LASTEXITCODE -ne 0) { throw 'Could not create release' }
+          }
+          $assets = @(Get-ChildItem desktop/dist -File | Where-Object { $_.Extension -in '.exe', '.blockmap' } | ForEach-Object FullName)
+          if ($assets.Count -lt 2) { throw 'Installer or blockmap missing' }
+          gh release upload $tag @assets --repo $env:GITHUB_REPOSITORY --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Could not upload installer' }
+          # Publish metadata last, so clients never see a partially uploaded build.
+          gh release upload $tag desktop/dist/latest.yml --repo $env:GITHUB_REPOSITORY --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Could not publish update metadata' }

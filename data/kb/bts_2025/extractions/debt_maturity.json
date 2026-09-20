@@ -1,0 +1,139 @@
+{
+  "report_id": "lib-bts_2025",
+  "company": "BTS Group",
+  "fiscal_year": 2025,
+  "currency": "SEK thousands",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 579797,
+      "unit": "SEK thousands",
+      "period": "2025",
+      "raw_label": "Total",
+      "source": {
+        "page": 92,
+        "quote": "Total 579,797 420,953"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 77141,
+      "unit": "SEK thousands",
+      "period": "2025",
+      "raw_label": "2026",
+      "source": {
+        "page": 92,
+        "quote": "2026 77,141"
+      },
+      "confidence": 0.25,
+      "evidence": [
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": 502656,
+      "unit": "SEK thousands",
+      "period": "2025",
+      "raw_label": "Non-current liabilities",
+      "source": {
+        "page": 92,
+        "quote": "Non-current liabilities 502,656 202,500"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "SEK thousands",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_after_5_years"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [92, 93] selected from candidates [79, 80, 92, 67, 69]",
+    "due_within_1_year: quote not found on page 92",
+    "published: seedseed-rerun-v114-kb run replayed with extract.py @ d3eb5fc8"
+  ],
+  "buckets_by_year": {
+    "basis": "carrying",
+    "years": [
+      {
+        "label": "2026",
+        "value": 77141,
+        "source": {
+          "page": 92,
+          "quote": "SEK thousands 12-31-25 2026 77,141 2027 39 2028 300,039 2029 202,539 2030 39"
+        }
+      },
+      {
+        "label": "2027",
+        "value": 39,
+        "source": {
+          "page": 92,
+          "quote": "SEK thousands 12-31-25 2026 77,141 2027 39 2028 300,039 2029 202,539 2030 39"
+        }
+      },
+      {
+        "label": "2028",
+        "value": 300039,
+        "source": {
+          "page": 92,
+          "quote": "SEK thousands 12-31-25 2026 77,141 2027 39 2028 300,039 2029 202,539 2030 39"
+        }
+      },
+      {
+        "label": "2029",
+        "value": 202539,
+        "source": {
+          "page": 92,
+          "quote": "SEK thousands 12-31-25 2026 77,141 2027 39 2028 300,039 2029 202,539 2030 39"
+        }
+      },
+      {
+        "label": "2030",
+        "value": 39,
+        "source": {
+          "page": 92,
+          "quote": "SEK thousands 12-31-25 2026 77,141 2027 39 2028 300,039 2029 202,539 2030 39"
+        }
+      }
+    ]
+  }
+}

@@ -3,28 +3,10 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 
-@custom-variant dark (&:is(.dark *));
-
 @theme inline {
     --font-heading: var(--font-sans);
     --font-sans: 'Geist Variable', sans-serif;
-    --color-sidebar-ring: var(--sidebar-ring);
-    --color-sidebar-border: var(--sidebar-border);
-    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-    --color-sidebar-accent: var(--sidebar-accent);
-    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-    --color-sidebar-primary: var(--sidebar-primary);
-    --color-sidebar-foreground: var(--sidebar-foreground);
-    --color-sidebar: var(--sidebar);
-    --color-chart-5: var(--chart-5);
-    --color-chart-4: var(--chart-4);
-    --color-chart-3: var(--chart-3);
-    --color-chart-2: var(--chart-2);
-    --color-chart-1: var(--chart-1);
-    --color-ring: var(--ring);
-    --color-input: var(--input);
-    --color-border: var(--border);
-    --color-destructive: var(--destructive);
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
     --color-accent-foreground: var(--accent-foreground);
     --color-accent: var(--accent);
     --color-muted-foreground: var(--muted-foreground);
@@ -39,6 +21,19 @@
     --color-card: var(--card);
     --color-foreground: var(--foreground);
     --color-background: var(--background);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-success-foreground: var(--success-foreground);
+    --color-success-muted: var(--success-muted);
+    --color-success: var(--success);
+    --color-warning-foreground: var(--warning-foreground);
+    --color-warning-muted: var(--warning-muted);
+    --color-warning: var(--warning);
+    --color-danger-foreground: var(--danger-foreground);
+    --color-danger-muted: var(--danger-muted);
+    --color-danger: var(--danger);
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
     --radius-lg: var(--radius);
@@ -48,85 +43,365 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Neutral palette (shadcn default) + one accent: --primary is a deep blue used for the
-   Extract button, selected-row marker and focus ring. Dark mode block left as generated, unused. */
+/* Acrylic glass, ported from unified-agent-workbench's theme-acrylic.css.
+   Token table + mapping to the shadcn variables below: docs/acrylic/DESIGN.md.
+
+   --bg-0 is the one window ground; it is the only surface that blurs (see
+   `.glass` below). --bg-1..4 are flat translucent steps for controls, cards,
+   popovers — no backdrop-filter of their own, so the window reads as one pane
+   of glass instead of a stack of separately-blurred plates. Default tone is
+   dark glass; [data-tone="light"] redefines the same variables. No .dark
+   class anywhere — tone is an explicit, user-facing choice, not a media
+   query, and this way every component that already uses the shadcn semantic
+   vars (bg-card, text-muted-foreground, border, ...) reskins for free. */
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.42 0.11 255);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.42 0.11 255 / 60%);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    /* v006b: the shell glass dropped 88% -> 66% so the wallpaper's two glows
+       actually read through the one blur (the whole point of the wallpaper);
+       --bg-3 rose 58% -> 64% so cards stay solid over the livelier glass.
+       Contrast re-verified on the composited ground (worst = under the blue
+       glow): fg ladder 15.96 / 8.71 / 6.76 / 5.13, badges >= 4.63 on card —
+       docs/acrylic/evidence/v006.md, v006b section. */
+    --bg-0: rgb(11 11 14 / 66%);
+    --bg-1: rgb(22 22 27 / 58%);
+    --bg-2: rgb(32 32 39 / 62%);
+    --bg-3: rgb(48 48 57 / 64%);
+    --bg-4: rgb(62 62 73 / 62%);
+    --line-0: rgb(255 255 255 / 6%);
+    --line-1: rgb(255 255 255 / 11%);
+    --line-2: rgb(255 255 255 / 19%);
+    --fg-0: #f4f4f7;
+    --fg-1: #b6b6c0;
+    --fg-2: #a0a0aa;
+    --fg-3: #8a8a95;
+    --glass-hi: rgb(255 255 255 / 8%);
+    --glass-shadow: 0 22px 60px rgb(0 0 0 / 55%);
+    --blur: saturate(180%) blur(26px);
+    /* The wallpaper is what the one glass pane sits on, and a browser never
+       has OS material to blur instead — so the ground has to carry the colour
+       itself: deep blue -> indigo -> near black, with two soft glows (blue
+       top-left, violet bottom-right) that give the blur something to bite on.
+       Glows are capped at luminaries that keep the resolved glass ground (88%
+       --bg-0 over the brightest point) at the same text-contrast ladder the
+       UAW fallback had — see docs/acrylic/evidence/v006.md for the numbers. */
+    --wallpaper:
+        radial-gradient(90% 75% at 14% 0%, rgb(56 96 178 / 26%) 0%, transparent 62%),
+        radial-gradient(75% 65% at 88% 100%, rgb(112 78 190 / 30%) 0%, transparent 60%),
+        linear-gradient(168deg, #1b2444 0%, #131830 45%, #0a0a12 100%);
+    color-scheme: dark;
+
+    --background: var(--bg-1);
+    --foreground: var(--fg-0);
+    --card: var(--bg-3);
+    --card-foreground: var(--fg-0);
+    --popover: #27272f;
+    --popover-foreground: var(--fg-0);
+    /* Never a flat accent fill (reads as a sticker glued to the glass) — a
+       tint of the accent hue mixed into the ground, the way UAW's .btn.primary
+       and .send are never solid either. -hover raises the accent share the way
+       UAW's own :hover does (dark 21% -> 29%, light 16% -> 24%). */
+    --primary: color-mix(in srgb, #7aa2f7 22%, var(--bg-0));
+    --primary-hover: color-mix(in srgb, #7aa2f7 29%, var(--bg-0));
+    --primary-foreground: color-mix(in srgb, #7aa2f7 34%, #f0f5ff);
+    --secondary: var(--bg-2);
+    --secondary-foreground: var(--fg-1);
+    --muted: var(--bg-2);
+    --muted-foreground: var(--fg-2);
+    --accent: var(--bg-3);
+    --accent-foreground: var(--fg-0);
+    --destructive: #e0897f;
+    /* Status semantics — UAW's --ok/--warn/--err (workbench.css base, dark tone
+       keeps the base scheme's values). -foreground is for a solid fill of the
+       base color; -muted is the soft tinted background badges actually use
+       below. Dark keeps UAW's 12%-on-transparent tint; light is at 5% (was 8%
+       in v006, 12% in v001): the v006b glass transparency darkened the light
+       card ground, and success-on-card was the binding constraint — 8% measured
+       4.32:1 there, 5% clears the 4.5 gate at every swept glass alpha. Numbers
+       in docs/acrylic/evidence/v006.md, v006b section. */
+    --success: #7bc99a;
+    --success-foreground: #0f2a1c;
+    --success-muted: color-mix(in srgb, #7bc99a 12%, transparent);
+    --warning: #d9b06a;
+    --warning-foreground: #2b1c05;
+    --warning-muted: color-mix(in srgb, #d9b06a 12%, transparent);
+    --danger: #e0897f;
+    --danger-foreground: #2a0d09;
+    --danger-muted: color-mix(in srgb, #e0897f 12%, transparent);
+    --border: var(--line-1);
+    --input: var(--line-1);
+    --ring: #7aa2f7;
+    --radius: 0.875rem;
 }
 
-.dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+/* Light mode uses opaque surfaces so desktop colours and focus cannot wash it out. */
+[data-tone="light"] {
+    --bg-0: #f5f7fb;
+    --bg-1: #ffffff;
+    --bg-2: #eef2f7;
+    --bg-3: #ffffff;
+    --bg-4: #e3eaf3;
+    --line-0: #e8edf4;
+    --line-1: #d8e0eb;
+    --line-2: #9ba9bd;
+    --fg-0: #17243a;
+    --fg-1: #36465e;
+    --fg-2: #526179;
+    --fg-3: #65748a;
+    --glass-hi: transparent;
+    --glass-shadow: none;
+    --blur: none;
+    --wallpaper: none;
+    color-scheme: light;
+
+    --background: var(--bg-1);
+    --foreground: var(--fg-0);
+    --card: var(--bg-3);
+    --card-foreground: var(--fg-0);
+    --popover: #ffffff;
+    --popover-foreground: var(--fg-0);
+    --primary: #2458d3;
+    --primary-hover: #1c46b0;
+    --primary-foreground: #ffffff;
+    --secondary: var(--bg-2);
+    --secondary-foreground: var(--fg-1);
+    --muted: var(--bg-2);
+    --muted-foreground: var(--fg-2);
+    --accent: #e8efff;
+    --accent-foreground: #1945a3;
+    --destructive: #b42332;
+    --success: #216b46;
+    --success-foreground: #ffffff;
+    --success-muted: #eaf6ee;
+    --warning: #805208;
+    --warning-foreground: #ffffff;
+    --warning-muted: #fff5df;
+    --danger: #b42332;
+    --danger-foreground: #ffffff;
+    --danger-muted: #fff0f1;
+    --border: var(--line-1);
+    --input: #bac6d8;
+    --ring: #2458d3;
+}
+
+[data-tone="light"] :is(.app-titlebar, .app-rail) {
+    background: var(--background);
+}
+
+/* v100: the Acrylic theme. Everything above (and the :root dark table) is the default "Solid"
+   look — this scope re-imports our v001–v006b glass token table verbatim from 263f8eb for users
+   who pick Acrylic in Settings (localStorage `arp-theme` -> <html data-theme="acrylic">, set by
+   main.tsx before first render). Solid is the *absence* of the attribute, so the default
+   rendering never depends on this block existing. Dark here differs from :root only in
+   --popover (263f8eb's translucent var(--bg-4) vs Solid's opaque dropdown fill); light restores
+   the v006b glass values that Solid replaced with opaque surfaces. Contrast numbers for these
+   exact values: docs/acrylic/evidence/v006.md §v006b. */
+[data-theme="acrylic"] {
+    --bg-0: rgb(11 11 14 / 66%);
+    --bg-1: rgb(22 22 27 / 58%);
+    --bg-2: rgb(32 32 39 / 62%);
+    --bg-3: rgb(48 48 57 / 64%);
+    --bg-4: rgb(62 62 73 / 62%);
+    --line-0: rgb(255 255 255 / 6%);
+    --line-1: rgb(255 255 255 / 11%);
+    --line-2: rgb(255 255 255 / 19%);
+    --fg-0: #f4f4f7;
+    --fg-1: #b6b6c0;
+    --fg-2: #a0a0aa;
+    --fg-3: #8a8a95;
+    --glass-hi: rgb(255 255 255 / 8%);
+    --glass-shadow: 0 22px 60px rgb(0 0 0 / 55%);
+    --blur: saturate(180%) blur(26px);
+    --wallpaper:
+        radial-gradient(90% 75% at 14% 0%, rgb(56 96 178 / 26%) 0%, transparent 62%),
+        radial-gradient(75% 65% at 88% 100%, rgb(112 78 190 / 30%) 0%, transparent 60%),
+        linear-gradient(168deg, #1b2444 0%, #131830 45%, #0a0a12 100%);
+    color-scheme: dark;
+
+    --background: var(--bg-1);
+    --foreground: var(--fg-0);
+    --card: var(--bg-3);
+    --card-foreground: var(--fg-0);
+    --popover: var(--bg-4);
+    --popover-foreground: var(--fg-0);
+    --primary: color-mix(in srgb, #7aa2f7 22%, var(--bg-0));
+    --primary-hover: color-mix(in srgb, #7aa2f7 29%, var(--bg-0));
+    --primary-foreground: color-mix(in srgb, #7aa2f7 34%, #f0f5ff);
+    --secondary: var(--bg-2);
+    --secondary-foreground: var(--fg-1);
+    --muted: var(--bg-2);
+    --muted-foreground: var(--fg-2);
+    --accent: var(--bg-3);
+    --accent-foreground: var(--fg-0);
+    --destructive: #e0897f;
+    --success: #7bc99a;
+    --success-foreground: #0f2a1c;
+    --success-muted: color-mix(in srgb, #7bc99a 12%, transparent);
+    --warning: #d9b06a;
+    --warning-foreground: #2b1c05;
+    --warning-muted: color-mix(in srgb, #d9b06a 12%, transparent);
+    --danger: #e0897f;
+    --danger-foreground: #2a0d09;
+    --danger-muted: color-mix(in srgb, #e0897f 12%, transparent);
+    --border: var(--line-1);
+    --input: var(--line-1);
+    --ring: #7aa2f7;
+}
+
+[data-theme="acrylic"][data-tone="light"] {
+    --bg-0: rgb(252 252 254 / 76%);
+    --bg-1: rgb(0 0 0 / 2.5%);
+    --bg-2: rgb(0 0 0 / 4%);
+    --bg-3: rgb(0 0 0 / 6%);
+    --bg-4: rgb(0 0 0 / 10%);
+    --line-0: rgb(0 0 0 / 7%);
+    --line-1: rgb(0 0 0 / 12%);
+    --line-2: rgb(0 0 0 / 20%);
+    --fg-0: #16161a;
+    --fg-1: #3e3e47;
+    --fg-2: #4e4e58;
+    --fg-3: #60606b;
+    --glass-hi: rgb(255 255 255 / 65%);
+    --glass-shadow: 0 22px 60px rgb(40 44 60 / 22%);
+    --wallpaper:
+        radial-gradient(90% 75% at 14% 0%, rgb(168 190 235 / 40%) 0%, transparent 62%),
+        radial-gradient(75% 65% at 88% 100%, rgb(196 178 228 / 28%) 0%, transparent 60%),
+        linear-gradient(168deg, #f7f3e9 0%, #ececf6 45%, #e6e6f2 100%);
+    color-scheme: light;
+
+    --background: var(--bg-1);
+    --foreground: var(--fg-0);
+    --card: var(--bg-3);
+    --card-foreground: var(--fg-0);
+    --popover: var(--bg-4);
+    --popover-foreground: var(--fg-0);
+    --primary: color-mix(in srgb, #2b5cb4 16%, transparent);
+    --primary-hover: color-mix(in srgb, #2b5cb4 24%, transparent);
+    --primary-foreground: #12305e;
+    --secondary: var(--bg-2);
+    --secondary-foreground: var(--fg-1);
+    --muted: var(--bg-2);
+    --muted-foreground: var(--fg-2);
+    --accent: var(--bg-3);
+    --accent-foreground: var(--fg-0);
+    --destructive: #a23a32;
+    --success: #276f47;
+    --success-foreground: #eafff2;
+    --success-muted: color-mix(in srgb, #276f47 5%, transparent);
+    --warning: #805208;
+    --warning-foreground: #fff6e6;
+    --warning-muted: color-mix(in srgb, #805208 5%, transparent);
+    --danger: #a23a32;
+    --danger-foreground: #fff1ee;
+    --danger-muted: color-mix(in srgb, #a23a32 5%, transparent);
+    --border: var(--line-1);
+    --input: var(--line-1);
+    --ring: #2b5cb4;
+}
+
+/* Solid's light tone paints the rail/titlebar opaque (rule above); under Acrylic the shell is
+   one glass pane again, so those strips go back to showing it (263f8eb had no such rule — this
+   only ever matches inside the Acrylic scope, never Solid's default). */
+[data-theme="acrylic"][data-tone="light"] :is(.app-titlebar, .app-rail) {
+    background: transparent;
+}
+
+/* 263f8eb's OS-material pairing for light (dark + fonts already live in the
+   :root[data-material="on"] block below): with real Windows acrylic behind the window the
+   painted wallpaper goes away and the ground clears a little further. */
+[data-theme="acrylic"][data-tone="light"][data-material="on"] {
+    --bg-0: rgb(252 252 254 / 62%);
+}
+
+/* Popovers ride tokens again under Acrylic: bg-popover resolves to the translucent --bg-4, which
+   without a blur would let underlying content bleed through the dropdown — so the floating
+   select popup gets its thin glass back (v001–v006b's SelectContent treatment; Solid's opaque
+   dropdowns above are untouched by this rule). */
+[data-theme="acrylic"] [data-slot="select-content"] {
+    background: var(--bg-0);
+    backdrop-filter: var(--blur);
+    -webkit-backdrop-filter: var(--blur);
+    box-shadow: inset 0 1px 0 var(--glass-hi), var(--glass-shadow);
+}
+
+/* Real Windows acrylic (desktop/, BrowserWindow backgroundMaterial: 'acrylic') replaces the
+   painted --wallpaper: the OS itself blurs the desktop behind the window, so the body's own
+   gradient would just sit on top of it, doubling up. main.tsx sets this from the preload-exposed
+   window.arp.material flag (desktop/preload.js); a browser tab never has this attribute, so its
+   look is unchanged (docs/acrylic/DESIGN.md, "Real Windows material" table row). */
+:root[data-material="on"] {
+  --bg-0: rgb(11 11 14 / 52%);
+  /* UAW's own stack (renderer/styles.css:73-74) leads with Inter, a downloaded web font; we have
+     no reason to bundle it just for the desktop shell, so this starts one step later, at the part
+     that *is* the point — Segoe UI Variable ships with Windows 11, Cascadia Code/Mono with Windows
+     Terminal, both zero-download. Browser tab never sets data-material, so Geist is untouched. */
+  --font-sans: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'Cascadia Code', 'Cascadia Mono', ui-monospace, Consolas, monospace;
+}
+
+[data-tone="light"][data-material="on"] {
+  --bg-0: #f5f7fb;
+}
+
+[data-material="on"] body {
+  background-image: none;
+}
+
+/* The one shell material: translucent ground + blur + a specular top edge +
+   a contact shadow. Applied to the app shell and floating glass chips.
+   Dropdowns use opaque --popover backgrounds to hide underlying content.
+   Never on cards/rows/tables: those
+   stay flat --bg-1..4 steps, per the "one material" rule in DESIGN.md. */
+@utility glass {
+    background: var(--bg-0);
+    backdrop-filter: var(--blur);
+    -webkit-backdrop-filter: var(--blur);
+    box-shadow: inset 0 1px 0 var(--glass-hi), var(--glass-shadow);
+}
+
+/* Desktop shell drag region (desktop/main.js: titleBarStyle: 'hidden' removes the system
+   titlebar, so Titlebar.tsx is the only thing left that can move the window). -webkit-app-region
+   is an unrecognized property in a plain browser tab and on the native, non-hidden titlebar
+   main.js falls back to off Windows, so this is inert everywhere except the Windows desktop
+   shell — same pattern UAW's own titlebar uses (renderer/styles.css: `.titlebar` / `.titlebar
+   button`). */
+.app-titlebar {
+    -webkit-app-region: drag;
+}
+.app-titlebar button,
+.app-titlebar a,
+.app-titlebar input,
+.app-titlebar select,
+.app-titlebar textarea,
+.app-titlebar [role="button"] {
+    -webkit-app-region: no-drag;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
     }
-  body {
-    @apply bg-background text-foreground tabular-nums;
-    }
   html {
-    @apply font-sans;
+    /* Not @apply font-sans: Tailwind inlines that utility's font stack as a build-time literal
+       (confirmed in the compiled output), which would never see [data-material="on"]'s override
+       below. var(--font-sans) is the same default, but actually re-resolves at runtime. */
+    font-family: var(--font-sans);
+    height: 100%;
+    }
+  body {
+    @apply text-foreground tabular-nums;
+    height: 100%;
+    background-image: var(--wallpaper);
+    }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+    }
+  ::-webkit-scrollbar-thumb {
+    background: var(--line-2);
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background-clip: content-box;
+    }
+  * {
+    scrollbar-color: var(--line-2) transparent;
     }
 }

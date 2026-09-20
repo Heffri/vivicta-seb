@@ -1,0 +1,87 @@
+{
+  "report_id": "lib-sdiptech_2025",
+  "company": "Sdiptech",
+  "fiscal_year": 2025,
+  "currency": "MSEK",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 4495,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Total (Non-current liabilities) + Total (Current liabilities)",
+      "source": {
+        "page": 110,
+        "quote": "Total 4,049 4,027 Current liabilities 2025 2024 Liabilities to credit institutions 10 10 Leasing liabilities 119 120 Contingent considerations * 317 406 Other liabilities** 1 1 Total 446 537"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_derived",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 446,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Total",
+      "source": {
+        "page": 110,
+        "quote": "Total 446 537"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_1_to_5_years"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [110, 111] selected from candidates [110, 111, 80, 104, 105, 81, 112, 74, 75, 95, 113]",
+    "published: seedv148-sdiptech-kb run replayed with extract.py @ 4d7a4930",
+    "published: seedv156-sdiptech-kb run replayed with extract.py @ 1df83fb8"
+  ]
+}

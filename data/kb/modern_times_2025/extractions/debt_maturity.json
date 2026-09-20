@@ -1,0 +1,71 @@
+{
+  "report_id": "lib-modern_times_2025",
+  "company": "Modern Times Group",
+  "fiscal_year": 2025,
+  "currency": "SEK million",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": null,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_within_1_year"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [142, 143] selected from candidates [149, 150, 118, 141, 142]",
+    "due_after_5_years: model returned null, fill from page 149 row 'More than five years 16 0' refused -- table 'Maturity analysis – Contractual undiscounted cash flow' is undiscounted",
+    "total_debt: 3487 disagrees with the maturity table; 85151 read from 'Lease liabilities 155 37 33 85 151' by its column order",
+    "due_within_1_year: 582 disagrees with the maturity table; 155 read from 'Lease liabilities 155 37 33 85 151' by its column order",
+    "due_1_to_5_years: 3318 disagrees with the maturity table; 37 read from 'Lease liabilities 155 37 33 85 151' by its column order",
+    "due_after_5_years: model returned null; 33 read from 'Lease liabilities 155 37 33 85 151' by its column order",
+    "published: seedv144-mtg-kb run replayed with extract.py @ 4d7a4930",
+    "published: seedv155-publish-kb run replayed with extract.py @ 7fabc1c9"
+  ]
+}

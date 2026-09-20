@@ -1,0 +1,86 @@
+{
+  "report_id": "lib-ambea_2025",
+  "company": "Ambea",
+  "fiscal_year": 2025,
+  "currency": "SEK million",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 12643,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "Total interest-bearing liabilities",
+      "source": {
+        "page": 119,
+        "quote": "Total interest-bearing liabilities 12,643 10,757"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 2308,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "Total current interest-bearing liabilities",
+      "source": {
+        "page": 119,
+        "quote": "Total current interest-bearing liabilities 2,308 1,879"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_1_to_5_years"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [119, 120] selected from candidates [119, 120, 125]",
+    "published: seedseed-rex-kb run replayed with extract.py @ d3eb5fc8"
+  ]
+}

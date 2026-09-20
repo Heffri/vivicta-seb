@@ -1,0 +1,104 @@
+{
+  "report_id": "lib-net_insight_2025",
+  "company": "Net Insight",
+  "fiscal_year": 2025,
+  "currency": "SEK thousands",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 81489,
+      "unit": "SEK thousands",
+      "period": "2025",
+      "raw_label": "Total",
+      "source": {
+        "page": 101,
+        "quote": "Total 81,489 - 57,647 3,790"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 50379,
+      "unit": "SEK thousands",
+      "period": "2025",
+      "raw_label": "<1 year",
+      "source": {
+        "page": 101,
+        "quote": "<1 year 50,379 56,092"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": 31110,
+      "unit": "SEK thousands",
+      "period": "2025",
+      "raw_label": "1-5 yeas",
+      "source": {
+        "page": 101,
+        "quote": "1-5 yeas 31,110 1,555"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": 0,
+      "unit": "SEK thousands",
+      "period": "2025",
+      "raw_label": ">5 years",
+      "source": {
+        "page": 101,
+        "quote": ">5 years - -"
+      },
+      "confidence": 0.25,
+      "evidence": [
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": true,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((50379 + 31110 + 0) - 81489) <= 2"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [101, 102] selected from candidates [79, 80, 101, 91, 121, 122]",
+    "due_after_5_years: quote not found on page 101",
+    "total_debt: 'Total 81,489 57,647' is a Total*/Summa* row with no total column in its own header (due_within_1_year, due_after_5_years); its own total cannot be checked, left for another path"
+  ]
+}

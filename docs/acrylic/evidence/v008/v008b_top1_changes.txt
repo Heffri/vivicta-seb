@@ -1,0 +1,64 @@
+top-1 changed: 21
+4c_2025                            old p.42[mat=1 bor=0 bucket=0] -> new p.12[mat=0 bor=1 bucket=0]
+    old: "'liquidity risk and refinancing risk liquidity risk is the risk that the group ma'"
+    new: "'interest bearing liabilities of sek 93,250 thousand (46,482) consists of a bank '"
+aak_2025                           old p.145[mat=1 bor=0 bucket=0] -> new p.169[mat=1 bor=1 bucket=0]
+    old: "'145 note 3 financial risk management liquidity risk liquidity risk concerns the '"
+    new: "'169 note 20 borrowings group parent non-current 2025 2024 liabilities to banks a'"
+alvotech_2025                      old p.75[mat=1 bor=1 bucket=0] -> new p.66[mat=0 bor=1 bucket=0]
+    old: "'liquidity risk liquidity risk is the risk that the group will encounter difficul'"
+    new: "'related party transactions as of 31 december 2025 are as follows: purchases / in'"
+aq_2025                            old p.73[mat=1 bor=0 bucket=1] -> new p.66[mat=0 bor=1 bucket=0]
+    old: "'terms and maturity group 2025 2024 3.6 liquidity risks cur\\xad nom. interest nom. b'"
+    new: "'66 note 31/12/2025 31/12/2024 note 31/12/2025 31/12/2024 assets equity and liabi'"
+arion_banki_2025                   old p.75[mat=1 bor=1 bucket=1] -> new p.49[mat=1 bor=1 bucket=0]
+    old: "'46. liquidity and funding risk maturity analysis of assets and liabilities contr'"
+    new: "'33. borrowings first maturity currency, original nominal value issued maturity t'"
+asmodee_2025                       old p.163[mat=0 bor=0 bucket=1] -> new p.117[mat=0 bor=1 bucket=0]
+    old: "'note 28.3 liquidity risk and refinancing risk liquidity risk is the risk that an'"
+    new: "'consolidated cash flow statement operating activities operating profit/loss (ebi'"
+avanza_bank_holding_2025           old p.170[mat=1 bor=0 bucket=0] -> new p.38[mat=1 bor=0 bucket=0]
+    old: "'additional information on liquidity pursuant to fffs 2010:7, avanza reports its '"
+    new: "'a simple balance sheet with low risk avanza operates in an industry built on tru'"
+electrolux_professional_2025       old p.175[mat=1 bor=0 bucket=1] -> new p.172[mat=1 bor=1 bucket=0]
+    old: "'p. 173 note 18 financial instruments, cont. maturity profile of financial liabil'"
+    new: "'p. 170 note 18 financial instruments, cont. liquid funds liquid funds consist of'"
+essity_2025                        old p.156[mat=0 bor=0 bucket=0] -> new p.155[mat=1 bor=1 bucket=1]
+    old: "'e5. liquidity risk the table below shows the group’s liquidity risk regarding fi'"
+    new: "'e4. financial liabilities accounting principles ap carrying amount, non-current '"
+lindab_international_2025          old p.84[mat=1 bor=1 bucket=1] -> new p.85[mat=1 bor=1 bucket=1]
+    old: "'note 03 financial risks financial risks comprise financing risk, liquidity risk,'"
+    new: "'currency currency risk is the risk of negative effects on the consolidated state'"
+loomis_2025                        old p.154[mat=1 bor=0 bucket=0] -> new p.155[mat=1 bor=0 bucket=0]
+    old: "'the following tables show undiscounted cash flows recognized as financial liabil'"
+    new: "'fair value estimations fair value measurement of financial instruments is perfor'"
+lundbergforetagen_2025             old p.107[mat=1 bor=1 bucket=0] -> new p.105[mat=1 bor=1 bucket=1]
+    old: "'koncernen – noter not 35 – forts. kreditrisk förfallostruktur avseende odiskonte'"
+    new: "'koncernen – noter not 35 – finansiella risker lundbergkoncernens riskhantering b'"
+lundin_mining_corporation_2025     old p.251[mat=0 bor=0 bucket=0] -> new p.227[mat=0 bor=1 bucket=0]
+    old: "'(b) liquidity risk the company has in place a planning and forecasting process t'"
+    new: "'b) the company has a revolving credit facility of $1,750.0 million, maturing in '"
+medicover_2025                     old p.170[mat=1 bor=1 bucket=0] -> new p.164[mat=1 bor=1 bucket=0]
+    old: "'liquidity and refinancing risk liquidity risk is the risk that the group cannot '"
+    new: "'medicover the group’s credit facilities and utilisation were as follows: the net'"
+new_wave_2025                      old p.132[mat=1 bor=1 bucket=0] -> new p.136[mat=1 bor=0 bucket=0]
+    old: "'nwg // financial information // the group translation exposure the group account'"
+    new: "'note 20 - net assets in foreign currencies note 21 - pledged assets and continge'"
+sca_2025                           old p.201[mat=0 bor=0 bucket=0] -> new p.216[mat=0 bor=1 bucket=0]
+    old: "'e5 liquidity risk the table below shows the group’s liquidity risk regarding fin'"
+    new: "'pc11 financial instruments § accounting principles the accounting principles for'"
+seb_2025                           old p.276[mat=1 bor=1 bucket=1] -> new p.324[mat=1 bor=1 bucket=1]
+    old: "'note g37e continued liquidity risk balance sheet (contractual maturity dates) pa'"
+    new: "'note p36 continued risk disclosures balance sheet (contractual maturity dates), '"
+securitas_2025                     old p.125[mat=1 bor=1 bucket=1] -> new p.124[mat=1 bor=1 bucket=0]
+    old: "'the following tables summarize the group’s liquidity risk at end of 2025 and 202'"
+    new: "'the consolidated statement of income is affected by the translation to sek of th'"
+swedbank_2025                      old p.290[mat=1 bor=1 bucket=1] -> new p.307[mat=0 bor=1 bucket=0]
+    old: "'288 2.2 liquidity risk in the summary of maturities, undiscounted contractual ca'"
+    new: "'305 p33 deposits and borrowings from the public 1/1/2024 swedish public 870 907 '"
+volvo_car_2025                     old p.102[mat=1 bor=1 bucket=0] -> new p.77[mat=1 bor=0 bucket=0]
+    old: "'liquidity risk management volvo car group financial policy framework liquidity r'"
+    new: "'lease liabilities non-current lease liabilities 5,309 7,523 current lease liabil'"
+yubico_2025                        old p.84[mat=0 bor=1 bucket=0] -> new p.66[mat=0 bor=1 bucket=0]
+    old: "'note 17 financial risks, financial policy, and financial instruments, cont. liqu'"
+    new: "'consolidated cash flow statement sekm note operating activities 19 profit/loss b'"

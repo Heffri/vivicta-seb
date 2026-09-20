@@ -1,0 +1,84 @@
+{
+ "report_id": "lib-momentum_2025",
+ "company": "Momentum Group",
+ "fiscal_year": 2025,
+ "currency": "MSEK",
+ "section": "debt_maturity",
+ "maturity_basis": "carrying",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 622,
+   "unit": "MSEK",
+   "period": "2025",
+   "raw_label": "Interest-bearing liabilities",
+   "source": {
+    "page": 117,
+    "quote": "Interest-bearing liabilities 622 486"
+   },
+   "confidence": 0.85,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": null,
+   "unit": null,
+   "period": null,
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": null,
+   "unit": null,
+   "period": null,
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": 11,
+   "unit": "MSEK",
+   "period": "2025",
+   "raw_label": "Non-current lease liabilities",
+   "source": {
+    "page": 117,
+    "quote": "Non-current lease liabilities 0 122 11 133"
+   },
+   "confidence": 0.85,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "unit_ok"
+   ]
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "detail": "missing: due_within_1_year"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [115, 116] selected from candidates [116, 117, 111, 94, 98, 119, 131, 96, 100, 115]",
+  "due_within_1_year: 161 is printed on none of pages [116, 117]; dropped as computed, not read",
+  "due_1_to_5_years: 450 is printed on none of pages [116, 117]; dropped as computed, not read"
+ ]
+}

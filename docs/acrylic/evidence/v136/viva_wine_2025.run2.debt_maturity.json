@@ -1,0 +1,73 @@
+{
+ "report_id": "lib-viva_wine_2025",
+ "company": "Viva Wine Group",
+ "fiscal_year": 2025,
+ "currency": "SEK million",
+ "section": "debt_maturity",
+ "maturity_basis": "carrying",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 1203,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "Interest-bearing liabilities",
+   "source": {
+    "page": 105,
+    "quote": "Interest-bearing liabilities – 1,203 1,203 1,203"
+   },
+   "confidence": 0.85,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": null,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": null,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": null,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "detail": "missing: due_within_1_year"
+  }
+ ],
+ "warnings": [
+  "two_pass: page selection failed or illegal for candidates [112, 113, 79, 105, 115, 127, 98, 106, 110, 109]; fell back to the single-pass window"
+ ]
+}

@@ -1,0 +1,218 @@
+{
+ "report_id": "lib-viaplay_2025",
+ "company": "Viaplay Group",
+ "fiscal_year": 2025,
+ "currency": "SEK million",
+ "section": "debt_maturity",
+ "maturity_basis": "carrying",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 6422,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "Total",
+   "source": {
+    "page": 113,
+    "quote": "Total 6,422 2,058"
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": 920,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "Amount due for settlement within 12 months",
+   "source": {
+    "page": 113,
+    "quote": "Amount due for settlement within 12 months 920 200"
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": 5502,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "Amount due for settlement within 13 to 38 months",
+   "source": {
+    "page": 113,
+    "quote": "Amount due for settlement within 13 to 38 months 5,502 1,858"
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": null,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "status": "unavailable",
+   "detail": "Missing explicit values: due_after_5_years"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [113, 114] selected from candidates [17, 18, 113, 123, 120, 87, 125, 116, 146, 85, 112]"
+ ],
+ "prior_year": {
+  "fiscal_year": 2024,
+  "fields": {
+   "total_debt": {
+    "value": 2058,
+    "source": {
+     "page": 113,
+     "quote": "Total 6,422 2,058"
+    }
+   },
+   "due_within_1_year": {
+    "value": 200,
+    "source": {
+     "page": 113,
+     "quote": "Amount due for settlement within 12 months 920 200"
+    }
+   },
+   "due_1_to_5_years": {
+    "value": 1858,
+    "source": {
+     "page": 113,
+     "quote": "Amount due for settlement within 13 to 38 months 5,502 1,858"
+    }
+   }
+  },
+  "check": {
+   "passed": true,
+   "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((200 + 1858) - 2058) <= 2 (due_after_5_years: no prior-year figure in this table)"
+  }
+ },
+ "stem": "viaplay_2025",
+ "pdf_available": true,
+ "check_history": [
+  {
+   "at": "2026-09-20T12:28:49.346285+00:00",
+   "reason": "Recalculated explicit values after extraction",
+   "previous": [
+    {
+     "name": "maturity_sums_to_total",
+     "passed": false,
+     "detail": "missing: due_after_5_years"
+    }
+   ]
+  }
+ ],
+ "issues": [
+  {
+   "kind": "basis",
+   "key": "entity",
+   "detail": "Confirm entity"
+  },
+  {
+   "kind": "basis",
+   "key": "consolidation",
+   "detail": "Confirm consolidation"
+  },
+  {
+   "kind": "basis",
+   "key": "period",
+   "detail": "Confirm period"
+  },
+  {
+   "kind": "basis",
+   "key": "currency",
+   "detail": "Confirm currency"
+  },
+  {
+   "kind": "basis",
+   "key": "scale",
+   "detail": "Confirm scale"
+  },
+  {
+   "kind": "basis",
+   "key": "source",
+   "detail": "Confirm source"
+  },
+  {
+   "kind": "basis",
+   "key": "restatement",
+   "detail": "Confirm restatement"
+  },
+  {
+   "kind": "basis",
+   "key": "debt_basis",
+   "detail": "Confirm debt basis"
+  },
+  {
+   "kind": "basis",
+   "key": "leases",
+   "detail": "Confirm leases"
+  },
+  {
+   "kind": "basis",
+   "key": "bucket_mapping",
+   "detail": "Confirm bucket mapping"
+  },
+  {
+   "kind": "field",
+   "key": "total_debt",
+   "detail": "Total borrowings: verify value, unit, period and source"
+  },
+  {
+   "kind": "field",
+   "key": "due_within_1_year",
+   "detail": "Due within 1 year: verify value, unit, period and source"
+  },
+  {
+   "kind": "field",
+   "key": "due_1_to_5_years",
+   "detail": "Due 1–5 years: verify value, unit, period and source"
+  },
+  {
+   "kind": "field",
+   "key": "due_after_5_years",
+   "detail": "Due after 5 years: missing value (not zero)"
+  },
+  {
+   "kind": "check",
+   "key": "maturity_sums_to_total",
+   "detail": "maturity_sums_to_total: Missing explicit values: due_after_5_years"
+  }
+ ],
+ "ready": false
+}

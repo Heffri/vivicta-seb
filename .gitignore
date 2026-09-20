@@ -1,10 +1,8 @@
 # data
 data/reports/*.pdf
-data/tessdata/
-backend/uploads/
+data/uploads/
 # derived, rebuilt by POST /index; meta.json, pages.jsonl, extractions/ stay committed
 data/kb/*/embeddings.jsonl
-data/kb/*/index.json
 data/kb/*/*.tmp
 # ad-hoc uploads (stem up-<sha>) are not public reports; fetched/curated ones are
 data/kb/up-*/
@@ -14,11 +12,21 @@ __pycache__/
 *.pyc
 .venv/
 backend/.env
+/.env
+backend/dist/
+backend/build/
 
 # node
 node_modules/
 frontend/dist/
+desktop/dist/
+desktop/build-resources/
+desktop/icons/icon.png
 
 # misc
 .DS_Store
 *.log
+
+data/tessdata/
+backend/uploads/
+data/kb/*/index.json

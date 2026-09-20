@@ -1,32 +1,48 @@
 """SEB annual-report parser, backend. The contract is docs/API.md; change it there first."""
+import argparse
+import copy
+import datetime
+import threading
 import csv
 import io
 import json
+import logging
 import os
 import re
+import sys
 import time
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 import pymupdf
+import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field, FiniteFloat
+from typing import Literal
 from starlette.concurrency import run_in_threadpool
-from pydantic import BaseModel
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from pipeline import extract as extract_mod, fetch, kb, locate, parse, ppt, runtime, maturity
-from datetime import datetime, timezone
+from pipeline import extract as extract_mod, fetch, kb, llm, locate, parse, paths, ppt, collection, workbench
 
 load_dotenv()
-HERE = Path(__file__).parent
-UPLOADS = HERE / "uploads"
-UPLOADS.mkdir(exist_ok=True)
-SCHEMAS = HERE / "schemas"
-LIBRARY = HERE.parent / "data" / "reports"  # bundled reports; index.json is committed, PDFs via `python data/fetch.py`
-FIXTURE = HERE / "fixtures" / "sample_extraction.json"
-COMPANIES = json.loads((HERE.parent / "data" / "companies.json").read_text(encoding="utf-8"))  # Nasdaq Stockholm, data/companies_build.py
-CSV_HEADER = "report_id,company,fiscal_year,section,key,label,value,unit,period,raw_label,page,quote,confidence,calculation,components,debt_scope".split(",")
+UPLOADS = paths.uploads_dir()
+SCHEMAS = paths.schemas_dir()
+LIBRARY = paths.reports_dir()  # bundled reports; index.json is committed, PDFs via `python data/fetch.py`
+def _llm_configured() -> bool:
+    """A model answers /extract when an OpenAI-compatible endpoint is set, or when the Codex or Claude CLI provider
+    is selected (v031: LLM_PROVIDER=codex needs no base URL; v039: same for claude). /ask runs on that model too:
+    since v034 its retrieval falls back to pure BM25 without LLM_BASE_URL (kb.retrieval_mode()), and /index then
+    reports keyword-only chunks instead of embedding anything."""
+    return bool(os.getenv("LLM_BASE_URL")) or llm.provider() in ("codex", "claude")
+
+
+FIXTURE = paths.fixture_path()
+COMPANIES = json.loads(paths.companies_path().read_text(encoding="utf-8"))  # Nasdaq Stockholm, data/companies_build.py
+CSV_HEADER = "report_id,company,fiscal_year,section,key,label,value,unit,period,raw_label,page,quote,confidence".split(",")
 
 app = FastAPI(title="vivicta backend")
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"], allow_methods=["*"], allow_headers=["*"])
@@ -44,8 +60,32 @@ async def ocr_unavailable(_request, exc):
 
 
 class ExtractBody(BaseModel):
-    section: str
     force: bool = False
+    reuse_saved: bool = False
+    section: str
+
+
+class ReviewBody(BaseModel):
+    section: str = Field(pattern=r"^[a-z0-9_]+$")
+    key: str
+    expected: dict
+    decision: Literal["confirmed", "corrected", "unresolved"]
+    reviewer: str = Field(min_length=1, max_length=120)
+    note: str = Field(default="", max_length=2000)
+    value: FiniteFloat | str | None = None
+    unit: str | None = Field(default=None, max_length=80)
+    period: str | None = Field(default=None, max_length=80)
+
+
+class BasisBody(BaseModel):
+    section: str = Field(pattern=r"^[a-z0-9_]+$")
+    expected: dict
+    values: dict[str, str]
+    reviewer: str = Field(min_length=1, max_length=120)
+    note: str = Field(min_length=1, max_length=2000)
+
+
+review_lock = threading.Lock()  # Local file store: serialize review read/modify/write.
 
 
 class LibraryBody(BaseModel):
@@ -54,12 +94,16 @@ class LibraryBody(BaseModel):
 
 class AskBody(BaseModel):
     question: str
-    report_ids: list[str]
+    report_ids: list[str] | None = None
+    report_stems: list[str] | None = None
 
 
 class FetchBody(BaseModel):
+    download_pdf: bool = False
     company: str
     year: int
+    country: str | None = None  # v074: optional context for the model search when the directory has no hit ("Switzerland")
+    hint: str | None = None     # v074: free-text hint for the model search ("FY ends 30 June", the report's exact title)
 
 
 def pdf_path(report_id: str) -> Path:
@@ -68,7 +112,16 @@ def pdf_path(report_id: str) -> Path:
 
 def report_texts(report_id: str) -> list[str]:
     if report_id not in texts_cache:
-        texts_cache[report_id] = parse.page_texts(pdf_path(report_id))
+        if pdf_path(report_id).is_file():
+            stem = report_id[4:] if report_id.startswith("lib-") else report_id
+            digest = kb.sha256(pdf_path(report_id).read_bytes())
+            texts_cache[report_id], parsing = kb.load_texts(stem, pdf_path(report_id), digest)
+            if kb._meta(stem):
+                kb.save_report(stem, kb._meta(stem) | parsing | {"sha256": digest, "pages": len(texts_cache[report_id])}, texts_cache[report_id])
+        else:
+            report = get_report(report_id)
+            pages = kb._pages(report["stem"])
+            texts_cache[report_id] = [pages.get(n, "") for n in range(1, report["pages"] + 1)]
     return texts_cache[report_id]
 
 
@@ -80,8 +133,32 @@ def library_index() -> list[dict]:
 
 def get_report(report_id: str) -> dict:
     if report_id not in reports:
+        stem = report_id[4:] if report_id.startswith("lib-") else report_id
+        if re.fullmatch(r"[a-z0-9_-]+", stem) and report_id == saved_report_id(stem) and (kb.kb_dir() / stem / "meta.json").is_file() and (kb.kb_dir() / stem / "pages.jsonl").is_file():
+            meta = kb._meta(stem)
+            filename = meta.get("filename") or f"{stem}.pdf"
+            # Saved metadata is not allowed to choose a file outside the PDF cache.
+            if isinstance(filename, str) and Path(filename).name == filename and "/" not in filename and "\\" not in filename:
+                cached = LIBRARY / filename
+                if not stem.startswith("up-") and cached.is_file():
+                    library_paths[report_id] = cached
+            reports[report_id] = {"report_id": report_id, "filename": filename, "pages": meta.get("pages", 0),
+                                  "company": meta.get("company"), "fiscal_year": meta.get("fiscal_year"), "stem": stem}
+    if report_id not in reports:
         raise HTTPException(404, f"unknown report_id {report_id!r}")
     return reports[report_id]
+
+
+def saved_report_id(stem: str) -> str:
+    return stem if stem.startswith("up-") else "lib-" + stem
+
+
+def require_pdf(report_id: str) -> Path:
+    get_report(report_id)
+    path = pdf_path(report_id)
+    if not path.is_file():
+        raise HTTPException(409, "The PDF is no longer cached. Saved page text is available in the knowledge base; fetch the PDF again to view it.")
+    return path
 
 
 def load_schema(name: str) -> dict:
@@ -111,10 +188,6 @@ def list_schemas():
 @app.post("/api/reports")
 async def upload_report(file: UploadFile = File(...)):
     data = await file.read()
-    return await run_in_threadpool(register_upload, data, file.filename)
-
-
-def register_upload(data: bytes, filename: str | None):
     try:
         with pymupdf.open(stream=data, filetype="pdf") as doc:
             assert doc.is_pdf and doc.page_count > 0
@@ -123,24 +196,26 @@ def register_upload(data: bytes, filename: str | None):
     sha = kb.sha256(data)
     cached = next((e for e in library_index() if e.get("sha256") == sha or (LIBRARY / e["file"]).stat().st_size == len(data) and kb.sha256((LIBRARY / e["file"]).read_bytes()) == sha), None)
     if cached:  # same bytes as a cached report: reuse its stem, so the KB gets no duplicate and few-shot excludes it correctly
-        return register_library(cached)
+        return await run_in_threadpool(register_library, cached)
     report_id = "up-" + sha[:12]  # deterministic: same upload twice = same report + same KB folder
     if report_id in reports:
         return reports[report_id]
     pdf_path(report_id).write_bytes(data)
-    texts_cache[report_id], parsing = kb.load_texts(report_id, pdf_path(report_id), sha)
-    texts = report_texts(report_id)
+    texts, parsing = await run_in_threadpool(kb.load_texts, report_id, pdf_path(report_id), sha)
+    texts_cache[report_id] = texts
     company, fiscal_year = guess_meta(texts)
-    reports[report_id] = {"report_id": report_id, "filename": filename or "upload.pdf", "pages": len(texts), "company": company, "fiscal_year": fiscal_year, "stem": report_id}
+    reports[report_id] = {"report_id": report_id, "filename": file.filename or "upload.pdf", "pages": len(texts), "company": company, "fiscal_year": fiscal_year, "stem": report_id}
     kb.save_report(report_id, {"company": company, "fiscal_year": fiscal_year, "language": None, "source_url": None, "pages": len(texts),
-                               "sha256": sha, "filename": reports[report_id]["filename"], **parsing}, texts)  # ponytail: uploads land in data/kb/up-<sha>/ too; prune before committing if they are not public reports
+                               "sha256": sha, "filename": reports[report_id]["filename"]} | parsing, texts)  # ponytail: uploads land in data/kb/up-<sha>/ too; prune before committing if they are not public reports
     return reports[report_id]
 
 
 @app.get("/api/library")
-def list_library():
+def list_library(collection_name: Literal["all", "wallenberg"] = "all"):
     out = []
     for e in library_index():
+        if collection_name == "wallenberg" and not collection.member(e.get("company")):
+            continue
         if e["file"] not in library_pages:
             with pymupdf.open(LIBRARY / e["file"]) as doc:
                 library_pages[e["file"]] = doc.page_count
@@ -151,16 +226,17 @@ def list_library():
 def register_library(entry: dict) -> dict:
     """Register a cached PDF (curated or fetched) exactly like an upload; same file twice = same report_id."""
     report_id = "lib-" + Path(entry["file"]).stem
-    if report_id not in reports:
-        library_paths[report_id] = LIBRARY / entry["file"]
-        digest = kb.sha256(library_paths[report_id].read_bytes())
-        stem = Path(entry["file"]).stem
-        texts_cache[report_id], parsing = kb.load_texts(stem, library_paths[report_id], digest)
-        texts = report_texts(report_id)
+    path = LIBRARY / entry["file"]
+    if report_id not in reports or library_paths.get(report_id) != path:
+        library_paths[report_id] = path
+        texts_cache.pop(report_id, None)  # a restored text-only report must now read the fetched PDF
+        digest = kb.sha256(path.read_bytes())
+        texts, parsing = kb.load_texts(path.stem, path, digest)
+        texts_cache[report_id] = texts
         reports[report_id] = {"report_id": report_id, "filename": entry["file"], "pages": len(texts),
                               "company": entry["company"], "fiscal_year": entry["fiscal_year"], "stem": Path(entry["file"]).stem}  # curated beats guess_meta
         kb.save_report(Path(entry["file"]).stem, {k: entry.get(k) for k in ("company", "fiscal_year", "language", "source_url")}
-                       | {"pages": len(texts), "sha256": digest, "filename": entry["file"], **parsing}, texts)
+                       | {"pages": len(texts), "sha256": digest, "filename": entry["file"]} | parsing, texts)
     return reports[report_id]
 
 
@@ -173,28 +249,41 @@ def report_from_library(body: LibraryBody):
 
 
 @app.get("/api/companies")
-def list_companies(q: str = ""):
+def list_companies(q: str = "", collection_name: Literal["all", "wallenberg"] = "all"):
     cached: dict[str, list[int]] = {}
     for e in library_index():
-        cached.setdefault(fetch.slugify(e["company"]), []).append(e["fiscal_year"])
+        cached.setdefault(collection.identity(e["company"]), []).append(e["fiscal_year"])
     q = q.strip().lower()
-    hits = [c for c in COMPANIES if q in c["name"].lower() or q in c["ticker"].lower()]
+    directory = collection.directory(COMPANIES) if collection_name == "wallenberg" else COMPANIES
+    hits = [c for c in directory if q in c["name"].lower() or q in c["ticker"].lower()]
     hits.sort(key=lambda c: (not c["name"].lower().startswith(q), c["name"]))  # prefix matches first
-    return [c | {"cached_years": sorted(set(cached.get(fetch.slugify(c["name"]), [])))} for c in hits[:50]]
+    return [c | {"cached_years": sorted(set(cached.get(collection.identity(c["name"]), [])))} for c in hits[:50]]
 
 
 @app.post("/api/reports/fetch")
 def fetch_report(body: FetchBody):
-    if not (1990 <= body.year <= 2100) or len(body.company) > 100:
+    if not (1990 <= body.year <= 2100) or len(body.company) > 100 or (body.country and len(body.country) > 60) or (body.hint and len(body.hint) > 300):
         raise HTTPException(400, "bad company/year")
     slug = fetch.slugify(body.company)
-    entry = next((e for e in library_index() if e["fiscal_year"] == body.year and fetch.slugify(e["company"]) == slug), None)
+    if not body.download_pdf:
+        saved = [e for e in kb.entries() if e.get("fiscal_year") == body.year and collection.identity(e.get("company")) == collection.identity(body.company)]
+        if saved:
+            saved.sort(key=lambda e: (e["stem"] != f"{slug}_{body.year}", e["stem"]))
+            return get_report(saved_report_id(saved[0]["stem"]))
+    entry = next((e for e in library_index() if e["fiscal_year"] == body.year and collection.identity(e["company"]) == collection.identity(body.company)), None)
     if not entry:
+        if not body.download_pdf:
+            raise HTTPException(409, "No saved report text or local PDF for this company and year. Enable PDF download explicitly or upload your own report.")
         t0 = time.time()
         try:
-            entry = fetch.fetch_report(body.company, body.year, LIBRARY)  # 10-90 s: MFN -> DuckDuckGo, validates PDF + text layer
+            # 10-90 s: MFN -> Nasdaq -> DuckDuckGo, then -- only with a codex/claude provider -- the
+            # model's own web search (fetch.py's fourth source, what the Swedish feeds never carry).
+            entry = fetch.fetch_report(body.company, body.year, LIBRARY, body.country, body.hint)
         except LookupError as e:
-            return JSONResponse({"detail": f"no annual report found for {body.company} {body.year}", "tried": e.args[0]}, status_code=404)
+            detail = f"no annual report found for {body.company} {body.year}"
+            if len(e.args) > 1 and e.args[1]:  # v074: a failed model search says so, with why
+                detail += f"; {e.args[1]}"
+            return JSONResponse({"detail": detail, "tried": e.args[0]}, status_code=404)
         print(f"[fetch] {body.company} {body.year} -> {entry['file']} from {entry['source_url']} in {time.time() - t0:.0f}s")
     return register_library(entry)
 
@@ -207,7 +296,7 @@ def read_report(report_id: str):
 @app.get("/api/reports/{report_id}/pdf")
 def report_pdf(report_id: str):
     report = get_report(report_id)  # FileResponse handles Range, so the browser viewer can seek
-    return FileResponse(pdf_path(report_id), media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{report["filename"]}"'})
+    return FileResponse(require_pdf(report_id), media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{report["filename"]}"'})
 
 
 @app.get("/api/reports/{report_id}/pages/{n}.png")
@@ -215,68 +304,88 @@ def page_png(report_id: str, n: int):
     report = get_report(report_id)
     if not 1 <= n <= report["pages"]:
         raise HTTPException(404, f"page {n} out of range 1..{report['pages']}")
-    with pymupdf.open(pdf_path(report_id)) as doc:
+    with pymupdf.open(require_pdf(report_id)) as doc:
         png = doc[n - 1].get_pixmap(dpi=150).tobytes("png")
     return Response(png, media_type="image/png")
 
 
-def extraction_identity(report, schema, prompt):
-    pipeline = [Path(__file__), *[Path(m.__file__) for m in (extract_mod, locate, parse, runtime, maturity)]]
-    return kb.fingerprint({"report": kb._meta(report["stem"]), "schema": schema,
-                           "pipeline": [kb.sha256(p.read_bytes()) for p in pipeline],
-                           "model": runtime.model(), "provider": runtime.provider(), "prompt": prompt,
-                           "settings": {k: os.getenv(k) for k in ("LLM_BASE_URL", "LLM_REASONING", "LLM_THINK", "LLM_NUM_CTX", "LLM_TIMEOUT")}})
-
-
 @app.post("/api/reports/{report_id}/extract")
 def run_extract(report_id: str, body: ExtractBody):
-    started = time.perf_counter()
-    report, schema = get_report(report_id), load_schema(body.section)
-    if runtime.provider() == "fixture":
-        result = json.loads(FIXTURE.read_text(encoding="utf-8")) | {"report_id": report_id, "provider": "fixture"}
-    else:
-        with kb.report_lock(report["stem"], "extract"):
-            prompt = extract_mod.system_prompt(schema, report["stem"])
-            identity = extraction_identity(report, schema, prompt)
-            path = kb.kb_dir() / report["stem"] / "extractions" / f"{body.section}.json"
-            saved = None
+    report = get_report(report_id)
+    with kb.report_lock(report["stem"], "extract"):
+        schema = load_schema(body.section)
+        identity = extraction_identity(report, schema, extract_mod.system_prompt(schema, report["stem"]))
+        path = kb.kb_dir() / report["stem"] / "extractions" / f"{body.section}.json"
+        if not body.force and path.is_file():
             try:
                 saved = json.loads(path.read_text(encoding="utf-8"))
             except (OSError, ValueError):
-                pass
-            if not body.force and isinstance(saved, dict) and saved.get("cache_key") == identity:
-                result = saved | {"report_id": report_id, "cached": True,
-                                  "timings": {"parse": 0, "locate": 0, "model": 0, "validate": 0, "attempts": 0,
-                                              "total": round(time.perf_counter() - started, 3)}}
+                saved = None
+            if isinstance(saved, dict) and (body.reuse_saved or saved.get("cache_key") == identity):
+                return kb_extraction(report["stem"], body.section)
+        return _run_extract(report_id, body)
+
+
+def _run_extract(report_id: str, body: ExtractBody):
+    started = time.perf_counter()
+    report = get_report(report_id)
+    schema = load_schema(body.section)
+    saved = kb.kb_dir() / report["stem"] / "extractions" / f"{body.section}.json"
+    if saved.exists() and has_reviews(saved_extraction(report_id, body.section)):
+        raise HTTPException(409, "This section has human reviews. Keep the reviewed extraction instead of replacing it.")
+    if not _llm_configured():  # frontend dev mode: no model configured
+        result = json.loads(FIXTURE.read_text(encoding="utf-8")) | {"report_id": report_id}
+    else:
+        texts = report_texts(report_id)
+        pages = locate.candidate_pages(texts, schema)
+        print(f"[extract] {report_id} {body.section}: candidate pages {pages}")
+        if not pages:
+            raise HTTPException(422, "No candidate pages found for this section")
+        result = extract_mod.extract(texts, pages, schema, report)
+        failures = [w for w in result["warnings"] if w.startswith("llm:")]
+        if failures and not any(f.get("value") is not None for f in result["fields"]):
+            raise HTTPException(502, " ".join(failures))
+        from pipeline import merge  # v133: EXTRACT_MERGE_RUNS second-run merge; off (default) never reaches it
+        mode = merge.mode()
+        if mode != "off":  # docs/acrylic/evidence/v129.md: per-field union, the stored answer as a third majority vote
+            stored = None
+            if mode == "majority":
+                saved_json = json.loads(saved.read_text(encoding="utf-8")) if saved.exists() else None
+                # v129: the pipeline's own earlier answer votes; a reviewed extraction must not (and the
+                # 409 gate above already refuses to re-extract one -- this is defense in depth).
+                stored = None if saved_json is None or has_reviews(saved_json) else saved_json
+            if mode == "majority" and stored is not None and merge.matches_stored(result, stored):
+                result["warnings"].append("merge: run1 matches the stored answer field by field; second run skipped")
+                result["merge"] = {"mode": mode, "runs": 1, "decisions": {f["key"]: "run1 (matches stored)" for f in result["fields"]}}
             else:
-                stage = time.perf_counter()
-                texts = report_texts(report_id)
-                parse_seconds = time.perf_counter() - stage
-                stage = time.perf_counter()
-                pages = locate.candidate_pages(texts, schema)
-                locate_seconds = time.perf_counter() - stage
-                if not pages:
-                    raise HTTPException(422, "No candidate pages found for this section")
-                try:
-                    result = extract_mod.extract(texts, pages, schema, report, prompt=prompt)
-                except (RuntimeError, ValueError, TimeoutError) as e:
-                    raise HTTPException(502, f"Extraction failed: {e}") from e
-                failures = [w for w in result["warnings"] if w.startswith("llm:")]
-                if failures:
-                    raise HTTPException(502, " ".join(failures))
-                if kb._meta(report["stem"]).get("ocr_pages"):
-                    result["warnings"].append("This report contains OCR text. Verify extracted figures against the rendered PDF, especially signs and decimal separators.")
-                    ocr_pages = set(kb._meta(report["stem"])["ocr_pages"])
-                    for f in result["fields"]:
-                        sources = [f.get("source")] + [c["source"] for c in f.get("components", [])]
-                        if any(s and s["page"] in ocr_pages for s in sources):
-                            f["confidence"] = min(f["confidence"], 0.8)
-                            f["evidence"].append("ocr_text")
-                result.update(cache_key=identity, cached=False, model=runtime.model(), provider=runtime.provider(),
-                              created_at=datetime.now(timezone.utc).isoformat())
-                result["timings"].update(parse=round(parse_seconds, 3), locate=round(locate_seconds, 3),
-                                          total=round(time.perf_counter() - started, 3))
-                kb.save_extraction(report["stem"], body.section, result)
+                run2 = extract_mod.extract(texts, pages, schema, report)
+                combined_timings = {key: result.get("timings", {}).get(key, 0) + run2.get("timings", {}).get(key, 0) for key in ("model", "validate", "attempts")}
+                kb.save_run(report["stem"], body.section, 1, result)  # the raw per-run answers, before decorate
+                kb.save_run(report["stem"], body.section, 2, run2)
+                result, decisions = merge.merge_runs(result, run2, stored, mode)
+                result["timings"] = combined_timings
+                merge.recheck(result, schema, texts, pages)  # the winner's own checks would misdescribe a field mix
+            print(f"[extract] {report_id} {body.section}: merge={mode} runs={result['merge']['runs']}")
+        failures = [w for w in result["warnings"] if w.startswith("llm:")]
+        if failures and not any(f.get("value") is not None for f in result["fields"]):
+            raise HTTPException(502, " ".join(failures))
+        ocr_pages = set(kb._meta(report["stem"]).get("ocr_pages", []))
+        if ocr_pages:
+            result["warnings"].append("This report contains OCR text. Verify figures against the original PDF.")
+            for field in result["fields"]:
+                sources = [field.get("source")] + [c.get("source") for c in field.get("components", [])]
+                if any(source and source.get("page") in ocr_pages for source in sources):
+                    field["confidence"] = min(field.get("confidence", 0), 0.8)
+                    field.setdefault("evidence", []).append("ocr_text")
+        result.update(cache_key=extraction_identity(report, schema, extract_mod.system_prompt(schema, report["stem"])),
+                      cached=False, model=os.getenv("LLM_MODEL"), provider=llm.provider())
+        result.setdefault("timings", {})["total"] = round(time.perf_counter() - started, 3)
+        result.update(stem=report["stem"], pdf_available=pdf_path(report_id).is_file())
+        workbench.decorate(result, schema, {"at": datetime.datetime.now(datetime.timezone.utc).isoformat(), "reason": "Recalculated explicit values after extraction"})
+        with review_lock:
+            if saved.exists() and has_reviews(json.loads(saved.read_text(encoding="utf-8"))):
+                raise HTTPException(409, "A human review was saved during extraction. The reviewed result was preserved.")
+            kb.save_extraction(report["stem"], body.section, result)  # fixture results never enter the KB
     extractions[report_id] = result
     return result
 
@@ -284,71 +393,237 @@ def run_extract(report_id: str, body: ExtractBody):
 @app.post("/api/reports/{report_id}/index")
 def index_report(report_id: str):
     report = get_report(report_id)
-    if runtime.provider() == "fixture":
+    if not _llm_configured():
         return {"report_id": report_id, "chunks": 0, "embed_model": "fixture", "cached": True}
-    try:
-        return kb.index(report["stem"]) | {"report_id": report_id}
-    except ValueError as e:
-        raise HTTPException(422, str(e)) from None
-    except Exception as e:
-        raise HTTPException(502, f"Embedding index unavailable. Check EMBED_BASE_URL and EMBED_MODEL ({type(e).__name__}).") from None
+    if kb.retrieval_mode() == "bm25":  # codex/claude-only setup: no embeddings endpoint, retrieval is keyword-only
+        return {"report_id": report_id, "chunks": len(kb.chunks(report["stem"])), "embed_model": "bm25", "cached": True}
+    return kb.index(report["stem"]) | {"report_id": report_id}
 
 
 @app.post("/api/ask")
 def ask(body: AskBody):
-    if not body.question.strip():
-        raise HTTPException(400, "question is empty")
-    if not body.report_ids:
-        raise HTTPException(400, "report_ids is empty")
-    if len(body.question) > 2000:  # trust boundary: the question goes straight into the prompt
-        raise HTTPException(400, "question too long (max 2000 chars)")
-    ids = {get_report(r)["stem"]: r for r in body.report_ids}  # stem -> report_id; 404 on unknown ids
-    if runtime.provider() == "fixture":  # frontend dev mode: canned Answer, one citation
+    if not body.question.strip() or len(body.question) > 2000:
+        raise HTTPException(400, "question must contain 1–2000 characters")
+    supplied = body.model_fields_set
+    if "report_ids" in supplied and "report_stems" in supplied:
+        raise HTTPException(400, "choose report_ids or report_stems, not both")
+    if any(key in supplied and not getattr(body, key) for key in ("report_ids", "report_stems")):
+        raise HTTPException(400, "explicit report scope must not be empty or null")
+    if body.report_ids is not None:
+        ids = {get_report(r)["stem"]: r for r in body.report_ids}
+    else:
+        available = {e["stem"] for e in kb.entries()}
+        stems = body.report_stems if body.report_stems is not None else sorted(available)
+        if any(s not in available for s in stems):
+            raise HTTPException(404, "unknown report stem; see GET /api/kb")
+        ids = {s: saved_report_id(s) for s in stems}
+    if not ids:
+        return {"question": body.question, "answer": "The knowledge base has no parsed reports yet. Add a report first.",
+                "citations": [], "warnings": ["No saved report pages available; model not called."], "model": ""}
+    if not _llm_configured() and body.report_ids is None:
+        return {"question": body.question, "answer": "Connect a model in Settings to ask questions about saved reports.",
+                "citations": [], "warnings": ["No model configured; no answer was generated."], "model": ""}
+    if not _llm_configured():  # frontend dev mode: canned Answer, one citation
         return {"question": body.question, "answer": "Fixture mode (LLM_BASE_URL unset). Revenue was 152 340 MSEK [Nordic Industrials p.64].",
                 "citations": [{"report_id": body.report_ids[0], "company": "Nordic Industrials AB (fictional fixture)", "fiscal_year": 2025,
                                "page": 64, "quote": "Intäkter 152 340 141 902", "score": 0.91}],
                 "warnings": ["fixture answer: LLM_BASE_URL unset"], "model": "fixture"}
     t0 = time.time()
-    try:
-        answer = kb.ask(list(ids), body.question, ids=ids)  # indexes on demand
-    except Exception as e:
-        raise HTTPException(502, f"Retrieval failed. Check the embedding endpoint and rebuild outdated indexes ({type(e).__name__}).") from None
-    if not answer["answer"] and answer["warnings"]:
-        raise HTTPException(502, " ".join(answer["warnings"]))
+    answer = kb.ask(list(ids), body.question, ids=ids, keyword_only=body.report_ids is None)
     print(f"[ask] {body.report_ids}: {len(answer['citations'])} citations, {len(answer['warnings'])} warnings in {time.time() - t0:.1f}s")
     return answer
 
 
 @app.get("/api/kb")
-def list_kb():
-    by_stem = {r["stem"]: rid for rid, r in reports.items()}
-    return [e | {"report_id": by_stem.get(e["stem"])} for e in kb.entries()]
+def list_kb(collection_name: Literal["all", "wallenberg"] = "all"):
+    normalize = lambda name: re.sub(r"[\W_]+", " ", name.casefold()).strip()
+    sectors = {normalize(c["name"]): c.get("sector") for c in COMPANIES}
+    out = []
+    for e in kb.entries():
+        if collection_name == "wallenberg" and not collection.member(e.get("company")):
+            continue
+        report_id = saved_report_id(e["stem"])
+        get_report(report_id)
+        out.append(e | {"report_id": report_id, "pdf_available": pdf_path(report_id).is_file(),
+                        "sector": sectors.get(normalize(e.get("company") or ""))})
+    return out
+
+
+@app.get("/api/kb/{stem}/pages/{page}")
+def kb_page(stem: str, page: int):
+    if not re.fullmatch(r"[a-z0-9_-]+", stem) or not (kb.kb_dir() / stem / "pages.jsonl").is_file():
+        raise HTTPException(404, "unknown saved report")
+    text = kb._pages(stem).get(page)
+    if text is None:
+        raise HTTPException(404, "page not found in saved report")
+    return {"page": page, "text": text}
+
+
+@app.get("/api/kb/{stem}/{section}")
+def kb_extraction(stem: str, section: str):
+    """Stored extraction from the knowledge base, re-attached to a live report_id. With the PDF cached that is
+    a full re-registration (page images work); without it (v092) a KB-only report serves the stored extraction,
+    CSV, PPTX and Compare, and only the page/PDF endpoints 404 with a fetch hint. No model call either way."""
+    path = kb.kb_dir() / stem / "extractions" / f"{section}.json"
+    if not re.fullmatch(r"[a-z0-9_-]+", stem) or not re.fullmatch(r"[a-z0-9_]+", section) or not path.exists():
+        raise HTTPException(404, f"no {section!r} extraction for {stem!r}; see GET /api/kb")
+    report_id = get_report(saved_report_id(stem))["report_id"]
+    extractions[report_id] = saved_extraction(report_id, section) | {
+        "report_id": report_id, "stem": stem, "pdf_available": pdf_path(report_id).is_file()}
+    return workbench.decorate(extractions[report_id], load_schema(section))
+
+
+@app.post("/api/reports/{report_id}/review")
+def review_field(report_id: str, body: ReviewBody):
+    report = get_report(report_id)
+    stem = report["stem"]
+    if not re.fullmatch(r"[a-z0-9_-]+", stem):
+        raise HTTPException(400, "Invalid report identifier")
+    reviewer = body.reviewer.strip()
+    if not reviewer or (body.decision != "confirmed" and not body.note.strip()):
+        raise HTTPException(422, "Enter your name and a note for corrections or unresolved reviews")
+    if body.decision == "corrected" and not {"value", "unit", "period"} <= body.model_fields_set:
+        raise HTTPException(422, "Corrections require value, unit and period")
+    with review_lock:
+        path = kb.kb_dir() / stem / "extractions" / f"{body.section}.json"
+        if not path.is_file():
+            raise HTTPException(409, "Only saved extractions can be reviewed. Extract with a configured model first.")
+        result = json.loads(path.read_text(encoding="utf-8"))
+        field = next((f for f in result["fields"] if f["key"] == body.key), None)
+        if field is None:
+            raise HTTPException(404, "Figure not found")
+        if field != body.expected:
+            raise HTTPException(409, "This figure changed. Reopen the report before reviewing it.")
+        if body.decision == "corrected" and isinstance(body.value, str) and not isinstance(field.get("value"), str):
+            raise HTTPException(422, "Enter a finite number with a decimal point, or leave the value blank")
+        previous = copy.deepcopy({k: v for k, v in field.items() if k != "review_history"})
+        review = {"decision": body.decision, "reviewer": reviewer, "note": body.note.strip(),
+                  "at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+        if body.decision == "corrected":
+            field.update(value=body.value, unit=body.unit, period=body.period, evidence=[], confidence=0)
+            for other in result["fields"]:
+                other["evidence"] = [e for e in other.get("evidence", []) if e != "arith_ok"]
+        field["human_review"] = review
+        field.setdefault("review_history", []).append({**review, "previous": previous})
+        workbench.decorate(result, load_schema(body.section), review)
+        kb.save_extraction(stem, body.section, result)
+        result.update(report_id=report_id, stem=stem, pdf_available=pdf_path(report_id).is_file())
+        extractions[report_id] = result
+        return result
+
+
+def has_reviews(result):
+    return bool(result.get("basis_history")) or any(f.get("review_history") for f in result["fields"])
+
+
+@app.post("/api/reports/{report_id}/basis")
+def review_basis(report_id: str, body: BasisBody):
+    stem = get_report(report_id)["stem"]
+    if not re.fullmatch(r"[a-z0-9_-]+", stem):
+        raise HTTPException(400, "Invalid report identifier")
+    if not body.reviewer.strip() or not body.note.strip():
+        raise HTTPException(422, "Enter your name and a basis review note")
+    if set(body.values) - set(workbench.required(body.section)) or any(len(v) > 2000 for v in body.values.values()):
+        raise HTTPException(422, "Invalid basis fields")
+    for key, options in workbench.CHOICES.items():
+        value = body.values.get(key, "").strip()
+        if value and value not in options:
+            raise HTTPException(422, f"Invalid {key} definition")
+    with review_lock:
+        path = kb.kb_dir() / stem / "extractions" / f"{body.section}.json"
+        if not path.is_file():
+            raise HTTPException(409, "Only saved extractions can be reviewed")
+        result = json.loads(path.read_text(encoding="utf-8"))
+        if result.get("basis", {}) != body.expected:
+            raise HTTPException(409, "The basis changed. Reopen the statement before saving.")
+        basis = {"values": {k: v.strip() for k, v in body.values.items()}, "reviewer": body.reviewer.strip(),
+                 "note": body.note.strip(), "at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+        result.setdefault("basis_history", []).append(dict(basis, previous=result.get("basis", {})))
+        result["basis"] = basis
+        workbench.decorate(result, load_schema(body.section), basis)
+        kb.save_extraction(stem, body.section, result)
+        result.update(report_id=report_id, stem=stem, pdf_available=pdf_path(report_id).is_file())
+        extractions[report_id] = result
+        return result
+
+
+@app.get("/api/review-queue")
+def review_queue():
+    out = []
+    for report in list_kb("wallenberg"):
+        for section in report["sections"]:
+            x = kb_extraction(report["stem"], section)
+            out.extend({"report": report, "section": section, **issue} for issue in x["issues"])
+    return out
+
+
+@app.get("/api/kb/{stem}/{section}/comparison")
+def comparison(stem: str, section: str, previous_stem: str | None = None):
+    current = kb_extraction(stem, section)
+    candidates = [e for e in list_kb() if current.get("company") and e.get("company") and e["stem"] != stem and section in e["sections"] and e.get("fiscal_year") and current.get("fiscal_year") and e["fiscal_year"] < current["fiscal_year"] and collection.identity(e.get("company")) == collection.identity(current.get("company"))]
+    if previous_stem is None:
+        default = [e for e in candidates if e["fiscal_year"] == current.get("fiscal_year", 0) - 1]
+        if len(default) != 1:
+            return {"candidates": candidates, "rows": [], "reasons": ["Choose the prior-year source: multiple saved reports exist." if default else "The immediately preceding year is not saved. Select another saved year to compare."]}
+        previous_stem = default[0]["stem"]
+    if previous_stem not in {e["stem"] for e in candidates}:
+        raise HTTPException(422, "Choose an earlier saved report for the same company and statement")
+    previous = kb_extraction(previous_stem, section)
+    return dict(workbench.compare(current, previous), candidates=candidates)
+
+
+def export_extraction(report_id, section=None, previous_stem=None):
+    report = get_report(report_id)
+    x = kb_extraction(report["stem"], section) if section else extractions.get(report_id)
+    if not x:
+        raise HTTPException(404, "No extraction yet")
+    x = workbench.decorate(copy.deepcopy(x), load_schema(x["section"]))
+    if previous_stem:
+        x["comparison"] = comparison(report["stem"], x["section"], previous_stem)
+    return x
+
+
+@app.get("/api/config")
+def config():
+    # codex/claude defaults live in llm.py; not "fixture" only for a provider _llm_configured() already accepts without LLM_MODEL
+    model = os.getenv("LLM_MODEL") or {"codex": "gpt-5.6-terra", "claude": "claude-sonnet-5"}.get(llm.provider(), "fixture")
+    from pipeline import merge  # v140: echo only -- the route never reaches the second-run path
+    return {"model": model, "embed_model": kb.embed_model(), "embed_base_url": kb.embed_base_url(), "base_url": os.getenv("LLM_BASE_URL"),
+            "llm": _llm_configured(), "provider": llm.provider() if _llm_configured() else "fixture",
+            "retrieval": kb.retrieval_mode(),  # v034: "hybrid" | "bm25" | "fixture"
+            "maturity_basis": extract_mod.debt_basis(),  # v089: "carrying" (default) | "undiscounted", env DEBT_BASIS
+            "merge_runs": merge.mode()}  # v140: "off" (default) | "union" | "majority", env EXTRACT_MERGE_RUNS
+
+
+@app.get("/api/reports/{report_id}/extraction.csv")
+def extraction_csv(report_id: str, section: str | None = None, previous_stem: str | None = None):
+    x = export_extraction(report_id, section, previous_stem)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(CSV_HEADER + ["human_review", "reviewer", "reviewed_at", "review_note", "ready", "basis", "unresolved", "comparison", "review_history", "basis_history", "check_history"])
+    for f in x["fields"]:
+        src = f.get("source") or {}
+        w.writerow([x["report_id"], x["company"], x["fiscal_year"], x["section"], f["key"], f["label"], f["value"],
+                    f["unit"], f["period"], f["raw_label"], src.get("page"), src.get("quote"), f["confidence"], *[(f.get("human_review") or {}).get(k, "") for k in ("decision", "reviewer", "at", "note")], x.get("ready", False), json.dumps(x.get("basis", {})), json.dumps(x.get("issues", [])), json.dumps(x.get("comparison", {})), json.dumps(f.get("review_history", [])), json.dumps(x.get("basis_history", [])), json.dumps(x.get("check_history", []))])
+    return Response(buf.getvalue(), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="{report_id}_{x["section"]}.csv"'})
+
+
+@app.get("/api/reports/{report_id}/extraction.pptx")
+def extraction_pptx(report_id: str, section: str | None = None, previous_stem: str | None = None,
+                    prior_year: bool = False,  # v091: ?prior_year=1 adds the extraction's prior-year series when it carries one
+                    per_year: bool = False):  # v109: ?per_year=1 swaps the three buckets for the report's own calendar-year columns when it carries them
+    x = export_extraction(report_id, section, previous_stem)
+    data = ppt.build_pptx(x, prior_year=prior_year, per_year=per_year)
+    return Response(data, media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                    headers={"Content-Disposition": f'attachment; filename="{report_id}_{x["section"]}.pptx"'})
+
 
 
 def knowledge_stem(stem):
     if not re.fullmatch(r"[a-z0-9_-]+", stem) or not (kb.kb_dir() / stem / "meta.json").exists():
         raise HTTPException(404, "Unknown knowledge-base report")
     return stem
-
-
-@app.post("/api/knowledge/{stem}/open")
-def open_knowledge(stem: str):
-    knowledge_stem(stem)
-    entry = next((e for e in library_index() if Path(e["file"]).stem == stem), None)
-    if entry:
-        return register_library(entry)
-    meta = kb._meta(stem)
-    path = UPLOADS / f"{stem}.pdf"
-    if not stem.startswith("up-") or not path.exists():
-        raise HTTPException(409, "Source PDF is unavailable. Upload or fetch it again.")
-    if stem not in reports:
-        digest = kb.sha256(path.read_bytes())
-        texts, parsing = kb.load_texts(stem, path, digest)
-        texts_cache[stem] = texts
-        reports[stem] = {"report_id": stem, "stem": stem, "filename": meta.get("filename") or path.name,
-                         "company": meta.get("company"), "fiscal_year": meta.get("fiscal_year"), "pages": len(texts)}
-        kb.save_report(stem, meta | {"sha256": digest, "pages": len(texts)} | parsing, texts)
-    return reports[stem]
 
 
 @app.get("/api/knowledge/{stem}/chunks")
@@ -367,18 +642,6 @@ def rebuild_knowledge(stem: str):
         return kb.index(stem, force=True)
     except Exception as e:
         raise HTTPException(502, f"Index build failed: {type(e).__name__}: {e}") from None
-
-
-@app.get("/api/kb/{stem}/{section}")
-def kb_extraction(stem: str, section: str):
-    knowledge_stem(stem)
-    load_schema(section)
-    path = kb.kb_dir() / stem / "extractions" / f"{section}.json"
-    if not path.exists():
-        raise HTTPException(404, "No saved extraction for this section")
-    report_id = open_knowledge(stem)["report_id"]
-    extractions[report_id] = saved_extraction(report_id, section)
-    return extractions[report_id]
 
 
 def saved_extraction(report_id: str, section: str | None = None):
@@ -409,31 +672,89 @@ def saved_extraction(report_id: str, section: str | None = None):
                                  "total": round(time.perf_counter() - started, 3)}}
 
 
-@app.get("/api/config")
-def config():
-    return {"model": runtime.model(), "provider": runtime.provider(), "reasoning": os.getenv("LLM_REASONING", "low"),
-            "embed_model": kb.embed_model(), "embed_base_url": kb.embed_base_url(), "base_url": os.getenv("LLM_BASE_URL"),
-            "llm": runtime.provider() != "fixture"}
+def extraction_identity(report, schema, prompt):
+    from pipeline import merge
+    pipeline = [Path(__file__), *[Path(m.__file__) for m in (extract_mod, locate, parse, llm, merge, workbench)]]
+    return kb.fingerprint({"report": kb._meta(report["stem"]), "schema": schema,
+                           "pipeline": [kb.sha256(p.read_bytes()) if p.is_file() else "packaged-cache-v1" for p in pipeline],
+                           "model": os.getenv("LLM_MODEL") or {"codex": "gpt-5.6-terra", "claude": "claude-sonnet-5"}.get(llm.provider(), "fixture"), "provider": llm.provider(), "prompt": prompt,
+                           "settings": {k: os.getenv(k) for k in ("LLM_BASE_URL", "LLM_REASONING", "LLM_THINK", "LLM_NUM_CTX", "LLM_TIMEOUT", "LLM_STRICT_SCHEMA", "DEBT_BASIS", "EXTRACT_MERGE_RUNS", "EXTRACT_TWO_PASS", "FEWSHOT")}})
 
 
-@app.get("/api/reports/{report_id}/extraction.csv")
-def extraction_csv(report_id: str, section: str | None = None):
-    x = saved_extraction(report_id, section)
-    buf = io.StringIO()
-    w = csv.writer(buf)
-    w.writerow(CSV_HEADER)
-    for f in x["fields"]:
-        src = f.get("source") or {}
-        w.writerow([x["report_id"], x["company"], x["fiscal_year"], x["section"], f["key"], f["label"], f["value"],
-                    f["unit"], f["period"], f["raw_label"], src.get("page"), src.get("quote"), f["confidence"],
-                    f.get("calculation"), json.dumps(f.get("components", []), ensure_ascii=False), x.get("debt_scope")])
-    return Response(buf.getvalue(), media_type="text/csv; charset=utf-8",
-                    headers={"Content-Disposition": f'attachment; filename="{report_id}_{x["section"]}.csv"'})
+@app.post("/api/knowledge/{stem}/open")
+def open_knowledge(stem: str):
+    knowledge_stem(stem)
+    entry = next((e for e in library_index() if Path(e["file"]).stem == stem), None)
+    if entry:
+        return register_library(entry)
+    report = get_report(saved_report_id(stem))
+    if pdf_path(report["report_id"]).is_file():
+        report_texts(report["report_id"])
+    return report
 
 
-@app.get("/api/reports/{report_id}/extraction.pptx")
-def extraction_pptx(report_id: str, section: str | None = None):
-    x = saved_extraction(report_id, section)
-    data = ppt.build_pptx(x)
-    return Response(data, media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                    headers={"Content-Disposition": f'attachment; filename="{report_id}_{x["section"]}.pptx"'})
+# ---- static frontend (desktop build only; unset FRONTEND_DIST -> no route added, dev proxy unaffected) --------
+
+FRONTEND_DIST = os.getenv("FRONTEND_DIST")
+if FRONTEND_DIST:
+    class SPAStaticFiles(StaticFiles):
+        """A path with no matching file falls back to index.html (client-side routing). Registered after every
+        /api/* route above, which Starlette always tries first, so this never shadows the API -- the api/ prefix
+        check below is only a backstop for an /api/* typo that no real route matched. StaticFiles signals a miss
+        by raising HTTPException(404), not by returning a 404 response, hence the try/except here. get_path()
+        joins with os.path.join/normpath, so `path` uses OS-native separators (backslash on Windows) -- compare
+        via Path(...).parts, not a literal "api/" prefix, or the guard silently never matches on Windows."""
+        async def get_response(self, path: str, scope):
+            try:
+                return await super().get_response(path, scope)
+            except StarletteHTTPException as exc:
+                if exc.status_code == 404 and Path(path).parts[:1] != ("api",):
+                    return await super().get_response("index.html", scope)
+                raise
+
+    app.mount("/", SPAStaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
+
+
+class _TeeToLog:
+    """Mirrors console output into the rotating log file, so the existing print()-based diagnostics (here and in
+    pipeline/*) are still visible when the packaged exe runs with no attached console. One record per non-empty line."""
+
+    def __init__(self, stream, logger: logging.Logger):
+        self._stream, self._logger = stream, logger
+
+    def write(self, data: str) -> None:
+        self._stream.write(data)
+        for line in data.splitlines():
+            if line.strip():
+                self._logger.info(line)
+
+    def flush(self) -> None:
+        self._stream.flush()
+
+    def isatty(self) -> bool:
+        return self._stream.isatty()
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(prog="backend", description="SEB annual-report parser backend")
+    ap.add_argument("--port", type=int, default=8000)
+    ap.add_argument("--host", default="127.0.0.1")
+    args = ap.parse_args()
+
+    log_dir = paths.data_dir()
+    log_dir.mkdir(parents=True, exist_ok=True)
+    file_logger = logging.getLogger("backend.file")
+    file_logger.setLevel(logging.INFO)
+    file_logger.propagate = False
+    handler = RotatingFileHandler(log_dir / "backend.log", maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+    file_logger.addHandler(handler)
+    sys.stdout = _TeeToLog(sys.stdout, file_logger)  # covers both print() and uvicorn's own ext://sys.stdout handlers
+    sys.stderr = _TeeToLog(sys.stderr, file_logger)
+
+    uvicorn.run(app, host=args.host, port=args.port, loop="asyncio", http="h11", ws="none")
+
+
+if __name__ == "__main__":
+    main()
+

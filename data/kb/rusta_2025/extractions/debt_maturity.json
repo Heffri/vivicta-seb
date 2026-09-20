@@ -1,0 +1,113 @@
+{
+  "report_id": "lib-rusta_2025",
+  "company": "Rusta",
+  "fiscal_year": 2025,
+  "currency": "MSEK",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 6624,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Total",
+      "source": {
+        "page": 115,
+        "quote": "Total 6,624 6,669"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 1039,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "0–6 months + 7–12 months",
+      "source": {
+        "page": 115,
+        "quote": "0–6 months 523 490 7–12 months 516 485"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_derived",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": 3153,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "1–2 years + 2–5 years",
+      "source": {
+        "page": 115,
+        "quote": "1–2 years 969 932 2–5 years 2,184 2,130"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_derived",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": 2431,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": ">5 years",
+      "source": {
+        "page": 115,
+        "quote": ">5 years 2,431 2,633"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": true,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((1039 + 3153 + 2431) - 6624) <= 2"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [115, 116] selected from candidates [132, 133, 115, 108, 96]",
+    "total_debt: 6669 is not the 2025 column, 6624 is",
+    "due_1_to_5_years: 3062 is not printed in '2–5 years'; the row's 2025 figure is 2184",
+    "due_after_5_years: 2633 is not the 2025 column, 2431 is",
+    "due_within_1_year: 975 is printed on none of pages [115, 132, 133]; dropped as computed, not read",
+    "due_within_1_year: model returned null; the rows above the total (0–6 months + 7–12 months) sum to 1039 in the 2025 column, closing maturity_sums_to_total",
+    "due_1_to_5_years: 2184 reads one finer-split row and misses its siblings; the rows above the total (1–2 years + 2–5 years) sum to 3153 in the 2025 column, closing maturity_sums_to_total",
+    "published: seedseed-rerun-v115-kb run replayed with extract.py @ d3eb5fc8"
+  ]
+}

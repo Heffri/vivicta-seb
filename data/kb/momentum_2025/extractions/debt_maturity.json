@@ -1,0 +1,68 @@
+{
+  "report_id": "lib-momentum_2025",
+  "company": "Momentum Group",
+  "fiscal_year": 2025,
+  "currency": "MSEK",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_within_1_year"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [111, 112] selected from candidates [111, 112, 116]",
+    "due_within_1_year: model returned null, fill from page 111 row 'Within 1 year 2 2' refused -- the Parent Company section 'Parent Company' holds this table",
+    "due_1_to_5_years: model returned null, fill from page 111 row 'Between 1 and 5 years 2 1' refused -- the Parent Company section 'Parent Company' holds this table",
+    "due_after_5_years: model returned null, fill from page 111 row 'Later than 5 years – –' refused -- the Parent Company section 'Parent Company' holds this table",
+    "published: seedseed-rerun-v114-kb run replayed with extract.py @ d3eb5fc8"
+  ]
+}

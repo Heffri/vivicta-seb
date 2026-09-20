@@ -1,0 +1,85 @@
+{
+ "report_id": "lib-green_landscaping_2025",
+ "company": "Green Landscaping Group",
+ "fiscal_year": 2025,
+ "currency": "SEK million",
+ "section": "debt_maturity",
+ "maturity_basis": "carrying",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 2491,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "Closing balance 2025-12-31",
+   "source": {
+    "page": 103,
+    "quote": "Remuneration to key employees is described in Note 6. Closing balance 2025-12-31 2,491 666 3,157"
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": null,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "",
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": null,
+   "unit": null,
+   "period": null,
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": 59,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "Liabilities to credit institutions maturing in more than 5 years / Lease liabilities maturing in more than 5 years",
+   "source": {
+    "page": 102,
+    "quote": "Lease liabilities maturing in more than 5 years 49 118"
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "detail": "missing: due_within_1_year"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [102, 103] selected from candidates [99, 100, 86, 76, 105, 73, 114, 112, 106, 102]",
+  "total_debt: 3157 is not the 2025 column, 2491 is",
+  "due_1_to_5_years: 2803 is printed on none of pages [99, 100, 102]; dropped as computed, not read"
+ ]
+}

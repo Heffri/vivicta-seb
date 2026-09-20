@@ -1,0 +1,195 @@
+{
+  "report_id": "lib-ependion_2025",
+  "company": "Ependion",
+  "fiscal_year": 2025,
+  "currency": "SEK 000",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 583531,
+      "unit": "SEK 000",
+      "period": "2025",
+      "raw_label": "Borrowing",
+      "source": {
+        "page": 155,
+        "quote": "Borrowing 167,546 35,636 380,348 583,531"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": 167546,
+      "unit": "SEK 000",
+      "period": "2025",
+      "raw_label": "Borrowing",
+      "source": {
+        "page": 155,
+        "quote": "Borrowing 167,546 35,636 380,348 583,531"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": 415984,
+      "unit": "SEK 000",
+      "period": "2025",
+      "raw_label": "Borrowing",
+      "source": {
+        "page": 155,
+        "quote": "Borrowing 167,546 35,636 380,348 583,531"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_derived",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "SEK 000",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "status": "unavailable",
+      "detail": "Missing explicit values: due_after_5_years"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [155, 156] selected from candidates [155, 156, 122, 126]",
+    "total_debt: 'Borrowing' 583531 dropped: the same row as due_1_to_5_years, and not a total borrowings label",
+    "due_within_1_year: 'Borrowing' 167546 dropped: the same row as due_1_to_5_years, and not a due within 1 year label",
+    "due_1_to_5_years: 415984 is printed on none of pages [155, 156]; dropped as computed, not read",
+    "total_debt: model returned null; 583531 read from 'Borrowing 167,546 35,636 380,348 583,531' by its column order",
+    "due_within_1_year: model returned null; 167546 read from 'Borrowing 167,546 35,636 380,348 583,531' by its column order",
+    "due_1_to_5_years: model returned null; 415984 read from 'Borrowing 167,546 35,636 380,348 583,531' by its column order"
+  ],
+  "stem": "ependion_2025",
+  "pdf_available": true,
+  "check_history": [
+    {
+      "at": "2026-09-19T22:09:39.709592+00:00",
+      "reason": "Recalculated explicit values after extraction",
+      "previous": [
+        {
+          "name": "maturity_sums_to_total",
+          "passed": false,
+          "detail": "missing: due_after_5_years"
+        }
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "kind": "basis",
+      "key": "entity",
+      "detail": "Confirm entity"
+    },
+    {
+      "kind": "basis",
+      "key": "consolidation",
+      "detail": "Confirm consolidation"
+    },
+    {
+      "kind": "basis",
+      "key": "period",
+      "detail": "Confirm period"
+    },
+    {
+      "kind": "basis",
+      "key": "currency",
+      "detail": "Confirm currency"
+    },
+    {
+      "kind": "basis",
+      "key": "scale",
+      "detail": "Confirm scale"
+    },
+    {
+      "kind": "basis",
+      "key": "source",
+      "detail": "Confirm source"
+    },
+    {
+      "kind": "basis",
+      "key": "restatement",
+      "detail": "Confirm restatement"
+    },
+    {
+      "kind": "basis",
+      "key": "debt_basis",
+      "detail": "Confirm debt basis"
+    },
+    {
+      "kind": "basis",
+      "key": "leases",
+      "detail": "Confirm leases"
+    },
+    {
+      "kind": "basis",
+      "key": "bucket_mapping",
+      "detail": "Confirm bucket mapping"
+    },
+    {
+      "kind": "field",
+      "key": "total_debt",
+      "detail": "Total borrowings: verify value, unit, period and source"
+    },
+    {
+      "kind": "field",
+      "key": "due_within_1_year",
+      "detail": "Due within 1 year: verify value, unit, period and source"
+    },
+    {
+      "kind": "field",
+      "key": "due_1_to_5_years",
+      "detail": "Due 1–5 years: verify value, unit, period and source"
+    },
+    {
+      "kind": "field",
+      "key": "due_after_5_years",
+      "detail": "Due after 5 years: missing value (not zero)"
+    },
+    {
+      "kind": "check",
+      "key": "maturity_sums_to_total",
+      "detail": "maturity_sums_to_total: Missing explicit values: due_after_5_years"
+    }
+  ],
+  "ready": false
+}
