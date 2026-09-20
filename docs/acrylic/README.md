@@ -203,6 +203,14 @@ on the Local (Ollama) card, which always runs with it off regardless of any prev
 row's "two-pass on/off" reads the desktop's own last-saved `config.json` instead.
 [v043](evidence/v043.md), [v045](evidence/v045.md), [v047](evidence/v047.md)
 
+**Two-run merge** (`EXTRACT_MERGE_RUNS`, default **off**) is a Settings control too: one
+Off/Union/Majority segmented control under the provider cards — model-independent like the
+maturity basis, so every non-fixture provider passes it through, Ollama included (union runs the
+extraction twice; majority also counts the saved extraction and skips the second run when the
+first matches it) — and unlike two-pass, `/api/config` echoes the live value as `merge_runs`, so
+the status row shows it in the browser mirror as well. [v133](evidence/v133.md),
+[v140](evidence/v140.md)
+
 ## Backend hardening
 
 Most of the below calls no model at all — each row is a deterministic pipeline or schema change,
@@ -306,6 +314,8 @@ green throughout — see "How to verify".
 | `EXTRACT_MERGE_RUNS=off\|union\|majority` (default **off**; any other value reads `off`, so a typo can never silently turn the second run, and its cost, on) wires v129's rules into `/api/reports/{id}/extract`: `union` = R2's per-field union, `majority` = R5's corroborated union with the exact skip trigger (run1 value-identical to stored on every field → no second run, no second call); per-run records land as `extractions/<section>.run<n>.json` beside the merged section JSON; new `pipeline.test_merge`, 12 suites green | v129's measured rules needed a switch; off by default because the second run is a cost decision, not a quality default | [v133](evidence/v133.md) |
 | A model-answered **0** on a known-label dash row is the report's printed nil — v078's dash translation, now at the model answer's two drop sites: kept at 0 when the quoted rows on the cited page all carry labels known for the field and print dashes in the value's own column (Linc's `Räntebärande skulder – –`, v090's standing gap; Rejlers' dash bucket rows, previously kept unproven at 0.25 on an unrelated `0.8 per cent`); four refusal counter-examples stay null; replay 320 companies, 2 changed, 0 worse | `quote_on_page` can never verify a quote whose value is a dash (no number token), so correct dash-row zeros died as computed-not-read or survived on a coincidental number elsewhere on the page | [v134](evidence/v134.md) |
 | `eval/labels.csv` gains **40 hand-verified `debt_maturity` rows across the 18 KB companies that had a stored extraction but no labels** (acast … volati, v105's method page-by-page; the disputed scope calls disclosed for Kristian per company) — the file now holds **271 rows over 105 companies**; fifth-round `--stored-kb data/kb` numbers: values **287/367 (78.2%)**, pages **225/311 (72.3%)** | The 18 stems' stored answers were being scored against nothing, and the accuracy numbers above were a round behind the label file | [v135](evidence/v135.md) |
+| The owner's shared unpacked test app refreshed to the current acrylic tip (frontend + backend.exe + shell asar + bundled data in one `refresh-app.ps1` pass) and double-click smoke-tested over plain HTTP: 206 KB entries served, `/api/config`/`/api/schemas` healthy, a stem the 09-16 seed never had served from the new bundle; two findings reported for the next lane — the packaged exe ignored `--user-data-dir`, and installs predating v107 keep their first-generation bundle files forever (stale `enea_2025` total) | Five days of merged lanes had landed with no packaged build to test; the smoke also surfaced that refresh alone can't update what v107's copy-only merge had already installed | [v137](evidence/v137.md) |
+| Bundled KB entries the user never modified now **follow the new bundle**: `<userData>/data/.bundle-manifest.json` records what the bundle installed, so on later launches manifest-matching files are overwritten by the new bundle, differing files are kept as user-modified, and reviewed extractions are absolute keeps — plus a one-time stale-stem refresh for installs created before the manifest existed (the owner's: `enea_2025` `total_debt` null → **305,555** proven through the packaged exe on a copy of that userData); `--user-data-dir` is honoured end to end (read from argv → `app.setPath` before the single-instance lock), fixing v137's finding | v107's copy-only merge froze first-generation bundle content on existing installs; and the packaged escape hatch the work orders prescribed didn't actually exist (v137's Finding 1) | [v138](evidence/v138.md) |
 
 **A single before/after model call is not proof.** v037 re-ran its own 10 companies a second time
 with no code change and watched two confidence numbers move anyway (Humana up, Storytel down) —
