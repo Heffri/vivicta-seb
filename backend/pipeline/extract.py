@@ -138,11 +138,14 @@ PAGE_SELECT_PROMPT = """You are given the start of {n} candidate pages from a co
 
 {description}
 
-{selection_hint}
-
 Always name TWO pages: the primary page (the one with the table itself, must be one of the candidates above) and a companion page next to it, since a table's header or rows often continue onto the neighbouring page. Default the companion to primary+1; use primary-1 instead only if the table's own heading or first rows actually sit on the page before the primary one -- the companion does not itself have to be one of the candidates above.
 
 Return ONE JSON object {{"pages": [primary, companion]}}, primary first. Never invent a primary page number that is not listed above."""
+# PAGE_SELECT_HINTS is an explicit opt-in. Keeping the ordinary prompt as a separate literal makes
+# PAGE_SELECT_HINTS absent (the release default) byte-for-byte compatible with the pre-v146 prompt.
+PAGE_SELECT_HINTED_PROMPT = PAGE_SELECT_PROMPT.replace(
+    "\n\nAlways name TWO pages:", "\n\n{selection_hint}\n\nAlways name TWO pages:"
+)
 PAGE_SELECT_DEBT_MATURITY_HINT = "Pick the page whose table states carrying amounts of borrowings / interest-bearing liabilities (the borrowings note, or the balance sheet's interest-bearing lines). Pages tagged liquidity-risk / undiscounted list contractual cash flows and are not the target unless no other candidate holds the borrowings."
 
 # EXTRACT_QUOTE_RETRY: the follow-up call's schema is the field structure's own subset -- the key, the
@@ -279,13 +282,15 @@ def _select_pages(schema: dict, pages: list[int], texts: list[str]) -> list[int]
         return None
     keywords = [k.lower() for k in schema.get("keywords", [])]
     cleaned = locate.strip_boilerplate(texts)
-    tags = _page_select_tags(schema, pages, cleaned)
+    hints_enabled = schema.get("name") == "debt_maturity" and os.getenv("PAGE_SELECT_HINTS") == "1"
+    tags = _page_select_tags(schema, pages, cleaned) if hints_enabled else {}
     user = "\n\n".join(
         f"=== PAGE {n}{''.join(f' [{tag}]' for tag in tags.get(n, []))} ===\n{_page_snippet(cleaned[n - 1], keywords)}"
         for n in pages)
-    selection_hint = PAGE_SELECT_DEBT_MATURITY_HINT if schema.get("name") == "debt_maturity" else ""
-    system = PAGE_SELECT_PROMPT.format(n=len(pages), title=schema.get("title", schema["name"]),
-                                       description=schema.get("description", ""), selection_hint=selection_hint)
+    selection_hint = PAGE_SELECT_DEBT_MATURITY_HINT if hints_enabled else ""
+    prompt = PAGE_SELECT_HINTED_PROMPT if hints_enabled else PAGE_SELECT_PROMPT
+    system = prompt.format(n=len(pages), title=schema.get("title", schema["name"]),
+                           description=schema.get("description", ""), selection_hint=selection_hint)
     try:
         got = call_llm(system, user, PAGE_SELECT_SCHEMA, "page_select").get("pages")
     except Exception:

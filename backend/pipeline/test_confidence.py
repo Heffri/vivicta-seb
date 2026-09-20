@@ -1657,6 +1657,7 @@ def demo():
     # dropped, ~1200-char head, plus (Apotea's own failure mode, docs/acrylic/evidence/v043.md) any schema
     # keyword line found beyond that head, numbered, so a heading pushed past the cutoff by filler still surfaces.
     captured = {}
+    page_select_hints_env = os.environ.pop("PAGE_SELECT_HINTS", None)
 
     def capture_llm(system, user, schema=x.PAGE_SELECT_SCHEMA, name="page_select"):
         captured["system"] = system
@@ -1684,10 +1685,30 @@ def demo():
     avarda[79] = "Remaining interest term to maturity\n31 Dec 2025 SEK thousand Up to 3 months\n"
     avarda[80] = ("Liquidity risk\nThe amounts shown in the table represent contractual, undiscounted liquidity flows.\n"
                   "Remaining maturity\n31 Dec 2025 SEK thousand Payable on demand Up to 3 months\n")
+    prompt_dm = {**dm, "title": "Prompt test", "description": "Frozen prompt description."}
     captured.clear()
-    x._select_pages(dm, [80, 81, 27], avarda)
+    x._select_pages(prompt_dm, [80, 81, 27], avarda)
+    expected_default_page_select_prompt = """You are given the start of 3 candidate pages from a corporate annual report (Swedish or English), each labelled with its page number. Which page holds the Prompt test statement itself -- the printed table of figures -- not a table of contents, a note reference, or an unrelated table?
+
+Frozen prompt description.
+
+Always name TWO pages: the primary page (the one with the table itself, must be one of the candidates above) and a companion page next to it, since a table's header or rows often continue onto the neighbouring page. Default the companion to primary+1; use primary-1 instead only if the table's own heading or first rows actually sit on the page before the primary one -- the companion does not itself have to be one of the candidates above.
+
+Return ONE JSON object {"pages": [primary, companion]}, primary first. Never invent a primary page number that is not listed above."""
+    # v146-b: default off is the old rendered prompt byte-for-byte and never labels candidate pages.
+    assert captured["system"].encode("utf-8") == expected_default_page_select_prompt.encode("utf-8"), captured["system"]
+    assert "[balance sheet]" not in captured["user"], captured["user"]
+    assert x.PAGE_SELECT_DEBT_MATURITY_HINT not in captured["system"], captured["system"]
+
+    os.environ["PAGE_SELECT_HINTS"] = "1"
+    captured.clear()
+    x._select_pages(prompt_dm, [80, 81, 27], avarda)
     assert "=== PAGE 27 [balance sheet] ===" in captured["user"], captured["user"]
     assert x.PAGE_SELECT_DEBT_MATURITY_HINT in captured["system"], captured["system"]
+    if page_select_hints_env is None:
+        del os.environ["PAGE_SELECT_HINTS"]
+    else:
+        os.environ["PAGE_SELECT_HINTS"] = page_select_hints_env
 
     # v146 green: all fixtures are compact, frozen title/table lines from v124's cited real pages --
     # never a read of mutable data/kb (LESSONS 43). The range of expected tags proves title-zone scope:
