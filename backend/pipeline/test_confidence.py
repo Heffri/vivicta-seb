@@ -3455,6 +3455,73 @@ def test_confidence_never_exceeds_one():
     print("confidence clamp ok")
 
 
+def test_torn_bucket_headers():
+    """v151: torn CTT bucket labels and BICO's orphan year rows are rejoined conservatively."""
+    import json
+    import pathlib
+
+    dm = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
+    dmf = {f["key"]: f for f in dm["fields"]}
+    buckets = {key: dmf[key] for key in ("due_within_1_year", "due_1_to_5_years", "due_after_5_years")}
+    bico = ("Note 20 Interest-bearing liabilities\nACCOUNTING PRINCIPLES\n"
+            "Loans are classified as interest-bearing non-current or current liabilities in the balance sheet.\n"
+            "Group Parent Company\nDec 31,\nDec 31, 2025\nDec 31, 2024\nDec 31, 2025 2024\n"
+            "Non-current liabilities\nLiabilities to credit institutions1 - 2.9 - -\n"
+            "Convertible bonds - 1,332.3 - 1,332.3\nLease liabilities 218.1 332.5 - -\n"
+            "Other interest-bearing liabilities 0.2 1.9 - -\nTotal 218.3 1,669.6 - 1,332.3\n"
+            "Current liabilities\nLiabilities to credit institutions1 2.7 5.7 - -\n"
+            "Convertible bonds 1,001.5 - 1,001.5\nLease liabilities 63.8 87.1 - -\n"
+            "Other interest-bearing liabilities 0.5 1.0 - -\nTotal 1,068.5 93.9 1,001.5 -\n")
+    bico_rows = x._page_rows(bico)
+    bico_sum = bico_rows.index("Total 218.3 1,669.6 - 1,332.3")
+    assert x._row_year_column(bico_rows, bico_sum, 2025) == (0, 4)
+    assert x._torn_orphan_year_header(bico_rows, bico_sum)
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": f["key"], "value": None, "unit": None, "period": None, "raw_label": None, "source": None}
+        for f in dm["fields"]]}
+    out = x.extract([bico], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f for f in out["fields"]}
+    assert got["total_debt"]["value"] == 1286.8 and "value_derived" in got["total_debt"]["evidence"], (got, out["warnings"])
+    assert got["due_within_1_year"]["value"] == 1068.5, (got, out["warnings"])
+    assert any("sum to 1286.8 (218.3 + 1068.5)" in w for w in out["warnings"]), out["warnings"]
+    # Orphan years must be contiguous and exactly double the visible run; a spacer or an uneven
+    # fragment count leaves the old two-column reading alone.
+    for broken in (bico.replace("Dec 31, 2024\nDec 31, 2025 2024", "Dec 31, 2024\nHeader furniture\nDec 31, 2025 2024"),
+                   bico.replace("Dec 31, 2024\nDec 31, 2025 2024", "Dec 31, 2025 2024")):
+        rows = x._page_rows(broken)
+        subtotal = rows.index("Total 218.3 1,669.6 - 1,332.3")
+        assert not x._torn_orphan_year_header(rows, subtotal), rows
+        assert x._row_year_column(rows, subtotal, 2025) == (0, 2), rows
+    ctt = ("NOTE 26 MATURITY OF FINANCIAL LIABILITIES\n"
+           "Financial liabilities as of 31/12/2025 Within 1 Later than\n"
+           "Due for payment as follows: year 1–2 years 2–3 years 3–4 years 4–5 years 5 years Total\n"
+           "Interest-bearing financial liabilities including interest rates\nInterest-bearing financial liabilities\n"
+           "Interest-bearing liabilities to credit institutions 35.5 - - - - - 35.5\n"
+           "Total 35.5 - - - - - 35.5\n")
+    ctt_rows = x._page_rows(ctt)
+    debt_row = ctt_rows.index("Interest-bearing liabilities to credit institutions 35.5 - - - - - 35.5")
+    assert x._bucket_header(ctt_rows, debt_row, buckets, 2025, total_sf=dmf["total_debt"]) == \
+        ["due_within_1_year", "due_1_to_5_years", "due_1_to_5_years", "due_1_to_5_years", "due_1_to_5_years", "due_after_5_years", "total"]
+    # A row boundary, an extra top fragment, or a non-bucket continuation must not be rejoined.
+    for broken in (ctt.replace("Later than\nDue", "Later than\nTable\nDue"),
+                   ctt.replace("Within 1 Later than", "Within 1 Later than After"),
+                   ctt.replace("5 years Total", "final instalments Total")):
+        rows = x._page_rows(broken)
+        assert x._rejoin_torn_bucket_headers(rows) == rows, rows
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": f["key"], "value": 35.5, "unit": "SEK m", "period": "2025",
+         "raw_label": "Interest-bearing liabilities to credit institutions",
+         "source": {"page": 1, "quote": "Interest-bearing liabilities to credit institutions 35.5 - - - - - 35.5"}}
+        if f["key"] == "total_debt" else
+        {"key": f["key"], "value": None, "unit": None, "period": None, "raw_label": None, "source": None}
+        for f in dm["fields"]]}
+    out = x.extract([ctt], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 35.5, "due_within_1_year": 35.5, "due_1_to_5_years": 0, "due_after_5_years": 0}, (got, out["warnings"])
+    print("torn header self-check ok")
+
+
 if __name__ == "__main__":
     test_confidence_never_exceeds_one()
+    test_torn_bucket_headers()
     demo()
