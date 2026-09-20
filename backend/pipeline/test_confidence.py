@@ -2799,6 +2799,46 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     out = x.extract([broken], [1], dm_ship, {"fiscal_year": 2025})
     assert all(f["value"] is None for f in out["fields"]), out["fields"]
     assert not any("section subtotal" in w for w in out["warnings"]), out["warnings"]
+    # v156: Sdiptech's Note 24 (real p.110 text trimmed to the note) -- v110's pair shape whose
+    # section rows print footnote stars and small cells the no-ncols read cannot place:
+    # "Contingent considerations * 597 910" reads fused as 597910 (the star breaks the all-digits
+    # tail the ncols split needs, and its split-back is a nil-gated Boozt case), while "Other
+    # liabilities** 2 4" and "Liabilities to credit institutions 10 10" read [] and passed for
+    # wrapped label lines -- three reading defects, each enough to fail a section closure. The
+    # section's own ncols read of the star-stripped row arbitrates; the closures still decide.
+    sdiptech110 = ("Note 24 Interest-bearing liabilities\n"
+                   "Group interest-bearing liabilities\n"
+                   "Non-current liabilities 2025 2024\n"
+                   "Liabilities to credit institutions 2,309 1,910\n"
+                   "Bond liabilities 800 811\n"
+                   "Leasing liabilities 342 393\n"
+                   "Contingent considerations * 597 910\n"
+                   "Other liabilities** 2 4\n"
+                   "Total 4,049 4,027\n"
+                   "Current liabilities 2025 2024\n"
+                   "Liabilities to credit institutions 10 10\n"
+                   "Leasing liabilities 119 120\n"
+                   "Contingent considerations * 317 406\n"
+                   "Other liabilities** 1 1\n"
+                   "Total 446 537\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None} for k in dmf]}
+    out = x.extract([sdiptech110], [1], dm_ship, {"fiscal_year": 2025})
+    got = {f["key"]: f for f in out["fields"]}
+    td = got["total_debt"]
+    assert td["value"] == 4495 and "value_derived" in td["evidence"], td
+    assert td["raw_label"] == "Total (Non-current liabilities) + Total (Current liabilities)", td
+    w1 = got["due_within_1_year"]
+    assert w1["value"] == 446 and "value_in_quote" in w1["evidence"] and "value_derived" not in w1["evidence"], w1
+    assert any("sum to 4495 (4049 + 446), each closing on its own rows" in w for w in out["warnings"]), out["warnings"]
+    # counter: the star row's own figures no longer closing its section -- the un-fusion alone
+    # proves nothing, the per-column closures decide, nothing is adopted and nothing warns
+    broken_pair = sdiptech110.replace("Contingent considerations * 597 910", "Contingent considerations * 500 910")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None} for k in dmf]}
+    out = x.extract([broken_pair], [1], dm_ship, {"fiscal_year": 2025})
+    assert all(f["value"] is None for f in out["fields"]), out["fields"]
+    assert not any("section subtotal" in w for w in out["warnings"]), out["warnings"]
     # v111: the wrong-table guard's second batch, two more _table_scope refusals under BOTH bases.
     # (a) non-debt-subject tables -- Volati p.177's "Timing of revenue recognition, contract liabilities":
     #     its "Within 1 year 87 87 1" is contract-liability timing, and the statement-spread fill wrote it
@@ -3349,6 +3389,80 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
         assert got["due_1_to_5_years"]["value"] is None, (name, got["due_1_to_5_years"], out["warnings"])
         assert any("dropped as computed, not read" in w for w in out["warnings"]), (name, out["warnings"])
         assert not any("kept as value_derived" in w for w in out["warnings"]), (name, out["warnings"])
+    # v156: the window family derives on a NULL answer (v126's family, v096's adoption) -- the same
+    # family and column gates, and the closure gate in place of the model's own value: family sum +
+    # the other buckets' already-read values (null ones at 0) must reach the tied total through
+    # maturity_sums_to_total. Two "Repayment within 1 yr." rows closing on the verified 150 prove
+    # the whole 150 is current; the >5y row here is a single row, so no family, null stays null.
+    win_null = ("Note 20 Borrowings\nMSEK 2025 2024\n"
+                "Repayment within 1 yr. 100 90\n"
+                "Repayment within 1 yr. 50 40\n"
+                "Repayment after more than 5 yr. - -\n"
+                "Total 150 999\n")
+
+    def win_answer(total_value, total_quote):
+        return [{"key": "total_debt", "value": total_value, "unit": "MSEK", "period": "2025",
+                 "raw_label": "Total", "source": {"page": 1, "quote": total_quote}},
+                *({"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None}
+                  for k in ("due_within_1_year", "due_1_to_5_years", "due_after_5_years"))]
+
+    x.call_llm = lambda *a, **k: {"fields": win_answer(150, "Total 150 999")}
+    out = x.extract([win_null], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f for f in out["fields"]}
+    w1 = got["due_within_1_year"]
+    assert w1["value"] == 150 and "value_derived" in w1["evidence"], (w1, out["warnings"])
+    assert w1["raw_label"] == "Repayment within 1 yr. + Repayment within 1 yr.", w1
+    assert w1["source"]["quote"] == "Repayment within 1 yr. 100 90 Repayment within 1 yr. 50 40", w1
+    assert any("derived as the sum of 2 rows inside its window on page 1 ('Repayment within 1 yr.' … "
+               "'Repayment within 1 yr.'); closes on 150" in w for w in out["warnings"]), out["warnings"]
+    # counter (the printed-subtotal guard): the same counter page with EVERY bucket null. Its
+    # window's own subtotal row is printed ("Total Repayment within 2–5 yr. 200 190"), so the
+    # family's 150 -- which would close on the total -- is never derived over it: the printed row
+    # is the bucket's read, and the family disagreeing with it is the report's inconsistency.
+    x.call_llm = lambda *a, **k: {"fields": win_answer(150, "Total 150 999")}
+    out = x.extract([counter_p1], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got["due_within_1_year"] is None and got["due_1_to_5_years"] is None \
+        and got["due_after_5_years"] is None, (got, out["warnings"])
+    assert not any("derived as the sum of" in w for w in out["warnings"]), out["warnings"]
+    # counter (closure): the family reads 150 but 45 of the total sits in another window whose row
+    # is alone there (no family of one) -- 150 + nothing is 45 short of 195 and nothing is derived
+    win_short = ("Note 20 Borrowings\nMSEK 2025 2024\n"
+                 "Repayment within 1 yr. 100 90\n"
+                 "Repayment within 1 yr. 50 40\n"
+                 "Repayment after more than 5 yr. 45 40\n"
+                 "Total 195 170\n")
+    x.call_llm = lambda *a, **k: {"fields": win_answer(195, "Total 195 170")}
+    out = x.extract([win_short], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got["due_within_1_year"] is None and got["due_after_5_years"] is None, (got, out["warnings"])
+    assert not any("derived as the sum of" in w for w in out["warnings"]), out["warnings"]
+    # counter (prior-year column): the family closes only in the column the total row does NOT tie
+    # to -- the verified 130 ties column 0, the family's 90 + 40 lives in column 1, and the 150 in
+    # the tied column closes nothing, so nothing is derived
+    x.call_llm = lambda *a, **k: {"fields": win_answer(130, "Total 130 150")}
+    out = x.extract([win_null], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got["due_within_1_year"] is None, (got, out["warnings"])
+    assert not any("derived as the sum of" in w for w in out["warnings"]), out["warnings"]
+    # counter (cross-page): the second same-window row sits on another page -- one row per page is
+    # the single-row paths' territory, never a family
+    x.call_llm = lambda *a, **k: {"fields": win_answer(150, "Total 150 999")}
+    out = x.extract(["Note 20 Borrowings\nMSEK 2025 2024\nRepayment within 1 yr. 100 90\n",
+                     "Repayment within 1 yr. 50 40\nTotal 150 999\n"], [1, 2], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got["due_within_1_year"] is None, (got, out["warnings"])
+    assert not any("derived as the sum of" in w for w in out["warnings"]), out["warnings"]
+    # unit pins: the window half of the wording grammar (split out of _row_bucket_span), and the
+    # printed-subtotal guard's accept/refuse table
+    assert x._wording_window("Repayment within 2–5 yr.") == (24, 60)
+    assert x._wording_window("Repayment within 1 yr.") == (0, 12)
+    assert x._wording_window("Repayment after more than 5 yr.") == (60, float("inf"))
+    assert x._wording_window("Current liability") == (0, 12)
+    assert x._window_subtotal_row("Total Repayment within 2–5 yr. 200 190", "due_1_to_5_years")
+    assert not x._window_subtotal_row("Total Repayment within 2–5 yr. 200 190", "due_within_1_year")
+    assert not x._window_subtotal_row("Total 150 999", "due_1_to_5_years")  # no window wording: no subtotal of any window
+    assert not x._window_subtotal_row("Summa inom 1 år 100", "due_within_1_year")  # no v126 wording: nobody's guard
     # v125: the model's own printed sub-total survives a column-order read from another table. Viscaria
     # (real pages, trimmed; renumbered p.100 -> 1, p.101 -> 2, p.110 -> 3, the walk order the stored
     # seed-rerun-v118 run had): the model answers Note 22's own printed current sub-total 661.8 and
