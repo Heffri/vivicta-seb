@@ -1,0 +1,73 @@
+{
+  "report_id": "up-f49d43eceae7",
+  "company": null,
+  "fiscal_year": 2025,
+  "currency": "MSEK",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 12103,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "SUMMA",
+      "source": {
+        "page": 87,
+        "quote": "SUMMA 13 090 -2 460 220 30 1 222 12 103"
+      },
+      "confidence": 0.85,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": null,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_within_1_year"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [30, 31] selected from candidates [97, 98, 87, 109, 86, 111, 84, 85, 82, 30, 110]"
+  ]
+}
