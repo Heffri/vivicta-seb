@@ -1,0 +1,152 @@
+{
+ "report_id": "lib-tangen_industrikapital_2025",
+ "company": "Tången Industrikapital",
+ "fiscal_year": 2025,
+ "currency": "KSEK",
+ "section": "debt_maturity",
+ "maturity_basis": "carrying",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 588199,
+   "unit": "KSEK",
+   "period": "2025",
+   "raw_label": "Lån Kreditinstitut",
+   "source": {
+    "page": 62,
+    "quote": "Lån Kreditinstitut 141 734 137 898 251 081 57 486 588 199"
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": 141734,
+   "unit": "KSEK",
+   "period": "2025",
+   "raw_label": "Lån Kreditinstitut",
+   "source": {
+    "page": 62,
+    "quote": "Lån Kreditinstitut 141 734 137 898 251 081 57 486 588 199"
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": 388979,
+   "unit": "KSEK",
+   "period": "2025",
+   "raw_label": "Lån Kreditinstitut",
+   "source": {
+    "page": 62,
+    "quote": "Lån Kreditinstitut 141 734 137 898 251 081 57 486 588 199"
+   },
+   "confidence": 1.0,
+   "evidence": [
+    "quote_on_page",
+    "value_derived",
+    "arith_ok",
+    "label_known",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": 57486,
+   "unit": "KSEK",
+   "period": "2024",
+   "raw_label": "Senare än 5 år Summa: Lån Kreditinstitut",
+   "source": {
+    "page": 62,
+    "quote": "Lån Kreditinstitut 141 734 137 898 251 081 57 486 588 199"
+   },
+   "confidence": 0.5,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "label_known",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": true,
+   "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((141734 + 388979 + 57486) - 588199) <= 2"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [61, 62] selected from candidates [63, 64, 57, 60, 61, 36]",
+  "total_debt: page 62 is headed 2024, not 2025; period set to 2024",
+  "due_within_1_year: page 62 is headed 2024, not 2025; period set to 2024",
+  "due_1_to_5_years: page 62 is headed 2024, not 2025; period set to 2024",
+  "due_after_5_years: page 62 is headed 2024, not 2025; period set to 2024",
+  "total_debt: 'Lån Kreditinstitut' 588199 dropped: the same row as due_1_to_5_years, and not a total borrowings label",
+  "due_within_1_year: 'Lån Kreditinstitut' 141734 dropped: the same row as due_1_to_5_years, and not a due within 1 year label",
+  "due_1_to_5_years: 388979 is printed on none of pages [62, 63, 64]; dropped as computed, not read",
+  "total_debt: model returned null; 588199 read from 'Lån Kreditinstitut 141 734 137 898 251 081 57 486 588 199' by its column order",
+  "due_within_1_year: model returned null; 141734 read from 'Lån Kreditinstitut 141 734 137 898 251 081 57 486 588 199' by its column order",
+  "due_1_to_5_years: model returned null; 388979 read from 'Lån Kreditinstitut 141 734 137 898 251 081 57 486 588 199' by its column order"
+ ],
+ "prior_year": {
+  "fiscal_year": 2024,
+  "fields": {
+   "total_debt": {
+    "value": 353022,
+    "source": {
+     "page": 62,
+     "quote": "Lån Kreditinstitut 90 970 68 704 188 828 4 520 353 022"
+    }
+   },
+   "due_within_1_year": {
+    "value": 90970,
+    "source": {
+     "page": 62,
+     "quote": "Lån Kreditinstitut 90 970 68 704 188 828 4 520 353 022"
+    }
+   },
+   "due_1_to_5_years": {
+    "value": 257532,
+    "source": {
+     "page": 62,
+     "quote": "Lån Kreditinstitut 90 970 68 704 188 828 4 520 353 022"
+    }
+   },
+   "due_after_5_years": {
+    "value": 4520,
+    "source": {
+     "page": 62,
+     "quote": "Lån Kreditinstitut 90 970 68 704 188 828 4 520 353 022"
+    }
+   }
+  },
+  "check": {
+   "passed": true,
+   "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((90970 + 257532 + 4520) - 353022) <= 2"
+  }
+ }
+}
