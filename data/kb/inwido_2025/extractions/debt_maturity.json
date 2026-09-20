@@ -9,21 +9,31 @@
     {
       "key": "total_debt",
       "label": "Total borrowings",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "value": 1796,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "Interest-bearing liabilities",
+      "source": {
+        "page": 166,
+        "quote": "Interest-bearing liabilities 1,801.5 1,796.0 1,259.6 1,253.4"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "due_within_1_year",
       "label": "Due within 1 year",
       "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -32,9 +42,9 @@
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
       "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -43,9 +53,9 @@
       "key": "due_after_5_years",
       "label": "Due after 5 years",
       "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
+      "unit": "SEKm",
+      "period": "2025",
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -59,7 +69,7 @@
     }
   ],
   "warnings": [
-    "two_pass: page [143, 144] selected from candidates [143, 144]",
-    "published: seedseed-rex-kb run replayed with extract.py @ d3eb5fc8"
+    "two_pass: page [166, 167] selected from candidates [143, 144, 61, 179, 129, 180, 145, 131, 166, 165, 167]",
+    "published: seedv124-publish-kb run replayed with extract.py @ 3089ab08"
   ]
 }

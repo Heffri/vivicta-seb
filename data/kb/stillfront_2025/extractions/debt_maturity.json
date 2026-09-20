@@ -41,13 +41,24 @@
     {
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "value": 5152,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Repayment within 2–5 yr. + Repayment within 2–5 yr. + Repayment within 2–5 yr. + Repayment within 2–5 yr. + Repayment within 2–5 yr.",
+      "source": {
+        "page": 109,
+        "quote": "Bond loans 2,835 2,829 Repayment within 2–5 yr. 620 1,170"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_derived",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "due_after_5_years",
@@ -79,9 +90,9 @@
     }
   ],
   "warnings": [
-    "two_pass: page [109, 110] selected from candidates [109, 110]",
-    "due_within_1_year: 710 is printed on none of pages [109, 110]; dropped as computed, not read",
-    "due_1_to_5_years: 5152 is printed on none of pages [109, 110]; dropped as computed, not read",
-    "published: seedseed-rerun-v118-kb run replayed with extract.py @ d3eb5fc8"
+    "two_pass: page [109, 110] selected from candidates [109, 110, 89, 93, 112, 91, 95, 111, 97, 99]",
+    "due_within_1_year: 732 is printed on none of pages [109, 110]; dropped as computed, not read",
+    "due_1_to_5_years: 5152 is the sum of 5 rows on page 109 inside its window ('Repayment within 2–5 yr.' … 'Repayment within 2–5 yr.'); kept as value_derived",
+    "published: seedv124-publish-kb run replayed with extract.py @ 3089ab08"
   ]
 }

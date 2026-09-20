@@ -2,38 +2,59 @@
   "report_id": "lib-lime_technologies_2025",
   "company": "Lime Technologies",
   "fiscal_year": 2025,
-  "currency": "MSEK",
+  "currency": "SEK thousands",
   "section": "debt_maturity",
   "maturity_basis": "carrying",
   "fields": [
     {
       "key": "total_debt",
       "label": "Total borrowings",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "value": 211300,
+      "unit": "SEK thousands",
+      "period": "2025",
+      "raw_label": "Total (Non-current liability) + Total (Current liability)",
+      "source": {
+        "page": 91,
+        "quote": "Total 130,514 207,422 - 12,500 The Group The Parent Current liability 2025 2024 2025 2024 Bank loan 60,000 60,000 12,500 50,000 Utilized overdraft facility 6,396 1,367 6,396 1,367 Liabilities related to leasing 14,390 18,154 - - Total 80,786 79,521 18,896 51,367"
+      },
+      "confidence": 1.0,
+      "evidence": [
+        "quote_on_page",
+        "value_derived",
+        "arith_ok",
+        "label_known",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "due_within_1_year",
       "label": "Due within 1 year",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "value": 80786,
+      "unit": "SEK thousands",
+      "period": "2025",
+      "raw_label": "Total",
+      "source": {
+        "page": 91,
+        "quote": "Total 80,786 79,521 18,896 51,367"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
       "value": null,
-      "unit": null,
-      "period": null,
+      "unit": "SEK thousands",
+      "period": "2025",
       "raw_label": null,
       "source": null,
       "confidence": 0.0,
@@ -43,8 +64,8 @@
       "key": "due_after_5_years",
       "label": "Due after 5 years",
       "value": null,
-      "unit": null,
-      "period": null,
+      "unit": "SEK thousands",
+      "period": "2025",
       "raw_label": null,
       "source": null,
       "confidence": 0.0,
@@ -55,12 +76,107 @@
     {
       "name": "maturity_sums_to_total",
       "passed": false,
-      "detail": "missing: due_within_1_year"
+      "status": "unavailable",
+      "detail": "Missing explicit values: due_1_to_5_years, due_after_5_years"
     }
   ],
   "warnings": [
-    "two_pass: page [72, 73] selected from candidates [72, 73]",
+    "two_pass: page [91, 92] selected from candidates [72, 73, 68, 82, 96, 91, 67, 39, 62, 52, 71]",
     "total_debt: column reading of 'Borrowing (incl. overdraft) 15,000 51,396 60,000 25,000' declined -- table 'Liquidity risk - Group' is undiscounted; refused under the carrying basis",
-    "published: seedseed-rex-kb run replayed with extract.py @ d3eb5fc8"
-  ]
+    "total_debt: model returned null; the note's two section subtotals on page 91 sum to 211300 (130514 + 80786), each closing on its own rows; corroborated by page 52 prose",
+    "published: seedv124-publish-kb run as stored"
+  ],
+  "stem": "lime_technologies_2025",
+  "pdf_available": true,
+  "check_history": [
+    {
+      "at": "2026-09-20T12:28:48.296872+00:00",
+      "reason": "Recalculated explicit values after extraction",
+      "previous": [
+        {
+          "name": "maturity_sums_to_total",
+          "passed": false,
+          "detail": "missing: due_1_to_5_years"
+        }
+      ]
+    }
+  ],
+  "issues": [
+    {
+      "kind": "basis",
+      "key": "entity",
+      "detail": "Confirm entity"
+    },
+    {
+      "kind": "basis",
+      "key": "consolidation",
+      "detail": "Confirm consolidation"
+    },
+    {
+      "kind": "basis",
+      "key": "period",
+      "detail": "Confirm period"
+    },
+    {
+      "kind": "basis",
+      "key": "currency",
+      "detail": "Confirm currency"
+    },
+    {
+      "kind": "basis",
+      "key": "scale",
+      "detail": "Confirm scale"
+    },
+    {
+      "kind": "basis",
+      "key": "source",
+      "detail": "Confirm source"
+    },
+    {
+      "kind": "basis",
+      "key": "restatement",
+      "detail": "Confirm restatement"
+    },
+    {
+      "kind": "basis",
+      "key": "debt_basis",
+      "detail": "Confirm debt basis"
+    },
+    {
+      "kind": "basis",
+      "key": "leases",
+      "detail": "Confirm leases"
+    },
+    {
+      "kind": "basis",
+      "key": "bucket_mapping",
+      "detail": "Confirm bucket mapping"
+    },
+    {
+      "kind": "field",
+      "key": "total_debt",
+      "detail": "Total borrowings: verify value, unit, period and source"
+    },
+    {
+      "kind": "field",
+      "key": "due_within_1_year",
+      "detail": "Due within 1 year: verify value, unit, period and source"
+    },
+    {
+      "kind": "field",
+      "key": "due_1_to_5_years",
+      "detail": "Due 1–5 years: missing value (not zero)"
+    },
+    {
+      "kind": "field",
+      "key": "due_after_5_years",
+      "detail": "Due after 5 years: missing value (not zero)"
+    },
+    {
+      "kind": "check",
+      "key": "maturity_sums_to_total",
+      "detail": "maturity_sums_to_total: Missing explicit values: due_1_to_5_years, due_after_5_years"
+    }
+  ],
+  "ready": false
 }
