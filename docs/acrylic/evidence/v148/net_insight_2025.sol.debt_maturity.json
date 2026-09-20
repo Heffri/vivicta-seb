@@ -1,0 +1,218 @@
+{
+ "report_id": "lib-net_insight_2025",
+ "company": "Net Insight",
+ "fiscal_year": 2025,
+ "currency": "SEK thousands",
+ "section": "debt_maturity",
+ "maturity_basis": "carrying",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 39415,
+   "unit": "SEK thousands",
+   "period": "2025",
+   "raw_label": "Total",
+   "source": {
+    "page": 91,
+    "quote": "Total 39,415 13,293"
+   },
+   "confidence": 0.85,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": 8305,
+   "unit": "SEK thousands",
+   "period": "2025",
+   "raw_label": "<1 year",
+   "source": {
+    "page": 91,
+    "quote": "<1 year 8,305 11,738"
+   },
+   "confidence": 0.85,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": 31110,
+   "unit": "SEK thousands",
+   "period": "2025",
+   "raw_label": "1-5 yeas",
+   "source": {
+    "page": 91,
+    "quote": "1-5 yeas 31,110 1,555"
+   },
+   "confidence": 0.85,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": 0,
+   "unit": "SEK thousands",
+   "period": "2025",
+   "raw_label": ">5 years",
+   "source": {
+    "page": 91,
+    "quote": ">5 years - -"
+   },
+   "confidence": 0.25,
+   "evidence": [
+    "arith_ok",
+    "period_ok",
+    "unit_ok"
+   ]
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": true,
+   "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((8305 + 31110 + 0) - 39415) <= 2",
+   "status": "passed"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [101, 102] selected from candidates [79, 80, 101, 91, 121, 122, 67]",
+  "due_after_5_years: quote not found on page 91"
+ ],
+ "prior_year": {
+  "fiscal_year": 2024,
+  "fields": {
+   "total_debt": {
+    "value": 13293,
+    "source": {
+     "page": 91,
+     "quote": "Total 39,415 13,293"
+    }
+   },
+   "due_within_1_year": {
+    "value": 11738,
+    "source": {
+     "page": 91,
+     "quote": "<1 year 8,305 11,738"
+    }
+   },
+   "due_1_to_5_years": {
+    "value": 1555,
+    "source": {
+     "page": 91,
+     "quote": "1-5 yeas 31,110 1,555"
+    }
+   }
+  },
+  "check": {
+   "passed": true,
+   "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((11738 + 1555) - 13293) <= 2 (due_after_5_years: no prior-year figure in this table)"
+  }
+ },
+ "stem": "net_insight_2025",
+ "pdf_available": true,
+ "check_history": [
+  {
+   "at": "2026-09-20T13:31:46.903322+00:00",
+   "reason": "Recalculated explicit values after extraction",
+   "previous": [
+    {
+     "name": "maturity_sums_to_total",
+     "passed": true,
+     "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((8305 + 31110 + 0) - 39415) <= 2"
+    }
+   ]
+  }
+ ],
+ "issues": [
+  {
+   "kind": "basis",
+   "key": "entity",
+   "detail": "Confirm entity"
+  },
+  {
+   "kind": "basis",
+   "key": "consolidation",
+   "detail": "Confirm consolidation"
+  },
+  {
+   "kind": "basis",
+   "key": "period",
+   "detail": "Confirm period"
+  },
+  {
+   "kind": "basis",
+   "key": "currency",
+   "detail": "Confirm currency"
+  },
+  {
+   "kind": "basis",
+   "key": "scale",
+   "detail": "Confirm scale"
+  },
+  {
+   "kind": "basis",
+   "key": "source",
+   "detail": "Confirm source"
+  },
+  {
+   "kind": "basis",
+   "key": "restatement",
+   "detail": "Confirm restatement"
+  },
+  {
+   "kind": "basis",
+   "key": "debt_basis",
+   "detail": "Confirm debt basis"
+  },
+  {
+   "kind": "basis",
+   "key": "leases",
+   "detail": "Confirm leases"
+  },
+  {
+   "kind": "basis",
+   "key": "bucket_mapping",
+   "detail": "Confirm bucket mapping"
+  },
+  {
+   "kind": "field",
+   "key": "total_debt",
+   "detail": "Total borrowings: verify value, unit, period and source"
+  },
+  {
+   "kind": "field",
+   "key": "due_within_1_year",
+   "detail": "Due within 1 year: verify value, unit, period and source"
+  },
+  {
+   "kind": "field",
+   "key": "due_1_to_5_years",
+   "detail": "Due 1–5 years: verify value, unit, period and source"
+  },
+  {
+   "kind": "field",
+   "key": "due_after_5_years",
+   "detail": "Due after 5 years: verify value, unit, period and source"
+  }
+ ],
+ "ready": false
+}
