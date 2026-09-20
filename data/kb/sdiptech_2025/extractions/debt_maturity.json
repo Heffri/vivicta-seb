@@ -2,7 +2,7 @@
   "report_id": "lib-sdiptech_2025",
   "company": "Sdiptech",
   "fiscal_year": 2025,
-  "currency": null,
+  "currency": "MSEK",
   "section": "debt_maturity",
   "maturity_basis": "carrying",
   "fields": [
@@ -10,8 +10,8 @@
       "key": "total_debt",
       "label": "Total borrowings",
       "value": null,
-      "unit": null,
-      "period": null,
+      "unit": "MSEK",
+      "period": "2025",
       "raw_label": null,
       "source": null,
       "confidence": 0.0,
@@ -20,20 +20,30 @@
     {
       "key": "due_within_1_year",
       "label": "Due within 1 year",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "value": 446,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Total",
+      "source": {
+        "page": 110,
+        "quote": "Total 446 537"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
       "value": null,
-      "unit": null,
-      "period": null,
+      "unit": "MSEK",
+      "period": "2025",
       "raw_label": null,
       "source": null,
       "confidence": 0.0,
@@ -43,8 +53,8 @@
       "key": "due_after_5_years",
       "label": "Due after 5 years",
       "value": null,
-      "unit": null,
-      "period": null,
+      "unit": "MSEK",
+      "period": "2025",
       "raw_label": null,
       "source": null,
       "confidence": 0.0,
@@ -55,11 +65,11 @@
     {
       "name": "maturity_sums_to_total",
       "passed": false,
-      "detail": "missing: due_within_1_year"
+      "detail": "missing: due_1_to_5_years"
     }
   ],
   "warnings": [
-    "two_pass: page [110, 111] selected from candidates [110, 111]",
-    "published: seedseed-rerun-v118-kb run replayed with extract.py @ d3eb5fc8"
+    "two_pass: page [110, 111] selected from candidates [110, 111, 80, 104, 105, 81, 112, 74, 75, 95, 113]",
+    "published: seedv148-sdiptech-kb run replayed with extract.py @ 4d7a4930"
   ]
 }
