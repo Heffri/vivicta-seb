@@ -1,0 +1,73 @@
+{
+  "report_id": "lib-boozt_2025",
+  "company": "Boozt",
+  "fiscal_year": 2025,
+  "currency": "SEK million",
+  "section": "debt_maturity",
+  "maturity_basis": "carrying",
+  "fields": [
+    {
+      "key": "total_debt",
+      "label": "Total borrowings",
+      "value": 441,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "Total",
+      "source": {
+        "page": 108,
+        "quote": "Total 441 499"
+      },
+      "confidence": 0.85,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "unit_ok"
+      ]
+    },
+    {
+      "key": "due_within_1_year",
+      "label": "Due within 1 year",
+      "value": null,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_1_to_5_years",
+      "label": "Due 1–5 years",
+      "value": null,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    },
+    {
+      "key": "due_after_5_years",
+      "label": "Due after 5 years",
+      "value": null,
+      "unit": "SEK million",
+      "period": "2025",
+      "raw_label": "",
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "maturity_sums_to_total",
+      "passed": false,
+      "detail": "missing: due_within_1_year"
+    }
+  ],
+  "warnings": [
+    "two_pass: page [121, 122] selected from candidates [121, 122, 108, 98, 139, 21, 117, 115, 105, 120]"
+  ]
+}
