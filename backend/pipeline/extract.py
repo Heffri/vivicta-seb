@@ -554,8 +554,10 @@ def _row_amounts(quote: str, ncols: int | None = None, nil=0) -> list:
     almost never nil anywhere, so this must not start reading a coincidentally same-shaped Total row too, e.g.
     Boozt's own "Total 2,358 1,928 92 273 63 0"), and exactly one "NN NNN" token in the row could be the glue
     (two or more is a guess between candidates, so none is split) -- and even then only kept if splitting that
-    one token lands on exactly ncols amounts; landing anywhere else is not trusted either, and the ordinary
-    (short) reading stands."""
+    one token lands on exactly ncols amounts. A genuine Swedish grouping such as "1 234 567" already has the
+    header's one amount and is never split. Conversely, MTG's "85 151" would add a fifth amount to a four-
+    header read, so this function deliberately leaves its ambiguous 85,151 reading intact; v144's source-row
+    closure gate is the separate guard before that ambiguous reading can override an answered total."""
     q = _FOOTNOTE.sub("", quote.translate(_DASHES))
     toks = q.split()
     last_alpha = max((i for i, t in enumerate(toks) if re.search(r"[^\W\d_]", t)), default=-1)
@@ -603,12 +605,12 @@ def _row_amounts(quote: str, ncols: int | None = None, nil=0) -> list:
         return [v for v, n in zip(out, noteish) if not n]
 
     result = _amounts(_SPACE_GROUPS.sub(_degroup, q))  # "79 146" -> 79146 before splitting
-    if ncols and len(result) == ncols - 1 and nil in result:  # nil in result: see the docstring's Total-row caveat
+    if ncols and len(result) == ncols - 1:
         glued = [gm for gm in _SPACE_GROUPS.finditer(q) if len(gm.group(0).split()) == 2]  # "NN NNN": one grouped number, or two adjacent bucket columns
         if len(glued) == 1:  # two or more candidates is a guess which one -- don't
             keep = glued[0]
             split = _amounts(_SPACE_GROUPS.sub(lambda m: m.group(0) if (m.start(), m.end()) == (keep.start(), keep.end()) else _degroup(m), q))
-            if len(split) == ncols:  # only trust it when the split lands exactly on the header's own column count
+            if nil in result and len(split) == ncols:  # nil: see the docstring's Total-row caveat
                 return split
     return result
 
@@ -2330,7 +2332,17 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
     must not be overwritten by the 2.2 a lease row's column order yields in the liquidity note's
     undiscounted per-instrument table two pages back (Viscaria, v088's Volati family) -- the
     warning names both rows. A bucket the model left null still fills: the rule protects an
-    answered value, not a missing one."""
+    answered value, not a missing one.
+
+    v144: an answered model total needs one further proof before this column-order re-read can
+    replace it: the source row's own bucket columns must add back to its own total column within
+    the schema's ±2 rounding tolerance.  A table can otherwise align by column count while a
+    space-separated pair is read as one Swedish thousands number (MTG's "85 151" -> 85,151),
+    creating an arbitrary total from a row that does not reconcile itself.  A null model total
+    remains the existing fill path's responsibility; this gate only protects an answer from an
+    unproved override.  If a persisted answer already cites that same unclosed row (an earlier
+    column-order repair replayed as model input), it has no independent provenance to preserve,
+    so it is discarded rather than perpetuating the bad derived total."""
     ident = _identity_parts(schema)
     if not ident:
         return
@@ -2465,8 +2477,11 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
             # v095: an off-grid-covered 0 is exactly as provisional as v078's dash-to-0 -- written only when the
             # row's own arithmetic proves it, the same closure gate; the zeros join the sum (43.5 + 353.7 + 0 ==
             # 397.2 IS the proof of the 0, Karnell). Unproven, the covered bucket keeps its null.
-            closes = isinstance(total_val, (int, float)) and abs(round(sum(v for k, v in derived.items()
-                                                                          if k != total_key and v is not None), 2) - total_val) <= 2
+            # `_excluded` is a finer column superseded by its table's own subtotal; it must not
+            # be counted a second time when proving the row closes (XANO's 4,090 + 8,680 +
+            # 38,305 are already represented by its printed within-one-year subtotal 51,075).
+            bucket_sum = round(sum(v for k, v in derived.items() if k in part_keys and v is not None), 2)
+            closes = isinstance(total_val, (int, float)) and abs(bucket_sum - total_val) <= 2
             if nil_keys and not closes:
                 nil_keys = []
             if og_cover and not closes:
@@ -2480,8 +2495,20 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
                 if nil:
                     value = 0
                 current = by_key[key]["value"]
+                if key == total_key and current is not None and total_key not in filled and not closes:
+                    source = by_key[key].get("source") or {}
+                    if source.get("page") == page and normalize_ws(str(source.get("quote") or "")) == normalize_ws(rows[idx]):
+                        warnings.append(f"{key}: dropped {current} -- its column-order source row {rows[idx]!r} "
+                                        f"does not close ({bucket_sum:g} != {total_val:g}, ±2 rounding)")
+                        by_key[key].update(value=None, raw_label=None, source=None, evidence=[])
+                        values[key] = None
+                        continue
                 if value is None or (isinstance(current, (int, float)) and abs(current - value) <= 2):
                     continue  # nothing to add, or agrees with the model's own answer -- its evidence already covers it
+                if key == total_key and current is not None and total_key not in filled and not closes:
+                    warnings.append(f"{key}: kept the model's own {current} -- the column-order row {rows[idx]!r} "
+                                    f"does not close ({bucket_sum:g} != {total_val:g}, ±2 rounding)")
+                    continue
                 prefix = "model returned null" if current is None else f"{current} disagrees with the maturity table"
                 if nil:
                     warnings.append(f"{key}: {prefix}; a dash is printed in the row's own column for it ({rows[idx]!r}) -- "
