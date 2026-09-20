@@ -1,0 +1,78 @@
+{
+ "report_id": "lib-modern_times_2025",
+ "company": "Modern Times Group",
+ "fiscal_year": 2025,
+ "currency": "SEK million",
+ "section": "debt_maturity",
+ "maturity_basis": "carrying",
+ "fields": [
+  {
+   "key": "total_debt",
+   "label": "Total borrowings",
+   "value": 3487,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": "Liabilities to financial institutions",
+   "source": {
+    "page": 142,
+    "quote": "Liabilities to financial institutions 3,900 582 3,318 — 3,487"
+   },
+   "confidence": 0.9,
+   "evidence": [
+    "quote_on_page",
+    "value_in_quote",
+    "arith_ok",
+    "period_ok",
+    "page_is_statement",
+    "unit_ok"
+   ]
+  },
+  {
+   "key": "due_within_1_year",
+   "label": "Due within 1 year",
+   "value": null,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_1_to_5_years",
+   "label": "Due 1–5 years",
+   "value": null,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  },
+  {
+   "key": "due_after_5_years",
+   "label": "Due after 5 years",
+   "value": null,
+   "unit": "SEK million",
+   "period": "2025",
+   "raw_label": null,
+   "source": null,
+   "confidence": 0.0,
+   "evidence": []
+  }
+ ],
+ "checks": [
+  {
+   "name": "maturity_sums_to_total",
+   "passed": false,
+   "detail": "missing: due_within_1_year"
+  }
+ ],
+ "warnings": [
+  "two_pass: page [142, 143] selected from candidates [149, 150, 118, 141, 144, 142, 164, 143, 175, 179, 167]",
+  "due_1_to_5_years: model returned null, fill from page 149 row 'One to five years 207 118' refused -- table 'Maturity analysis – Contractual undiscounted cash flow' is undiscounted",
+  "due_after_5_years: model returned null, fill from page 149 row 'More than five years 16 0' refused -- table 'Maturity analysis – Contractual undiscounted cash flow' is undiscounted",
+  "total_debt: column reading of 'Lease liabilities 155 37 33 85 151' declined -- gross-value maturity block is headed 2024, not 2025",
+  "total_debt: column reading of 'Total 3,322 2,281 890 151 3,123' declined -- gross-value maturity block is headed 2024, not 2025"
+ ]
+}

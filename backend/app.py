@@ -310,7 +310,11 @@ def run_extract(report_id: str, body: ExtractBody):
         texts = report_texts(report_id)
         pages = locate.candidate_pages(texts, schema)
         print(f"[extract] {report_id} {body.section}: candidate pages {pages}")
-        result = extract_mod.extract(texts, pages, schema, report)
+        hints_retry = os.getenv("PAGE_SELECT_HINTS") == "retry"
+        # v162: retry starts from the ordinary page-selection prompt even though the same request
+        # may later selectively retry with markers.  Other values retain extract()'s old env read.
+        result = extract_mod.extract(texts, pages, schema, report, page_select_hints=False) if hints_retry \
+            else extract_mod.extract(texts, pages, schema, report)
         from pipeline import merge  # v133: EXTRACT_MERGE_RUNS second-run merge; off (default) never reaches it
         mode = merge.mode()
         if mode != "off":  # docs/acrylic/evidence/v129.md: per-field union, the stored answer as a third majority vote
@@ -324,10 +328,23 @@ def run_extract(report_id: str, body: ExtractBody):
                 result["warnings"].append("merge: run1 matches the stored answer field by field; second run skipped")
                 result["merge"] = {"mode": mode, "runs": 1, "decisions": {f["key"]: "run1 (matches stored)" for f in result["fields"]}}
             else:
-                run2 = extract_mod.extract(texts, pages, schema, report)
+                field_values = {f.get("key"): f.get("value") for f in result.get("fields", []) if isinstance(f, dict)}
+                first_identity_name = next((c.get("name") for c in schema.get("checks", []) if c.get("identity")),
+                                           (schema.get("checks") or [{}])[0].get("name"))
+                first_identity = next((c for c in result.get("checks", [])
+                                       if c.get("name") == first_identity_name), None)
+                retry_with_hints = hints_retry and (
+                    not bool(first_identity and first_identity.get("passed"))
+                    or any(field_values.get(sf["key"]) is None for sf in schema.get("fields", []))
+                )
+                run2 = extract_mod.extract(texts, pages, schema, report, page_select_hints=True) if retry_with_hints \
+                    else extract_mod.extract(texts, pages, schema, report, page_select_hints=False) if hints_retry \
+                    else extract_mod.extract(texts, pages, schema, report)
                 kb.save_run(report["stem"], body.section, 1, result)  # the raw per-run answers, before decorate
                 kb.save_run(report["stem"], body.section, 2, run2)
                 result, decisions = merge.merge_runs(result, run2, stored, mode)
+                if retry_with_hints:
+                    result["merge"]["hints"] = "run2"
                 merge.recheck(result, schema, texts, pages)  # the winner's own checks would misdescribe a field mix
             print(f"[extract] {report_id} {body.section}: merge={mode} runs={result['merge']['runs']}")
         result.update(stem=report["stem"], pdf_available=pdf_path(report_id).is_file())

@@ -53,6 +53,14 @@ def _value(result, key):
     return next(f["value"] for f in result["fields"] if f["key"] == key)
 
 
+def _full_income_values(**overrides):
+    """All shipped income-statement keys non-null unless a route-trigger test changes one."""
+    values = {"revenue": 100, "cost_of_sales": -60, "gross_profit": 40, "operating_profit": 30,
+              "profit_before_tax": 25, "income_tax": -5, "profit_discontinued": 0, "net_profit": 20,
+              "eps_basic": 2}
+    return values | overrides
+
+
 # ---- mode() ---------------------------------------------------------------------------------
 
 def test_mode_env():
@@ -294,8 +302,8 @@ def _stub_model(app_mod, results):
     test), _llm_configured/report_texts/candidate_pages stand in for the configured-provider path."""
     calls = []
 
-    def fake_extract(texts, pages, schema, report):
-        calls.append({"texts": texts, "pages": pages})
+    def fake_extract(texts, pages, schema, report, page_select_hints=None):
+        calls.append({"texts": texts, "pages": pages, "page_select_hints": page_select_hints})
         assert len(calls) <= len(results), f"extract called {len(calls)}x, expected <= {len(results)}"
         return copy.deepcopy(results[len(calls) - 1])
 
@@ -427,6 +435,61 @@ def test_route_majority_stored_votes_when_pipeline_generated():
     print("route majority stored vote ok")
 
 
+def test_route_retry_hints_only_on_failed_or_null_first_run():
+    """PAGE_SELECT_HINTS=retry keeps run 1 ordinary and gives run 2 markers only after the
+    first identity check fails or a schema field is null; the merge records that provenance."""
+    with tempfile.TemporaryDirectory() as tmp, _env(EXTRACT_MERGE_RUNS="majority", PAGE_SELECT_HINTS="retry"):
+        app_mod, client = _setup_route(tmp)
+        runs = [_run(_full_income_values(), check_passed=False),
+                _run(_full_income_values(), check_passed=True)]
+        calls, orig = _stub_model(app_mod, runs)
+        try:
+            r = _post(client)
+            assert r.status_code == 200, r.text
+            x = r.json()
+            assert [call["page_select_hints"] for call in calls] == [False, True], calls
+            assert x["merge"]["hints"] == "run2", x["merge"]
+        finally:
+            _teardown_route(app_mod, orig)
+    print("route retry hints on failed first run ok")
+
+
+def test_route_retry_hints_on_null_first_run():
+    """A passed first identity check still retries with markers when a schema field is null."""
+    with tempfile.TemporaryDirectory() as tmp, _env(EXTRACT_MERGE_RUNS="majority", PAGE_SELECT_HINTS="retry"):
+        app_mod, client = _setup_route(tmp)
+        runs = [_run(_full_income_values(profit_discontinued=None), check_passed=True),
+                _run(_full_income_values(), check_passed=True)]
+        calls, orig = _stub_model(app_mod, runs)
+        try:
+            r = _post(client)
+            assert r.status_code == 200, r.text
+            assert [call["page_select_hints"] for call in calls] == [False, True], calls
+        finally:
+            _teardown_route(app_mod, orig)
+    print("route retry hints on null first run ok")
+
+
+def test_route_retry_hints_preserves_majority_exact_skip():
+    """The existing majority exact-match trigger still wins before retry eligibility: one
+    unhinted first run, no raw records, and no fabricated hints marker."""
+    from . import kb
+    with tempfile.TemporaryDirectory() as tmp, _env(EXTRACT_MERGE_RUNS="majority", PAGE_SELECT_HINTS="retry"):
+        app_mod, client = _setup_route(tmp)
+        stored = _run(_full_income_values())
+        kb.save_extraction("acme_2025", "income_statement", stored)
+        calls, orig = _stub_model(app_mod, [copy.deepcopy(stored)])
+        try:
+            r = _post(client)
+            assert r.status_code == 200, r.text
+            x = r.json()
+            assert [call["page_select_hints"] for call in calls] == [False], calls
+            assert x["merge"]["runs"] == 1 and "hints" not in x["merge"], x["merge"]
+        finally:
+            _teardown_route(app_mod, orig)
+    print("route retry hints preserves exact skip ok")
+
+
 if __name__ == "__main__":
     test_mode_env()
     test_union_lone_value()
@@ -443,4 +506,7 @@ if __name__ == "__main__":
     test_route_union_two_runs_two_records()
     test_route_majority_skips_on_exact_match()
     test_route_majority_stored_votes_when_pipeline_generated()
+    test_route_retry_hints_only_on_failed_or_null_first_run()
+    test_route_retry_hints_on_null_first_run()
+    test_route_retry_hints_preserves_majority_exact_skip()
     print("merge self-check ok")
