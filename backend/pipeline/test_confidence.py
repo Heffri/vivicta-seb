@@ -3637,8 +3637,42 @@ def test_financial_liabilities_rollforward_total():
     print("financial-liabilities roll-forward self-check ok")
 
 
+def test_cash_flow_citation_refusal():
+    """v155: a cash-flow movement closing balance is not carrying debt."""
+    import copy
+    import json
+    import pathlib
+
+    dm = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
+    dynavox135 = ("Note 27. Supplementary disclosures to the statement of cash flows\n"
+                   "Liabilities related to financing activities\n"
+                   "Consolidated statement of cash flows Interest-bearing borrowings 691.5 202.4 893.8\n"
+                   "Consolidated statement of changes in equity Total 790.8 169.3 141.4 -7.1 9.0 -2.1 1,101.3\n")
+    rows = x._page_rows(dynavox135)
+    cited = "Consolidated statement of cash flows Interest-bearing borrowings 691.5 202.4 893.8"
+    assert x._table_scope(rows, None, rows.index(cited), "carrying", dm["table_scope_words"],
+                          debt_words=x._debt_subject_words(dm)) == "cash_flow", rows
+    # A navigation/header mention cannot brand an ordinary balance-sheet row.
+    sidebar = x._page_rows("Consolidated statement of cash flows\nInterest-bearing loans 896.2 691.5\n")
+    assert x._table_scope(sidebar, None, 1, "carrying", dm["table_scope_words"],
+                          debt_words=x._debt_subject_words(dm)) == "unknown", sidebar
+    answer = [{"key": sf["key"], "value": 893.8 if sf["key"] == "total_debt" else None,
+               "unit": "MSEK" if sf["key"] == "total_debt" else None,
+               "period": "2025" if sf["key"] == "total_debt" else None,
+               "raw_label": "Interest-bearing borrowings" if sf["key"] == "total_debt" else None,
+               "source": {"page": 1, "quote": cited} if sf["key"] == "total_debt" else None}
+              for sf in dm["fields"]]
+    x.call_llm = lambda *a, **k: {"fields": copy.deepcopy(answer)}
+    out = x.extract([dynavox135], [1], dm, {"fiscal_year": 2025})
+    total = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert total["value"] is None and total["source"] is None, (total, out["warnings"])
+    assert any("cash-flow statement" in warning and "893.8" in warning for warning in out["warnings"]), out["warnings"]
+    print("cash-flow citation refusal self-check ok")
+
+
 if __name__ == "__main__":
     test_confidence_never_exceeds_one()
     test_torn_bucket_headers()
     test_financial_liabilities_rollforward_total()
+    test_cash_flow_citation_refusal()
     demo()

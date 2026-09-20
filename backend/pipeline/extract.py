@@ -2023,7 +2023,8 @@ _GROUP_SECTION_WORDS = ("group", "koncernen", "koncern", "koncernens", "consolid
 # section-heading families that re-open the Group's own tables after a Parent Company block
 _SEC_HEADING_SUFFIX = re.compile(r"(?i)\s*[,;:]?\s*(?:msek|sek\s*m|sekm|sek|meur|eur\s*m|usd\s*m|cad\s*m|"
                                  r"gbp\s*m|mkr|mdkk|dkk|nok|isk|tkr|ksek|kkr|million|milljoner|mn)\s*$")
-_REFUSED_SCOPES = ("undiscounted", "all_liabilities", "non_debt", "parent")  # v103's two refusals + v111's two
+_REFUSED_SCOPES = ("undiscounted", "all_liabilities", "non_debt", "parent", "cash_flow")  # v103's two refusals + v111's two + v155's cash-flow movement table
+_CASH_FLOW_STATEMENT = re.compile(r"(?i)\b(?:consolidated\s+)?statement\s+of\s+cash\s+flows?\b|\bcash\s+flow\s+statement\b")
 
 
 def _debt_subject_words(schema: dict) -> list[str]:
@@ -2129,14 +2130,17 @@ def _table_scope(rows: list[str], i_header: int | None, i_total: int, basis: str
         liabilities", whose "Within 1 year 87" the column-order repair wrote over the model's own
         correct current-total 192 with). A debt word anywhere in the table's title or own rows
         rescues it -- debt words win;
-    "parent" -- v111: the table sits in a Parent Company / Moderbolaget / Moderföretaget section
+     "parent" -- v111: the table sits in a Parent Company / Moderbolaget / Moderföretaget section
         (the nearest entity section heading above it, _nearest_entity_section) that no Group/
         Koncernen/Consolidated heading has since closed: the Group's total must not take buckets from
         the parent's own table -- refused under both bases (Momentum p.111's parent lease maturity
         "Within 1 year 2" against the Group's 622 balance-sheet total). v052's paired Koncernen|
-        Moderbolaget column headers are one table's two column groups, not section headings, and
-        keep their own read;
-    "unknown" -- no marker provable on the page: exactly today's behaviour, no refusal. A markerless
+         Moderbolaget column headers are one table's two column groups, not section headings, and
+         keep their own read;
+     "cash_flow" -- v155: the cited row itself names a cash-flow statement. A financing-movement
+         closing balance is not a carrying debt or maturity figure, even when it looks plausible;
+         a navigation/sidebar mention elsewhere on the page is deliberately insufficient;
+     "unknown" -- no marker provable on the page: exactly today's behaviour, no refusal. A markerless
         all-liabilities table (Karnell's earn-outs and accounts-payable rows) is NOT refused here:
         v095's debt-row-first ordering already governs it, and a bare word-list refusal would take
         label-pinned reads off balance sheets and torn pages (Alligo, RaySearch, Svedbergs,
@@ -2157,6 +2161,11 @@ def _table_scope(rows: list[str], i_header: int | None, i_total: int, basis: str
     title, body = _scope_zone(rows, i_header, i_total)
     tlow = " ".join(r.translate(_DASHES).lower() for r in title)
     blow = " ".join(r.translate(_DASHES).lower() for r in body)
+    # v155: a cash-flow movement row can close on a plausible borrowing balance but is not a
+    # carrying-amount or maturity table. Require the target row itself to name the statement:
+    # navigation/sidebar labels elsewhere on a page must never classify an unrelated table.
+    if _CASH_FLOW_STATEMENT.search(rows[i_total]):
+        return "cash_flow"
     if _CARRY_COLUMN.search(tlow) or _CARRY_COLUMN.search(blow) \
             or _CARRY_COLUMN.search(rows[i_total].translate(_DASHES)):
         return "carrying"  # the table's own carrying column -- the carrying read, both bases (v076/v085)
@@ -2194,6 +2203,8 @@ def _scope_reason(rows: list[str], i_header: int | None, i_total: int, scope_wor
         hit = next((r for r in title if any(w in r.translate(_DASHES).lower() for w in nd_words)), None)
         frag = (hit if hit is not None else (title[0] if title else rows[i_total])).strip()
         return f"table {frag!r} is a non-debt subject table"
+    if scope == "cash_flow":
+        return f"row {rows[i_total].strip()!r} is in a cash-flow statement"
     hit = next((r for r in title if any(w in r.translate(_DASHES).lower() for w in und_words)), None)
     frag = (hit if hit is not None else (title[0] if title else rows[i_total])).strip()
     if scope != "all_liabilities":
