@@ -110,6 +110,20 @@ def save_extraction(stem: str, section: str, extraction: dict) -> Path:
     return p
 
 
+def save_run(stem: str, section: str, n: int, result: dict) -> Path:
+    """Per-run raw extraction record, `extractions/<section>.run<n>.json` (v133): the inputs the
+    merged section file was built from, so an offline audit can replay a merge without rerunning
+    the model. Same atomic write as save_extraction; never a section itself (see _section_files)."""
+    return save_extraction(stem, f"{section}.run{n}", result)
+
+
+def _section_files(stem: str) -> list[Path]:
+    """extractions/<section>.json only -- never <section>.run<n>.json (v133's per-run merge
+    records, audit-only): section names are [a-z0-9_]+, the run records carry a dot."""
+    d = kb_dir() / stem / "extractions"
+    return [p for p in sorted(d.glob("*.json")) if re.fullmatch(r"[a-z0-9_]+", p.stem)] if d.is_dir() else []
+
+
 # ---- chunking ------------------------------------------------------------------------------
 
 def _windows(text: str, size=CHUNK, overlap=OVERLAP) -> list[tuple[int, str]]:
@@ -145,7 +159,7 @@ def chunks(stem: str) -> list[dict]:
     out = [{"page": n, "start": s, "text": t} for n, text in sorted(_pages(stem).items()) for s, t in _windows(text)]
     meta = _meta(stem)
     who = f"{meta.get('company') or stem} FY{meta.get('fiscal_year') or '?'}"
-    for p in sorted((kb_dir() / stem / "extractions").glob("*.json")):
+    for p in _section_files(stem):
         x = json.loads(p.read_text(encoding="utf-8"))
         title = _title(x.get("section") or p.stem)
         for f in x.get("fields", []):
@@ -204,7 +218,7 @@ def index(stem: str, force=False) -> dict:
     share a cosine space, so the old file is not mined for reuse either."""
     d = kb_dir() / stem
     emb = d / "embeddings.jsonl"
-    deps = [d / "pages.jsonl", *(d / "extractions").glob("*.json")]
+    deps = [d / "pages.jsonl", *_section_files(stem)]
     same_model = _emb_model(stem) == embed_model()
     if not force and same_model and emb.exists() and emb.stat().st_mtime >= max(x.stat().st_mtime for x in deps):
         return {"chunks": len(_rows(stem)), "embed_model": embed_model(), "cached": True}
@@ -268,7 +282,7 @@ def _bm25(stem: str) -> dict:
     embeddings file -- zero disk output, so bm25 mode never touches embeddings.jsonl."""
     d = kb_dir() / stem
     pages = d / "pages.jsonl"
-    exs = list((d / "extractions").glob("*.json"))
+    exs = _section_files(stem)
     key = (pages.stat().st_mtime, max((p.stat().st_mtime for p in exs), default=0.0))
     if stem in _bm25_cache and _bm25_cache[stem][0] == key:
         return _bm25_cache[stem][1]
@@ -422,7 +436,7 @@ def entries() -> list[dict]:
                     and (p / "meta.json").is_file() and (p / "pages.jsonl").is_file()):
         m = _meta(d.name)
         out.append({"stem": d.name, "report_id": None, "company": m.get("company"), "fiscal_year": m.get("fiscal_year"),
-                    "pages": m.get("pages", 0), "sections": sorted(p.stem for p in (d / "extractions").glob("*.json")),
+                    "pages": m.get("pages", 0), "sections": sorted(p.stem for p in _section_files(d.name)),
                     "indexed": (d / "embeddings.jsonl").exists()})
     return out
 
