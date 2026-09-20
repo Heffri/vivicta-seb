@@ -1659,6 +1659,7 @@ def demo():
     captured = {}
 
     def capture_llm(system, user, schema=x.PAGE_SELECT_SCHEMA, name="page_select"):
+        captured["system"] = system
         captured["user"] = user
         return {"pages": [1, 2]}
     x.call_llm = capture_llm
@@ -1673,6 +1674,58 @@ def demo():
     assert "7" not in user.splitlines(), user  # bare page-number line stripped (not just "differs per page", see locate's own comment)
     assert "\n...\n" in user  # the head/keyword-hits separator only appears once something was found beyond the head
     assert any(l.endswith(": Note 20 Borrowings") for l in user.splitlines()), user  # the heading, past the head cutoff, surfaces numbered
+    # v146 red: this is the page-select prompt assembly itself, before its zero-model page hints exist.
+    # The compact pages below preserve the discriminating title/table lines of v124's real Avarda pages:
+    # p.27 is the group balance sheet and p.81 says its liquidity table is contractual/undiscounted.
+    avarda = [""] * 81
+    avarda[26] = ("BALANCE SHEET - GROUP\nSEK thousand Note 31 Dec 2025 31 Dec 2024\n"
+                  "TOTAL ASSETS 29,118,468 25,069,605\nLIABILITIES AND EQUITY\n"
+                  "TOTAL LIABILITIES AND EQUITY 29,118,468 25,069,605\n")
+    avarda[79] = "Remaining interest term to maturity\n31 Dec 2025 SEK thousand Up to 3 months\n"
+    avarda[80] = ("Liquidity risk\nThe amounts shown in the table represent contractual, undiscounted liquidity flows.\n"
+                  "Remaining maturity\n31 Dec 2025 SEK thousand Payable on demand Up to 3 months\n")
+    captured.clear()
+    x._select_pages(dm, [80, 81, 27], avarda)
+    assert "=== PAGE 27 [balance sheet] ===" in captured["user"], captured["user"]
+    assert x.PAGE_SELECT_DEBT_MATURITY_HINT in captured["system"], captured["system"]
+
+    # v146 green: all fixtures are compact, frozen title/table lines from v124's cited real pages --
+    # never a read of mutable data/kb (LESSONS 43). The range of expected tags proves title-zone scope:
+    # Morrow p.74 and Synsam p.122/p.124 are relevant prose/adjacent pages but carry no qualifying title.
+    assert x._page_select_tags(dm, [80, 81, 27], avarda) == {
+        81: ["liquidity-risk / undiscounted"], 27: ["balance sheet"]}
+
+    lime = [""] * 91
+    lime[71] = ("Liquidity risk - Group\nAs of 31 December 2025 Less than 3 months Between 3 months and 1 year\n"
+                "Borrowing (incl. overdraft) 15,000 51,396 60,000 25,000\n")
+    lime[72] = "4. OPERATIONAL RISKS\nThe Group is exposed to various risks through its operations.\n"
+    lime[90] = ("21. BANK LOANS, LEASE LIABILITIES AND OTHER LIABILITIES ADDITIONAL PURCHASE PRICE\n"
+                "The Group The Parent\nNon-current liability 2025 2024 2025 2024\nBank loan 85,000 145,000 - 12,500\n"
+                "Bank loan\nBank loans have been taken out by the parent company and run until 2026 and 2027.\n")
+    assert x._page_select_tags(dm, [72, 73, 91], lime) == {
+        72: ["liquidity-risk / undiscounted"], 91: ["borrowings note: carrying"]}
+
+    morrow = [""] * 75
+    morrow[42] = ("Balance sheet\nAmounts in NOK million Note\n31 December 2025 2024\n"
+                  "Total assets 20,910.4 18,616.9\nTotal liabilities and equity 20,910.4 18,616.9\n")
+    morrow[73] = ("Note 17 Liquidity and interest rate risk\nLiquidity risk\n"
+                  "The liquidity risk of the Bank arises from or results from the maturity profile of the Bank's assets and liabilities. "
+                  "Below follows an overview of different time intervals as to when the Bank's assets and liabilities mature.\n"
+                  "DISTRIBUTION OF TERMS AS AT 31 DECEMBER 2024\nAmounts in NOK million\n"
+                  "Loans and deposits with credit institutions 1,024.1 - - - - 1,024.1\n")
+    morrow[74] = "Interest rate risk\nAmounts in NOK million 0 month < 3 months No interest Total\n"
+    assert x._page_select_tags(dm, [74, 75, 43], morrow) == {43: ["balance sheet"]}
+
+    synsam = [""] * 124
+    synsam[121] = ("Loans from financial institutions amounted to SEK 2,718 million on 31 December 2025, of which current "
+                   "liabilities amounted to SEK 0 million.\nThe loans are payable in full upon maturity and run for five years.\n")
+    synsam[122] = ("Maturity structures for financial liabilities – undiscounted cash flows\nGroup\n"
+                   "31 Dec 2025 Interest rate Less than 1 year 1–5 years More than 5 years Total\n"
+                   "Loans from financial institutions 3.40–3.57% 94 3,060 – 3,154\n")
+    synsam[123] = ("Loans from financial institutions by currency\nGroup\n31 Dec 2025 31 Dec 2024\n"
+                   "Loans from financial institutions 2,733 2,619\n")
+    assert x._page_select_tags(dm, [123, 124, 122], synsam) == {123: ["liquidity-risk / undiscounted"]}
+    assert "Pages tagged liquidity-risk / undiscounted list contractual cash flows" in x.PAGE_SELECT_DEBT_MATURITY_HINT
     # v050: a prose no-debt statement has no digit for _value_in_quote, so both provenance gates dropped the
     # model's 0 as "computed, not read" (v048's recorded warning for Creades, seed 4, p.61 real text). The
     # total_debt schema field now opts in with "zero_if_stated" (the field-level analogue of a check's

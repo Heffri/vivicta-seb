@@ -138,9 +138,12 @@ PAGE_SELECT_PROMPT = """You are given the start of {n} candidate pages from a co
 
 {description}
 
+{selection_hint}
+
 Always name TWO pages: the primary page (the one with the table itself, must be one of the candidates above) and a companion page next to it, since a table's header or rows often continue onto the neighbouring page. Default the companion to primary+1; use primary-1 instead only if the table's own heading or first rows actually sit on the page before the primary one -- the companion does not itself have to be one of the candidates above.
 
 Return ONE JSON object {{"pages": [primary, companion]}}, primary first. Never invent a primary page number that is not listed above."""
+PAGE_SELECT_DEBT_MATURITY_HINT = "Pick the page whose table states carrying amounts of borrowings / interest-bearing liabilities (the borrowings note, or the balance sheet's interest-bearing lines). Pages tagged liquidity-risk / undiscounted list contractual cash flows and are not the target unless no other candidate holds the borrowings."
 
 # EXTRACT_QUOTE_RETRY: the follow-up call's schema is the field structure's own subset -- the key, the
 # (possibly corrected) value, and the source line copied verbatim; everything else (label, unit, period,
@@ -202,6 +205,65 @@ def _page_snippet(text: str, keywords: list[str]) -> str:
     return out
 
 
+def _page_title_blocks(text: str) -> list[str]:
+    """The short title blocks immediately above page tables, using _table_scope's own bounded walk.
+    This deliberately does not reach through intervening prose to a loose section heading: the same
+    distinction lets the carrying-table guard leave MedCap's carrying table alone below its earlier
+    liquidity-risk prose (v103/v111)."""
+    rows = _page_rows(text)
+    blocks: list[str] = []
+    for i, row in enumerate(rows):
+        if not i or not re.search(r"\d", row):
+            continue
+        title, _ = _scope_zone(rows, None, i)
+        if title:
+            block = " ".join(title).lower()
+            if block not in blocks:
+                blocks.append(block)
+    return blocks
+
+
+def _schema_keyword_in_title(title: str, keywords: list[str]) -> bool:
+    """Whether a compact table title contains a schema keyword, tolerant only of ordinary plural
+    inflection and word order. The terms come solely from schema.keywords: for example, its existing
+    ``loans from banks`` matches Lime's ``Bank loans`` title, while Synsam's loans-by-currency title
+    lacks the schema phrase's ``bank`` term. No company vocabulary belongs in pass 1."""
+    words = {w.rstrip("s") if len(w) > 4 else w for w in re.findall(r"[^\W\d_]+", title.lower())}
+    for keyword in keywords:
+        terms = [w.rstrip("s") if len(w) > 4 else w for w in re.findall(r"[^\W\d_]+", keyword.lower()) if len(w) > 4]
+        if terms and all(term in words for term in terms):
+            return True
+    return False
+
+
+def _page_select_tags(schema: dict, pages: list[int], texts: list[str]) -> dict[int, list[str]]:
+    """Zero-model debt-page hints for pass 1. The balance-sheet anchor is locate.balance_sheet_page
+    (v139), and the liquidity title-zone test is _scope_zone, the exact bounded title-block logic used
+    by _table_scope (v103/v111). A page gets at most the independent balance-sheet hint plus one
+    mutually-exclusive table-basis hint; other schemas keep their existing untagged prompt."""
+    if schema.get("name") != "debt_maturity":
+        return {}
+    undiscounted_words = [w.lower() for w in schema.get("table_scope_words", {}).get("undiscounted", [])]
+    keywords = schema.get("keywords", [])
+    balance_sheet = locate.balance_sheet_page(texts)
+    tagged: dict[int, list[str]] = {}
+    for page in pages:
+        if not isinstance(page, int) or not 1 <= page <= len(texts):
+            continue
+        titles = _page_title_blocks(texts[page - 1])
+        is_undiscounted = any(word in title for title in titles for word in undiscounted_words)
+        tags: list[str] = []
+        if page == balance_sheet:
+            tags.append("balance sheet")
+        if is_undiscounted:
+            tags.append("liquidity-risk / undiscounted")
+        elif any(_schema_keyword_in_title(title, keywords) for title in titles):
+            tags.append("borrowings note: carrying")
+        if tags:
+            tagged[page] = tags
+    return tagged
+
+
 def _select_pages(schema: dict, pages: list[int], texts: list[str]) -> list[int] | None:
     """EXTRACT_TWO_PASS pass 1: ask the model which of the candidate pages (locate.candidate_pages, up to
     top_n=8) holds the statement itself, from a head-of-page snippet of each (_page_snippet) -- cheaper
@@ -217,8 +279,13 @@ def _select_pages(schema: dict, pages: list[int], texts: list[str]) -> list[int]
         return None
     keywords = [k.lower() for k in schema.get("keywords", [])]
     cleaned = locate.strip_boilerplate(texts)
-    user = "\n\n".join(f"=== PAGE {n} ===\n{_page_snippet(cleaned[n - 1], keywords)}" for n in pages)
-    system = PAGE_SELECT_PROMPT.format(n=len(pages), title=schema.get("title", schema["name"]), description=schema.get("description", ""))
+    tags = _page_select_tags(schema, pages, cleaned)
+    user = "\n\n".join(
+        f"=== PAGE {n}{''.join(f' [{tag}]' for tag in tags.get(n, []))} ===\n{_page_snippet(cleaned[n - 1], keywords)}"
+        for n in pages)
+    selection_hint = PAGE_SELECT_DEBT_MATURITY_HINT if schema.get("name") == "debt_maturity" else ""
+    system = PAGE_SELECT_PROMPT.format(n=len(pages), title=schema.get("title", schema["name"]),
+                                       description=schema.get("description", ""), selection_hint=selection_hint)
     try:
         got = call_llm(system, user, PAGE_SELECT_SCHEMA, "page_select").get("pages")
     except Exception:
