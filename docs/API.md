@@ -239,7 +239,10 @@ data/kb/<stem>/
 - Upload or library registration writes `meta.json` + `pages.jsonl`. `/extract` writes `extractions/<section>.json`.
 - `EXTRACT_MERGE_RUNS=off|union|majority` (default `off` — the route is unchanged): with `union` or `majority`, `/extract`
   runs the extraction a second time on the same pages and merges field by field — the run whose identity check passed
-  wins, then higher confidence, then the second run (v129's rules; values within ±2 count as the same answer). Both raw
+  wins; when the checks agree, values within ±2 count as the same answer and higher confidence picks whose copy to keep
+  (a confidence tie keeps the second run), while a conflicting pair publishes null — with neither check nor a
+  corroborating vote on either side, no signal says which run is right (v129's rules with the v145/v145-b conflict rule,
+  measured on the v129/v136/v141 rerun data). Both raw
   answers are saved as `extractions/<section>.run1.json` / `.run2.json` beside the merged `<section>.json`, and the merged
   result carries a top-level `"merge"` block (`mode`, `runs`, per-field `decisions`) plus a `merge:` summary warning.
   `majority` counts the stored answer as a third vote when it is pipeline-generated (a reviewed extraction never votes);

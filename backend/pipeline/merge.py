@@ -13,8 +13,12 @@ run reports (value/confidence/evidence/source) and whether the run's identity ch
 caller recomputes the merged checks with extract's own checker (`recheck`), which is the one part
 that needs the schema and the page texts. Parameter notes: a value "matches" another within +/-2
 absolute (the work order's band; eval/run.py's relative values_match is for scoring, not a rule
-input), and a confidence tie goes to run2 -- v129 measured tie->run1 one company higher (academedia),
-the work order pins run2 as the last tiebreak.
+input). When the two runs' identity checks agree, agreeing values are one answer (the copy choice
+goes to confidence, a confidence tie to run2), and a *conflict* has no signal to side with: v145
+measured the tie-conflicts in the v129/v136/v141 datasets at run1 right 1 -- academedia 12103 --
+vs run2 right 2 -- net_insight 39415/8305 -- and the v145-b ruling folded the higher-confidence
+branch in after it scored 0/4 on the same datasets' conflicts, so any same-check-state conflict
+publishes null (v129 R3's spirit: never publish a coin flip) where v133 had pinned run2.
 """
 import copy
 import os
@@ -51,40 +55,54 @@ def _identity_ok(run: dict) -> bool | None:
     return None if check is None else bool(check.get("passed"))
 
 
-def _pick(a: dict, b: dict, ia, ib) -> tuple[dict, str, str]:
-    """(field, run name, reason) between two non-null answers: the run whose identity check passed;
-    the same check state -> higher confidence; a tie -> run2 (v129's R2 tiebreak, work order)."""
+def _pick(a: dict, b: dict, ia, ib) -> tuple[dict, str, str, str | None]:
+    """(field, run name, reason, kind) between two non-null answers; kind is None when field is a
+    synthesized null whose reason already carries the wording. The run whose identity check passed
+    wins. With the same check state, agreeing values (+/-2) are one answer -- both sides carry the
+    same verdict on every agreeing instance measured -- so the copy choice goes to confidence, a
+    confidence tie to run2. A conflict has no signal to side with: v145 measured the tie-conflicts
+    across the v129/v136/v141 datasets at run1 right 1 / run2 right 2 / both wrong 0, and v145-b
+    folded the higher-confidence branch in after it scored 0/4 on the same datasets' conflicts --
+    so any same-state conflict publishes null in extract()'s own dropped-field shape."""
+    kind = "agree" if _same(a.get("value"), b.get("value")) else "conflict"
     if ia and not ib:
-        return a, "run1", "check passed"
+        return a, "run1", "check passed", kind
     if ib and not ia:
-        return b, "run2", "check passed"
-    if (a.get("confidence") or 0.0) > (b.get("confidence") or 0.0):
-        return a, "run1", "higher confidence"
-    if (b.get("confidence") or 0.0) > (a.get("confidence") or 0.0):
-        return b, "run2", "higher confidence"
-    return b, "run2", "confidence tie -> run2"
+        return b, "run2", "check passed", kind
+    if _same(a.get("value"), b.get("value")):
+        if (a.get("confidence") or 0.0) > (b.get("confidence") or 0.0):
+            return a, "run1", "higher conf", "agree"
+        if (b.get("confidence") or 0.0) > (a.get("confidence") or 0.0):
+            return b, "run2", "higher conf", "agree"
+        return b, "run2", "tie -> run2", "agree"
+    null = copy.deepcopy(a)
+    null.update(value=None, unit=None, period=None, raw_label=None, source=None, confidence=0.0, evidence=[])
+    return null, "null", "conflict, no signal -> null", None
 
 
 def _union(a: dict, b: dict, ia, ib) -> tuple[dict, str]:
-    """v129 R2 per field: the non-null side wins; two answers go to the check, then confidence,
-    then run2 -- whether they agree within the band or conflict makes no difference to who wins
-    (v129 scored it that way), only to the recorded reason."""
+    """v129 R2 per field with v145-b's conflict rule: the non-null side wins; two answers go to the
+    check, then -- only if the values agree within the band -- to confidence and the run2 tie; a
+    conflict publishes null. Whether they agree within the band or conflict changes which branch
+    decides, and the recorded reason names it."""
     if a.get("value") is None and b.get("value") is None:
-        return a, "null (both null)"
+        return a, "null (union: both null)"
     if a.get("value") is None:
-        return b, "run2 (only non-null)"
+        return b, "run2 (union: only non-null)"
     if b.get("value") is None:
-        return a, "run1 (only non-null)"
-    kind = "agree" if _same(a.get("value"), b.get("value")) else "conflict"
-    field, name, reason = _pick(a, b, ia, ib)
-    return field, f"{name} ({kind}: {reason})"
+        return a, "run1 (union: only non-null)"
+    field, name, reason, kind = _pick(a, b, ia, ib)
+    return field, f"{name} (union: {reason})" if kind is None else f"{name} ({kind}: union: {reason})"
 
 
 def _majority(a: dict, b: dict, s: dict, ia, ib) -> tuple[dict, str]:
     """v129 R5 per field: the three votes {run1, run2, stored} decide by value (null votes as
     null), >=2 votes win, and the field comes from the winning value's own run -- run1 before
     run2 before stored. Three mutually distinct answers fall back to union over the two fresh
-    runs: the stored answer may not smuggle in a value no fresh run supports."""
+    runs: the stored answer may not smuggle in a value no fresh run supports. By construction the
+    fallback only ever sees agreeing runs when both are null -- two agreeing values are already a
+    2-vote majority -- so with both runs non-null it decides on the check state or, same state,
+    publishes null (v145-b)."""
     votes = {"run1": a.get("value"), "run2": b.get("value"), "stored": s.get("value")}
     for name, field in (("run1", a), ("run2", b), ("stored", s)):
         agree = [n for n, v in votes.items() if _same(votes[name], v)]
@@ -92,13 +110,14 @@ def _majority(a: dict, b: dict, s: dict, ia, ib) -> tuple[dict, str]:
             how = "unanimous" if len(agree) == 3 else "+".join(agree)
             return field, f"{name} (majority: {how})"
     if a.get("value") is None and b.get("value") is None:
-        return a, "null (both null)"
+        return a, "null (3-way split -> union: both null)"
     if a.get("value") is None:
         return b, "run2 (3-way split -> union: only non-null)"
     if b.get("value") is None:
         return a, "run1 (3-way split -> union: only non-null)"
-    field, name, reason = _pick(a, b, ia, ib)
-    return field, f"{name} (3-way split -> union: {reason})"
+    field, name, reason, kind = _pick(a, b, ia, ib)  # the fallback has no third vote either, so union's rule governs it
+    return field, (f"{name} (3-way split -> union: {reason})" if kind is None
+                   else f"{name} ({kind}: 3-way split -> union: {reason})")
 
 
 def merge_runs(run1: dict, run2: dict, stored: dict | None, mode: str) -> tuple[dict, dict]:
