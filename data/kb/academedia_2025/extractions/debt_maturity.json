@@ -9,13 +9,13 @@
     {
       "key": "total_debt",
       "label": "Total borrowings",
-      "value": 12114,
+      "value": 12103,
       "unit": "MSEK",
       "period": "2025",
       "raw_label": "SUMMA",
       "source": {
         "page": 87,
-        "quote": "SUMMA 12 114 13 097"
+        "quote": "SUMMA 13 090 -2 460 220 30 1 222 12 103"
       },
       "confidence": 0.9,
       "evidence": [
@@ -70,6 +70,7 @@
   ],
   "warnings": [
     "two_pass: page [87, 88] selected from candidates [97, 98, 109, 87]",
-    "published: seedseed-rerun-v119-kb run replayed with extract.py @ d3eb5fc8"
+    "published: seedseed-rerun-v119-kb run replayed with extract.py @ d3eb5fc8",
+    "published: seedv155-publish-kb run replayed with extract.py @ 7fabc1c9"
   ]
 }

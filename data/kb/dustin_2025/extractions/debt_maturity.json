@@ -9,23 +9,13 @@
     {
       "key": "total_debt",
       "label": "Total borrowings",
-      "value": 3055,
-      "unit": "SEK million",
-      "period": "2025",
-      "raw_label": "Total",
-      "source": {
-        "page": 117,
-        "quote": "Total 4,188 -1,217 - 158 -101 27 3,055"
-      },
-      "confidence": 0.9,
-      "evidence": [
-        "quote_on_page",
-        "value_in_quote",
-        "arith_ok",
-        "period_ok",
-        "page_is_statement",
-        "unit_ok"
-      ]
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
     },
     {
       "key": "due_within_1_year",
@@ -70,6 +60,7 @@
   ],
   "warnings": [
     "two_pass: page [116, 117] selected from candidates [116, 117, 123]",
-    "published: seedseed-rerun-v114-kb run replayed with extract.py @ d3eb5fc8"
+    "published: seedseed-rerun-v114-kb run replayed with extract.py @ d3eb5fc8",
+    "published: seedv155-publish-kb run replayed with extract.py @ 7fabc1c9"
   ]
 }

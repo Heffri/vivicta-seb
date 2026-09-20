@@ -20,69 +20,42 @@
     {
       "key": "due_within_1_year",
       "label": "Due within 1 year",
-      "value": 155,
-      "unit": "SEK million",
-      "period": "2025",
-      "raw_label": "Lease liabilities",
-      "source": {
-        "page": 142,
-        "quote": "Lease liabilities 155 37 33 85 151"
-      },
-      "confidence": 0.5,
-      "evidence": [
-        "quote_on_page",
-        "value_in_quote",
-        "period_ok",
-        "page_is_statement",
-        "unit_ok"
-      ]
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
     },
     {
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
-      "value": 37,
-      "unit": "SEK million",
-      "period": "2025",
-      "raw_label": "Lease liabilities",
-      "source": {
-        "page": 142,
-        "quote": "Lease liabilities 155 37 33 85 151"
-      },
-      "confidence": 0.5,
-      "evidence": [
-        "quote_on_page",
-        "value_in_quote",
-        "period_ok",
-        "page_is_statement",
-        "unit_ok"
-      ]
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
     },
     {
       "key": "due_after_5_years",
       "label": "Due after 5 years",
-      "value": 33,
-      "unit": "SEK million",
-      "period": "2025",
-      "raw_label": "Lease liabilities",
-      "source": {
-        "page": 142,
-        "quote": "Lease liabilities 155 37 33 85 151"
-      },
-      "confidence": 0.5,
-      "evidence": [
-        "quote_on_page",
-        "value_in_quote",
-        "period_ok",
-        "page_is_statement",
-        "unit_ok"
-      ]
+      "value": null,
+      "unit": null,
+      "period": null,
+      "raw_label": null,
+      "source": null,
+      "confidence": 0.0,
+      "evidence": []
     }
   ],
   "checks": [
     {
       "name": "maturity_sums_to_total",
       "passed": false,
-      "detail": "TypeError: unsupported operand type(s) for -: 'int' and 'NoneType'"
+      "detail": "missing: due_within_1_year"
     }
   ],
   "warnings": [
@@ -92,6 +65,7 @@
     "due_within_1_year: 582 disagrees with the maturity table; 155 read from 'Lease liabilities 155 37 33 85 151' by its column order",
     "due_1_to_5_years: 3318 disagrees with the maturity table; 37 read from 'Lease liabilities 155 37 33 85 151' by its column order",
     "due_after_5_years: model returned null; 33 read from 'Lease liabilities 155 37 33 85 151' by its column order",
-    "published: seedv144-mtg-kb run replayed with extract.py @ 4d7a4930"
+    "published: seedv144-mtg-kb run replayed with extract.py @ 4d7a4930",
+    "published: seedv155-publish-kb run replayed with extract.py @ 7fabc1c9"
   ]
 }
