@@ -2547,6 +2547,117 @@ def demo():
     got = {f["key"]: f["value"] for f in out["fields"]}
     assert got == {"total_debt": 696629, "due_within_1_year": None, "due_1_to_5_years": None, "due_after_5_years": None}, (got, out["warnings"])
     assert not any("section subtotal" in w for w in out["warnings"]), out["warnings"]
+    # v131: Enea's Note 23 continuation (p.76, real text trimmed to the note) -- the second clean
+    # instance of v108's subtotals ruling (v119), and the first whose note names NO debt word at
+    # all: the table header row is "Financial liabilities 2025 2024 2025 2024" (the schema's lists
+    # carry totals and instrument rows, never the subject line), and the section headings print the
+    # non-breaking hyphen U+2011 ("Non‑current liabilities, interest‑bearing") -- untranslated, the
+    # ASCII tail "current" filed the NON-current heading under B (A rules first only while the
+    # hyphen normalizes). Two gates blocked the walk; both widen inside _subtotal_pair_fill: the
+    # title gate gains the note-family subject wording, _vocab folds U+2011. The pair then fires:
+    # 169,152 + 136,403 = 305,555 (printed nowhere -- p.35's prose "SEK 305.6 million" sits outside
+    # the candidate window), each Summa closing on its own row in all four columns (Group and
+    # Parent side by side, the Group's 2025 first); the model's own bucket reads -- 136,403 within
+    # 1y, 169,152 1-5y, both exactly the note's two sections -- stand untouched.
+    enea76 = ("Note 23 Financial assets and liabilities, cont.\n"
+              "Group Parent Company\n"
+              "Financial liabilities 2025 2024 2025 2024\n"
+              "Non‑current liabilities, interest‑bearing\n"
+              "Liabilities to credit institutions1) 169,152 226,747 169,152 226,747\n"
+              "Total non‑current liabilities, interest‑bearing 169,152 226,747 169,152 226,747\n"
+              "Current liabilities, interest-bearing\n"
+              "Liabilities to credit institutions1) 136,403 51,314 136,403 51,314\n"
+              "Total current liabilities, interest-bearing 136,403 51,314 136,403 51,314\n"
+              "Current liabilities, non-interest bearing\n"
+              "Accounts payable 10,123 21,296 2,651 7,402\n"
+              "Other liabilities 10,675 10,538 5,419 947\n"
+              "Accrued expenses, supplier-related 8,406 16,477 - -\n"
+              "Total current liabilities, non-interest bearing 29,204 48,311 8,070 8,349\n"
+              "Total financial liabilities 334,759 326,372 313,625 286,410\n"
+              "1) Enea has a bank loan with a term of 3 years. The interest rate is EURIBOR 3M (with a floor) plus a market-based margin.\n"
+              "Group Parent Company\n"
+              "Maturity analysis 2025 2024 2025 2024\n"
+              "Non-current and current interest-bearing liabilities\n"
+              "Within 1 year after the balance sheet date 136,403 51,314 136,403 51,314\n"
+              "Later than 1 year but within 3 years after the balance sheet date 169,152 226,747 169,152 226,747\n"
+              "Later than 3 years but within 5 years after the balance sheet date - - - -\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_within_1_year", "value": 136403, "unit": "SEK thousands", "period": "2025",
+         "raw_label": "Within 1 year after the balance sheet date",
+         "source": {"page": 1, "quote": "Within 1 year after the balance sheet date 136,403 51,314 136,403 51,314"}},
+        {"key": "due_1_to_5_years", "value": 169152, "unit": "SEK thousands", "period": "2025",
+         "raw_label": "Later than 1 year but within 3 years after the balance sheet date",
+         "source": {"page": 1, "quote": "Later than 1 year but within 3 years after the balance sheet date 169,152 226,747 169,152 226,747"}},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([enea76], [1], dm_ship, {"fiscal_year": 2025})
+    got = {f["key"]: f for f in out["fields"]}
+    td = got["total_debt"]
+    assert td["value"] == 305555 and td["confidence"] == 1.0 and "value_derived" in td["evidence"] \
+        and "value_in_quote" not in td["evidence"], td
+    assert td["raw_label"] == ("Total non‑current liabilities, interest‑bearing "
+                               "(Non‑current liabilities, interest‑bearing) + Total current "
+                               "liabilities, interest-bearing (Current liabilities, interest-bearing)"), td
+    assert td["source"] == {"page": 1, "quote": "Total non‑current liabilities, interest‑bearing "
+                                                "169,152 226,747 169,152 226,747 Current liabilities, interest-bearing "
+                                                "Liabilities to credit institutions1) 136,403 51,314 136,403 51,314 "
+                                                "Total current liabilities, interest-bearing 136,403 51,314 136,403 51,314"}, td["source"]
+    w1 = got["due_within_1_year"]
+    assert w1["value"] == 136403 and w1["confidence"] == 1.0 and "value_in_quote" in w1["evidence"] \
+        and "value_derived" not in w1["evidence"] and w1["source"]["quote"] == \
+        "Within 1 year after the balance sheet date 136,403 51,314 136,403 51,314", w1
+    assert got["due_1_to_5_years"]["value"] == 169152 and got["due_after_5_years"]["value"] is None
+    assert out["checks"][0]["detail"] == "missing: due_after_5_years", out["checks"]  # no >5y row printed: honestly missing
+    assert any("sum to 305555 (169152 + 136403)" in w and "the two closures alone prove it" in w
+               for w in out["warnings"]), out["warnings"]
+    # the same note with the total pretending a citation: 305,555 quoted off a row that is not
+    # printed. The fabricated read is dropped as computed-not-read, and the note's own sections
+    # still close the total -- the adoption stands on the note's proof, not the model's.
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 305555, "unit": "SEK thousands", "period": "2025",
+         "raw_label": "Total interest-bearing liabilities",
+         "source": {"page": 1, "quote": "Total interest-bearing liabilities 305,555"}},
+        {"key": "due_within_1_year", "value": 136403, "unit": "SEK thousands", "period": "2025",
+         "raw_label": "Within 1 year after the balance sheet date",
+         "source": {"page": 1, "quote": "Within 1 year after the balance sheet date 136,403 51,314 136,403 51,314"}},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    out = x.extract([enea76], [1], dm_ship, {"fiscal_year": 2025})
+    got = {f["key"]: f for f in out["fields"]}
+    assert got["total_debt"]["value"] == 305555 and got["total_debt"]["confidence"] == 1.0 \
+        and got["total_debt"]["source"]["quote"].startswith("Total non‑current liabilities"), got["total_debt"]
+    assert any("dropped as computed, not read" in w for w in out["warnings"]), out["warnings"]
+    # counter-example 1: the widened title word manufactures nothing on its own -- a "Financial
+    # liabilities" header over sections that are not the current/non-current pair (here a flat
+    # non-interest-bearing list closed by its own grand total) never starts the walk: no A heading.
+    flat = ("Financial liabilities 2025 2024\n"
+            "Accounts payable 10,123 21,296\nOther liabilities 10,675 10,538\n"
+            "Accrued expenses 8,406 16,477\nTotal financial liabilities 29,204 48,311\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None} for k in dmf]}
+    out = x.extract([flat], [1], dm_ship, {"fiscal_year": 2025})
+    assert all(f["value"] is None for f in out["fields"]), out["fields"]
+    assert not any("section subtotal" in w for w in out["warnings"]), out["warnings"]
+    # counter-example 2: the U+2011 hyphen alone neither fires nor widens the subject -- a
+    # receivables note printing the same non-breaking-hyphen section headings has no title word
+    # ("Financial assets" is not one), so the walk never starts however well-formed its pair.
+    assets = ("Financial assets 2025 2024\n"
+              "Non‑current receivables\n"
+              "Tenant loans 500 400\nSumma 500 400\n"
+              "Current receivables\n"
+              "Trade receivables 300 200\nSumma 300 200\n")
+    out = x.extract([assets], [1], dm_ship, {"fiscal_year": 2025})
+    assert all(f["value"] is None for f in out["fields"]), out["fields"]
+    assert not any("section subtotal" in w for w in out["warnings"]), out["warnings"]
+    # counter-example 3: with both gates open, the note's own arithmetic still decides -- section
+    # A's detail row no longer summing to its Summa declines the whole block silently.
+    broken = enea76.replace("Liabilities to credit institutions1) 169,152 226,747 169,152 226,747",
+                            "Liabilities to credit institutions1) 160,000 226,747 160,000 226,747")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None} for k in dmf]}
+    out = x.extract([broken], [1], dm_ship, {"fiscal_year": 2025})
+    assert all(f["value"] is None for f in out["fields"]), out["fields"]
+    assert not any("section subtotal" in w for w in out["warnings"]), out["warnings"]
     # v111: the wrong-table guard's second batch, two more _table_scope refusals under BOTH bases.
     # (a) non-debt-subject tables -- Volati p.177's "Timing of revenue recognition, contract liabilities":
     #     its "Within 1 year 87 87 1" is contract-liability timing, and the statement-spread fill wrote it

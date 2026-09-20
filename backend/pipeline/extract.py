@@ -1246,7 +1246,9 @@ def _subtotal_pair_fill(fields: list[dict], sfs: list[dict], schema: dict, texts
     "current/non-current granularity only" gap 2; recorded, not forced).
 
     Structural, not vocabulary-driven (no schema edit, v088's ruling): a note TITLE row (a debt word
-    of total_debt's own synonyms + row_synonyms, printing no figures) heads a section heading A
+    of total_debt's own synonyms + row_synonyms -- v131: or the note-family subject wording
+    "financial liabilities" / "finansiella skulder", the one debt word the schema lists all lack;
+    printing no figures) heads a section heading A
     (Långfristiga/Non-current/Long-term), then A's detail rows, then A's Summa; directly below, past
     furniture only, a section heading B (Kortfristiga/Current/Short-term), B's rows, B's Summa; and
     no total-shaped row within _PAIR_TAIL_WINDOW rows after B's Summa -- a block that prints its own
@@ -1271,12 +1273,23 @@ def _subtotal_pair_fill(fields: list[dict], sfs: list[dict], schema: dict, texts
     by_key = {f["key"]: f for f in fields}
     debt_words = sorted({w for w in (" ".join(str(s).translate(_DASHES).lower().split())
                                      for s in total_sf.get("synonyms", []) + total_sf.get("row_synonyms", [])) if w})
+    title_words = debt_words + ["financial liabilities", "finansiella skulder"]  # v131: the note-family
+    # subject wording -- Enea's note heads its table "Financial liabilities 2025 2024 2025 2024"
+    # (heading-like: the year row IS the header), and the schema's own lists name totals and instrument
+    # rows, never the note's subject line, so the walk had no title to start from. Both phrases print
+    # across the corpus (data/kb: 172 / 30 stems). Title gate only: _prose_total keeps debt_words.
 
     def _heading_like(r: str) -> bool:  # prints no figures, or only calendar years (a header line)
         return all(isinstance(a, int) and 1900 <= a <= 2100 for a in _row_amounts(r))
 
     def _vocab(r: str) -> str | None:  # which section family a heading names; "non-current" contains "current", so A rules first
-        lab = " ".join(_row_label(r).translate(_DASHES).lower().split())
+        # v131: the non-breaking hyphen U+2011 is a print variant of the dash _DASHES already folds --
+        # Enea p.76 heads section A "Non‑current liabilities, interest‑bearing", and untranslated the
+        # ASCII tail "current" still matches, filing the NON-current heading under B (A rules first
+        # only while the hyphen normalizes). Patched here, not in the shared _DASHES: the table feeds
+        # every other gate in the file, and this walk is where the shape is proven to print (the corpus
+        # prints U+2011 headings for no other debt_maturity-replayable stem).
+        lab = " ".join(_row_label(r).translate(_DASHES).replace("‑", "-").lower().split())
         if any(w in lab for w in _NONCURRENT_WORDS):
             return "A"
         return "B" if any(w in lab for w in _CURRENT_WORDS) else None
@@ -1288,7 +1301,7 @@ def _subtotal_pair_fill(fields: list[dict], sfs: list[dict], schema: dict, texts
     def _find_pair(rows: list[str]) -> tuple | None:
         """(hA, sumA, hB, sumB) of the first qualifying block on the page, or None."""
         for t, r in enumerate(rows):
-            if not _heading_like(r) or not any(w in " ".join(r.translate(_DASHES).lower().split()) for w in debt_words):
+            if not _heading_like(r) or not any(w in " ".join(r.translate(_DASHES).lower().split()) for w in title_words):
                 continue
             hA = next((i for i in range(t + 1, min(t + 1 + _PAIR_TITLE_WINDOW, len(rows)))
                        if _heading_like(rows[i]) and _vocab(rows[i]) == "A"), None)
