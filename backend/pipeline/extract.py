@@ -2025,6 +2025,7 @@ _SEC_HEADING_SUFFIX = re.compile(r"(?i)\s*[,;:]?\s*(?:msek|sek\s*m|sekm|sek|meur
                                  r"gbp\s*m|mkr|mdkk|dkk|nok|isk|tkr|ksek|kkr|million|milljoner|mn)\s*$")
 _REFUSED_SCOPES = ("undiscounted", "all_liabilities", "non_debt", "parent", "cash_flow")  # v103's two refusals + v111's two + v155's cash-flow movement table
 _CASH_FLOW_STATEMENT = re.compile(r"(?i)\b(?:consolidated\s+)?statement\s+of\s+cash\s+flows?\b|\bcash\s+flow\s+statement\b")
+_FINANCING_ACTIVITY_MOVEMENT = re.compile(r"(?i)\bchanges?\s+in\s+(?:financing|financial)\s+activities\b")
 
 
 def _debt_subject_words(schema: dict) -> list[str]:
@@ -2137,9 +2138,10 @@ def _table_scope(rows: list[str], i_header: int | None, i_total: int, basis: str
         "Within 1 year 2" against the Group's 622 balance-sheet total). v052's paired Koncernen|
          Moderbolaget column headers are one table's two column groups, not section headings, and
          keep their own read;
-     "cash_flow" -- v155: the cited row itself names a cash-flow statement. A financing-movement
-         closing balance is not a carrying debt or maturity figure, even when it looks plausible;
-         a navigation/sidebar mention elsewhere on the page is deliberately insufficient;
+     "cash_flow" -- v155: the cited row itself names a cash-flow statement, or its own short table
+         title jointly names a financing-activities movement and cash flow. A movement closing balance
+         is not a carrying debt or maturity figure, even when it looks plausible; a navigation/sidebar
+         mention elsewhere on the page is deliberately insufficient;
      "unknown" -- no marker provable on the page: exactly today's behaviour, no refusal. A markerless
         all-liabilities table (Karnell's earn-outs and accounts-payable rows) is NOT refused here:
         v095's debt-row-first ordering already governs it, and a bare word-list refusal would take
@@ -2162,9 +2164,12 @@ def _table_scope(rows: list[str], i_header: int | None, i_total: int, basis: str
     tlow = " ".join(r.translate(_DASHES).lower() for r in title)
     blow = " ".join(r.translate(_DASHES).lower() for r in body)
     # v155: a cash-flow movement row can close on a plausible borrowing balance but is not a
-    # carrying-amount or maturity table. Require the target row itself to name the statement:
+    # carrying-amount or maturity table. Require the target row itself to name the statement, or
+    # both parts of the financing-activity movement title to live in this table's short title/body:
     # navigation/sidebar labels elsewhere on a page must never classify an unrelated table.
-    if _CASH_FLOW_STATEMENT.search(rows[i_total]):
+    scope_text = " ".join((*title, *body))
+    if _CASH_FLOW_STATEMENT.search(rows[i_total]) or (_FINANCING_ACTIVITY_MOVEMENT.search(scope_text)
+                                                       and re.search(r"(?i)\bcash[ -]?flow\b", scope_text)):
         return "cash_flow"
     if _CARRY_COLUMN.search(tlow) or _CARRY_COLUMN.search(blow) \
             or _CARRY_COLUMN.search(rows[i_total].translate(_DASHES)):

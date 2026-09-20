@@ -3656,6 +3656,14 @@ def test_cash_flow_citation_refusal():
     sidebar = x._page_rows("Consolidated statement of cash flows\nInterest-bearing loans 896.2 691.5\n")
     assert x._table_scope(sidebar, None, 1, "carrying", dm["table_scope_words"],
                           debt_words=x._debt_subject_words(dm)) == "unknown", sidebar
+    dustin117 = ("Changes in financing activities\nNot affecting cash flow\n"
+                  "Aug 31, 2025 Opening balance Cash flow Reclassifications Change in leases Closing balance\n"
+                  "Liabilities to credit institutions 3,619 -1,016 - - 2,538\n"
+                  "Lease liabilities 569 -202 - 158 517\n"
+                  "Total 4,188 -1,217 - 158 3,055\n")
+    dustin_rows, dustin_total = x._page_rows(dustin117), "Total 4,188 -1,217 - 158 3,055"
+    assert x._table_scope(dustin_rows, None, dustin_rows.index(dustin_total), "carrying", dm["table_scope_words"],
+                          debt_words=x._debt_subject_words(dm)) == "cash_flow", dustin_rows
     answer = [{"key": sf["key"], "value": 893.8 if sf["key"] == "total_debt" else None,
                "unit": "MSEK" if sf["key"] == "total_debt" else None,
                "period": "2025" if sf["key"] == "total_debt" else None,
@@ -3667,6 +3675,16 @@ def test_cash_flow_citation_refusal():
     total = next(f for f in out["fields"] if f["key"] == "total_debt")
     assert total["value"] is None and total["source"] is None, (total, out["warnings"])
     assert any("cash-flow statement" in warning and "893.8" in warning for warning in out["warnings"]), out["warnings"]
+    dustin_answer = [{"key": sf["key"], "value": 3055 if sf["key"] == "total_debt" else None,
+                      "unit": "MSEK" if sf["key"] == "total_debt" else None,
+                      "period": "2025" if sf["key"] == "total_debt" else None,
+                      "raw_label": "Total" if sf["key"] == "total_debt" else None,
+                      "source": {"page": 1, "quote": dustin_total} if sf["key"] == "total_debt" else None}
+                     for sf in dm["fields"]]
+    x.call_llm = lambda *a, **k: {"fields": copy.deepcopy(dustin_answer)}
+    out = x.extract([dustin117], [1], dm, {"fiscal_year": 2025})
+    total = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert total["value"] is None and any("cash-flow statement" in warning for warning in out["warnings"]), (total, out["warnings"])
     print("cash-flow citation refusal self-check ok")
 
 
