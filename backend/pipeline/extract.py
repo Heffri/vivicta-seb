@@ -1226,6 +1226,138 @@ def _finer_split_rows(fields: list[dict], schema: dict, texts: list[str], fiscal
         filled.add(key)
 
 
+# v126: the row-window wording of a borrowings note that classifies each instrument's balance by
+# repayment timing instead of printing bucket rows -- Stillfront Note 21 p.109 ("Repayment within
+# 2–5 yr. 620 1,170" per component, "Current liability 675 862", "Repayment after more than 5 yr.
+# 4 –"). Scoped to the "repayment" prefix: bare yr/y stays a non-unit in _bucket_span (v096's
+# deliberate exclusion, unit-table-pinned) and must stay one everywhere else.
+_REPAY_UNIT = r"(?:years?|år|yr\.?|y|months?|månader|mån)"
+_SPAN_NUM_NC = r"(?:\d{1,3}|one|two|three|four|five|ett|två|tre|fyra|fem)"  # _SPAN_NUM without its capture group: the groups here are the wording's own operands
+_REPAY_ROW = re.compile(
+    rf"(?i)\brepayment\s+(?:within\s+({_SPAN_NUM_NC})\s*[-–—]\s*({_SPAN_NUM_NC})\s*({_REPAY_UNIT})"
+    rf"|within\s+({_SPAN_NUM_NC})\s*({_REPAY_UNIT})"
+    rf"|after\s+more\s+than\s+({_SPAN_NUM_NC})\s*({_REPAY_UNIT}))")
+_CURRENT_ROW = re.compile(
+    r"(?<![\w-])(?:current|kortfristig\w*|short[ -]term)\s+(?:liabilit(?:y|ies)|portion|parts?|del(?:ar)?)(?![\w-])",
+    re.I)
+_TOTAL_ROW_WORD = re.compile(r"(?i)\b(?:totalt?|summa|sum)\b")
+
+
+def _wording_months(tok: str, unit: str) -> int:
+    """The wording's own operand in months: a year-ish unit ("years?", "år", "yr.", "y") is twelve, a
+    month unit one; the operand is a digit or one of _SPAN_WORDS' small number words."""
+    return (int(tok) if tok.isdigit() else _SPAN_WORDS[tok]) * (12 if unit[0] in "yå" else 1)
+
+
+def _row_bucket_span(row: str) -> tuple[tuple[int, float], str] | None:
+    """(window, wording) for a maturity-note row whose repayment-timing wording sits at or inside it --
+    the clean interval label ("0–6 months 523 490", _bucket_span on _row_label) or, glued two-column
+    pages being what they are (Stillfront p.109: "Bond loans 2,835 2,829 Repayment within 2–5 yr. 620
+    1,170"), the LAST repayment/current wording whose tail is amounts-only ("Current liability (overdraft
+    facilities) – –" is a different classification, its alpha tail says so). A total word before the
+    wording ("Total ... within 1 year") refuses the row: a total never joins a sum of its own parts."""
+    label = _row_label(row)
+    span = _bucket_span(label)
+    if span is not None and not re.search(r"[^\W\d_]", row[len(label):]):
+        return (span, label)
+    matches = sorted([*_REPAY_ROW.finditer(row), *_CURRENT_ROW.finditer(row)],
+                     key=lambda m: m.start(), reverse=True)
+    for m in matches:
+        if _TOTAL_ROW_WORD.search(row[:m.start()]):
+            continue
+        if re.search(r"[^\W\d_]", row[m.end():]):
+            continue  # wording not at the row's figure edge: what follows is another row's label, not this row's amounts
+        w = " ".join(m.group(0).split())
+        rm = _REPAY_ROW.search(m.group(0))
+        if not rm:
+            return ((0, 12), w)  # the current classification IS the within-1-year window (v110's family)
+        g = rm.groups()
+        if g[0] is not None:  # "Repayment within 2–5 yr."
+            lo, hi = _wording_months(g[0], g[2]), _wording_months(g[1], g[2])
+            if lo <= hi:
+                return ((lo, hi), w)
+        elif g[3] is not None:  # "Repayment within 1 yr."
+            return ((0, _wording_months(g[3], g[4])), w)
+        else:  # "Repayment after more than 5 yr."
+            return ((_wording_months(g[5], g[6]), float("inf")), w)
+    return None
+
+
+def _close(a, b) -> bool:
+    """The v126 tolerance: equal within ±2 absolute or ±0.5% -- rounding of independently rounded rows."""
+    return abs(a - b) <= 2 or (b and abs(a - b) <= 0.005 * abs(b))
+
+
+def _window_row_sum(field: dict, fields: list[dict], schema: dict, texts: list[str], fiscal_year,
+                    pages: list[int], scope_words: dict | None, basis: str,
+                    warnings: list[str]) -> tuple[str, str, int, str, str, int] | None:
+    """v126 (Stillfront Note 21, p.109): a bucket value the model computed by summing the note's own
+    repayment-timing rows -- 710 = the current-classified rows (675 + 35), 5152 = the five "Repayment
+    within 2–5 yr." component rows (620 + 2,835 + 649 + 984 + 64) -- printed as ONE number nowhere,
+    so the computed-not-read guard drops it. The note's rows prove the sum without any label
+    vocabulary: every row of one page whose window (_row_bucket_span -> _span_bucket) falls entirely
+    inside THIS bucket's range, at least two of them, summed in the one column where the note's own
+    total row ties to the already-verified total_debt -- when that sum IS the model's value, the page
+    itself is the provenance and the value keeps as value_derived. Windows, not vocabulary: "Repayment
+    within 2–5 yr." parses by its geometry and "Current liability" by its classification, so no
+    schema word list grows (v088's rule). Returns (quote, raw_label, n, first, last, page) or None."""
+    key = field["key"]
+    if key not in _DATE_BUCKET_KEYS or not isinstance(field.get("value"), (int, float)) or isinstance(field["value"], bool):
+        return None
+    by_key = {g["key"]: g for g in fields}
+    total = by_key.get("total_debt") or {}
+    tsrc = total.get("source") or {}
+    if not isinstance(total.get("value"), (int, float)) or isinstance(total.get("value"), bool) \
+            or not isinstance(tsrc.get("page"), int) or not tsrc.get("quote"):
+        return None
+    for p in sorted({tsrc["page"], *[q for q in pages[:2] if isinstance(q, int)]}):  # the field's cited page first, then the statement spread
+        if not 0 < p <= len(texts):
+            continue
+        text = texts[p - 1]
+        rows = _page_rows(text)
+        if tsrc["quote"] not in rows:  # the column gate needs the note's own total row, on this very page
+            continue
+        ti = rows.index(tsrc["quote"])
+        scope = _table_scope(rows, None, ti, basis, scope_words,
+                             debt_words=_debt_subject_words(schema) if scope_words else None) if scope_words else "unknown"
+        if scope in _REFUSED_SCOPES:
+            # v103/v111: no derivation out of a table the guard refuses -- anchored at total_debt's own row
+            warnings.append(f"{key}: no window-rows derivation -- {_scope_reason(rows, None, ti, scope_words, scope)}; "
+                            f"not read under the {basis} basis")
+            return None
+        header = _row_year_column(rows, ti, fiscal_year) or _year_column(text, fiscal_year)
+        if not header:
+            continue  # no column the fiscal year is provably in
+        col, ncols = header
+        tam = _row_amounts(tsrc["quote"], ncols)
+        if len(tam) != ncols or not _close(tam[col], total["value"]):
+            continue  # the total row does not line up with the year header, or this column is not the verified total's: no read
+        fam: list[tuple[int, str, str, list]] = []
+        for i, r in enumerate(rows):
+            if i == ti:
+                continue
+            got = _row_bucket_span(r)
+            if not got or _span_bucket(got[0]) != key:
+                continue  # another window's row (or no window): never this bucket's summand
+            am = _row_amounts(r, ncols)
+            if len(am) != ncols:
+                continue  # a wrapped header line or furniture row between components
+            fam.append((i, r, got[1], am))
+        if len(fam) < 2:
+            continue
+        value = field["value"]
+        s = round(sum(am[col] for _, _, _, am in fam), 2)
+        if not _close(s, value):
+            continue
+        rs = [r for _, r, _, _ in fam]
+        joined = " ".join(rs)
+        verified = quote_on_page(joined, text)
+        quote = verified if verified == joined else rs[0]  # contiguous rows quote joined (v096's form); scattered ones quote their first row
+        label = " + ".join(w for _, _, w, _ in fam)
+        return quote, label, len(fam), fam[0][2], fam[-1][2], p
+    return None
+
+
 _NONCURRENT_WORDS = ("långfristig", "non-current", "noncurrent", "long-term", "long term")  # v110: the two
 _CURRENT_WORDS = ("kortfristig", "current", "short-term", "short term")  # section-heading families, structure not vocabulary
 _PAIR_TITLE_WINDOW = 8  # rows the section heading may sit below the note title (NOTE's sits directly under it)
@@ -3133,6 +3265,20 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
                 f.update(value=fix[0], period=str(fiscal_year), raw_label=fix[2], source={"page": pages[0], "quote": fix[1]},
                          evidence=["quote_on_page", "value_derived"])
                 values[f["key"]] = fix[0]
+                filled.add(f["key"])
+                continue
+            # Stillfront (v126): the value is the note's own sum of repayment-timing rows of one window
+            # (the five "Repayment within 2–5 yr." component rows, the current-classified rows) -- the
+            # page proves it in the total-tying column even though no row prints it. Anything else
+            # computed or invented still drops below.
+            win = _window_row_sum(f, fields, schema, texts, fiscal_year, pages, scope_words, basis, warnings) \
+                if pages and fiscal_year else None
+            if win:
+                quote, raw, n, first, last, p = win
+                warnings.append(f"{f['key']}: {f['value']} is the sum of {n} rows on page {p} inside its window ({first!r} … {last!r}); kept as value_derived")
+                f.update(value=f["value"], period=str(fiscal_year), raw_label=raw, source={"page": p, "quote": quote},
+                         evidence=["quote_on_page", "value_derived"])
+                values[f["key"]] = f["value"]
                 filled.add(f["key"])
                 continue
             warnings.append(f"{f['key']}: {f['value']} is printed on none of pages {nearby}; dropped as computed, not read")
