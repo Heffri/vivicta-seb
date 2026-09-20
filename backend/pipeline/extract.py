@@ -1775,9 +1775,29 @@ def _subtotal_pair_fill(fields: list[dict], sfs: list[dict], schema: dict, texts
         """
         parts = []
         for i in range(h + 1, si):
-            if _heading_like(rows[i]):
-                continue  # a wrapped label line
-            a = _row_amounts(rows[i], ncols)
+            r = rows[i]
+            if _heading_like(r):
+                # v156 (Sdiptech p.110): a data row can LOOK like furniture here --
+                # "Liabilities to credit institutions 10 10" reads [] without ncols (both cells
+                # small enough to filter out as note references), "Other liabilities** 2 4" the
+                # same way behind its footnote stars. The section's own ncols read of the
+                # star-stripped row arbitrates: ncols real (non-year) figures make it a data row;
+                # anything else stays the wrapped label it looked like.
+                a = _row_amounts(r.replace("*", " "), ncols)
+                if not (len(a) == ncols and not all(isinstance(v, int) and 1900 <= v <= 2100 for v in a)):
+                    continue  # a wrapped label line
+            else:
+                a = _row_amounts(r, ncols)
+                if len(a) != ncols and "*" in r:
+                    # v156 (Sdiptech p.110): a bare footnote star between the label and the figures
+                    # breaks the all-digits tail the ncols split needs, so the space-grouped cells
+                    # read fused ("Contingent considerations * 597 910" -> 597910; the split-back is
+                    # a nil-gated Boozt case). Retry the star-stripped row under the section's own
+                    # ncols read; the per-column closure below still decides, so a wrong un-fusion
+                    # declines exactly as before.
+                    a2 = _row_amounts(r.replace("*", " "), ncols)
+                    if len(a2) == ncols:
+                        a = a2
             if allow_torn_trailing_blank and len(a) == ncols - 1:
                 a.append(0)
             if len(a) != ncols:
