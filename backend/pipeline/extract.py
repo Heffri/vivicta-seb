@@ -2174,6 +2174,52 @@ def _bucket_row_prior_year(rows: list[str], idx: int, fiscal_year) -> bool:
     return bool(lone) and prior in lone and fy not in lone
 
 
+_CURRENT_SUBTOTAL = re.compile(r"(?i)(?<![\w-])current\b|\bkortfristig\w*\b")  # v125: current-portion wording,
+# already the schema's own (w1y synonyms "borrowings, current", "kortfristiga räntebärande skulder"); the
+# Total/Totalt/Summa half of the sub-total shape is _BARE_TOTAL, and the field's own synonyms _label_known
+
+
+def _table_break_between(rows: list[str], a: int, b: int, bucket_sfs: dict) -> bool:
+    """v125: a table boundary sits strictly between rows[a] and rows[b] -- a digit-free line (a table's own
+    title, a wrapped section header, prose) or a row naming maturity buckets of its own (a stacked table's
+    column header, the v095/v060 amount-free-header shape, whether or not its date stamp carries digits).
+    A table's own data rows all carry figures and name no header of their own, so a contiguous block of them
+    is one table."""
+    lo, hi = sorted((a, b))
+    return any(not re.search(r"\d", rows[j])
+               or any(k.split(":")[0] not in ("total", "_ignore")
+                      for _, _, k in _bucket_synonym_hits(rows[j], bucket_sfs))
+               for j in range(lo + 1, hi))
+
+
+def _model_own_printed(current, sf: dict, texts: list[str], walk: list[int], bucket_sfs: dict,
+                       page: int, idx: int) -> tuple[int, str] | None:
+    """v125: (page, row) of the model's own answer for one field, when the answer is a printed sub-total of
+    its own table -- (a) the value printed verbatim on a row of this walk's own candidate window, (b) that
+    row's label a known synonym of the field or a sub-total/total shape (Total/Totalt/Summa via _BARE_TOTAL,
+    the schema's current-portion wording current/kortfristig), and (c) the row not in the table this
+    column-order read came from (another page, or the same page with a table boundary between the two).
+    All three, because the page's column order must keep winning inside the very table the model misread
+    (Cloetta's disagree case, v052's paired columns, v068's prior-year column -- there the cited row IS the
+    read row, or the two rows share one table): what this stops is the read reaching across into another
+    table's columns over a value the model took from its own table's printed total (Viscaria: the note's
+    printed current sub-total 661.8, overwritten by 2.2 from the undiscounted per-instrument lease table's
+    column order two pages back, v088's Volati family)."""
+    for p in walk:
+        if not (0 < p <= len(texts)):
+            continue
+        rws = _page_rows(texts[p - 1])
+        for r in rws:
+            if not _value_in_quote(current, r):
+                continue
+            rl = _row_label(r)
+            if not (_label_known(rl, sf) or _BARE_TOTAL.search(rl) or _CURRENT_SUBTOTAL.search(rl)):
+                continue
+            if p != page or _table_break_between(rws, rws.index(r), idx, bucket_sfs):
+                return p, r
+    return None
+
+
 def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, texts: list[str], pages: list[int],
                           fiscal_year, warnings: list[str], values: dict, filled: set, basis: str = "carrying",
                           selected: dict | None = None) -> None:
@@ -2206,7 +2252,14 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
     _buckets_by_year_fill's source. Same-table by construction: the years are the very columns
     the three buckets above were summed out of. `selected` additionally receives "scan_pages" (the
     walk's own page set, statement spread first) whether or not any pick was found on them --
-    _buckets_by_year_fill's row-shaped fallback scans the same pages this reader walked."""
+    _buckets_by_year_fill's row-shaped fallback scans the same pages this reader walked.
+
+    v125: the disagree branch keeps the model's own answer when that answer is itself a printed
+    sub-total of its own table (_model_own_printed): the note's "Total current liabilities 661.8"
+    must not be overwritten by the 2.2 a lease row's column order yields in the liquidity note's
+    undiscounted per-instrument table two pages back (Viscaria, v088's Volati family) -- the
+    warning names both rows. A bucket the model left null still fills: the rule protects an
+    answered value, not a missing one."""
     ident = _identity_parts(schema)
     if not ident:
         return
@@ -2229,7 +2282,8 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
         # gets the exact pages the column read tried: statement spread first, then the model's citations
         selected["scan_pages"] = [p for p in dict.fromkeys([p for p in pages[:2] if p] + sorted(cited))
                                   if isinstance(p, int) and 0 < p <= len(texts)]
-    for page in dict.fromkeys([p for p in pages[:2] if p] + sorted(cited)):
+    walk = list(dict.fromkeys([p for p in pages[:2] if p] + sorted(cited)))  # v125: also _model_own_printed's window
+    for page in walk:
         if not (0 < page <= len(texts)):
             continue
         rows = _page_rows(texts[page - 1])
@@ -2366,6 +2420,12 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
                     warnings.append(f"{key}: {prefix}; no debt due in that window -- the row prints a dash in its "
                                     f"'{og_cover[key][2]}' column ({rows[idx]!r}), which spans it whole")
                 else:
+                    if isinstance(current, (int, float)) and \
+                            (own := _model_own_printed(current, bucket_sfs.get(key, total_sf), texts, walk,
+                                                       bucket_sfs, page, idx)):
+                        warnings.append(f"{key}: kept the model's own {current} -- printed on page {own[0]} as "
+                                        f"{own[1]!r}; column-order read {value} from {rows[idx]!r} not applied")
+                        continue
                     warnings.append(f"{key}: {prefix}; {value} read from {rows[idx]!r} by its column order")
                 # score_field derives value_in_quote itself from quote_on_page; only value_derived (a sum with no
                 # literal quote, e.g. two finer bucket columns) needs to be pre-seeded, or it would double-count

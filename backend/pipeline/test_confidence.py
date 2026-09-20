@@ -3097,6 +3097,93 @@ def demo():
         assert got["due_1_to_5_years"]["value"] is None, (name, got["due_1_to_5_years"], out["warnings"])
         assert any("dropped as computed, not read" in w for w in out["warnings"]), (name, out["warnings"])
         assert not any("kept as value_derived" in w for w in out["warnings"]), (name, out["warnings"])
+    # v125: the model's own printed sub-total survives a column-order read from another table. Viscaria
+    # (real pages, trimmed; renumbered p.100 -> 1, p.101 -> 2, p.110 -> 3, the walk order the stored
+    # seed-rerun-v118 run had): the model answers Note 22's own printed current sub-total 661.8 and
+    # total 677.8 (the label's values); the bucket-column read on p.100 -- the liquidity note's
+    # undiscounted per-instrument table, reached through the lease row's row_synonyms candidacy
+    # (v088's Volati family) -- used to overwrite w1y with 2.2 ("661.8 disagrees with the maturity
+    # table; 2.2 read from 'Lease liabilities 0.7 2.2 3.0 2.6 -' by its column order"). Three gates,
+    # all required: 661.8 printed verbatim in the candidate window, the row printing it a sub-total/
+    # total shape (Total/current), and the read from another table (another page, or a same-page table
+    # boundary between the rows). The null bucket still fills from the p.100 row: the rule protects an
+    # answered value, not a missing one.
+    viscaria100 = ("3 FINANCIAL RISK FACTORS\n"
+                   "Maturity analysis\n"
+                   "LESS BETWEEN 3 MONTHS AND 1 YEAR BETWEEN 1 AND 2 YEARS BETWEEN 2 AND 5 YEARS MORE\n"
+                   "2025-12-31, SEK MILLION THAN 3 MONTHS THAN 5 YEARS\n"
+                   "Convertible debentures 0.3 7.2 6.4 11.4 -\n"
+                   "Lease liabilities 0.7 2.2 3.0 2.6 -\n"
+                   "Shareholder loans - 708.0 - - -\n"
+                   "Accounts payable 85.1 - - - -\n"
+                   "LESS BETWEEN 3 MONTHS AND 1 YEAR BETWEEN 1 AND 2 YEARS BETWEEN 2 AND 5 YEARS MORE\n"
+                   "2024-12-31, SEK MILLION THAN 3 MONTHS THAN 5 YEARS\n"
+                   "Lease liabilities 0.7 2.0 2.7 2.0 -\n")
+    viscaria101 = ("5 REMUNERATION OF AUDITORS\n"
+                   "GROUP PARENT COMPANY\n"
+                   "SEK MILLION 2025 2024 2025 2024\n"
+                   "Audit engagement 1.0 0.9 1.0 0.9\n"
+                   "Other services - 0.2 - 0.2\n"
+                   "Total remuneration of auditors 1.2 1.2 1.2 1.2\n"
+                   "6 REMUNERATION OF EMPLOYEES, ETC.\n"
+                   "Other employees 30 19 23 16\n"
+                   "Total 40 25 32 20\n")
+    viscaria110 = ("22 INTEREST-BEARING LIABILITIES\n"
+                   "GROUP PARENT COMPANY\n"
+                   "SEK MILLION 2025 2024 2025 2024\n"
+                   "Interest-bearing liabilities Non-current liabilities\n"
+                   "Lease liability 5.0 4.2 - -\n"
+                   "Convertible debentures 11.0 15.5 11.0 15.5\n"
+                   "Total non-current liabilities 16.0 19.7 11.0 15.5\n"
+                   "Current liabilities\n"
+                   "Lease liability 2.6 2.5 - -\n"
+                   "Convertible debentures 4.9 - 4.9 -\n"
+                   "Shareholder loans 654.3 - 654.3 -\n"
+                   "Total current liabilities 661.8 2.5 659.2 -\n"
+                   "Total interest-bearing liabilities 677.8 22.2 670.2 15.5\n")
+    viscaria_answer = lambda w1y_val, w1y_page, w1y_quote, w1y_label: {"fields": [
+        {"key": "total_debt", "value": 677.8, "unit": "SEK MILLION", "period": "2025", "raw_label": "Total interest-bearing liabilities",
+         "source": {"page": 3, "quote": "Total interest-bearing liabilities 677.8 22.2 670.2 15.5"}},
+        {"key": "due_within_1_year", "value": w1y_val, "unit": "SEK MILLION", "period": "2025", "raw_label": w1y_label,
+         "source": {"page": w1y_page, "quote": w1y_quote}},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
+    x.call_llm = lambda *a, **k: viscaria_answer(
+        661.8, 3, "Total current liabilities 661.8 2.5 659.2 -", "Total current liabilities")
+    out = x.extract([viscaria100, viscaria101, viscaria110], [1, 2, 3], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 677.8, "due_within_1_year": 661.8, "due_1_to_5_years": 5.6, "due_after_5_years": None}, (got, out["warnings"])
+    assert any("kept the model's own 661.8 -- printed on page 3 as 'Total current liabilities 661.8 2.5 659.2 -'; "
+               "column-order read 2.2 from 'Lease liabilities 0.7 2.2 3.0 2.6 -' not applied" in w
+               for w in out["warnings"]), out["warnings"]
+    w1y = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
+    assert w1y["source"] == {"page": 3, "quote": "Total current liabilities 661.8 2.5 659.2 -"} \
+        and "value_in_quote" in w1y["evidence"], w1y  # the model's own evidence, untouched
+    assert out["checks"][0]["passed"] is False and "due_after_5_years" in out["checks"][0]["detail"], out["checks"]  # honest: 661.8 + 5.6 is not 677.8 and after 5y is not printed
+    # (b) fails: the model's value printed on a row that is no sub-total of its own (shareholder loans is
+    # neither a w1y synonym nor a total/current label) -- the column-order read keeps winning, as for any
+    # model misread that no printed total vouches for
+    x.call_llm = lambda *a, **k: viscaria_answer(
+        708.0, 1, "Shareholder loans - 708.0 - - -", "Shareholder loans")
+    out = x.extract([viscaria100, viscaria101, viscaria110], [1, 2, 3], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 677.8, "due_within_1_year": 2.2, "due_1_to_5_years": 5.6, "due_after_5_years": None}, (got, out["warnings"])
+    assert not any("kept the model's own" in w for w in out["warnings"]), out["warnings"]
+    # (c)'s same-page branch: the sub-total sits in a table stacked BELOW the read row on the same page
+    # (its own heading line between them) -- still another table, still kept, warning names that page
+    viscaria_stacked = viscaria100 + ("NOTE 22 INTEREST-BEARING LIABILITIES\n"
+                                      "SEK MILLION 2025 2024\n"
+                                      "Total current liabilities 661.8 2.5\n"
+                                      "Total interest-bearing liabilities 677.8 22.2\n")
+    x.call_llm = lambda *a, **k: viscaria_answer(
+        661.8, 1, "Total current liabilities 661.8 2.5", "Total current liabilities")
+    out = x.extract([viscaria_stacked, viscaria101, viscaria110], [1, 2, 3], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f["value"] for f in out["fields"]}
+    assert got == {"total_debt": 677.8, "due_within_1_year": 661.8, "due_1_to_5_years": 5.6, "due_after_5_years": None}, (got, out["warnings"])
+    assert any("kept the model's own 661.8 -- printed on page 1 as 'Total current liabilities 661.8 2.5'" in w
+               for w in out["warnings"]), out["warnings"]
+    # and the read inside the very table the model cited is untouched (Cloetta's disagree case above:
+    # the cited row IS the read row) -- v052's paired columns and v068's prior-year column along with it
     print("confidence self-check ok")
 
 
