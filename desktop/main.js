@@ -40,6 +40,18 @@ function crashLog(label, err) {
 process.on('uncaughtException', (err) => crashLog('uncaughtException', err))
 process.on('unhandledRejection', (err) => crashLog('unhandledRejection', err))
 
+// v138: honor --user-data-dir <dir> (or --user-data-dir=<dir>) by relocating userData before
+// the single-instance lock below, which is keyed on app.getPath('userData') — without this the
+// packaged exe ignored the switch end to end (v137: the run wrote into the default userData and
+// a second launch died on the lock). Works the same for `electron .` dev launches and the
+// packaged exe; the lock's semantics (one instance per userData) are unchanged.
+const userDataArgIdx = process.argv.findIndex((a) => a === '--user-data-dir' || a.startsWith('--user-data-dir='))
+if (userDataArgIdx !== -1) {
+  const eq = process.argv[userDataArgIdx].indexOf('=')
+  const dir = eq !== -1 ? process.argv[userDataArgIdx].slice(eq + 1) : process.argv[userDataArgIdx + 1]
+  if (dir && !dir.startsWith('-')) app.setPath('userData', path.resolve(dir))
+}
+
 const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
   app.quit()
