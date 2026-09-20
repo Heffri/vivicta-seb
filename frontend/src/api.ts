@@ -1,4 +1,4 @@
-import type { Answer, Company, Extraction, IndexStatus, KbEntry, LibraryEntry, Report, Schema } from './types'
+import type { Answer, ChunkPage, Company, Extraction, IndexStatus, KbEntry, LibraryEntry, Report, Schema } from './types'
 
 export type ApiError = Error & { status: number; tried?: string[] }
 
@@ -41,11 +41,11 @@ export const fetchReport = (company: string, year: number) =>
     body: JSON.stringify({ company, year }),
   })
 
-export const extractSection = (reportId: string, section: string) =>
+export const extractSection = (reportId: string, section: string, force = false) =>
   request<Extraction>(`/api/reports/${reportId}/extract`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ section }),
+    body: JSON.stringify({ section, force }),
   })
 
 export const indexReport = (reportId: string) =>
@@ -59,14 +59,21 @@ export const ask = (question: string, reportIds: string[]) =>
   })
 
 export const pageUrl = (reportId: string, page: number) => `/api/reports/${reportId}/pages/${page}.png`
-export const csvUrl = (reportId: string) => `/api/reports/${reportId}/extraction.csv`
-export const pptxUrl = (reportId: string) => `/api/reports/${reportId}/extraction.pptx`
+export const csvUrl = (reportId: string, section: string) => `/api/reports/${reportId}/extraction.csv?${new URLSearchParams({ section })}`
+export const pptxUrl = (reportId: string, section: string) => `/api/reports/${reportId}/extraction.pptx?${new URLSearchParams({ section })}`
 export const pdfUrl = (reportId: string, page?: number) =>
   `/api/reports/${reportId}/pdf${page ? `#page=${page}` : ''}`
 
-export type Config = { model: string; embed_model: string; base_url: string | null; llm: boolean }
+export type Config = { provider: string; reasoning: string; embed_base_url: string; model: string; embed_model: string; base_url: string | null; llm: boolean }
 export const getConfig = () => request<Config>('/api/config')
 export const getKb = () => request<KbEntry[]>('/api/kb')
 // Stored extraction, no model call; the backend re-registers the PDF so pageUrl/csvUrl work.
 export const openKbExtraction = (stem: string, section: string) =>
   request<Extraction>(`/api/kb/${encodeURIComponent(stem)}/${encodeURIComponent(section)}`)
+
+export const getChunks = (stem: string, q = '', offset = 0) =>
+  request<ChunkPage>(`/api/knowledge/${encodeURIComponent(stem)}/chunks?${new URLSearchParams({ q, offset: String(offset) })}`)
+export const rebuildIndex = (stem: string) =>
+  request<IndexStatus>(`/api/knowledge/${encodeURIComponent(stem)}/index`, { method: 'POST' })
+export const openKnowledge = (stem: string) =>
+  request<Report>(`/api/knowledge/${encodeURIComponent(stem)}/open`, { method: 'POST' })

@@ -53,7 +53,15 @@ export type KbEntry = {
   fiscal_year: number | null;
   pages: number;
   sections: string[];       // extractions present, e.g. ["income_statement"]
-  indexed: boolean;         // embeddings cached
+  indexed: boolean;
+  status: 'ready' | 'missing' | 'outdated' | 'invalid' | 'building';
+  reason: string;
+  embed_model: string | null;
+  dimensions: number | null;
+  chunks: number;
+  page_chunks: number;
+  fact_chunks: number;
+  built_at: string | null;
 };
 
 export type Source = {
@@ -69,6 +77,8 @@ export type Field = {
   period: string | null;    // "2025", "2024", "2025-Q4"
   raw_label: string | null; // the label as printed in the report, e.g. "Intäkter"
   source: Source | null;
+  components?: { value: number; source: Source }[];
+  calculation?: string | null;
   confidence: number;       // 0..1, computed from evidence by the backend — see docs/CONFIDENCE.md. Never the model's opinion.
   evidence: string[];       // satisfied evidence codes, e.g. ["quote_on_page","value_in_quote","arith_ok"]; 1.0 <=> all seven present
 };
@@ -79,7 +89,20 @@ export type Check = {
   detail: string;           // human-readable, e.g. "152340 + -88120 = 64220 == 64220"
 };
 
+export type ChunkPage = {
+  items: { page: number; start: number; text: string; kind: 'page' | 'fact' }[];
+  total: number; offset: number; limit: number;
+};
+
 export type Extraction = {
+  stale?: boolean;
+  debt_scope?: string;
+  context_source?: Source | null;
+  cached?: boolean;
+  model?: string;
+  provider?: string;
+  created_at?: string;
+  timings?: { parse: number; locate: number; model: number; validate: number; total: number; attempts: number };
   report_id: string;
   company: string | null;
   fiscal_year: number | null;

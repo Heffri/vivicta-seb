@@ -9,12 +9,14 @@ from pathlib import Path
 
 import pymupdf
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel
 
-from pipeline import extract as extract_mod, fetch, kb, locate, parse, ppt
+from pipeline import extract as extract_mod, fetch, kb, locate, parse, ppt, runtime, maturity
+from datetime import datetime, timezone
 
 load_dotenv()
 HERE = Path(__file__).parent
@@ -24,7 +26,7 @@ SCHEMAS = HERE / "schemas"
 LIBRARY = HERE.parent / "data" / "reports"  # bundled reports; index.json is committed, PDFs via `python data/fetch.py`
 FIXTURE = HERE / "fixtures" / "sample_extraction.json"
 COMPANIES = json.loads((HERE.parent / "data" / "companies.json").read_text(encoding="utf-8"))  # Nasdaq Stockholm, data/companies_build.py
-CSV_HEADER = "report_id,company,fiscal_year,section,key,label,value,unit,period,raw_label,page,quote,confidence".split(",")
+CSV_HEADER = "report_id,company,fiscal_year,section,key,label,value,unit,period,raw_label,page,quote,confidence,calculation,components,debt_scope".split(",")
 
 app = FastAPI(title="vivicta backend")
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"], allow_methods=["*"], allow_headers=["*"])
@@ -36,8 +38,14 @@ library_pages: dict[str, int] = {}   # file -> page_count, for GET /api/library
 texts_cache: dict[str, list[str]] = {}  # ponytail: page texts per report, unbounded; Saab is 231 pages, fine for a demo
 
 
+@app.exception_handler(parse.OCRUnavailable)
+async def ocr_unavailable(_request, exc):
+    return JSONResponse(status_code=422, content={"detail": str(exc)})
+
+
 class ExtractBody(BaseModel):
     section: str
+    force: bool = False
 
 
 class LibraryBody(BaseModel):
@@ -103,6 +111,10 @@ def list_schemas():
 @app.post("/api/reports")
 async def upload_report(file: UploadFile = File(...)):
     data = await file.read()
+    return await run_in_threadpool(register_upload, data, file.filename)
+
+
+def register_upload(data: bytes, filename: str | None):
     try:
         with pymupdf.open(stream=data, filetype="pdf") as doc:
             assert doc.is_pdf and doc.page_count > 0
@@ -116,11 +128,12 @@ async def upload_report(file: UploadFile = File(...)):
     if report_id in reports:
         return reports[report_id]
     pdf_path(report_id).write_bytes(data)
+    texts_cache[report_id], parsing = kb.load_texts(report_id, pdf_path(report_id), sha)
     texts = report_texts(report_id)
     company, fiscal_year = guess_meta(texts)
-    reports[report_id] = {"report_id": report_id, "filename": file.filename or "upload.pdf", "pages": len(texts), "company": company, "fiscal_year": fiscal_year, "stem": report_id}
+    reports[report_id] = {"report_id": report_id, "filename": filename or "upload.pdf", "pages": len(texts), "company": company, "fiscal_year": fiscal_year, "stem": report_id}
     kb.save_report(report_id, {"company": company, "fiscal_year": fiscal_year, "language": None, "source_url": None, "pages": len(texts),
-                               "sha256": sha, "filename": reports[report_id]["filename"]}, texts)  # ponytail: uploads land in data/kb/up-<sha>/ too; prune before committing if they are not public reports
+                               "sha256": sha, "filename": reports[report_id]["filename"], **parsing}, texts)  # ponytail: uploads land in data/kb/up-<sha>/ too; prune before committing if they are not public reports
     return reports[report_id]
 
 
@@ -140,11 +153,14 @@ def register_library(entry: dict) -> dict:
     report_id = "lib-" + Path(entry["file"]).stem
     if report_id not in reports:
         library_paths[report_id] = LIBRARY / entry["file"]
+        digest = kb.sha256(library_paths[report_id].read_bytes())
+        stem = Path(entry["file"]).stem
+        texts_cache[report_id], parsing = kb.load_texts(stem, library_paths[report_id], digest)
         texts = report_texts(report_id)
         reports[report_id] = {"report_id": report_id, "filename": entry["file"], "pages": len(texts),
                               "company": entry["company"], "fiscal_year": entry["fiscal_year"], "stem": Path(entry["file"]).stem}  # curated beats guess_meta
         kb.save_report(Path(entry["file"]).stem, {k: entry.get(k) for k in ("company", "fiscal_year", "language", "source_url")}
-                       | {"pages": len(texts), "sha256": kb.sha256(library_paths[report_id].read_bytes()), "filename": entry["file"]}, texts)
+                       | {"pages": len(texts), "sha256": digest, "filename": entry["file"], **parsing}, texts)
     return reports[report_id]
 
 
@@ -204,18 +220,63 @@ def page_png(report_id: str, n: int):
     return Response(png, media_type="image/png")
 
 
+def extraction_identity(report, schema, prompt):
+    pipeline = [Path(__file__), *[Path(m.__file__) for m in (extract_mod, locate, parse, runtime, maturity)]]
+    return kb.fingerprint({"report": kb._meta(report["stem"]), "schema": schema,
+                           "pipeline": [kb.sha256(p.read_bytes()) for p in pipeline],
+                           "model": runtime.model(), "provider": runtime.provider(), "prompt": prompt,
+                           "settings": {k: os.getenv(k) for k in ("LLM_BASE_URL", "LLM_REASONING", "LLM_THINK", "LLM_NUM_CTX", "LLM_TIMEOUT")}})
+
+
 @app.post("/api/reports/{report_id}/extract")
 def run_extract(report_id: str, body: ExtractBody):
-    report = get_report(report_id)
-    schema = load_schema(body.section)
-    if not os.getenv("LLM_BASE_URL"):  # frontend dev mode: no model configured
-        result = json.loads(FIXTURE.read_text(encoding="utf-8")) | {"report_id": report_id}
+    started = time.perf_counter()
+    report, schema = get_report(report_id), load_schema(body.section)
+    if runtime.provider() == "fixture":
+        result = json.loads(FIXTURE.read_text(encoding="utf-8")) | {"report_id": report_id, "provider": "fixture"}
     else:
-        texts = report_texts(report_id)
-        pages = locate.candidate_pages(texts, schema)
-        print(f"[extract] {report_id} {body.section}: candidate pages {pages}")
-        result = extract_mod.extract(texts, pages, schema, report)
-        kb.save_extraction(report["stem"], body.section, result)  # fixture results never enter the KB
+        with kb.report_lock(report["stem"], "extract"):
+            prompt = extract_mod.system_prompt(schema, report["stem"])
+            identity = extraction_identity(report, schema, prompt)
+            path = kb.kb_dir() / report["stem"] / "extractions" / f"{body.section}.json"
+            saved = None
+            try:
+                saved = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                pass
+            if not body.force and isinstance(saved, dict) and saved.get("cache_key") == identity:
+                result = saved | {"report_id": report_id, "cached": True,
+                                  "timings": {"parse": 0, "locate": 0, "model": 0, "validate": 0, "attempts": 0,
+                                              "total": round(time.perf_counter() - started, 3)}}
+            else:
+                stage = time.perf_counter()
+                texts = report_texts(report_id)
+                parse_seconds = time.perf_counter() - stage
+                stage = time.perf_counter()
+                pages = locate.candidate_pages(texts, schema)
+                locate_seconds = time.perf_counter() - stage
+                if not pages:
+                    raise HTTPException(422, "No candidate pages found for this section")
+                try:
+                    result = extract_mod.extract(texts, pages, schema, report, prompt=prompt)
+                except (RuntimeError, ValueError, TimeoutError) as e:
+                    raise HTTPException(502, f"Extraction failed: {e}") from e
+                failures = [w for w in result["warnings"] if w.startswith("llm:")]
+                if failures:
+                    raise HTTPException(502, " ".join(failures))
+                if kb._meta(report["stem"]).get("ocr_pages"):
+                    result["warnings"].append("This report contains OCR text. Verify extracted figures against the rendered PDF, especially signs and decimal separators.")
+                    ocr_pages = set(kb._meta(report["stem"])["ocr_pages"])
+                    for f in result["fields"]:
+                        sources = [f.get("source")] + [c["source"] for c in f.get("components", [])]
+                        if any(s and s["page"] in ocr_pages for s in sources):
+                            f["confidence"] = min(f["confidence"], 0.8)
+                            f["evidence"].append("ocr_text")
+                result.update(cache_key=identity, cached=False, model=runtime.model(), provider=runtime.provider(),
+                              created_at=datetime.now(timezone.utc).isoformat())
+                result["timings"].update(parse=round(parse_seconds, 3), locate=round(locate_seconds, 3),
+                                          total=round(time.perf_counter() - started, 3))
+                kb.save_extraction(report["stem"], body.section, result)
     extractions[report_id] = result
     return result
 
@@ -223,25 +284,37 @@ def run_extract(report_id: str, body: ExtractBody):
 @app.post("/api/reports/{report_id}/index")
 def index_report(report_id: str):
     report = get_report(report_id)
-    if not os.getenv("LLM_BASE_URL"):
+    if runtime.provider() == "fixture":
         return {"report_id": report_id, "chunks": 0, "embed_model": "fixture", "cached": True}
-    return kb.index(report["stem"]) | {"report_id": report_id}
+    try:
+        return kb.index(report["stem"]) | {"report_id": report_id}
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from None
+    except Exception as e:
+        raise HTTPException(502, f"Embedding index unavailable. Check EMBED_BASE_URL and EMBED_MODEL ({type(e).__name__}).") from None
 
 
 @app.post("/api/ask")
 def ask(body: AskBody):
+    if not body.question.strip():
+        raise HTTPException(400, "question is empty")
     if not body.report_ids:
         raise HTTPException(400, "report_ids is empty")
     if len(body.question) > 2000:  # trust boundary: the question goes straight into the prompt
         raise HTTPException(400, "question too long (max 2000 chars)")
     ids = {get_report(r)["stem"]: r for r in body.report_ids}  # stem -> report_id; 404 on unknown ids
-    if not os.getenv("LLM_BASE_URL"):  # frontend dev mode: canned Answer, one citation
+    if runtime.provider() == "fixture":  # frontend dev mode: canned Answer, one citation
         return {"question": body.question, "answer": "Fixture mode (LLM_BASE_URL unset). Revenue was 152 340 MSEK [Nordic Industrials p.64].",
                 "citations": [{"report_id": body.report_ids[0], "company": "Nordic Industrials AB (fictional fixture)", "fiscal_year": 2025,
                                "page": 64, "quote": "Intäkter 152 340 141 902", "score": 0.91}],
                 "warnings": ["fixture answer: LLM_BASE_URL unset"], "model": "fixture"}
     t0 = time.time()
-    answer = kb.ask(list(ids), body.question, ids=ids)  # indexes on demand
+    try:
+        answer = kb.ask(list(ids), body.question, ids=ids)  # indexes on demand
+    except Exception as e:
+        raise HTTPException(502, f"Retrieval failed. Check the embedding endpoint and rebuild outdated indexes ({type(e).__name__}).") from None
+    if not answer["answer"] and answer["warnings"]:
+        raise HTTPException(502, " ".join(answer["warnings"]))
     print(f"[ask] {body.report_ids}: {len(answer['citations'])} citations, {len(answer['warnings'])} warnings in {time.time() - t0:.1f}s")
     return answer
 
@@ -252,49 +325,115 @@ def list_kb():
     return [e | {"report_id": by_stem.get(e["stem"])} for e in kb.entries()]
 
 
+def knowledge_stem(stem):
+    if not re.fullmatch(r"[a-z0-9_-]+", stem) or not (kb.kb_dir() / stem / "meta.json").exists():
+        raise HTTPException(404, "Unknown knowledge-base report")
+    return stem
+
+
+@app.post("/api/knowledge/{stem}/open")
+def open_knowledge(stem: str):
+    knowledge_stem(stem)
+    entry = next((e for e in library_index() if Path(e["file"]).stem == stem), None)
+    if entry:
+        return register_library(entry)
+    meta = kb._meta(stem)
+    path = UPLOADS / f"{stem}.pdf"
+    if not stem.startswith("up-") or not path.exists():
+        raise HTTPException(409, "Source PDF is unavailable. Upload or fetch it again.")
+    if stem not in reports:
+        digest = kb.sha256(path.read_bytes())
+        texts, parsing = kb.load_texts(stem, path, digest)
+        texts_cache[stem] = texts
+        reports[stem] = {"report_id": stem, "stem": stem, "filename": meta.get("filename") or path.name,
+                         "company": meta.get("company"), "fiscal_year": meta.get("fiscal_year"), "pages": len(texts)}
+        kb.save_report(stem, meta | {"sha256": digest, "pages": len(texts)} | parsing, texts)
+    return reports[stem]
+
+
+@app.get("/api/knowledge/{stem}/chunks")
+def knowledge_chunks(stem: str, q: str = Query("", max_length=200), offset: int = Query(0, ge=0), limit: int = Query(25, ge=1, le=100)):
+    knowledge_stem(stem)
+    try:
+        return kb.inspect_chunks(stem, q, offset, limit)
+    except (ValueError, KeyError, TypeError, OSError):
+        raise HTTPException(409, "Stored index is unreadable. Rebuild it.") from None
+
+
+@app.post("/api/knowledge/{stem}/index")
+def rebuild_knowledge(stem: str):
+    knowledge_stem(stem)
+    try:
+        return kb.index(stem, force=True)
+    except Exception as e:
+        raise HTTPException(502, f"Index build failed: {type(e).__name__}: {e}") from None
+
+
 @app.get("/api/kb/{stem}/{section}")
 def kb_extraction(stem: str, section: str):
-    """Stored extraction from the knowledge base, re-attached to a live report_id so page images and CSV work. No model call."""
+    knowledge_stem(stem)
+    load_schema(section)
     path = kb.kb_dir() / stem / "extractions" / f"{section}.json"
-    if not re.fullmatch(r"[a-z0-9_]+", stem) or not re.fullmatch(r"[a-z0-9_]+", section) or not path.exists():
-        raise HTTPException(404, f"no {section!r} extraction for {stem!r}; see GET /api/kb")
-    entry = next((e for e in library_index() if e["file"] == f"{stem}.pdf"), None)
-    if not entry:
-        raise HTTPException(409, f"the PDF for {stem!r} is no longer cached; fetch it again to open the pages")
-    report_id = register_library(entry)["report_id"]
-    extractions[report_id] = json.loads(path.read_text(encoding="utf-8")) | {"report_id": report_id}
+    if not path.exists():
+        raise HTTPException(404, "No saved extraction for this section")
+    report_id = open_knowledge(stem)["report_id"]
+    extractions[report_id] = saved_extraction(report_id, section)
     return extractions[report_id]
+
+
+def saved_extraction(report_id: str, section: str | None = None):
+    started = time.perf_counter()
+    report = get_report(report_id)
+    if section is None:
+        result = extractions.get(report_id)
+        if result is None:
+            raise HTTPException(404, "no extraction yet; POST /extract first")
+        return result
+    schema = load_schema(section)
+    path = kb.kb_dir() / report["stem"] / "extractions" / f"{section}.json"
+    if not path.exists():
+        last = extractions.get(report_id)
+        if last and last.get("provider") == "fixture" and last.get("section") == section:
+            return last
+        raise HTTPException(404, "No saved extraction for this section")
+    try:
+        result = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(result, dict) or result.get("section") != section or not isinstance(result.get("fields"), list):
+            raise ValueError("Invalid extraction structure")
+    except (OSError, ValueError) as e:
+        raise HTTPException(409, "Saved extraction is unreadable. Run extraction again.") from e
+    prompt = extract_mod.system_prompt(schema, report["stem"])
+    return result | {"report_id": report_id, "cached": True,
+                     "stale": result.get("cache_key") != extraction_identity(report, schema, prompt),
+                     "timings": {"model": 0, "parse": 0, "locate": 0, "validate": 0, "attempts": 0,
+                                 "total": round(time.perf_counter() - started, 3)}}
 
 
 @app.get("/api/config")
 def config():
-    return {"model": os.getenv("LLM_MODEL") or "fixture", "embed_model": kb.embed_model(), "base_url": os.getenv("LLM_BASE_URL"),
-            "llm": bool(os.getenv("LLM_BASE_URL"))}
+    return {"model": runtime.model(), "provider": runtime.provider(), "reasoning": os.getenv("LLM_REASONING", "low"),
+            "embed_model": kb.embed_model(), "embed_base_url": kb.embed_base_url(), "base_url": os.getenv("LLM_BASE_URL"),
+            "llm": runtime.provider() != "fixture"}
 
 
 @app.get("/api/reports/{report_id}/extraction.csv")
-def extraction_csv(report_id: str):
-    get_report(report_id)
-    x = extractions.get(report_id)
-    if not x:
-        raise HTTPException(404, "no extraction yet; POST /extract first")
+def extraction_csv(report_id: str, section: str | None = None):
+    x = saved_extraction(report_id, section)
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(CSV_HEADER)
     for f in x["fields"]:
         src = f.get("source") or {}
         w.writerow([x["report_id"], x["company"], x["fiscal_year"], x["section"], f["key"], f["label"], f["value"],
-                    f["unit"], f["period"], f["raw_label"], src.get("page"), src.get("quote"), f["confidence"]])
+                    f["unit"], f["period"], f["raw_label"], src.get("page"), src.get("quote"), f["confidence"],
+                    f.get("calculation"), json.dumps(f.get("components", []), ensure_ascii=False), x.get("debt_scope")])
     return Response(buf.getvalue(), media_type="text/csv; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="{report_id}_{x["section"]}.csv"'})
 
 
 @app.get("/api/reports/{report_id}/extraction.pptx")
-def extraction_pptx(report_id: str):
-    get_report(report_id)
-    x = extractions.get(report_id)
-    if not x:
-        raise HTTPException(404, "no extraction yet; POST /extract first")
+def extraction_pptx(report_id: str, section: str | None = None):
+    x = saved_extraction(report_id, section)
     data = ppt.build_pptx(x)
     return Response(data, media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
                     headers={"Content-Disposition": f'attachment; filename="{report_id}_{x["section"]}.pptx"'})

@@ -15,6 +15,7 @@ import zipfile
 from pathlib import Path
 
 import pymupdf as fitz
+from .parse import page_text
 
 REPORTS = Path(__file__).resolve().parents[2] / "data" / "reports"
 INDEX = REPORTS / "index.json"
@@ -240,7 +241,12 @@ def _validate(data, company, year):
     doc = fitz.open(stream=data, filetype="pdf")
     if doc.page_count <= 40:
         return None, f"only {doc.page_count} pages"
-    text = "".join(doc[i].get_text() for i in range(min(20, doc.page_count)))
+    try:
+        first = [page_text(doc[i]) for i in range(min(20, doc.page_count))]
+    except RuntimeError as e:
+        doc.close()
+        return None, str(e)
+    text = "".join(first)
     if len(text) <= 5000:
         return None, "no text layer"
     plain = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
@@ -249,7 +255,7 @@ def _validate(data, company, year):
         return None, f"issuer mismatch: {missing[0]!r} not in first 20 pages"  # DDG happily returns some other company's report
     if str(year) not in text:
         return None, f"{year} not in first 20 pages"
-    head = "".join(doc[i].get_text() for i in range(min(3, doc.page_count)))
+    head = "".join(first[:3])
     if NOT_REPORT.search(head) and not IS_AR.search(head):
         return None, f"not an annual report: {NOT_REPORT.search(head).group(0)!r} on the cover"
     return doc, text

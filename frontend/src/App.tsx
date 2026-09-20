@@ -76,7 +76,7 @@ export default function App() {
             ))}
           </ul>
           {config && (
-            <span className="ml-auto flex items-center gap-1.5 font-mono text-xs text-muted-foreground" title={config.base_url ?? 'no LLM configured'}>
+            <span className="ml-auto flex items-center gap-1.5 font-mono text-xs text-muted-foreground" title={config.provider === 'codex' ? 'Codex CLI login for extraction and Ask' : config.base_url ?? 'no LLM configured'}>
               <Cpu className="size-3.5" />
               {config.model}
               <span className="opacity-60">· {config.embed_model}</span>
@@ -86,11 +86,12 @@ export default function App() {
       </nav>
 
       <main className="mx-auto max-w-6xl px-6 py-10">
-        {tab === 'extract' && <UploadView onDone={done} />}
+        <div hidden={tab !== 'extract'}><UploadView onDone={done} /></div>
         {tab === 'results' && shown?.extraction && (
           <ResultsView
             key={shown.extraction.report_id}
             extraction={shown.extraction}
+            onUpdate={(extraction) => setResults((rs) => rs.map((r, i) => i === (detail ?? 0) ? { ...r, extraction } : r))}
             sectionTitle={shown.sectionTitle}
             onReset={reset}
             onBack={results.length > 1 ? () => setTab('compare') : undefined}

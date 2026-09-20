@@ -1,6 +1,6 @@
 import { ArrowLeft, Check, Download, ExternalLink, ImageOff, TriangleAlert, X } from 'lucide-react'
 import { useState } from 'react'
-import { csvUrl, pageUrl, pdfUrl, pptxUrl } from '@/api'
+import { csvUrl, extractSection, pageUrl, pdfUrl, pptxUrl } from '@/api'
 import { AskPanel } from '@/components/AskPanel'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -10,6 +10,7 @@ import type { Extraction, Field } from '@/types'
 
 type Props = {
   extraction: Extraction
+  onUpdate: (extraction: Extraction) => void
   sectionTitle: string
   onReset: () => void
   onBack?: () => void
@@ -28,8 +29,9 @@ const EVIDENCE = ['quote_on_page', 'value_in_quote', 'arith_ok', 'label_known', 
 
 /** Tooltip for the confidence badge: which evidence the backend could not verify. */
 export const confidenceTitle = (f: { confidence: number; evidence?: string[] }) => {
-  const missing = EVIDENCE.filter((e) => !(f.evidence ?? []).includes(e))
-  return missing.length ? `missing: ${missing.join(', ')}` : 'all evidence verified'
+  const missing = EVIDENCE.filter((e) => !(f.evidence ?? []).includes(e) && !(e === 'value_in_quote' && f.evidence?.includes('value_derived')))
+  const detail = missing.length ? `missing: ${missing.join(', ')}` : 'all evidence verified'
+  return f.evidence?.includes('ocr_text') ? `${detail}. OCR text: check the rendered page.` : detail
 }
 
 export const confidenceClass = (c: number) =>
@@ -52,7 +54,16 @@ const loadViewer = (): Viewer => {
   }
 }
 
-export function ResultsView({ extraction, sectionTitle, onReset, onBack, initialPage }: Props) {
+export function ResultsView({ extraction, sectionTitle, onReset, onBack, initialPage, onUpdate }: Props) {
+  const [rerunning, setRerunning] = useState(false)
+  const [runError, setRunError] = useState<string | null>(null)
+  const rerun = async () => {
+    setRerunning(true)
+    setRunError(null)
+    try { onUpdate(await extractSection(extraction.report_id, extraction.section, true)) }
+    catch (e) { setRunError((e as Error).message) }
+    finally { setRerunning(false) }
+  }
   const { report_id, company, fiscal_year, currency, section, fields, checks, warnings } = extraction
   const [selectedKey, setSelectedKey] = useState<string | null>(() => fields.find((f) => f.source)?.key ?? null)
   const [brokenPage, setBrokenPage] = useState<number | null>(null)
@@ -89,6 +100,14 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack, initial
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+        <Button variant="outline" disabled={rerunning} onClick={rerun}>{rerunning ? 'Extracting…' : 'Run again'}</Button>
+        <span>{extraction.cached ? 'Saved result' : 'Fresh extraction'}{extraction.model ? ` · ${extraction.model}` : ''}</span>
+        {extraction.timings && <span title={JSON.stringify(extraction.timings)}>{extraction.timings.total.toFixed(2)}s · {extraction.timings.attempts} model calls</span>}
+        {runError && <span role="alert" className="text-destructive">{runError}</span>}
+      </div>
+      {extraction.debt_scope && <p className="text-sm text-muted-foreground">Borrowing scope: {extraction.debt_scope.replace(/\.$/, '')}. Carrying amounts. Arithmetic checks do not verify accounting scope.</p>}
+      {extraction.stale && <p role="status" className="text-sm text-amber-700">This saved result predates the current source, model or extraction settings. Run again to update it.</p>}
       {/* Top bar */}
       <header className="flex flex-wrap items-start justify-between gap-4 border-b pb-5">
         <div>
@@ -126,10 +145,10 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack, initial
           <Button variant="outline" onClick={exportJson}>
             <Download /> Export JSON
           </Button>
-          <a href={csvUrl(report_id)} download className={buttonVariants({ variant: 'outline' })}>
+          <a href={csvUrl(report_id, section)} download className={buttonVariants({ variant: 'outline' })}>
             <Download /> Export CSV
           </a>
-          <a href={pptxUrl(report_id)} download className={buttonVariants({ variant: 'outline' })}>
+          <a href={pptxUrl(report_id, section)} download className={buttonVariants({ variant: 'outline' })}>
             <Download /> Export PPTX
           </a>
           <Button onClick={onReset}>New report</Button>
@@ -305,9 +324,18 @@ export function ResultsView({ extraction, sectionTitle, onReset, onBack, initial
                     className="w-full rounded-md border bg-white"
                   />
                 )}
+                {selected?.components && selected.components.length > 1 && (
+                  <div className="space-y-2 text-xs">
+                    <p className="font-medium">Verified component sum: {selected.calculation}</p>
+                    {selected.components.map((c, i) => <div key={i} className="rounded-md border p-2">
+                      <button className="underline" onClick={() => setAskPage(c.source.page)}>Page {c.source.page} · {fmtValue(c.value)}</button>
+                      <pre className="whitespace-pre-wrap break-words">{c.source.quote}</pre>
+                    </div>)}
+                  </div>
+                )}
                 {askPage !== null ? (
                   <p className="text-xs text-muted-foreground">
-                    Page {askPage}, cited in an answer below. Click a row to go back to a field.
+                    Page {askPage}, selected from a source link. Click a row to go back to a field.
                   </p>
                 ) : (
                   selected?.source && (

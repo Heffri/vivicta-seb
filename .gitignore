@@ -1,8 +1,10 @@
 # data
 data/reports/*.pdf
+data/tessdata/
 backend/uploads/
 # derived, rebuilt by POST /index; meta.json, pages.jsonl, extractions/ stay committed
 data/kb/*/embeddings.jsonl
+data/kb/*/index.json
 data/kb/*/*.tmp
 # ad-hoc uploads (stem up-<sha>) are not public reports; fetched/curated ones are
 data/kb/up-*/

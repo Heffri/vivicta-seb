@@ -63,12 +63,21 @@ def candidate_pages(texts: list[str], schema: dict, top_n: int = 8) -> list[int]
         summary = any(len(set(y)) >= 4 or len(y) >= 5 for y in years) or QUARTER.search(head)  # "2023 2022 2021" / "Oct-Dec 2025 Jul-Sep 2025 ...": multi-year or quarterly table
         group_at = (GROUP.search(head) or re.compile(r"$").search(head)).start()
         parent = any(k in head and (head.index(k) < group_at or not ENTITY.search(k)) for k in excluded)  # Pandox: "KONCERNEN 2024 Rörelsesegment" is a segment note whatever precedes it. Saab SV: parent-company statement outranked the group one;
+        if schema.get("component_sums"):
+            summary = bool(QUARTER.search(head))  # future maturity years are not a historical summary
+            heading = heading or ("carrying" in low and bool(re.search(r"maturit|förfall", low)))
+            fields += 12 * any(k in head for k in ("financial liabilities", "borrowings", "interest-bearing liabilities"))
+            parent = parent or bool(re.search(r"^(?:note )?p\d+\b", head)) or bool(re.search(r"notes to the parent company|financial reports / parent company", texts[i], re.I))
+            if head.startswith("lease"):
+                fields = 0
+                distinct *= 0.1
         penalty = 0.1 if summary or parent else 1  # Vitrolife prints "Group | Parent Company" columns on one page: group first, so not a parent page
         scored.append(((distinct + 5 * heading + fields) * (1 + 5 * density) * penalty, i + 1))
     scored.sort(key=lambda s: (-s[0], s[1]))
     pages = [page for _, page in scored[:top_n]]
-    if pages and pages[0] < len(texts):
+    if pages and pages[0] < len(texts) and not schema.get("component_sums"):
         pages = [pages[0], pages[0] + 1] + [p for p in pages[1:] if p != pages[0] + 1]
-    while len(pages) > 2 and sum(len(texts[p - 1]) for p in pages) > PROMPT_BUDGET:
+    budget = 32000 if schema.get("component_sums") else PROMPT_BUDGET
+    while len(pages) > 2 and sum(len(texts[p - 1]) for p in pages) > budget:
         pages.pop()
     return pages

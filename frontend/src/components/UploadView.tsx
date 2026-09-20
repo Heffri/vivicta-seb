@@ -27,6 +27,13 @@ export function UploadView({ onDone }: Props) {
   const [file, setFile] = useState<File | null>(null)
   const [dragging, setDragging] = useState(false)
   const [progress, setProgress] = useState<string | null>(null) // non-null = busy
+  const [started, setStarted] = useState<number | null>(null)
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    if (!started) return
+    const timer = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000)
+    return () => clearInterval(timer)
+  }, [started])
   const [error, setError] = useState<string | null>(null)
   const [tried, setTried] = useState<Record<string, string[]>>({}) // label → URLs /fetch tried, for the all-failed block
 
@@ -97,6 +104,8 @@ export function UploadView({ onDone }: Props) {
   const run = async () => {
     if (!section) return
     setError(null)
+    setStarted(Date.now())
+    setElapsed(0)
     setTried({})
     const sectionTitle = schemas.find((s) => s.name === section)?.title ?? section
     // Queue = directory picks (fetched on demand) + selected cached entries (library order) + the uploaded file.
@@ -119,7 +128,7 @@ export function UploadView({ onDone }: Props) {
       try {
         setProgress(`${item.prep ?? `Preparing ${item.label}`} ${n}`)
         const report = await item.getReport()
-        setProgress(`Extracting ${item.label} ${n}… about a minute per report with a local model.`)
+        setProgress(`Extracting ${item.label} ${n}… ${i} completed.`)
         const extraction = await extractSection(report.report_id, section)
         // Library entries keep the curated name; the upload gets whatever the backend/LLM guessed.
         const label = item.label === file?.name ? (extraction.company ?? report.company ?? item.label) : item.label
@@ -132,6 +141,7 @@ export function UploadView({ onDone }: Props) {
       }
     }
     setProgress(null)
+    setStarted(null)
     if (results.every((r) => r.error)) setError(results.map((r) => `${r.label}: ${r.error}`).join('\n'))
     else onDone(results)
   }
@@ -378,7 +388,7 @@ export function UploadView({ onDone }: Props) {
               {busy && <Loader2 className="animate-spin" />}
               {count > 1 ? `Extract ${count} reports` : 'Extract'}
             </Button>
-            {progress && <span className="text-sm text-muted-foreground">{progress}</span>}
+            {progress && <span className="text-sm text-muted-foreground">{progress} {elapsed}s elapsed</span>}
           </div>
 
           {error && (

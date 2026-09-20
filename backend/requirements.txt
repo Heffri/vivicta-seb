@@ -1,7 +1,7 @@
 fastapi
 uvicorn[standard]
 python-multipart
-pymupdf
+pymupdf>=1.28.2
 openai
 python-dotenv
 python-pptx

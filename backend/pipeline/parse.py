@@ -1,12 +1,11 @@
 """PDF -> text, one string per page (pymupdf).
 
-Next for a teammate: plain `page.get_text()` loses table structure, so a row label
-and its numbers can land on separate lines. Try `page.find_tables()` or
-`get_text("blocks")` sorted by (y, x) so each table row becomes one line -- that
-helps both keyword locating and verbatim quote matching. Scanned reports need an
-OCR fallback (pymupdf + tesseract via `page.get_textpage_ocr()`).
+Native text first, baseline reconstruction for column-major text, and selective
+local OCR for image/outlined pages. OCR text still needs numerical verification.
 """
+import os
 import re
+from pathlib import Path
 
 import pymupdf
 
@@ -15,21 +14,43 @@ _DIGIT_SPACE = re.compile(r" (?=\d)|(?<=\d) ")  # any space touching a digit
 _CHARMAP = str.maketrans({"\u00a0": " ", "\u202f": " ", "\u2013": "-", "\u2212": "-"})  # NBSP, narrow NBSP, en dash, minus
 
 
-PARSER_VERSION = 2  # bump when page_text changes so kb.save_report rewrites cached pages.jsonl
+PARSER_VERSION = 3  # includes selective OCR; never reuse pre-OCR empty pages
 NUMERIC_RUN = 12  # consecutive letterless lines: a column-major text layer (Arion Bank prints every figure first, then every label, in no order)
 _LEADERS = re.compile(r"(?:\s*\.){3,}")
 
 
-def page_texts(pdf_path) -> list[str]:
+class OCRUnavailable(RuntimeError):
+    pass
+
+
+def ocr_settings():
+    return {"language": os.getenv("OCR_LANGUAGE", "eng+swe"),
+            "tessdata": str(Path(os.getenv("TESSDATA_PREFIX") or Path(__file__).resolve().parents[2] / "data" / "tessdata").resolve())}
+
+
+def page_texts(pdf_path, metadata: dict | None = None) -> list[str]:
     """0-based list; page n (1-based) is texts[n-1]."""
+    if metadata is not None:
+        metadata.update(ocr_pages=[], ocr_settings=ocr_settings())
     with pymupdf.open(pdf_path) as doc:
-        return [page_text(page) for page in doc]
+        return [page_text(page, metadata) for page in doc]
 
 
-def page_text(page) -> str:
+def page_text(page, metadata: dict | None = None) -> str:
     """Plain text; when the text layer is column-major, lines rebuilt from word coordinates instead (label and its
     figures on one line). Only then: words on a baseline also merge two tables printed side by side (AQ)."""
     text = page.get_text()
+    if len(re.sub(r"\W", "", text)) < 20 and (page.get_images() or len(page.get_drawings()) > 100):
+        # PyMuPDF bundles the OCR engine. Language files stay local, no report upload.
+        settings = ocr_settings()
+        tessdata, language = Path(settings["tessdata"]), settings["language"]
+        missing = [lang for lang in language.split("+") if not (tessdata / f"{lang}.traineddata").is_file()]
+        if missing:
+            raise OCRUnavailable("Scanned PDF needs OCR language files. Run python scripts/setup_ocr.py (missing: " + ", ".join(missing) + ").")
+        tp = page.get_textpage_ocr(language=language, dpi=200, full=True, tessdata=str(tessdata))
+        if metadata is not None:
+            metadata.setdefault("ocr_pages", []).append(page.number + 1)
+        return _lines_from_words(page, tp)
     return text if _numeric_run(text) < NUMERIC_RUN else _lines_from_words(page)
 
 
@@ -42,10 +63,10 @@ def _numeric_run(text: str) -> int:
     return best
 
 
-def _lines_from_words(page) -> str:
+def _lines_from_words(page, textpage=None) -> str:
     """Words sharing a baseline (within half a word height), left to right; dot leaders dropped."""
     lines: list[tuple[float, list]] = []
-    for x0, y0, x1, y1, word, *_ in page.get_text("words"):
+    for x0, y0, x1, y1, word, *_ in page.get_text("words", textpage=textpage):
         yc, tol = (y0 + y1) / 2, (y1 - y0) / 2
         line = next((l for l in lines if abs(l[0] - yc) <= tol), None)
         if line is None:

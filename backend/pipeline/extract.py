@@ -9,13 +9,14 @@ the model's "leftmost number" habit; (4) tune SYSTEM_PROMPT_TEMPLATE against eva
 import json
 import os
 import re
+import time
 import unicodedata
 import urllib.request
 from collections import Counter
 
 from openai import OpenAI
 
-from . import kb, locate
+from . import kb, locate, runtime
 from .parse import normalize_ws, quote_on_page
 
 SYSTEM_PROMPT_TEMPLATE = """You extract figures from a corporate annual report (Swedish or English) into JSON.
@@ -79,6 +80,9 @@ _SAFE_BUILTINS = {"abs": abs, "min": min, "max": max}
 
 
 def system_prompt(schema: dict, exclude_stem: str | None = None) -> str:
+    if schema.get("component_sums"):
+        from .maturity import PROMPT
+        return PROMPT + "\nFields: " + json.dumps(schema["fields"], ensure_ascii=False)
     lines = "\n".join(
         f"- {f['key']} | {f['label']} | {f.get('description', '')} | {f.get('unit_hint', '')}" for f in schema["fields"]
     )
@@ -97,6 +101,8 @@ def system_prompt(schema: dict, exclude_stem: str | None = None) -> str:
 
 
 def call_llm(system: str, user: str, schema: dict = RESPONSE_SCHEMA, name: str = "extraction") -> dict:
+    if runtime.provider() == "codex":
+        return runtime.codex_call(system, user, schema)
     base, timeout = os.environ["LLM_BASE_URL"], float(os.getenv("LLM_TIMEOUT", "120"))  # a local 8b model that answers in 30-40 s and is still going after two minutes is stuck
     messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
     if re.search(r":11434/v1/?$", base):
@@ -500,9 +506,14 @@ def score_field(field: dict, sf: dict, checks: list[dict], schema: dict, currenc
     field["confidence"] = round(score, 3)
 
 
-def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict) -> dict:
+def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict, *, prompt: str | None = None) -> dict:
+    if schema.get("component_sums"):
+        from .maturity import extract_maturity
+        return extract_maturity(texts, pages, schema, report_meta, prompt or system_prompt(schema))
+    started = time.perf_counter()
+    model_seconds, attempts = 0.0, 0
     fiscal_year = report_meta.get("fiscal_year")
-    system, warnings, raw = system_prompt(schema, report_meta.get("stem")), [], []
+    system, warnings, raw = prompt or system_prompt(schema, report_meta.get("stem")), [], []
     nonnull = lambda fs: sum(isinstance(f, dict) and f.get("value") is not None for f in fs)
     windows = [tuple(pages[:2])]  # the statement spread first: a quick call (four pages timed out on NOBA / Nordnet)
     while windows:
@@ -510,12 +521,18 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
         user = (f"Fiscal year to extract: {fiscal_year}\n\n" if fiscal_year else "") + \
             "\n\n".join(f"=== PAGE {n} ===\n{texts[n - 1]}" for n in attempt)
         try:
-            got = call_llm(system, user).get("fields", [])
+            call_started = time.perf_counter()
+            attempts += 1
+            got = call_llm(system, user)["fields"]
+            if not isinstance(got, list) or any(not isinstance(f, dict) for f in got):
+                raise ValueError("Model response fields must be an array of objects")
         except Exception as e:  # ponytail: teammates feed the error back to the model
             warnings.append(f"llm: {type(e).__name__}: {e} (pages {list(attempt)})")
             if "timeout" in type(e).__name__.lower() and len(attempt) > 1 and pages:
                 windows = [tuple(pages[:1])]  # IPC: pages 10-11 never answer, page 10 alone does in a minute; a hung single page ends it
             continue
+        finally:
+            model_seconds += time.perf_counter() - call_started
         if nonnull(got) > nonnull(raw):
             raw = got
         if 2 * nonnull(raw) < len(schema["fields"]) and len(attempt) == 2 and len(pages) > 2:
@@ -843,4 +860,5 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict)
         "fields": fields,
         "checks": checks,
         "warnings": warnings,
+        "timings": {"model": round(model_seconds, 3), "validate": round(time.perf_counter() - started - model_seconds, 3), "attempts": attempts},
     }

@@ -24,6 +24,27 @@ Backend runs on `http://localhost:8000`, frontend dev server proxies `/api` to i
 
 Errors: JSON `{ "detail": "message" }` with 4xx/5xx.
 
+## Demo performance and inspection additions
+
+- `/extract` accepts `force?: boolean` (default false). Results include `cached`,
+  `model`, `provider`, `created_at`, and `timings` (seconds: parse, locate, model,
+  validate, total; plus attempts). Cache identity includes PDF, schema, pipeline,
+  model settings and the rendered few-shot prompt. Legacy results remain readable.
+- `/api/config` additionally returns `provider`, `embed_base_url`, and `reasoning`.
+  `LLM_PROVIDER=codex` uses the logged-in CLI, independently of `LLM_BASE_URL`.
+  `EMBED_BASE_URL` and `EMBED_API_KEY` override the embedding connection.
+- KB entries additionally contain `status` (ready/missing/outdated/invalid),
+  `reason`, `embed_model`, `dimensions`, `chunks`, `page_chunks`, `fact_chunks`, `built_at`.
+- `GET /api/knowledge/{stem}/chunks?q=&offset=0&limit=25` returns
+  `{items: [{page,start,text,kind}], total, offset, limit}` without vectors.
+  It only browses the stored index and never generates embeddings.
+- `POST /api/knowledge/{stem}/index` rebuilds the selected index.
+- `POST /api/knowledge/{stem}/open` registers a saved report, including uploads,
+  and returns `Report`. Missing PDFs return 409.
+- `index.json` inside each KB folder records model, dimensions, source fingerprints,
+  chunker version and embedding-file hash. Legacy indexes are outdated until rebuilt.
+  Cache files are atomically replaced. The demo supports one backend process.
+
 ## Types
 
 ```ts
@@ -80,7 +101,15 @@ type KbEntry = {
   fiscal_year: number | null;
   pages: number;
   sections: string[];       // extractions present, e.g. ["income_statement"]
-  indexed: boolean;         // embeddings cached
+  indexed: boolean;
+  status: 'ready' | 'missing' | 'outdated' | 'invalid';
+  reason: string;
+  embed_model: string | null;
+  dimensions: number | null;
+  chunks: number;
+  page_chunks: number;
+  fact_chunks: number;
+  built_at: string | null;
 };
 
 type Source = {
@@ -107,6 +136,11 @@ type Check = {
 };
 
 type Extraction = {
+  cached?: boolean;
+  model?: string;
+  provider?: string;
+  created_at?: string;
+  timings?: { parse: number; locate: number; model: number; validate: number; total: number; attempts: number };
   report_id: string;
   company: string | null;
   fiscal_year: number | null;
@@ -152,6 +186,16 @@ One file per report section. Adding a section = adding a file. The prompt is gen
 
 ## CSV export
 
+Both CSV and PPTX endpoints accept `?section=<schema name>`. Clients must pass the
+displayed section so opening another section cannot change an export. Omitting it
+retains the legacy last-opened-section behavior. Saved results return `stale: true`
+when their source, pipeline, prompt or model identity differs, plus current load
+timings with zero model calls. Invalid saved JSON returns 409 rather than a server error.
+
+PPTX exports include unavailable fields as `Not available`, preserve decimals, and
+use a maturity chart only for a complete split with passing checks. Speaker notes
+retain borrowing scope, warnings, calculations and all component citations.
+
 Header: `report_id,company,fiscal_year,section,key,label,value,unit,period,raw_label,page,quote,confidence`
 One row per field. UTF-8, comma-separated, quotes escaped per RFC 4180.
 
@@ -176,6 +220,7 @@ data/kb/<stem>/
   meta.json                 # company, fiscal_year, language, source_url, pages, sha256 of the PDF
   pages.jsonl               # {"page": 1, "text": "..."} per page — the text layer, committed (public data, ~1 MB/report)
   extractions/<section>.json# the Extraction returned by /extract, latest run wins — committed; doubles as eval + few-shot bank
+  index.json               # derived model/source manifest, gitignored
   embeddings.jsonl          # {"page", "start", "text", "vec"} per chunk — DERIVED, gitignored, rebuilt by /index
 ```
 
@@ -192,11 +237,31 @@ data/kb/<stem>/
 Environment variables, read from `backend/.env`:
 
 ```
-LLM_BASE_URL=http://localhost:11434/v1   # Ollama (OpenAI-compatible). Unset => backend returns the fixture (frontend dev mode)
-LLM_MODEL=qwen3:8b
+LLM_PROVIDER=codex                     # codex, http, or fixture; auto-detected when unset
+LLM_BASE_URL=http://localhost:11434/v1   # HTTP extraction only, not used by codex
+LLM_MODEL=gpt-5.6-terra
+LLM_REASONING=low
+EMBED_BASE_URL=http://localhost:11434/v1
 LLM_API_KEY=ollama                       # any non-empty string for Ollama
 EMBED_MODEL=bge-m3                       # via the same base URL's /embeddings; multilingual (sv+en). `ollama pull bge-m3`
 KB_DIR=../data/kb                        # optional override
 ```
 
 Same variables point at Azure OpenAI / OpenAI / OpenRouter with no code change.
+# Debt evidence and OCR
+
+Debt maturity uses consolidated carrying amounts. Contractual cash flows (including future interest), parent-only schedules, and lease-only schedules are not substitutes. The result includes `debt_scope`, a description of the reported borrowing scope, and `context_source` for the selected note. Missing disaggregation stays null with a warning.
+
+Debt fields may include `components: [{value, source: {page, quote}}]` and `calculation`. The backend verifies every printed component and computes the sum. `source` remains the first component for compatibility. Clients must show the component list for calculated fields. JSON and CSV retain all component evidence. A passed sum check establishes arithmetic consistency, not accounting scope or OCR accuracy.
+
+Scanned or outlined-text pages use local PyMuPDF OCR at 200 DPI when native text is absent. Install English/Swedish data with `python scripts/setup_ocr.py`. Native text pages bypass OCR. Parsed pages are cached under parser version 3. An absent OCR language file returns an actionable error rather than saving empty text.
+
+
+Retrieval citation validation uses the model response's exact `report` ID, not a
+company-name guess. Public citations still return company, fiscal_year and report_id.
+A quote must occur in a retrieved excerpt and its source page. Any rejected citation
+withholds the answer text. `ocr_settings` in report metadata keys OCR cache reuse.
+Explicit knowledge-base Rebuild recomputes vectors; ordinary refresh may reuse them.
+
+Index status may temporarily be `building` while a report is being updated. Listing
+returns the last known counts without waiting for the embedding operation.

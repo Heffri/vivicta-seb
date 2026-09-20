@@ -1,9 +1,11 @@
 {
   "name": "debt_maturity",
+  "component_sums": true,
   "title": "Debt maturity structure",
   "description": "Total interest-bearing debt and when it falls due, as printed in the borrowings note (often 'Note 20' but the number varies by issuer). Amounts only — no interest rates, no covenants.",
   "keywords": [
     "borrowings",
+    "financial liabilities",
     "loans and borrowings",
     "interest-bearing liabilities",
     "interest bearing liabilities",

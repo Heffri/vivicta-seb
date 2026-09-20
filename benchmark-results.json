@@ -1,0 +1,407 @@
+{
+  "provider": "codex",
+  "model": "gpt-5.6-terra",
+  "live": true,
+  "results": [
+    {
+      "report": "atlas_copco_2025",
+      "section": "income_statement",
+      "registration_seconds": 0.541,
+      "fresh": {
+        "model": 26.67,
+        "validate": 0.058,
+        "attempts": 1,
+        "parse": 0.0,
+        "locate": 0.079,
+        "total": 26.81
+      },
+      "cached": {
+        "parse": 0,
+        "locate": 0,
+        "model": 0,
+        "validate": 0,
+        "attempts": 0,
+        "total": 0.007
+      },
+      "values": {
+        "revenue": 168343,
+        "cost_of_sales": -96131,
+        "gross_profit": 72212,
+        "operating_profit": 34114,
+        "profit_before_tax": 33671,
+        "income_tax": -7246,
+        "profit_discontinued": null,
+        "net_profit": 26425,
+        "eps_basic": 5.43
+      },
+      "warnings": [],
+      "checks": [
+        {
+          "name": "gross_profit_arith",
+          "passed": true,
+          "detail": "revenue + cost_of_sales == gross_profit (\u00b12 rounding) | abs((168343 + -96131) - 72212) <= 2"
+        },
+        {
+          "name": "net_profit_arith",
+          "passed": true,
+          "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (\u00b12 rounding) | abs((33671 + -7246 + 0) - 26425) <= 2"
+        },
+        {
+          "name": "margin_sanity",
+          "passed": true,
+          "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | 168343 == 0 or -10 < 34114 / 168343 < 10"
+        }
+      ],
+      "verified": 8
+    },
+    {
+      "report": "atlas_copco_2025",
+      "section": "debt_maturity",
+      "registration_seconds": 0.541,
+      "fresh": {
+        "model": 26.501,
+        "validate": 0.119,
+        "attempts": 1,
+        "parse": 0.0,
+        "locate": 0.063,
+        "total": 26.685
+      },
+      "cached": {
+        "parse": 0,
+        "locate": 0,
+        "model": 0,
+        "validate": 0,
+        "attempts": 0,
+        "total": 0.007
+      },
+      "values": {
+        "total_debt": 34899,
+        "due_within_1_year": 6471,
+        "due_1_to_5_years": null,
+        "due_after_5_years": null
+      },
+      "warnings": [
+        "due_within_1_year: quote not found on page 135",
+        "due_1_to_5_years: 16025 is printed on none of pages [135, 136]; dropped as computed, not read",
+        "due_after_5_years: 12403 is printed on none of pages [135, 136]; dropped as computed, not read"
+      ],
+      "checks": [
+        {
+          "name": "maturity_sums_to_total",
+          "passed": false,
+          "detail": "missing: due_1_to_5_years"
+        }
+      ],
+      "verified": 1
+    },
+    {
+      "report": "atlas_copco_2025",
+      "cold_index_seconds": 32.541,
+      "warm_ask_seconds": 7.982,
+      "citations": 1,
+      "warnings": []
+    },
+    {
+      "report": "ericsson_2025",
+      "section": "income_statement",
+      "registration_seconds": 0.018,
+      "fresh": {
+        "model": 24.298,
+        "validate": 0.081,
+        "attempts": 1,
+        "parse": 0.0,
+        "locate": 0.098,
+        "total": 24.478
+      },
+      "cached": {
+        "parse": 0,
+        "locate": 0,
+        "model": 0,
+        "validate": 0,
+        "attempts": 0,
+        "total": 0.006
+      },
+      "values": {
+        "revenue": 236681,
+        "cost_of_sales": -124013,
+        "gross_profit": 112668,
+        "operating_profit": 38634,
+        "profit_before_tax": 38302,
+        "income_tax": -9588,
+        "profit_discontinued": null,
+        "net_profit": 28714,
+        "eps_basic": 8.53
+      },
+      "warnings": [],
+      "checks": [
+        {
+          "name": "gross_profit_arith",
+          "passed": true,
+          "detail": "revenue + cost_of_sales == gross_profit (\u00b12 rounding) | abs((236681 + -124013) - 112668) <= 2"
+        },
+        {
+          "name": "net_profit_arith",
+          "passed": true,
+          "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (\u00b12 rounding) | abs((38302 + -9588 + 0) - 28714) <= 2"
+        },
+        {
+          "name": "margin_sanity",
+          "passed": true,
+          "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | 236681 == 0 or -10 < 38634 / 236681 < 10"
+        }
+      ],
+      "verified": 8
+    },
+    {
+      "report": "ericsson_2025",
+      "section": "debt_maturity",
+      "registration_seconds": 0.018,
+      "fresh": {
+        "model": 14.946,
+        "validate": 0.047,
+        "attempts": 1,
+        "parse": 0.0,
+        "locate": 0.065,
+        "total": 15.06
+      },
+      "cached": {
+        "parse": 0,
+        "locate": 0,
+        "model": 0,
+        "validate": 0,
+        "attempts": 0,
+        "total": 0.006
+      },
+      "values": {
+        "total_debt": 32703,
+        "due_within_1_year": 3538,
+        "due_1_to_5_years": null,
+        "due_after_5_years": null
+      },
+      "warnings": [],
+      "checks": [
+        {
+          "name": "maturity_sums_to_total",
+          "passed": false,
+          "detail": "missing: due_1_to_5_years"
+        }
+      ],
+      "verified": 2
+    },
+    {
+      "report": "ericsson_2025",
+      "cold_index_seconds": 33.024,
+      "warm_ask_seconds": 12.704,
+      "citations": 1,
+      "warnings": []
+    },
+    {
+      "report": "investor_2025",
+      "section": "income_statement",
+      "registration_seconds": 0.023,
+      "fresh": {
+        "model": 22.804,
+        "validate": 0.055,
+        "attempts": 1,
+        "parse": 0.0,
+        "locate": 0.063,
+        "total": 22.923
+      },
+      "cached": {
+        "parse": 0,
+        "locate": 0,
+        "model": 0,
+        "validate": 0,
+        "attempts": 0,
+        "total": 0.007
+      },
+      "values": {
+        "revenue": 64826,
+        "cost_of_sales": -33819,
+        "gross_profit": null,
+        "operating_profit": 162782,
+        "profit_before_tax": 158447,
+        "income_tax": -1107,
+        "profit_discontinued": null,
+        "net_profit": 157340,
+        "eps_basic": 51.42
+      },
+      "warnings": [
+        "cost_of_sales: model returned null, filled from page 121 row 'Cost of goods and services sold 11 -33,819 -32,679'"
+      ],
+      "checks": [
+        {
+          "name": "gross_profit_arith",
+          "passed": false,
+          "detail": "missing: gross_profit"
+        },
+        {
+          "name": "net_profit_arith",
+          "passed": true,
+          "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (\u00b12 rounding) | abs((158447 + -1107 + 0) - 157340) <= 2"
+        },
+        {
+          "name": "margin_sanity",
+          "passed": true,
+          "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | 64826 == 0 or -10 < 162782 / 64826 < 10"
+        }
+      ],
+      "verified": 7
+    },
+    {
+      "report": "investor_2025",
+      "section": "debt_maturity",
+      "registration_seconds": 0.023,
+      "fresh": {
+        "model": 29.419,
+        "validate": 0.054,
+        "attempts": 1,
+        "parse": 0.0,
+        "locate": 0.045,
+        "total": 29.52
+      },
+      "cached": {
+        "parse": 0,
+        "locate": 0,
+        "model": 0,
+        "validate": 0,
+        "attempts": 0,
+        "total": 0.006
+      },
+      "values": {
+        "total_debt": 3323,
+        "due_within_1_year": 636,
+        "due_1_to_5_years": 1632,
+        "due_after_5_years": 1055
+      },
+      "warnings": [],
+      "checks": [
+        {
+          "name": "maturity_sums_to_total",
+          "passed": true,
+          "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (\u00b12 rounding) | abs((636 + 1632 + 1055) - 3323) <= 2"
+        }
+      ],
+      "verified": 4
+    },
+    {
+      "report": "investor_2025",
+      "cold_index_seconds": 22.308,
+      "warm_ask_seconds": 7.941,
+      "citations": 1,
+      "warnings": []
+    },
+    {
+      "report": "saab_2025",
+      "section": "income_statement",
+      "registration_seconds": 4.94,
+      "error": "No candidate pages found for this section"
+    },
+    {
+      "report": "saab_2025",
+      "section": "debt_maturity",
+      "registration_seconds": 4.94,
+      "error": "No candidate pages found for this section"
+    },
+    {
+      "report": "saab_2025",
+      "index_error": "Invalid vector dimensions"
+    },
+    {
+      "report": "skf_2025",
+      "section": "income_statement",
+      "registration_seconds": 0.499,
+      "fresh": {
+        "model": 30.865,
+        "validate": 0.05,
+        "attempts": 1,
+        "parse": 0.0,
+        "locate": 0.066,
+        "total": 30.988
+      },
+      "cached": {
+        "parse": 0,
+        "locate": 0,
+        "model": 0,
+        "validate": 0,
+        "attempts": 0,
+        "total": 0.006
+      },
+      "values": {
+        "revenue": 91583,
+        "cost_of_sales": -67058,
+        "gross_profit": 24525,
+        "operating_profit": 7755,
+        "profit_before_tax": 6425,
+        "income_tax": -2176,
+        "profit_discontinued": null,
+        "net_profit": 4249,
+        "eps_basic": 8.62
+      },
+      "warnings": [],
+      "checks": [
+        {
+          "name": "gross_profit_arith",
+          "passed": true,
+          "detail": "revenue + cost_of_sales == gross_profit (\u00b12 rounding) | abs((91583 + -67058) - 24525) <= 2"
+        },
+        {
+          "name": "net_profit_arith",
+          "passed": true,
+          "detail": "profit_before_tax + income_tax (+ discontinued operations) == net_profit (\u00b12 rounding) | abs((6425 + -2176 + 0) - 4249) <= 2"
+        },
+        {
+          "name": "margin_sanity",
+          "passed": true,
+          "detail": "operating profit within 10x revenue (a unit mix-up is 1000x; Nordnet's 69% margin and Vitrolife's impairment year are real) | 91583 == 0 or -10 < 7755 / 91583 < 10"
+        }
+      ],
+      "verified": 8
+    },
+    {
+      "report": "skf_2025",
+      "section": "debt_maturity",
+      "registration_seconds": 0.499,
+      "fresh": {
+        "model": 29.125,
+        "validate": 0.035,
+        "attempts": 1,
+        "parse": 0.0,
+        "locate": 0.042,
+        "total": 29.202
+      },
+      "cached": {
+        "parse": 0,
+        "locate": 0,
+        "model": 0,
+        "validate": 0,
+        "attempts": 0,
+        "total": 0.006
+      },
+      "values": {
+        "total_debt": null,
+        "due_within_1_year": -551,
+        "due_1_to_5_years": null,
+        "due_after_5_years": -3214
+      },
+      "warnings": [
+        "due_1_to_5_years: -8952 is printed on none of pages [133, 134]; dropped as computed, not read"
+      ],
+      "checks": [
+        {
+          "name": "maturity_sums_to_total",
+          "passed": false,
+          "detail": "missing: due_1_to_5_years"
+        }
+      ],
+      "verified": 2
+    },
+    {
+      "report": "skf_2025",
+      "cold_index_seconds": 22.61,
+      "warm_ask_seconds": 10.071,
+      "citations": 1,
+      "warnings": []
+    }
+  ]
+}
