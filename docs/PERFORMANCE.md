@@ -133,8 +133,16 @@ BM25 scorer with independent local embeddings and verified index manifests. Pars
 retains the newer geometric table/header fixes and adds selective OCR. Existing
 source caches/indexes refresh once when used.
 
-The integration suite contains 11 runtime checks plus the existing confidence, KB,
+The integration suite contains 12 runtime checks plus the existing confidence, KB,
 global Ask, provider, parser, locator, multi-run merge, path, collection, review and
 workbench checks. Frontend type checking and production build pass. Desktop releases
 include English/Swedish OCR language files and run the runtime/OCR checks before
 packaging. Historical benchmark artifacts remain available for comparison.
+
+Live integration verification also caught a free-text CLI response where JSON was required.
+CLI schema output is now enabled by default (LLM_STRICT_SCHEMA=0 retains compatibility
+with older CLIs), and failed Ask generation returns an actionable 502.
+Live verification after integration returned Ericsson FY2025 revenue of SEK 236,681
+million with a verified page-33 quote and no warnings. The browser showed the ready
+bge-m3 index (1024 dimensions), passage/fact counts, Inspect and Rebuild. Eight desktop
+update/data-sync tests also passed.

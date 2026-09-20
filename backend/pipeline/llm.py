@@ -23,13 +23,13 @@ or claude's `--json-schema` could constrain the reply the way response_format={"
 for openai_compatible, but that's untried against the real CLIs and the prompt already asks for strict
 JSON, parsed the same way as today either way.
 
-LLM_STRICT_SCHEMA=1 (v121, opt-in) closes that gap: the CLI providers then pass the caller's `schema` on
+LLM_STRICT_SCHEMA=1 (enabled by default) closes that gap: the CLI providers then pass the caller's `schema` on
 -- codex exec takes `--output-schema <file>` (the schema written into the call's own -C temp dir), claude
 takes `--json-schema <inline JSON>` (its --help shows the schema as a string value, not a file path -- the
 one place the two CLIs differ). Parsing is unchanged; the prompt still asks for strict JSON either way.
 When the strict call fails (a CLI build without the flag, or any non-zero exit/timeout), chat() falls
 back to today's flag-less call with a warnings.warn -- so the switch can only add a retry, never change
-a reply that today's code would have gotten. Default (switch unset) is byte-for-byte today's behavior.
+a reply that today's code would have gotten. Set LLM_STRICT_SCHEMA=0 only for older CLI versions without schema support.
 
 web_lookup() (v074) is chat() with the provider's own web-search tool switched on -- fetch.py's fourth
 report source. Only the CLI providers have a search tool; an OpenAI-compatible endpoint has none, so
@@ -72,7 +72,7 @@ def chat(system: str, user: str, schema: dict, name: str = "response") -> str:
     warnings.warn -- so a CLI build without the flag, a rate limit, or a timeout costs one retry and
     degrades to exactly the pre-v121 behavior. The fallback's own failure is what the caller sees."""
     p = provider()
-    strict = schema is not None and os.getenv("LLM_STRICT_SCHEMA", "") == "1"
+    strict = schema is not None and os.getenv("LLM_STRICT_SCHEMA", "1") == "1"
     if p == "codex":
         try:
             content = _codex_chat(system, user, schema=schema if strict else None)

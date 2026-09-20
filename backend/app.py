@@ -429,7 +429,12 @@ def ask(body: AskBody):
                                "page": 64, "quote": "Intäkter 152 340 141 902", "score": 0.91}],
                 "warnings": ["fixture answer: LLM_BASE_URL unset"], "model": "fixture"}
     t0 = time.time()
-    answer = kb.ask(list(ids), body.question, ids=ids, keyword_only=body.report_ids is None)
+    try:
+        answer = kb.ask(list(ids), body.question, ids=ids, keyword_only=body.report_ids is None)
+    except Exception as e:
+        raise HTTPException(502, f"Retrieval failed. Check the embedding endpoint and rebuild outdated indexes ({type(e).__name__}).") from None
+    if not answer["answer"] and answer["warnings"]:
+        raise HTTPException(502, " ".join(answer["warnings"]))
     print(f"[ask] {body.report_ids}: {len(answer['citations'])} citations, {len(answer['warnings'])} warnings in {time.time() - t0:.1f}s")
     return answer
 

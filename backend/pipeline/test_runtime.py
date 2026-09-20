@@ -233,6 +233,13 @@ class RuntimeChecks(unittest.TestCase):
             self.assertEqual(embed.call_count, 2)
 
 
+    def test_cli_schema_is_enabled_by_default(self):
+        with patch.dict(os.environ):
+            os.environ.pop("LLM_STRICT_SCHEMA", None)
+            with patch.object(llm, "_codex_chat", return_value='{}') as call:
+                llm.chat("system", "user", {"type": "object"})
+                self.assertEqual(call.call_args.kwargs["schema"], {"type": "object"})
+
     def test_codex_inference_is_isolated(self):
         from unittest.mock import Mock
         def run(args, **kwargs):
