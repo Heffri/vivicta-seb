@@ -1,7 +1,7 @@
 import { BasisPanel, YearComparison } from '@/components/AnalystWorkbench'
 import { ArrowLeft, Download } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { csvUrl, pptxUrl, extractSection } from '@/api'
+import { csvUrl, pptxUrl, extractSection, fillField } from '@/api'
 import { AskPanel } from '@/components/AskPanel'
 import { HumanReviewForm } from '@/components/results/HumanReviewForm'
 import { FieldsTable } from '@/components/results/FieldsTable'
@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { scrollContent } from '@/components/shell/scrollContent'
 import { fieldVerification } from '@/components/results/verification'
 import { Button, buttonVariants } from '@/components/ui/button'
-import type { Comparison, Extraction, Field, Source } from '@/types'
+import type { Comparison, Extraction, Field, FieldFill, Source } from '@/types'
 
 type Props = {
   extraction: Extraction
@@ -58,10 +58,16 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
   const [comparison, setComparison] = useState<Comparison | null>(null)
   const [brokenPage, setBrokenPage] = useState<number | null>(null)
   const [askPage, setAskPage] = useState<number | null>(initialPage ?? null) // citation chip override; a row click clears it
+  // Keep the last evidence page visible when the analyst switches from a sourced field to an
+  // empty one. That is the deliberate source-panel handoff for a controlled v177 fill.
+  const [viewedPage, setViewedPage] = useState<number | null>(() => initialPage ?? fields.find((field) => field.source)?.source?.page ?? null)
   const [viewer, setViewerState] = useState<Viewer>(loadViewer)
   const [priorYear, setPriorYear] = useState(false) // v091: mirrors MaturityChart's "Show prior year" switch so Export PPTX requests the second series
   const [perYear, setPerYear] = useState(false) // v109: mirrors "Per year" the same way (?per_year=1)
   const [reviewCitation, setReviewCitation] = useState({ page: '', quote: '' })
+  const [fillResult, setFillResult] = useState<(FieldFill & { fieldKey: string }) | null>(null)
+  const [fillingField, setFillingField] = useState(false)
+  const [fillError, setFillError] = useState<string | null>(null)
   const setViewer = (v: Viewer) => {
     setViewerState(v)
     try {
@@ -78,11 +84,27 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
     } else if (initialField === '@checks') scrollContent(document.getElementById('calculation-checks'))
   }, [initialField])
   const selected = fields.find((f) => f.key === selectedKey) ?? null
-  const page = askPage ?? selected?.source?.page ?? null // what the provenance pane shows
+  const page = askPage ?? selected?.source?.page ?? viewedPage // what the provenance pane shows
   const selectField = (key: string) => {
+    const next = fields.find((field) => field.key === key)
     setSelectedKey(key)
     setAskPage(null)
+    if (next?.source) setViewedPage(next.source.page)
     setReviewCitation({ page: '', quote: '' })
+    setFillResult(null); setFillError(null)
+  }
+  const fillSelectedField = async (sourcePage: number) => {
+    if (!selected || selected.value !== null) return
+    const fieldKey = selected.key
+    setFillingField(true); setFillError(null); setFillResult(null)
+    try {
+      const result = await fillField(report_id, section, fieldKey, [sourcePage])
+      setFillResult({ ...result, fieldKey })
+    } catch (error) {
+      setFillError(error instanceof Error ? error.message : 'Could not read the selected page')
+    } finally {
+      setFillingField(false)
+    }
   }
   const reviewCount = fields.filter((f) => ['Needs review', 'Not checked', 'Not found'].includes(fieldVerification(f).label)).length
 
@@ -104,6 +126,7 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
           manual review form — insertion point only; the banner lives in results/NotFoundBanner.tsx. */}
       <NotFoundBanner extraction={extraction} onSelectField={selectField} />
       {runError && <p role="alert" className="text-sm text-destructive">{runError}</p>}
+      {fillError && <p role="alert" className="text-sm text-destructive">{fillError}</p>}
       {extraction.stale && <p role="status" className="text-sm text-amber-700">This saved result predates the current source, model or extraction settings. Human-reviewed results are preserved.</p>}
       {extraction.timings && <p className="text-sm text-muted-foreground">{extraction.cached ? 'Saved result' : 'Fresh extraction'} · {extraction.timings.total ?? 0} s · {extraction.timings.attempts ?? 0} model calls</p>}
       {/* Top bar: who, what, how well verified; exports on the right. */}
@@ -165,7 +188,8 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
 
         <div className="space-y-4">
           <FieldsTable fields={fields} selectedKey={selectedKey} onSelect={selectField} />
-          {selected && <HumanReviewForm key={`${selected.key}:${selected.human_review?.at ?? ''}`} extraction={extraction} field={selected} citation={reviewCitation} onCitationChange={setReviewCitation} onSaved={(result) => { setReviewCitation({ page: '', quote: '' }); onUpdated(result) }} />}
+          {selected && <HumanReviewForm key={`${selected.key}:${selected.human_review?.at ?? ''}`} extraction={extraction} field={selected} citation={reviewCitation} candidate={fillResult?.fieldKey === selected.key ? fillResult.candidate : null} candidateWarnings={fillResult?.fieldKey === selected.key ? fillResult.warnings : []} onDiscardCandidate={() => setFillResult(null)} onCitationChange={setReviewCitation} onSaved={(result) => { setReviewCitation({ page: '', quote: '' }); setFillResult(null); onUpdated(result) }} />}
+          {selected && fillResult?.fieldKey === selected.key && !fillResult.candidate && <section aria-live="polite" className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm"><p className="font-medium">No candidate for {selected.label}</p><ul className="list-disc space-y-1 pl-4 text-xs text-muted-foreground">{fillResult.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul><Button type="button" variant="ghost" size="xs" onClick={() => setFillResult(null)}>Discard</Button></section>}
         </div>
 
         {/* ponytail: no longer sticky — it would slide over the Ask panel below it. */}
@@ -181,6 +205,8 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
           brokenPage={brokenPage}
           onBrokenPage={setBrokenPage}
           onUseSource={(source: Source) => setReviewCitation({ page: String(source.page), quote: source.quote })}
+          onFillField={fillSelectedField}
+          fillingField={fillingField}
         />
 
         <div id="calculation-checks"><StatusCards checks={checks} warnings={warnings} fields={fields} onSelect={(key) => {
@@ -190,7 +216,7 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
           scrollContent(source, 'smooth')
         }} /></div>
 
-        <AskPanel reports={[{ report_id, label: company ?? 'This report' }]} onCitation={(_id, p) => setAskPage(p)} />
+        <AskPanel reports={[{ report_id, label: company ?? 'This report' }]} onCitation={(_id, p) => { setViewedPage(p); setAskPage(p) }} />
       </div>
     </div>
   )
