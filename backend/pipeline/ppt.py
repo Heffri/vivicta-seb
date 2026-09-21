@@ -14,9 +14,27 @@ BUCKET_ORDER = ["due_within_1_year", "due_1_to_5_years", "due_after_5_years"]
 BUCKET_LABELS = {"due_within_1_year": "Within 1 year", "due_1_to_5_years": "1–5 years", "due_after_5_years": "> 5 years"}
 
 
-def build_pptx(x: dict, prior_year: bool = False, per_year: bool = False) -> bytes:
+def _presentation() -> Presentation:
     prs = Presentation()
     prs.slide_width, prs.slide_height = Inches(13.333), Inches(7.5)  # 16:9
+    return prs
+
+
+def _save(prs: Presentation) -> bytes:
+    buf = io.BytesIO()
+    prs.save(buf)
+    return buf.getvalue()
+
+
+def build_pptx(x: dict, prior_year: bool = False, per_year: bool = False) -> bytes:
+    """Build the existing single-company export without changing its layout."""
+    prs = _presentation()
+    add_slide(prs, x, prior_year=prior_year, per_year=per_year)
+    return _save(prs)
+
+
+def add_slide(prs: Presentation, x: dict, prior_year: bool = False, per_year: bool = False):
+    """Append the established one-company layout to a supplied presentation."""
     slide = prs.slides.add_slide(prs.slide_layouts[6])  # blank
 
     title = f"{x['company'] or 'Unknown company'} — {x.get('section', '').replace('_', ' ').title()}"
@@ -54,9 +72,62 @@ def build_pptx(x: dict, prior_year: bool = False, per_year: bool = False) -> byt
     counts = {kind: sum(i["kind"] == kind for i in unresolved) for kind in ("field", "basis", "check")}
     _textbox(slide, period + (f"Unresolved: {counts['field']} figures, {counts['basis']} definitions, {counts['check']} calculations. " if unresolved else "") + "Full sources and review history in speaker notes.", Pt(11), top=Inches(6.9))
     slide.notes_slide.notes_text_frame.text = json.dumps(x, ensure_ascii=False, indent=2)
-    buf = io.BytesIO()
-    prs.save(buf)
-    return buf.getvalue()
+
+
+def summary_row(x: dict) -> dict:
+    """The deterministic maturity-wall row used on a whole-universe deck cover."""
+    fields = {f["key"]: f for f in x.get("fields", [])}
+    check = next((c for c in x.get("checks", []) if c.get("name") == "maturity_sums_to_total"), None)
+    reviews = sorted({str((f.get("human_review") or {}).get("decision")) for f in fields.values()
+                      if (f.get("human_review") or {}).get("decision")})
+    return {
+        "company": x.get("company") or x.get("stem") or "Unknown company",
+        "total": fields.get("total_debt", {}).get("value"),
+        "within_1_year": fields.get("due_within_1_year", {}).get("value"),
+        "one_to_five_years": fields.get("due_1_to_5_years", {}).get("value"),
+        "after_five_years": fields.get("due_after_5_years", {}).get("value"),
+        "identity": "Pass" if check and check.get("passed") else "Needs review" if check else "Not checked",
+        "review": ", ".join(reviews) if reviews else "Not reviewed",
+    }
+
+
+def build_deck(extractions: list[dict], summary: list[dict] | None = None) -> bytes:
+    """Build one universe deck: a maturity-wall table followed by one established slide per company."""
+    prs = _presentation()
+    _summary_slide(prs, summary if summary is not None else [summary_row(x) for x in extractions])
+    for x in extractions:
+        add_slide(prs, x)
+    return _save(prs)
+
+
+def _summary_slide(prs: Presentation, rows: list[dict]):
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    _textbox(slide, "Debt maturity universe", Pt(28), bold=True, top=Inches(0.35))
+    _textbox(slide, f"{len(rows)} saved companies · amounts exactly as stored · missing values remain unknown", Pt(12), top=Inches(0.85), color=(100, 100, 100))
+    headers = ["Company", "Total", "<1y", "1–5y", ">5y", "Identity", "Review"]
+    table_shape = slide.shapes.add_table(len(rows) + 1, len(headers), Inches(0.6), Inches(1.15), Inches(12.1), Inches(5.95))
+    table = table_shape.table
+    widths = [2.8, 1.2, 1.1, 1.1, 1.1, 1.8, 3.0]
+    for index, width in enumerate(widths):
+        table.columns[index].width = Inches(width)
+        table.cell(0, index).text = headers[index]
+    for row_index, row in enumerate(rows, start=1):
+        values = [row.get("company"), row.get("total"), row.get("within_1_year"), row.get("one_to_five_years"),
+                  row.get("after_five_years"), row.get("identity"), row.get("review")]
+        for column, value in enumerate(values):
+            table.cell(row_index, column).text = _summary_value(value)
+    body_size = Pt(max(3.5, min(10, 44 / max(len(rows), 1))))
+    for row_index, row in enumerate(table.rows):
+        for cell in row.cells:
+            for paragraph in cell.text_frame.paragraphs:
+                paragraph.font.size = Pt(6) if row_index == 0 else body_size
+                paragraph.font.bold = row_index == 0
+
+
+def _summary_value(value) -> str:
+    if isinstance(value, (int, float)):
+        return f"{value:,.6f}".rstrip("0").rstrip(".").replace(",", " ")
+    return str(value) if value is not None else "—"
 
 
 def _debt_chart(slide, by_key, buckets, prior=None, by_year=None):
