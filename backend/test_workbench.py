@@ -1,4 +1,5 @@
-"""Run with python test_workbench.py. Isolated files, no network or PDFs."""
+"""Run with python test_workbench.py. Isolated files, no network; v179's locate block is the one
+synthetic (pymupdf-generated, in-memory) PDF, exercised through a real upload."""
 import copy
 import csv
 import io
@@ -10,6 +11,7 @@ from unittest.mock import patch
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from pptx import Presentation
+import pymupdf
 import app
 from pipeline import kb, workbench, ppt
 
@@ -292,6 +294,71 @@ with tempfile.TemporaryDirectory() as tmp:
             raise AssertionError('candidates accepted an unknown report or section')
         except HTTPException as e:
             assert e.status_code == 404
+
+# v179: GET .../pages/{n}/locate -- zero-model, degrades quote -> longest line -> longest digit
+# run. A real (synthetic) PDF with real searchable text exercises all four outcomes, one per page,
+# uploaded like any user PDF so require_pdf's own cache is what is actually being read.
+with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {'KB_DIR': tmp}), \
+        patch.object(app, 'UPLOADS', Path(tmp)), patch.object(app, 'reports', {}), \
+        patch.object(app, 'texts_cache', {}), patch.object(app, 'library_paths', {}):
+    pdf_file = Path(tmp) / 'locate-src.pdf'
+    with pymupdf.open() as doc:
+        doc.new_page().insert_text((72, 720), 'Total debt 1 234 MSEK due within one year')  # p.1: verbatim
+        twice = doc.new_page()  # p.2: the same line printed twice (group and parent columns)
+        twice.insert_text((72, 700), 'Total debt 1 234 MSEK')
+        twice.insert_text((72, 650), 'Total debt 1 234 MSEK')
+        doc.new_page().insert_text((72, 720), 'Total debt 1 234 MSEK due within one year, per the borrowings note filed with the group')  # p.3: quote's 2nd line only
+        doc.new_page().insert_text((72, 720), '1 234')  # p.4: the number alone, no surrounding row
+        doc.new_page().insert_text((72, 720), 'Unrelated boilerplate text with no numbers at all')  # p.5: no match at any tier
+        wrap_once = doc.new_page()  # p.6: a genuine two-line citation, printed once
+        wrap_once.insert_text((72, 720), 'Note 20 Borrowings')
+        wrap_once.insert_text((72, 733), 'Total debt is 1 234 MSEK due within one year, filed with the group')
+        wrap_twice = doc.new_page()  # p.7: the same two-line citation, printed twice (two real occurrences)
+        wrap_twice.insert_text((72, 720), 'Note 20 Borrowings')
+        wrap_twice.insert_text((72, 733), 'Total debt is 1 234 MSEK due within one year, filed with the group')
+        wrap_twice.insert_text((72, 760), 'Note 20 Borrowings')
+        wrap_twice.insert_text((72, 773), 'Total debt is 1 234 MSEK due within one year, filed with the group')
+        doc.save(pdf_file)
+    client = TestClient(app.app)
+    upload = client.post('/api/reports', files={'file': ('locate.pdf', pdf_file.read_bytes(), 'application/pdf')})
+    assert upload.status_code == 200, upload.text
+    report_id = upload.json()['report_id']
+
+    def locate(page, quote):
+        r = client.get(f'/api/reports/{report_id}/pages/{page}/locate', params={'quote': quote})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    exact = locate(1, 'Total debt 1 234 MSEK due within one year')
+    assert exact['matched'] == 'quote' and len(exact['rects']) == 1 and exact['occurrences'] == 1
+    x0, y0, x1, y1 = exact['rects'][0]
+    assert 0 <= x0 < x1 <= exact['width'] and 0 <= y0 < y1 <= exact['height'], exact
+
+    dup = locate(2, 'Total debt 1 234 MSEK')
+    assert dup['matched'] == 'quote' and len(dup['rects']) == 2 and dup['occurrences'] == 2, dup  # printed twice -> both frame, neither is guessed
+
+    wrapped = locate(3, 'Note 20\nTotal debt 1 234 MSEK due within one year, per the borrowings note filed with the group')
+    assert wrapped['matched'] == 'line' and len(wrapped['rects']) == 1 and wrapped['occurrences'] == 1, wrapped  # the fabricated 1st line never printed; the 2nd (longest) did
+
+    cell = locate(4, 'Total debt 1 234 MSEK due within one year')
+    assert cell['matched'] == 'value' and len(cell['rects']) == 1 and cell['occurrences'] == 1, cell  # only the bare number sits on this page
+
+    nothing = locate(5, 'Something entirely different, printed nowhere in this report')
+    assert nothing['matched'] == 'none' and nothing['rects'] == [] and nothing['occurrences'] == 0, nothing
+
+    # A genuine two-line citation must report as ONE occurrence even though it draws two rects (one
+    # per printed line) -- otherwise an ordinary wrapped citation would wrongly cry "2 matches".
+    two_line_quote = 'Note 20 Borrowings\nTotal debt is 1 234 MSEK due within one year, filed with the group'
+    once = locate(6, two_line_quote)
+    assert once['matched'] == 'quote' and len(once['rects']) == 2 and once['occurrences'] == 1, once
+    twice = locate(7, two_line_quote)
+    assert twice['matched'] == 'quote' and len(twice['rects']) == 4 and twice['occurrences'] == 2, twice  # a real second occurrence must still show as 2
+
+    assert client.get(f'/api/reports/{report_id}/pages/99/locate', params={'quote': 'x'}).status_code == 404
+    app.reports['up-nopdf'] = {'report_id': 'up-nopdf', 'filename': 'x.pdf', 'pages': 1, 'company': None, 'fiscal_year': None, 'stem': 'up-nopdf'}
+    missing = client.get('/api/reports/up-nopdf/pages/1/locate', params={'quote': 'x'})
+    assert missing.status_code == 409, missing.text
+print('locate endpoint checks passed: quote/line/value tiers, multi-match, none, out-of-range, no PDF cached')
 
 # Deterministic rendered fixtures for visual review, outside the repository.
 for section in ('income_statement', 'debt_maturity'):
