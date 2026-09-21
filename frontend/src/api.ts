@@ -1,4 +1,4 @@
-import type { ChunkPage, Answer, Company, Extraction, IndexStatus, KbEntry, LibraryEntry, Report, ReviewComponent, Schema } from './types'
+import type { ChunkPage, Answer, Company, Extraction, IndexStatus, KbEntry, LibraryEntry, MaturityWall, Report, ReviewComponent, Schema } from './types'
 import type { Collection } from './hooks/useCollection'
 
 export type ApiError = Error & { status: number; tried?: string[] }
@@ -124,6 +124,10 @@ export const openKbExtraction = (stem: string, section: string) =>
 
 export const getKbPage = (stem: string, page: number) =>
   request<{ page: number; text: string }>(`/api/kb/${encodeURIComponent(stem)}/pages/${page}`)
+
+// v174: deterministic upcoming-maturities list over the saved collection (Compare view). Zero model calls.
+export const getMaturityWall = (collection: Collection = 'wallenberg') =>
+  request<MaturityWall>(`/api/kb/maturity-wall?collection=${collection}`)
 
 export const reviewField = (reportId: string, body: { section: string; key: string; expected: import('./types').Field; decision: import('./types').HumanReview['decision']; reviewer: string; note: string; value?: number | string | null; unit?: string | null; period?: string | null; source_page?: number; source_quote?: string; components?: ReviewComponent[] }) =>
   request<Extraction>(`/api/reports/${encodeURIComponent(reportId)}/review`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
