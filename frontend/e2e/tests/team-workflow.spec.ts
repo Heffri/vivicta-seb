@@ -31,7 +31,7 @@ test('Extract and Ask can use all companies, and the choice follows navigation',
   await expect(page.getByRole('button', { name: /Acast ACAST/ })).toBeVisible()
   expect(scopes).toContain('all')
   await page.getByRole('tab', { name: 'Ask', exact: true }).click()
-  await expect(page.getByText('Scope: All 2 saved reports', { exact: true })).toBeVisible()
+  await expect(page.getByText('Scope: Saved text from 2 reports', { exact: true })).toBeVisible()
   await page.getByRole('group', { name: 'Collection' }).getByRole('button', { name: 'All', exact: true }).click()
   await expect(page.getByRole('combobox', { name: 'Question', exact: true })).toBeVisible()
   await page.getByRole('combobox', { name: 'Question', exact: true }).fill('@Aca')

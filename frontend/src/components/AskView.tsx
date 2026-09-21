@@ -29,7 +29,9 @@ export function AskView({ initialCompany }: Props) {
       </header>
       {error ? <div className="space-y-2"><ErrorBlock>Could not load saved reports: {error}</ErrorBlock><Button onClick={() => { setError(null); setCatalog(null); setRetry((n) => n + 1) }}>Retry</Button></div>
         : catalog === null ? <LoadingLine>Loading saved reports…</LoadingLine>
-        : <AskPanel key={collection} reports={[]} catalog={catalog} initialCompany={initialCompany} />}
+        : <><p className="text-sm text-muted-foreground" role="status">{catalog.filter(e => e.text_available !== false).length} reports with saved text · {catalog.filter(e => e.figures_available ?? e.sections.length > 0).length} with extracted figures · {catalog.filter(e => e.pdf_available).length} PDFs downloaded</p>
+          {catalog.some(e => e.text_available === false) && <p className="text-xs text-muted-foreground">{catalog.filter(e => e.text_available === false).length} catalog entries have no readable page text and are excluded from Ask.</p>}
+          <AskPanel key={collection} reports={[]} catalog={catalog.filter(e => e.text_available !== false)} initialCompany={initialCompany} /></>}
     </div>
   )
 }

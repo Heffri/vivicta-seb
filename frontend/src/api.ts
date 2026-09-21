@@ -34,8 +34,7 @@ export const registerLibraryReport = (file: string) =>
 
 export const getCompanies = (q: string, collection: 'wallenberg' | 'all' = 'wallenberg') => request<Company[]>(`/api/companies?q=${encodeURIComponent(q)}&collection_name=${collection}`)
 
-// v074: country/hint are optional context for the backend's model search (its fourth fetch source,
-// used when the directory has no hit); they are ignored by the feed levels.
+// country/hint provide optional context for AI-first report discovery.
 export const fetchReport = (company: string, year: number, opts?: { country?: string; hint?: string; download_pdf?: boolean }) =>
   request<Report>('/api/reports/fetch', {
     method: 'POST',

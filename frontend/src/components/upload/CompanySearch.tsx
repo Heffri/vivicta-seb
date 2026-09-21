@@ -33,7 +33,7 @@ export function CompanySearch({
   onTogglePick,
 }: CompanySearchProps) {
   return (
-    <Face label={collection === 'all' ? 'All listed companies' : 'Wallenberg companies'} hint="uses saved reports first; downloading is optional">
+    <Face label="Find a company" hint={collection === 'all' ? 'Local matches below · AI search works worldwide' : 'Wallenberg matches below · AI search works worldwide'}>
       <div className="flex gap-2">
         <Input
           id="company-q"
@@ -42,8 +42,9 @@ export function CompanySearch({
           value={query}
           disabled={busy}
           onChange={(e) => onQueryChange(e.target.value)}
-          placeholder="Search listed companies… e.g. Sandvik"
-          aria-label="Search listed companies"
+          placeholder="Any company… e.g. Sandvik, Siemens, Toyota"
+          aria-label="Search companies"
+          maxLength={100}
         />
         <Select
           value={year}
@@ -68,7 +69,7 @@ export function CompanySearch({
         <ErrorBlock className="px-3 py-2 text-xs">Company directory unavailable{dirError && ` (${dirError})`}.</ErrorBlock>
       ) : (
         <ul className="max-h-64 min-[1280px]:max-h-80 divide-y divide-border overflow-y-auto rounded-lg border border-border bg-background/50 text-sm">
-          {companies.length === 0 && <li className="px-3 py-2 text-xs text-muted-foreground">No matches.</li>}
+          {companies.length === 0 && <li className="px-3 py-2 text-xs text-muted-foreground">No local matches. Use AI web search below.</li>}
           {companies.map((c) => {
             const on = picked.some((p) => p.name === c.name)
             return (

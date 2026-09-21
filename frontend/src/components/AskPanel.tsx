@@ -44,7 +44,7 @@ export function AskPanel({ reports, catalog, initialCompany, onCitation }: Props
   const companies = [...new Set((catalog ?? []).map((entry) => entry.company).filter((name): name is string => !!name))].sort()
   const mentions = companyMentions(question, companies)
   const selected = (catalog ?? []).filter((entry) => entry.company && mentions.selected.includes(entry.company))
-  const scope = global ? mentions.unknown.length ? 'Waiting for a valid company mention' : mentions.selected.length ? `${mentions.selected.join(', ')} · ${selected.length} saved reports` : `All ${catalog.length} saved reports` : reports.map((report) => report.label).join(', ')
+  const scope = global ? mentions.unknown.length ? 'Waiting for a valid company mention' : mentions.selected.length ? `${mentions.selected.join(', ')} · text from ${selected.length} reports` : `Saved text from ${catalog.length} reports` : reports.map((report) => report.label).join(', ')
   const blocked = global ? catalog.length === 0 || mentions.unknown.length > 0 : reports.length === 0
   const mention = global ? mentionAtCursor(question, cursor) : null
   const suggestions = mention ? companies.filter((name) => name.toLocaleLowerCase().startsWith(mention.query.toLocaleLowerCase())).slice(0, 8) : []
@@ -77,7 +77,7 @@ export function AskPanel({ reports, catalog, initialCompany, onCitation }: Props
     const parsed = global ? companyMentions(q, companies) : null
     if (parsed?.unknown.length) return
     const stems = parsed?.selected.length ? catalog!.filter((entry) => entry.company && parsed.selected.includes(entry.company)).map((entry) => entry.stem) : global ? catalog!.map((entry) => entry.stem) : undefined
-    const requestScope = global ? parsed?.selected.length ? `${parsed.selected.join(', ')} · ${stems!.length} saved reports` : `All ${catalog!.length} saved reports` : scope
+    const requestScope = global ? parsed?.selected.length ? `${parsed.selected.join(', ')} · text from ${stems!.length} reports` : `Saved text from ${catalog!.length} reports` : scope
     const controller = new AbortController()
     currentRequest.current = controller
     const id = ++nextTurn.current
@@ -141,7 +141,7 @@ export function AskPanel({ reports, catalog, initialCompany, onCitation }: Props
         {!turns.length && <div className={`flex flex-col items-center text-center ${global ? 'py-7' : 'py-2'}`}>
           <ThinkingOrb className={global ? 'size-32' : 'size-20'} />
           <h2 className="mt-4 text-xl font-medium tracking-tight">What would you like to understand?</h2>
-          <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">{global ? `${catalog.length} saved reports from ${companies.length} companies. Ask across the collection, or mention a company to narrow your question.` : 'Ask about these statements and inspect the source behind each answer.'}</p>
+          <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">{global ? `Search saved report text across ${companies.length} companies, or mention a company to narrow your question. Original PDFs are only available where downloaded.` : 'Ask about these statements and inspect the source behind each answer.'}</p>
         </div>}
         {!!turns.length && <div className="flex items-center justify-between gap-3"><h2 className="text-sm font-medium">Questions & answers</h2><Button variant="ghost" size="sm" disabled={busy} onClick={() => { setTurns([]); setQuestion(''); setSource(null); setCopyStatus(null); sourceRequest.current++; input.current?.focus() }}><RotateCcw />New conversation</Button></div>}
         {turns.length > 0 && <ol aria-label="Questions and answers" className="space-y-7">{turns.map(turn => <li key={turn.id} className="space-y-4 text-sm">

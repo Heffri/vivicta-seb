@@ -116,6 +116,12 @@ extractions and reviews. The app opens these without re-extracting them. In
 **Knowledge base**, choose **Collection → All** to see the full library. Extract
 and Ask share this collection choice; Extract also offers **All companies**.
 
+In Extract, type any company name and use **AI search, download & extract** to
+find its official annual report with the connected Codex/Claude model. Saved
+text is reused first; feeds and traditional search are fallback sources.
+Ask lists saved text, nonempty extracted figures, and downloaded PDFs separately.
+A catalog entry with no readable page text is excluded from Ask.
+
 For the installed desktop app, close it and run from your checkout (Node required):
 
 ```powershell
