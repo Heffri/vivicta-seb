@@ -257,6 +257,194 @@ def test_merge_is_pure_and_shapes_the_record():
     print("merge purity + record shape ok")
 
 
+# ---- v168: a vote must be the same financial question ------------------------------------------
+
+def _with_field(run, key, **kw):
+    """A copy of `run` whose field `key` gained the given keys (unit/period overrides, ...)."""
+    r = copy.deepcopy(run)
+    next(f for f in r["fields"] if f["key"] == key).update(kw)
+    return r
+
+
+def test_same_question_unit_scale():
+    """v168 counterexamples, now green: two answers agreeing numerically but printed on different
+    unit scales are NOT one answer -- 100 MSEK vs 100 TSEK (the work order's case) conflicts and
+    publishes null (v145-b's no-signal rule). Equal scale+currency under different spellings stays
+    one answer (SEK M == MSEK, KSEK == TSEK, KUSD == 'USD thousands', MSEK == 'SEK million'), a
+    currency difference still conflicts (MSEK vs MEUR)."""
+    from . import merge
+    r1 = _run({"total_debt": 100}, conf={"total_debt": 0.9}, check_passed=True)
+    r2 = _with_field(_run({"total_debt": 100}, conf={"total_debt": 0.9}, check_passed=True),
+                     "total_debt", unit="TSEK")
+    merged, decisions = merge.merge_runs(r1, r2, None, "union")
+    assert _value(merged, "total_debt") is None, "100 MSEK vs 100 TSEK must not vote together"
+    assert decisions["total_debt"] == "null (union: conflict, no signal -> null)"
+    for same_unit in ("SEK M", "SEK million"):
+        other = _with_field(_run({"total_debt": 100}, conf={"total_debt": 0.8}, check_passed=True),
+                            "total_debt", unit=same_unit)
+        merged, decisions = merge.merge_runs(r1, other, None, "union")
+        assert _value(merged, "total_debt") == 100 and "agree" in decisions["total_debt"], same_unit
+    r1k = _with_field(_run({"total_debt": 100}, conf={"total_debt": 0.9}, check_passed=True),
+                      "total_debt", unit="KSEK")
+    r2t = _with_field(_run({"total_debt": 100}, conf={"total_debt": 0.8}, check_passed=True),
+                      "total_debt", unit="TSEK")
+    merged, decisions = merge.merge_runs(r1k, r2t, None, "union")
+    assert _value(merged, "total_debt") == 100 and "agree" in decisions["total_debt"], "KSEK == TSEK"
+    r2u = _with_field(_run({"total_debt": 100}, conf={"total_debt": 0.8}, check_passed=True),
+                      "total_debt", unit="USD thousands")
+    r1u = _with_field(_run({"total_debt": 100}, conf={"total_debt": 0.9}, check_passed=True),
+                      "total_debt", unit="KUSD")
+    merged, decisions = merge.merge_runs(r1u, r2u, None, "union")
+    assert _value(merged, "total_debt") == 100 and "agree" in decisions["total_debt"], "KUSD == USD thousands"
+    r2e = _with_field(_run({"total_debt": 100}, conf={"total_debt": 0.9}, check_passed=True),
+                      "total_debt", unit="MEUR")
+    merged, decisions = merge.merge_runs(r1, r2e, None, "union")
+    assert _value(merged, "total_debt") is None, "MSEK vs MEUR is not the same answer"
+    print("merge same-question unit scale ok")
+
+
+def test_same_question_period_and_unknown_metadata():
+    """v168: same value but a different period is not one answer (2025 column vs 2024 column); a
+    unit/period present on one side only does not count as the same (unknown is not proof); two
+    sides neither of which printed it keep agreeing (nothing contradicts); null == null is the
+    null agreement regardless of metadata."""
+    from . import merge
+    r1 = _run({"total_debt": 100}, conf={"total_debt": 0.9}, check_passed=True)
+    r2 = _with_field(_run({"total_debt": 100}, conf={"total_debt": 0.9}, check_passed=True),
+                     "total_debt", period="2024")
+    merged, decisions = merge.merge_runs(r1, r2, None, "union")
+    assert _value(merged, "total_debt") is None, "2025 vs 2024 column is not the same question"
+    r2 = _with_field(_run({"total_debt": 100}, conf={"total_debt": 0.9}, check_passed=True),
+                     "total_debt", unit=None)
+    merged, decisions = merge.merge_runs(r1, r2, None, "union")
+    assert _value(merged, "total_debt") is None, "a known vs an unknown unit is not a confirmed match"
+    r2 = _with_field(_run({"total_debt": 100}, conf={"total_debt": 0.8}, check_passed=True),
+                     "total_debt", unit=None, period=None)
+    r1 = _with_field(r1, "total_debt", unit=None, period=None)
+    merged, decisions = merge.merge_runs(r1, r2, None, "union")
+    assert _value(merged, "total_debt") == 100, "nothing printed on either side: the values still agree"
+    merged, decisions = merge.merge_runs(_run({"total_debt": None}), _run({"total_debt": None}), None, "union")
+    assert _value(merged, "total_debt") is None and decisions["total_debt"] == "null (union: both null)"
+    print("merge same-question period/unknown ok")
+
+
+def test_matches_stored_same_question():
+    """v168: the exact skip trigger is a same-question comparison too -- different unit scale or
+    period, or a stored answer from another financial year/basis/report, never skips run 2; equal
+    scale under different spellings still matches."""
+    from . import merge
+    run1 = _run({"revenue": 100, "gross_profit": 40})
+    assert merge.matches_stored(run1, _run({"revenue": 100, "gross_profit": 40})) is True
+    stored = _with_field(_run({"revenue": 100, "gross_profit": 40}), "revenue", unit="TSEK")
+    assert merge.matches_stored(run1, stored) is False, "100 MSEK vs 100 TSEK must not skip run 2"
+    stored = _with_field(_run({"revenue": 100, "gross_profit": 40}), "revenue", unit="SEK million")
+    assert merge.matches_stored(run1, stored) is True, "MSEK == SEK million: same question"
+    stored = _with_field(_run({"revenue": 100, "gross_profit": 40}), "revenue", period="2024")
+    assert merge.matches_stored(run1, stored) is False
+    stored = _run({"revenue": 100, "gross_profit": 40}) | {"fiscal_year": 2024}
+    assert merge.matches_stored(run1, stored) is False, "stored from another fiscal year must not skip"
+    stored = _run({"revenue": 100, "gross_profit": 40}) | {"maturity_basis": "undiscounted"}
+    assert merge.matches_stored(run1, stored) is False, "stored on another basis must not skip"
+    stored = _run({"revenue": 100, "gross_profit": 40}) | {"report_id": "lib-someone_else_2025"}
+    assert merge.matches_stored(run1, stored) is False, "another report's answer must not skip"
+    stored = _run({"revenue": 100, "gross_profit": 40}) | {"maturity_basis": None}
+    assert merge.matches_stored(run1, stored) is False, "metadata unknown on the stored side: no skip"
+    print("merge matches-stored same-question ok")
+
+
+def test_stored_vote_must_be_same_question():
+    """v168: the stored third vote only counts when it is the same financial question -- same
+    report, section, fiscal_year, maturity_basis. A stored answer missing the metadata or read on
+    another one sits out, and the merge block says why ('not eligible: <reason>')."""
+    from . import merge
+    r1, r2 = _run({"revenue": 100, "gross_profit": 40}), _run({"revenue": 250, "gross_profit": None})
+    stored = _run({"revenue": 250, "gross_profit": 39}) | {"fiscal_year": 2024}
+    merged, decisions = merge.merge_runs(r1, r2, stored, "majority")
+    assert merged["merge"]["stored_vote"].startswith("not eligible: "), merged["merge"]
+    assert "fiscal_year" in merged["merge"]["stored_vote"]
+    assert _value(merged, "revenue") is None, "without the stored vote the conflict has no signal"
+    stored = _run({"revenue": 250, "gross_profit": 39}) | {"maturity_basis": "undiscounted"}
+    merged, decisions = merge.merge_runs(r1, r2, stored, "majority")
+    assert "maturity_basis" in merged["merge"]["stored_vote"]
+    assert _value(merged, "revenue") is None
+    stored = _run({"revenue": 250, "gross_profit": 39}) | {"maturity_basis": None}
+    merged, decisions = merge.merge_runs(r1, r2, stored, "majority")
+    assert "no maturity_basis" in merged["merge"]["stored_vote"], "missing metadata: not eligible"
+    assert _value(merged, "revenue") is None
+    stored = _run({"revenue": 250, "gross_profit": 39}) | {"section": "debt_maturity"}
+    merged, decisions = merge.merge_runs(r1, r2, stored, "majority")
+    assert "section" in merged["merge"]["stored_vote"]
+    stored = _run({"revenue": 250, "gross_profit": 39}) | {"report_id": "lib-other_2025"}
+    merged, decisions = merge.merge_runs(r1, r2, stored, "majority")
+    assert "report" in merged["merge"]["stored_vote"]
+    eligible = _run({"revenue": 250, "gross_profit": 39})
+    merged, decisions = merge.merge_runs(r1, r2, eligible, "majority")
+    assert "stored_vote" not in merged["merge"], "an eligible stored vote needs no note"
+    assert _value(merged, "revenue") == 250 and decisions["revenue"] == "run2 (majority: run2+stored)"
+    print("merge stored-vote eligibility ok")
+
+
+def test_majority_scale_mismatch_does_not_stack():
+    """v168: with the unit scales differing, the two 100s are different answers and never give a
+    2-vote majority together; only the same-scale pair votes as one."""
+    from . import merge
+    r1 = _run({"total_debt": 100}, conf={"total_debt": 0.9}, check_passed=True)
+    r2 = _with_field(_run({"total_debt": 100}, conf={"total_debt": 0.9}, check_passed=True),
+                     "total_debt", unit="TSEK")
+    stored = _run({"total_debt": 100})
+    merged, decisions = merge.merge_runs(r1, r2, stored, "majority")
+    assert _value(merged, "total_debt") == 100 and decisions["total_debt"] == "run1 (majority: run1+stored)", \
+        "MSEK pair votes, the TSEK answer does not join it"
+    stored = _with_field(_run({"total_debt": 100}), "total_debt", unit="TSEK")
+    merged, decisions = merge.merge_runs(r1, r2, stored, "majority")
+    assert _value(merged, "total_debt") == 100 and decisions["total_debt"] == "run2 (majority: run2+stored)", \
+        "now the TSEK pair votes and the MSEK answer does not join it"
+    print("merge majority scale mismatch ok")
+
+
+def test_prior_year_and_buckets_follow_run1():
+    """v168: run1's prior_year/buckets_by_year attachments are deterministic reads of run1's own
+    rows, so they ride along only while every field they cover still carries run1's answer -- a
+    value within the band on the same unit/period, whoever's copy of it won (v145's agreeing tie
+    flips no verdict). Once a covered field is no longer that answer (a conflict-null, another
+    run's different value, a different unit scale) the attachment is dropped, with a warning."""
+    from . import merge
+    r1 = _run({"total_debt": 100, "due_within_1_year": 40}, warnings=[])
+    r1["prior_year"] = {"total_debt": 90, "due_within_1_year": 35}
+    r1["buckets_by_year"] = {"2026": 30, "2027-2030": 50, "later": 20}
+    r2 = _run({"total_debt": 100, "due_within_1_year": 41})
+    merged, decisions = merge.merge_runs(r1, r2, None, "union")
+    assert "prior_year" in merged and "buckets_by_year" in merged, "agreeing copies: still run1's answer"
+    assert not any(w.startswith("merge: prior_year") or w.startswith("merge: buckets_by_year")
+                   for w in merged["warnings"])
+    r1f = _with_field(_run({"total_debt": 100, "due_within_1_year": 40}, check_passed=False), "total_debt")
+    r1f["prior_year"] = {"total_debt": 90, "due_within_1_year": 35}
+    r1f["buckets_by_year"] = {"2026": 30, "2027-2030": 50, "later": 20}
+    r2 = _run({"total_debt": 200, "due_within_1_year": 40}, check_passed=True)  # check passed: 200 wins
+    merged, decisions = merge.merge_runs(r1f, r2, None, "union")
+    assert _value(merged, "total_debt") == 200 and decisions["total_debt"] == "run2 (conflict: union: check passed)"
+    assert "prior_year" not in merged, "the attachment closed on run1's 100, the answer published is 200"
+    assert "buckets_by_year" not in merged, "its gate closes on total_debt, which is no longer run1's"
+    assert any(w == "merge: prior_year dropped -- total_debt is no longer run1's answer" for w in merged["warnings"])
+    assert any(w == "merge: buckets_by_year dropped -- total_debt is no longer run1's answer" for w in merged["warnings"])
+    r1f["prior_year"] = {"due_within_1_year": 35}  # a prior year that only covers an agreeing field stays
+    merged, _ = merge.merge_runs(r1f, r2, None, "union")
+    assert "prior_year" in merged and merged["prior_year"] == {"due_within_1_year": 35}
+    assert any(w.startswith("merge: buckets_by_year dropped") for w in merged["warnings"])
+    r1n = _run({"total_debt": 12103, "due_within_1_year": 40}, check_passed=False)
+    r1n["prior_year"] = {"total_debt": 90}
+    r2n = _run({"total_debt": 12114, "due_within_1_year": None}, check_passed=False)
+    merged, _ = merge.merge_runs(r1n, r2n, None, "union")
+    assert "prior_year" not in merged, "a nulled field is not run1's answer either: the attachment goes"
+    r1f["prior_year"] = {"total_debt": 90}
+    r2s = _with_field(_run({"total_debt": 100, "due_within_1_year": 40}, check_passed=True), "total_debt", unit="TSEK")
+    r2s = _with_field(r2s, "total_debt", value=100)  # same number, different scale: check passed wins it
+    merged, _ = merge.merge_runs(r1f, r2s, None, "union")
+    assert _value(merged, "total_debt") == 100
+    assert "prior_year" not in merged, "100 TSEK is not the answer run1's attachment closed on"
+    print("merge prior_year/buckets follow run1 ok")
+
+
 # ---- kb: per-run records that are not sections ------------------------------------------------
 
 def _seed_kb(kb):
@@ -500,6 +688,12 @@ if __name__ == "__main__":
     test_majority_three_way_splits_back_to_union()
     test_majority_without_stored_is_union()
     test_matches_stored_trigger()
+    test_same_question_unit_scale()
+    test_same_question_period_and_unknown_metadata()
+    test_matches_stored_same_question()
+    test_stored_vote_must_be_same_question()
+    test_majority_scale_mismatch_does_not_stack()
+    test_prior_year_and_buckets_follow_run1()
     test_merge_is_pure_and_shapes_the_record()
     test_save_run_records_are_not_sections()
     test_route_off_is_the_old_route()
