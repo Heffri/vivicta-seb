@@ -211,10 +211,11 @@ async def upload_report(file: UploadFile = File(...)):
 
 
 @app.get("/api/library")
-def list_library(collection_name: Literal["all", "wallenberg"] = "all"):
+def list_library(collection_name: Literal["all", "wallenberg", "midcap"] = "all"):
+    in_scope = collection.scope(collection_name)
     out = []
     for e in library_index():
-        if collection_name == "wallenberg" and not collection.member(e.get("company")):
+        if not in_scope(e.get("company")):
             continue
         if e["file"] not in library_pages:
             with pymupdf.open(LIBRARY / e["file"]) as doc:
@@ -249,12 +250,12 @@ def report_from_library(body: LibraryBody):
 
 
 @app.get("/api/companies")
-def list_companies(q: str = "", collection_name: Literal["all", "wallenberg"] = "all"):
+def list_companies(q: str = "", collection_name: Literal["all", "wallenberg", "midcap"] = "all"):
     cached: dict[str, list[int]] = {}
     for e in library_index():
         cached.setdefault(collection.identity(e["company"]), []).append(e["fiscal_year"])
     q = q.strip().lower()
-    directory = collection.directory(COMPANIES) if collection_name == "wallenberg" else COMPANIES
+    directory = collection.directory(COMPANIES, collection_name)
     hits = [c for c in directory if q in c["name"].lower() or q in c["ticker"].lower()]
     hits.sort(key=lambda c: (not c["name"].lower().startswith(q), c["name"]))  # prefix matches first
     return [c | {"cached_years": sorted(set(cached.get(collection.identity(c["name"]), [])))} for c in hits[:50]]
@@ -453,12 +454,13 @@ def ask(body: AskBody):
 
 
 @app.get("/api/kb")
-def list_kb(collection_name: Literal["all", "wallenberg"] = "all"):
+def list_kb(collection_name: Literal["all", "wallenberg", "midcap"] = "all"):
     normalize = lambda name: re.sub(r"[\W_]+", " ", name.casefold()).strip()
     sectors = {normalize(c["name"]): c.get("sector") for c in COMPANIES}
+    in_scope = collection.scope(collection_name)
     out = []
     for e in kb.entries():
-        if collection_name == "wallenberg" and not collection.member(e.get("company")):
+        if not in_scope(e.get("company")):
             continue
         report_id = saved_report_id(e["stem"])
         get_report(report_id)
@@ -566,9 +568,9 @@ def review_basis(report_id: str, body: BasisBody):
 
 
 @app.get("/api/review-queue")
-def review_queue():
+def review_queue(collection_name: Literal["all", "wallenberg", "midcap"] = "wallenberg"):
     out = []
-    for report in list_kb("wallenberg"):
+    for report in list_kb(collection_name):
         for section in report["sections"]:
             x = kb_extraction(report["stem"], section)
             out.extend({"report": report, "section": section, **issue} for issue in x["issues"])

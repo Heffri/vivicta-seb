@@ -11,21 +11,28 @@ assert collection.member('ABB Ltd') and collection.member('Saab (svenska)')
 assert collection.identity('Swedish Orphan Biovitrum AB') == collection.identity('Sobi')
 assert collection.member('Volvo') is None
 assert len(collection.directory([])) == 35
+assert len(collection.members('midcap')) == 132
+assert collection.member('Acast', 'midcap')
+assert not collection.member('ABB', 'midcap')
+assert len(collection.directory(app.COMPANIES, 'midcap')) == 132
 with tempfile.TemporaryDirectory() as tmp:
     root = Path(tmp)
     library = root / 'reports'
     library.mkdir()
     (library / 'index.json').write_text('[]')
     with patch.dict('os.environ', {'KB_DIR': str(root / 'kb')}), patch.object(app, 'LIBRARY', library), patch.object(app, 'reports', {}), patch.object(app, 'extractions', {}), patch.object(app, 'library_paths', {}):
-        for stem, name in [('abb_2025', 'ABB Ltd'), ('outside_2025', 'Volvo')]:
+        for stem, name in [('abb_2025', 'ABB Ltd'), ('acast_2025', 'Acast'), ('outside_2025', 'Volvo')]:
             kb.save_report(stem, {'company': name, 'fiscal_year': 2025, 'pages': 1, 'sha256': 'test'}, ['Revenue 100'])
         saved = {'section': 'income_statement', 'fields': [{'key': 'revenue', 'value': 100, 'review_history': [{'decision': 'confirmed'}]}], 'checks': [], 'warnings': []}
         kb.save_extraction('abb_2025', 'income_statement', saved)
         client = TestClient(app.app)
         with patch.object(app.fetch, 'fetch_report', side_effect=AssertionError('Unexpected PDF download')):
             assert len(client.get('/api/kb?collection_name=wallenberg').json()) == 1
-            assert len(client.get('/api/kb').json()) == 2
+            assert len(client.get('/api/kb?collection_name=midcap').json()) == 1
+            assert len(client.get('/api/kb').json()) == 3
             assert len(client.get('/api/companies?collection_name=wallenberg').json()) == 35
+            assert [company['name'] for company in client.get('/api/companies?q=acast&collection_name=midcap').json()] == ['Acast']
+            assert client.get('/api/review-queue?collection_name=midcap').status_code == 200
             assert client.get('/api/library?collection_name=wallenberg').json() == []
             response = client.post('/api/reports/fetch', json={'company': 'ABB', 'year': 2025})
             assert response.status_code == 200, response.text

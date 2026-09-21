@@ -1,4 +1,5 @@
 import type { ChunkPage, Answer, Company, Extraction, IndexStatus, KbEntry, LibraryEntry, Report, Schema } from './types'
+import type { Collection } from './hooks/useCollection'
 
 export type ApiError = Error & { status: number; tried?: string[] }
 
@@ -23,7 +24,7 @@ export function uploadReport(file: File) {
   return request<Report>('/api/reports', { method: 'POST', body })
 }
 
-export const getLibrary = (collection: 'wallenberg' | 'all' = 'wallenberg') => request<LibraryEntry[]>(`/api/library?collection_name=${collection}`)
+export const getLibrary = (collection: Collection = 'wallenberg') => request<LibraryEntry[]>(`/api/library?collection_name=${collection}`)
 
 export const registerLibraryReport = (file: string) =>
   request<Report>('/api/reports/from-library', {
@@ -32,7 +33,7 @@ export const registerLibraryReport = (file: string) =>
     body: JSON.stringify({ file }),
   })
 
-export const getCompanies = (q: string, collection: 'wallenberg' | 'all' = 'wallenberg') => request<Company[]>(`/api/companies?q=${encodeURIComponent(q)}&collection_name=${collection}`)
+export const getCompanies = (q: string, collection: Collection = 'wallenberg') => request<Company[]>(`/api/companies?q=${encodeURIComponent(q)}&collection_name=${collection}`)
 
 // country/hint provide optional context for AI-first report discovery.
 export const fetchReport = (company: string, year: number, opts?: { country?: string; hint?: string; download_pdf?: boolean }) =>
@@ -84,9 +85,9 @@ export type Config = {
   merge_runs?: 'off' | 'union' | 'majority' // v140: the backend's live EXTRACT_MERGE_RUNS; absent on older backends
 }
 export const getConfig = () => request<Config>('/api/config')
-// v112: the KB page's collection switch. 'wallenberg' is the curated roster (the page's default,
-// issue #4); 'all' lists every saved extraction in data/kb. The backend default is 'all' — pass one explicitly.
-export const getKb = (collection: 'wallenberg' | 'all' = 'wallenberg') =>
+// The KB page's collection switch. Wallenberg remains the UI default; midcap is the 132-company
+// SEB universe from data/companies.json. The backend default is 'all' — pass one explicitly.
+export const getKb = (collection: Collection = 'wallenberg') =>
   request<KbEntry[]>(`/api/kb?collection_name=${collection}`)
 // Stored extraction, no model call; the backend re-registers the PDF so pageUrl/csvUrl work.
 export const openKbExtraction = (stem: string, section: string) =>
@@ -98,7 +99,7 @@ export const getKbPage = (stem: string, page: number) =>
 export const reviewField = (reportId: string, body: { section: string; key: string; expected: import('./types').Field; decision: import('./types').HumanReview['decision']; reviewer: string; note: string; value?: number | string | null; unit?: string | null; period?: string | null }) =>
   request<Extraction>(`/api/reports/${encodeURIComponent(reportId)}/review`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 
-export const getReviewQueue = () => request<import('./types').QueueIssue[]>('/api/review-queue')
+export const getReviewQueue = (collection: Collection = 'wallenberg') => request<import('./types').QueueIssue[]>(`/api/review-queue?collection_name=${collection}`)
 export const saveBasis = (reportId: string, body: { section: string; expected: Partial<import('./types').Basis>; values: Record<string, string>; reviewer: string; note: string }) =>
   request<Extraction>(`/api/reports/${encodeURIComponent(reportId)}/basis`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 export const getComparison = (stem: string, section: string, previous?: string) =>
