@@ -24,7 +24,10 @@ def call(method, path, body=None, api="http://localhost:8000"):
         with urllib.request.urlopen(req, timeout=900) as r:
             return r.status, json.loads(r.read() or b"null")
     except urllib.error.HTTPError as e:
-        return e.code, json.loads(e.read() or b"null")
+        try:
+            return e.code, json.loads(e.read() or b"null")
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return e.code, f"HTTP {e.code} non-JSON"
 
 
 def main():
