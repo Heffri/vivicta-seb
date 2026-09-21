@@ -8,6 +8,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 from pptx import Presentation
 import app
 from pipeline import kb, workbench, ppt
@@ -32,6 +33,21 @@ for section in ('income_statement', 'debt_maturity'):
     x = statement(section)
     x['fields'][0]['period'] = '2024'
     assert any(c['status'] == 'unavailable' for c in workbench.checks(x, schema))
+    # v165: a null bucket the maturity table prints no column for (evidence "absent_in_table") joins the
+    # reconciliation as 0 instead of holding it unavailable, and is not a queue issue; a reviewer marking
+    # it unresolved re-opens it. A null income-statement field stays unavailable -- the participation is
+    # require_explicit_values checks only, never a general null-to-zero.
+    x = statement(section)
+    null_key = 'due_after_5_years' if section == 'debt_maturity' else x['fields'][0]['key']
+    next(f for f in x['fields'] if f['key'] == null_key).update(value=None, unit=None, period=None, source=None, evidence=['absent_in_table'])
+    if section == 'debt_maturity':
+        next(f for f in x['fields'] if f['key'] == 'total_debt')['value'] = 70  # 20 + 50 + the absent bucket's 0
+        assert all(c['passed'] and c['status'] != 'unavailable' for c in workbench.checks(x, schema)), workbench.checks(x, schema)
+        assert not any(i['kind'] == 'field' and i['key'] == null_key for i in workbench.decorate(x, schema)['issues'])
+        next(f for f in x['fields'] if f['key'] == null_key)['human_review'] = {'decision': 'unresolved', 'reviewer': 'Analyst', 'at': 'now', 'note': 'Rechecked'}
+        assert any(i['kind'] == 'field' and i['key'] == null_key for i in workbench.decorate(x, schema)['issues'])
+    else:
+        assert any(c['status'] == 'unavailable' for c in workbench.checks(x, schema))
     current, previous = statement(section), statement(section, 2024)
     current['fields'][0]['value'], previous['fields'][0]['value'] = 20, -10
     row = workbench.compare(current, previous)['rows'][0]
@@ -88,6 +104,66 @@ with tempfile.TemporaryDirectory() as tmp, patch('pipeline.fetch.fetch_report', 
     assert not app.comparison('test_2025', 'debt_maturity')['rows']
     assert not app.comparison('test_2023', 'debt_maturity')['rows']
 
+# Whole-KB exports deliberately read saved extracts, so this test has no PDF or model dependency.
+with tempfile.TemporaryDirectory() as tmp:
+    root = Path(tmp)
+    library = root / 'reports'
+    library.mkdir()
+    (library / 'index.json').write_text('[]')
+    with patch.dict(os.environ, {'KB_DIR': str(root / 'kb')}), patch.object(app, 'LIBRARY', library), patch.object(app, 'reports', {}), patch.object(app, 'extractions', {}), patch.object(app, 'library_paths', {}):
+        for stem, company, reviewed in [('abb_2025', 'ABB Ltd', True), ('ericsson_2025', 'Ericsson', False), ('outside_2025', 'Volvo', False)]:
+            x = statement('debt_maturity')
+            x.update(stem=stem, report_id=f'lib-{stem}', company=company)
+            if not reviewed:
+                for field in x['fields']:
+                    field.pop('human_review', None)
+            kb.save_report(stem, {'company': company, 'fiscal_year': 2025, 'pages': 1, 'sha256': 'test'}, ['Saved statement text'])
+            kb.save_extraction(stem, 'debt_maturity', workbench.decorate(x, app.load_schema('debt_maturity')))
+        client = TestClient(app.app)
+        rows = list(csv.DictReader(io.StringIO(client.get('/api/kb/export.csv?section=debt_maturity&collection=wallenberg').text)))
+        assert len(rows) == 2 and {row['stem'] for row in rows} == {'abb_2025', 'ericsson_2025'}
+        assert {'company', 'stem', 'review_status', 'human_review', 'ready'} <= set(rows[0])
+        abb = next(row for row in rows if row['stem'] == 'abb_2025')
+        assert abb['review_status'] == 'confirmed' and abb['human_review'] == 'yes'
+        filtered = client.get('/api/kb/export.csv?section=debt_maturity&collection=all&q=volvo')
+        assert filtered.status_code == 200 and [row['stem'] for row in csv.DictReader(io.StringIO(filtered.text))] == ['outside_2025']
+        deck = Presentation(io.BytesIO(client.get('/api/kb/export.pptx?section=debt_maturity&collection=wallenberg').content))
+        assert len(deck.slides) == 3
+        assert any(shape.has_table and shape.table.cell(0, 0).text == 'Company' for shape in deck.slides[0].shapes)
+        # The visible filter accepts non-ASCII company names; never put its raw bytes in a Latin-1 response header.
+        with patch.object(app, 'kb_export_extractions', return_value=[statement('debt_maturity')]):
+            unicode_filter = client.get('/api/kb/export.csv', params={'section': 'debt_maturity', 'collection': 'all', 'q': 'Å'})
+        assert unicode_filter.status_code == 200
+        assert unicode_filter.headers['content-disposition'] == 'attachment; filename="kb_debt_maturity_all.csv"'
+
+# v164: candidate pages -- the deterministic locator behind GET /candidates, served before the
+# model runs. Isolated KB folder; the model entrypoint is rigged to fail so the endpoint's
+# zero-model claim is asserted, not assumed.
+with tempfile.TemporaryDirectory() as tmp:
+    os.environ['KB_DIR'] = tmp
+    stem = 'candidates_2025'
+    folder = Path(tmp) / stem
+    folder.mkdir()
+    filler = 'Annual report 2025\nKarnell Group'  # on every page: boilerplate the locator strips
+    note = 'Note 20 Borrowings Maturity profile of the loans total 1 234 due within 1 year 20 1 to 5 years 50 after 5 years 30'
+    pages = [filler] * 10 + [note] + [filler] * 9
+    (folder / 'meta.json').write_text(json.dumps(dict(company='Karnell Group', fiscal_year=2025, pages=len(pages), filename=stem + '.pdf')), encoding='utf-8')
+    (folder / 'pages.jsonl').write_text(''.join(json.dumps({'page': i + 1, 'text': t}) + '\n' for i, t in enumerate(pages)), encoding='utf-8')
+    with patch('app.extract_mod.extract', side_effect=AssertionError('candidates must not call the model')):
+        out = app.report_candidates(app.saved_report_id(stem), 'debt_maturity')
+    assert [c['page'] for c in out] == [11, 12]  # the note page, then the page after it (statements span two pages)
+    heading = out[0]['heading']
+    assert heading.startswith('Note 20 Borrowings') and len(heading) <= 80 and '  ' not in heading
+    assert 'Karnell Group' not in heading  # the running header was stripped before the heading was cut
+    assert out[1]['heading'] == ''  # a boilerplate-only page says nothing
+    for call in (lambda: app.report_candidates('lib-nowhere_2025', 'debt_maturity'),
+                 lambda: app.report_candidates(app.saved_report_id(stem), 'no_such_section')):
+        try:
+            call()
+            raise AssertionError('candidates accepted an unknown report or section')
+        except HTTPException as e:
+            assert e.status_code == 404
+
 # Deterministic rendered fixtures for visual review, outside the repository.
 for section in ('income_statement', 'debt_maturity'):
     x = statement(section)
@@ -97,4 +173,4 @@ for section in ('income_statement', 'debt_maturity'):
         workbench.decorate(x, app.load_schema(section))
     x['comparison'] = workbench.compare(x, statement(section, 2024))
     Path(tempfile.gettempdir(), f'arp-{section}.pptx').write_bytes(ppt.build_pptx(x))
-print('Workbench checks passed: both statements, strict arithmetic, audit history, conflicts, queue, comparisons, exports and no downloads')
+print('Workbench checks passed: both statements, strict arithmetic, audit history, conflicts, queue, single and whole-KB exports, and no downloads')

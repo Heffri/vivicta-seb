@@ -309,6 +309,20 @@ def page_png(report_id: str, n: int):
     return Response(png, media_type="image/png")
 
 
+@app.get("/api/reports/{report_id}/candidates")
+def report_candidates(report_id: str, section: str = Query(min_length=1)):
+    """Ranked candidate pages for a section (v164): the same deterministic locator the extractor
+    runs (locate.candidate_pages), served before the model so the waiting UI can name the pages
+    being read. No model call -- fixture mode computes them from the real page text like any other.
+    heading = the page's de-boilerplated opening, whitespace-normalized (a peeks-at-the-page line)."""
+    report = get_report(report_id)
+    schema = load_schema(section)
+    texts = report_texts(report_id)
+    stripped = locate.strip_boilerplate(texts)
+    return [{"page": page, "heading": " ".join(stripped[page - 1].split())[:80]}
+            for page in locate.candidate_pages(texts, schema)]
+
+
 @app.post("/api/reports/{report_id}/extract")
 def run_extract(report_id: str, body: ExtractBody):
     report = get_report(report_id)
@@ -334,7 +348,10 @@ def _run_extract(report_id: str, body: ExtractBody):
     if saved.exists() and has_reviews(saved_extraction(report_id, body.section)):
         raise HTTPException(409, "This section has human reviews. Keep the reviewed extraction instead of replacing it.")
     if not _llm_configured():  # frontend dev mode: no model configured
-        result = json.loads(FIXTURE.read_text(encoding="utf-8")) | {"report_id": report_id}
+        # v164: the requested section overrides the fixture payload's own (an income-statement
+        # sample) -- the UI reads extraction.section to re-locate the report (the not-found banner's
+        # candidates call), and that must name the section the user actually ran.
+        result = json.loads(FIXTURE.read_text(encoding="utf-8")) | {"report_id": report_id, "section": body.section}
     else:
         texts = report_texts(report_id)
         pages = locate.candidate_pages(texts, schema)
@@ -467,6 +484,87 @@ def list_kb(collection_name: Literal["all", "wallenberg", "midcap"] = "all"):
         out.append(e | {"report_id": report_id, "pdf_available": pdf_path(report_id).is_file(),
                         "sector": sectors.get(normalize(e.get("company") or ""))})
     return out
+
+
+def kb_export_extractions(section: str, collection_name: Literal["all", "wallenberg", "midcap"], q: str = "") -> list[dict]:
+    """Load saved extracts directly: whole-universe exports never need a PDF or a model call."""
+    schema = load_schema(section)
+    query = q.strip().casefold()
+    in_scope = collection.scope(collection_name)
+    out = []
+    for entry in kb.entries():
+        if not in_scope(entry.get("company")):
+            continue
+        if query and query not in (entry.get("company") or "").casefold() and query not in entry["stem"].casefold():
+            continue
+        path = kb.kb_dir() / entry["stem"] / "extractions" / f"{section}.json"
+        if not path.is_file():
+            continue
+        try:
+            saved = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            raise HTTPException(409, f"Saved {section!r} extraction for {entry['stem']!r} is invalid") from None
+        if not isinstance(saved, dict) or not isinstance(saved.get("fields"), list):
+            raise HTTPException(409, f"Saved {section!r} extraction for {entry['stem']!r} is invalid")
+        x = copy.deepcopy(saved) | {
+            "report_id": saved_report_id(entry["stem"]),
+            "stem": entry["stem"],
+            "company": saved.get("company") or entry.get("company"),
+            "fiscal_year": saved.get("fiscal_year") or entry.get("fiscal_year"),
+            "section": section,
+        }
+        out.append(workbench.decorate(x, schema))
+    return out
+
+
+def export_review_status(x: dict) -> tuple[str, str]:
+    statuses = sorted({str((field.get("human_review") or {}).get("decision")) for field in x["fields"]
+                       if (field.get("human_review") or {}).get("decision")})
+    return (", ".join(statuses), "yes" if statuses else "no")
+
+
+def universe_csv_row(x: dict) -> list:
+    """One downstream row per company, anchored to the total-debt field's existing CSV columns."""
+    fields = {field["key"]: field for field in x["fields"]}
+    total = fields.get("total_debt", {})
+    source = total.get("source") or {}
+    status, reviewed = export_review_status(x)
+    return [x["report_id"], x.get("company"), x.get("fiscal_year"), x["section"], total.get("key", "total_debt"),
+            total.get("label", "Total debt"), total.get("value"), total.get("unit"), total.get("period"),
+            total.get("raw_label"), source.get("page"), source.get("quote"), total.get("confidence"), x["stem"],
+            *[fields.get(key, {}).get("value") for key in ppt.BUCKET_ORDER], status, reviewed, x.get("ready", False)]
+
+
+UNIVERSE_CSV_HEADER = CSV_HEADER + ["stem", *ppt.BUCKET_ORDER, "review_status", "human_review", "ready"]
+
+
+def kb_export_filename(section: str, collection_name: str, q: str, extension: str) -> str:
+    """Keep the browser download name ASCII-safe even when the visible KB filter is not."""
+    filter_suffix = re.sub(r"[^A-Za-z0-9_-]+", "-", q.strip()).strip("-")
+    return f"kb_{section}_{collection_name}{'_' + filter_suffix if filter_suffix else ''}.{extension}"
+
+
+@app.get("/api/kb/export.csv")
+def kb_export_csv(section: str = "debt_maturity", collection_name: Literal["all", "wallenberg", "midcap"] = Query("all", alias="collection"), q: str = ""):
+    rows = kb_export_extractions(section, collection_name, q)
+    if not rows:
+        raise HTTPException(404, f"No saved {section!r} extractions match this collection and filter")
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(UNIVERSE_CSV_HEADER)
+    writer.writerows(universe_csv_row(x) for x in rows)
+    return Response(buf.getvalue(), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="{kb_export_filename(section, collection_name, q, "csv")}"'})
+
+
+@app.get("/api/kb/export.pptx")
+def kb_export_pptx(section: str = "debt_maturity", collection_name: Literal["all", "wallenberg", "midcap"] = Query("all", alias="collection"), q: str = ""):
+    extractions = kb_export_extractions(section, collection_name, q)
+    if not extractions:
+        raise HTTPException(404, f"No saved {section!r} extractions match this collection and filter")
+    data = ppt.build_deck(extractions, [ppt.summary_row(x) for x in extractions])
+    return Response(data, media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                    headers={"Content-Disposition": f'attachment; filename="{kb_export_filename(section, collection_name, q, "pptx")}"'})
 
 
 @app.get("/api/kb/{stem}/pages/{page}")

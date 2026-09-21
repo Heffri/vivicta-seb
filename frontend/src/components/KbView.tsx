@@ -1,8 +1,8 @@
-import { Database, Loader2, Search } from 'lucide-react'
+import { Database, Download, Loader2, Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { type ApiError, getChunks, rebuildIndex, openKnowledge, pdfUrl, getConfig, getKb, getLibrary, getSchemas, openKbExtraction, type Config } from '@/api'
+import { type ApiError, getChunks, rebuildIndex, openKnowledge, pdfUrl, getConfig, getKb, getLibrary, getSchemas, kbExportCsvUrl, kbExportPptxUrl, openKbExtraction, type Config } from '@/api'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ErrorBlock, LoadingLine } from '@/components/ui/state'
 import { CollectionPicker } from '@/components/CollectionPicker'
@@ -48,9 +48,9 @@ export function KbView({ onOpen, onOpenReport }: Props) {
   }, [entries, collection])
 
   useEffect(() => {
-    let alive = true
-    getKb(collection).then(rows => { if (alive) setEntries(rows) }).catch((e: Error) => { if (alive) setError(e.message) })
-    return () => { alive = false }
+    // React dev Strict Mode immediately cleans up the first effect. Keep its list response: otherwise
+    // the second full-KB listing waits behind it and the page remains on Loading long after it is ready.
+    getKb(collection).then(setEntries).catch((e: Error) => setError(e.message))
   }, [collection])
 
   useEffect(() => {
@@ -108,6 +108,9 @@ export function KbView({ onOpen, onOpenReport }: Props) {
     schemas.map((s) => s.name).find((n) => withSection.length > 0 && withSection.every((s) => has(s, n))) ??
     entries?.find((e) => e.stem === withSection[0])?.sections[0] ??
     'income_statement'
+  // The whole-universe deliverable is the agreed debt-maturity statement. Keep Compare's selected
+  // section logic intact while the KB button always asks the backend for the debt deck/CSV.
+  const exportSection = schemas.some((s) => s.name === 'debt_maturity') ? 'debt_maturity' : section
 
   // Display-only: narrows which rows render, never touches `selected`.
   const q = query.trim().toLowerCase()
@@ -131,10 +134,21 @@ export function KbView({ onOpen, onOpenReport }: Props) {
             Browse saved figures and source pages. Reports can be opened even when the original PDF is not on this device.
           </p>
         </div>
-        <Button disabled={withSection.length < 2 || !!busy} onClick={() => open(withSection, section)}>
-          {busy && withSection.join() === busy ? <Loader2 className="animate-spin" /> : <Database />}
-          Compare {withSection.length > 1 ? withSection.length : ''} selected
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button disabled={withSection.length < 2 || !!busy} onClick={() => open(withSection, section)}>
+            {busy && withSection.join() === busy ? <Loader2 className="animate-spin" /> : <Database />}
+            Compare {withSection.length > 1 ? withSection.length : ''} selected
+          </Button>
+          <details className="group relative">
+            <summary className={`${buttonVariants({ variant: 'outline' })} cursor-pointer list-none [&::-webkit-details-marker]:hidden`}>
+              <Download /> Export all
+            </summary>
+            <div className="absolute right-0 z-20 mt-1 flex min-w-40 flex-col gap-1 rounded-lg border bg-popover p-1 shadow-md">
+              <a href={kbExportCsvUrl(exportSection, collection, query)} download className={buttonVariants({ size: 'sm', variant: 'ghost' })}>CSV</a>
+              <a href={kbExportPptxUrl(exportSection, collection, query)} download className={buttonVariants({ size: 'sm', variant: 'ghost' })}>PPTX deck</a>
+            </div>
+          </details>
+        </div>
       </header>
 
       {inspected && <ChunkBrowser key={inspected.stem} entry={entries?.find((e) => e.stem === inspected.stem) ?? inspected} onClose={() => setInspected(null)} />}

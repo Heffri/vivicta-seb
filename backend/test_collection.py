@@ -25,6 +25,7 @@ with tempfile.TemporaryDirectory() as tmp:
             kb.save_report(stem, {'company': name, 'fiscal_year': 2025, 'pages': 1, 'sha256': 'test'}, ['Revenue 100'])
         saved = {'section': 'income_statement', 'fields': [{'key': 'revenue', 'value': 100, 'review_history': [{'decision': 'confirmed'}]}], 'checks': [], 'warnings': []}
         kb.save_extraction('abb_2025', 'income_statement', saved)
+        kb.save_extraction('acast_2025', 'income_statement', saved)
         client = TestClient(app.app)
         with patch.object(app.fetch, 'fetch_report', side_effect=AssertionError('Unexpected PDF download')):
             assert len(client.get('/api/kb?collection_name=wallenberg').json()) == 1
@@ -33,6 +34,8 @@ with tempfile.TemporaryDirectory() as tmp:
             assert len(client.get('/api/companies?collection_name=wallenberg').json()) == 35
             assert [company['name'] for company in client.get('/api/companies?q=acast&collection_name=midcap').json()] == ['Acast']
             assert client.get('/api/review-queue?collection_name=midcap').status_code == 200
+            export = client.get('/api/kb/export.csv?section=income_statement&collection=midcap')
+            assert export.status_code == 200 and 'Acast' in export.text and 'ABB' not in export.text
             assert client.get('/api/library?collection_name=wallenberg').json() == []
             response = client.post('/api/reports/fetch', json={'company': 'ABB', 'year': 2025})
             assert response.status_code == 200, response.text

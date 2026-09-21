@@ -77,16 +77,21 @@
       "unit": "SEK 000",
       "period": "2025",
       "raw_label": "",
-      "source": null,
+      "source": {
+        "page": 155,
+        "quote": "Between 2 and 3 years Total"
+      },
       "confidence": 0.0,
-      "evidence": []
+      "evidence": [
+        "absent_in_table"
+      ]
     }
   ],
   "checks": [
     {
       "name": "maturity_sums_to_total",
-      "passed": false,
-      "detail": "missing: due_after_5_years"
+      "passed": true,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((167546 + 415984 + 0 (due_after_5_years absent)) - 583531) <= 2"
     }
   ],
   "warnings": [
@@ -97,6 +102,12 @@
     "total_debt: model returned null; 583531 read from 'Borrowing 167,546 35,636 380,348 583,531' by its column order",
     "due_within_1_year: model returned null; 167546 read from 'Borrowing 167,546 35,636 380,348 583,531' by its column order",
     "due_1_to_5_years: model returned null; 415984 read from 'Borrowing 167,546 35,636 380,348 583,531' by its column order",
-    "published: seedseed-rerun-v119-kb run replayed with extract.py @ d3eb5fc8"
-  ]
+    "published: seedseed-rerun-v119-kb run replayed with extract.py @ d3eb5fc8",
+    "published: seedv165-ependion-kb run replayed with extract.py @ 38278805"
+  ],
+  "timings": {
+    "model": 0.0,
+    "attempts": 1,
+    "validate": 0.432
+  }
 }

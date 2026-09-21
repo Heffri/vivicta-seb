@@ -11,6 +11,7 @@ Backend runs on `http://localhost:8000`, frontend dev server proxies `/api` to i
 | `POST` | `/api/reports` | `multipart/form-data`, field `file` = PDF | `Report` |
 | `GET`  | `/api/reports/{report_id}` | – | `Report` |
 | `POST` | `/api/reports/{report_id}/extract` | `{ "section": "<schema name>" }` | `Extraction` (synchronous; may take up to ~60 s with a local model) |
+| `GET`  | `/api/reports/{report_id}/candidates` | `?section=<schema name>` | `[{ page, heading }]` — the section's ranked candidate pages (1-based, best first), from the same deterministic locator the extractor runs, computed with no model call (fixture mode included). `heading` is the page's de-boilerplated opening, whitespace-normalized, ≤80 chars. Powers the extraction waiting UI (v164) |
 | `GET`  | `/api/reports/{report_id}/pages/{n}.png` | – | PNG of page `n` (1-based), ~150 dpi. 404 if out of range |
 | `GET`  | `/api/reports/{report_id}/extraction.csv` | – | last extraction for this report as CSV (one row per field). 404 if none |
 | `GET`  | `/api/reports/{report_id}/pdf` | – | the PDF itself, `Content-Disposition: inline`, so `<iframe src=".../pdf#page=64">` opens the browser's own viewer on that page |
@@ -20,6 +21,8 @@ Backend runs on `http://localhost:8000`, frontend dev server proxies `/api` to i
 | `POST` | `/api/reports/{report_id}/index` | – | `IndexStatus` — chunk + embed the report into the knowledge base (idempotent, cached on disk). ~10–30 s per report locally |
 | `POST` | `/api/ask` | `{ "question": string, "report_ids"?: string[], "report_stems"?: string[] }` | `Answer` — omit both scopes to search all saved reports. Explicit scopes must be non-empty and mutually exclusive; unknown entries fail rather than widening the search. Global retrieval uses BM25 with bounded context, without embedding the entire library |
 | `GET`  | `/api/kb` | `?collection_name=wallenberg\|midcap\|all` | `KbEntry[]` — what is in `data/kb/` (one per parsed report: pages indexed, sections extracted). `collection_name` filters the list: `all` (the backend default), the curated Wallenberg roster (`wallenberg` — what the KB page sends by default), or the 132-company SEB Mid Cap universe (`midcap`) |
+| `GET` | `/api/kb/export.csv` | `?section=debt_maturity&collection=wallenberg\|midcap\|all&q=` | One CSV row per saved company extraction. `collection` follows the KB page scope; optional `q` matches its company/stem filter. No PDF or model call is needed. |
+| `GET` | `/api/kb/export.pptx` | `?section=debt_maturity&collection=wallenberg\|midcap\|all&q=` | A PPTX deck with one maturity-wall summary table, then one established PowerPoint slide per saved company. Filtering is identical to the whole-KB CSV and no PDF or model call is needed. |
 | `GET` | `/api/kb/{stem}/pages/{page}` | – | `{ page: number, text: string }` — saved page text, available even without the PDF; exact known stem and valid page required |
 | `GET` | `/api/kb/{stem}/{section}` | – | Saved `Extraction`, no model call, available without the original PDF |
 | `GET`  | `/api/config` | – | `{ model, embed_model, base_url, llm, provider, retrieval, maturity_basis }` — what the backend runs with; `retrieval` is `"hybrid"` (cosine+BM25) \| `"bm25"` (keyword-only, e.g. codex/claude subscription with no embeddings endpoint) \| `"fixture"`; `maturity_basis` (v089) is `"carrying"` (default) \| `"undiscounted"`, from env `DEBT_BASIS` |
@@ -99,13 +102,16 @@ type Source = {
 type Field = {
   key: string;              // canonical key from the schema, e.g. "revenue"
   label: string;            // human label from the schema
-  value: number | string | null;  // null = not found
+  value: number | string | null;  // null = not found, or (with "absent_in_table" evidence) not printed in this report
   unit: string | null;      // "MSEK", "SEK", "%", ...
   period: string | null;    // "2025", "2024", "2025-Q4"
   raw_label: string | null; // the label as printed in the report, e.g. "Intäkter"
   source: Source | null;
   confidence: number;       // 0..1, computed from evidence by the backend — see docs/CONFIDENCE.md. Never the model's opinion.
   evidence: string[];       // satisfied evidence codes, e.g. ["quote_on_page","value_in_quote","arith_ok"]; 1.0 <=> all seven present
+                            // "absent_in_table" (v165, debt_maturity buckets): the maturity table's own parsed header prints no
+                            // column for this window — value stays null and `source` quotes the header row that proves it; the
+                            // identity check counts the operand as 0 (see docs/acrylic/evidence/v165.md)
 };
 
 type Check = {
@@ -193,6 +199,10 @@ One file per report section. Adding a section = adding a file. The prompt is gen
 Header: `report_id,company,fiscal_year,section,key,label,value,unit,period,raw_label,page,quote,confidence`
 One row per field. UTF-8, comma-separated, quotes escaped per RFC 4180.
 
+### Whole-KB maturity CSV
+
+`GET /api/kb/export.csv` is the downstream-universe variant: it emits one row per saved company that has the requested section (rather than one row per field). Its leading columns are the header above, populated from the `total_debt` field and its source; it then adds `stem`, `due_within_1_year`, `due_1_to_5_years`, `due_after_5_years`, `review_status`, `human_review`, and `ready`. `review_status` preserves every present human-review decision (for example `confirmed`); `human_review=yes` makes reviewed values visible without changing them. Missing amounts remain blank, never zero-filled.
+
 ## Company directory + on-demand report fetching
 
 Reports are **not** bundled. `data/companies.json` supplies local directory suggestions;
@@ -237,11 +247,20 @@ data/kb/<stem>/
   wins; when the checks agree, values within ±2 count as the same answer and higher confidence picks whose copy to keep
   (a confidence tie keeps the second run), while a conflicting pair publishes null — with neither check nor a
   corroborating vote on either side, no signal says which run is right (v129's rules with the v145/v145-b conflict rule,
-  measured on the v129/v136/v141 rerun data). Both raw
+  measured on the v129/v136/v141 rerun data). Agreement is a same-financial-question comparison (v168): the unit counts
+  too, by magnitude and currency — `MSEK`, `SEK m`, `SEKm` and `SEK million` are one unit, `KSEK`/`TSEK`/`SEK '000` are
+  another, so 100 MSEK and 100 TSEK are a conflict, not a corroborating pair — and so does the period when both sides
+  carry one; a unit or period printed on one side only is not proof of sameness. Both raw
   answers are saved as `extractions/<section>.run1.json` / `.run2.json` beside the merged `<section>.json`, and the merged
   result carries a top-level `"merge"` block (`mode`, `runs`, per-field `decisions`) plus a `merge:` summary warning.
-  `majority` counts the stored answer as a third vote when it is pipeline-generated (a reviewed extraction never votes);
-  when run 1 already matches it field by field the second run is skipped (`"runs": 1`).
+  `majority` counts the stored answer as a third vote when it is pipeline-generated (a reviewed extraction never votes)
+  and it answers the same financial question: same report, section, fiscal_year and maturity_basis — a stored answer read
+  on the other debt basis, another year, or one missing that metadata sits out, and the merge block then says
+  `"stored_vote": "not eligible: <reason>"`. When run 1 already matches an eligible stored answer field by field the
+  second run is skipped (`"runs": 1`). Run 1's `prior_year`/`buckets_by_year` attachments are deterministic reads of
+  run 1's own rows, so they ride along only while every field they cover still carries run 1's answer — a conflict-null,
+  another run's different value or unit scale drops the attachment, with a `merge: … dropped` warning saying which field
+  no longer supports it.
 - `/index` chunks `pages.jsonl` (~800 chars, page-aware) **and** turns each extracted field into a fact chunk
   (`"Atlas Copco FY2025 · Consolidated income statement · Revenue = 176 771 MSEK (p.106)"`), embeds both with `EMBED_MODEL`.
 - `/ask` retrieves top-k chunks — hybrid cosine+BM25 when `LLM_BASE_URL` provides embeddings, pure BM25 otherwise
@@ -286,7 +305,7 @@ continues to accept `report_ids` and retains its retrieval mode.
 
 
 ### Collections and opt-in PDFs
-The desktop UI defaults to `collection_name=wallenberg` on GET `/api/companies`, `/api/library`, and `/api/kb`; `all` remains available. `midcap` is the SEB Mid Cap universe: every company in `data/companies.json` whose `market` is `Mid Cap` (132 at publication), normalized with the same identity matching as the Wallenberg roster. The Collection switch includes SEB Mid Cap and carries its choice through the directory, saved reports, and Ask's explicit report stems. GET `/api/review-queue` also accepts `collection_name=wallenberg|midcap|all` and defaults to Wallenberg. The Wallenberg roster is defined in `pipeline/collection.py`, sourced from Investor and FAM; it is a curated holdings collection, not an exhaustive ownership graph.
+The desktop UI defaults to `collection_name=wallenberg` on GET `/api/companies`, `/api/library`, and `/api/kb`; `all` remains available. `midcap` is the SEB Mid Cap universe: every company in `data/companies.json` whose `market` is `Mid Cap` (132 at publication), normalized with the same identity matching as the Wallenberg roster. The Collection switch includes SEB Mid Cap and carries its choice through the directory, saved reports, Ask's explicit report stems, and whole-KB exports. GET `/api/review-queue` also accepts `collection_name=wallenberg|midcap|all` and defaults to Wallenberg. The Wallenberg roster is defined in `pipeline/collection.py`, sourced from Investor and FAM; it is a curated holdings collection, not an exhaustive ownership graph.
 POST `/api/reports/fetch` defaults `download_pdf` to false. It reuses saved text or an existing PDF and returns 409 if neither exists, without making a web request. Only `download_pdf: true` permits a download. POST `/api/reports/{id}/extract` accepts `reuse_saved: true` to return the saved extraction before calling a model, preserving human reviews. A new extraction can use saved page text without a PDF.
 
 
@@ -296,7 +315,7 @@ Extractions gain optional `basis`, `basis_history`, `check_history`, `issues`, a
 
 `basis` is `{values: Record<string,string>, reviewer, note, at}`. Shared value keys: `entity`, `consolidation`, `period`, `currency`, `scale`, `source`, `restatement`. Debt adds `debt_basis`, `leases`, `bucket_mapping`. Empty values remain unknown. Basis review accepts `{section, expected: previousBasisOrEmptyObject, values, reviewer, note}` and rejects stale snapshots with 409. `basis_history` records each prior basis. `check_history` records previous checks when recalculation changes them.
 
-Checks include `status: passed|failed|unavailable`. Reconciliation requires every operand to be explicit and use the same nonempty unit and period. Source evidence remains distinct from arithmetic and human review. `issues` contains `{kind: basis|field|check, key, detail}`. `ready` requires no unresolved issues, including missing figures even when a human confirmed their absence. Queue entries add `report: KbEntry` and `section`.
+Checks include `status: passed|failed|unavailable`. Reconciliation requires every operand to be explicit and use the same nonempty unit and period — except a bucket whose evidence marks it `absent_in_table` (the report's maturity table prints no column for that window): it joins the reconciliation as 0. Source evidence remains distinct from arithmetic and human review. `issues` contains `{kind: basis|field|check, key, detail}`. `ready` requires no unresolved issues, including missing figures even when a human confirmed their absence; an `absent_in_table` bucket is not an issue (a reviewer marking it unresolved re-opens it). Queue entries add `report: KbEntry` and `section`.
 
 Comparison responses include saved `candidates`, `previous_stem`, `current_year`, `previous_year`, `reasons`, and per-field `rows` with current/previous values, delta, percent, sign-change flag, sources and human reviews. Missing immediate prior years and duplicate sources require explicit selection. Definitions must be confirmed and compatible before calculating changes. Period formats must match after replacing each fiscal year. A zero previous value gives a null percentage, never infinity. Alternate intervals and declared restatements remain explicit. Export query parameters `section` and `previous_stem` select the saved statement and comparison, regardless of the last statement opened.
 

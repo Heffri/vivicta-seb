@@ -50,6 +50,27 @@ export const extractSection = (reportId: string, section: string, force = false)
     body: JSON.stringify({ section, reuse_saved: !force, force }),
   })
 
+// v164: the deterministic page locator (the same one the extractor runs) served before the model
+// call, so the waiting line can name the pages being read. Zero-model; advisory for the UI only —
+// an older backend's 404 just means the wait stays on the generic wording.
+export type CandidatePage = { page: number; heading: string }
+export const getCandidates = (reportId: string, section: string) =>
+  request<CandidatePage[]>(`/api/reports/${encodeURIComponent(reportId)}/candidates?section=${encodeURIComponent(section)}`)
+
+// [30, 31, 32, 35] → "30–32, 35" (en dash), for the extraction wait line and the not-found banner.
+export function formatPageRanges(pages: number[]): string {
+  const sorted = [...new Set(pages)].sort((a, b) => a - b)
+  const out: string[] = []
+  let i = 0
+  while (i < sorted.length) {
+    let j = i
+    while (j + 1 < sorted.length && sorted[j + 1] === sorted[j] + 1) j++
+    out.push(i === j ? `${sorted[i]}` : `${sorted[i]}–${sorted[j]}`)
+    i = j + 1
+  }
+  return out.join(', ')
+}
+
 export const indexReport = (reportId: string) =>
   request<IndexStatus>(`/api/reports/${reportId}/index`, { method: 'POST' })
 
@@ -89,6 +110,14 @@ export const getConfig = () => request<Config>('/api/config')
 // SEB universe from data/companies.json. The backend default is 'all' — pass one explicitly.
 export const getKb = (collection: Collection = 'wallenberg') =>
   request<KbEntry[]>(`/api/kb?collection_name=${collection}`)
+// Whole-universe exports stay browser downloads, matching the existing per-report CSV/PPTX links.
+// `q` follows KbView's visible company/stem filter; no client-side data reconstruction is needed.
+const kbExportParams = (section: string, collection: Collection, q = '') =>
+  new URLSearchParams({ section, collection, ...(q.trim() ? { q: q.trim() } : {}) })
+export const kbExportCsvUrl = (section: string, collection: Collection, q = '') =>
+  `/api/kb/export.csv?${kbExportParams(section, collection, q)}`
+export const kbExportPptxUrl = (section: string, collection: Collection, q = '') =>
+  `/api/kb/export.pptx?${kbExportParams(section, collection, q)}`
 // Stored extraction, no model call; the backend re-registers the PDF so pageUrl/csvUrl work.
 export const openKbExtraction = (stem: string, section: string) =>
   request<Extraction>(`/api/kb/${encodeURIComponent(stem)}/${encodeURIComponent(section)}`)
