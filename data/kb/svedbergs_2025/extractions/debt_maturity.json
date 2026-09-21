@@ -12,7 +12,7 @@
       "value": 496405,
       "unit": "Tkr",
       "period": "2025",
-      "raw_label": "Summa",
+      "raw_label": "Summa (ties to BS: Räntebärande skulder + Räntebärande skulder)",
       "source": {
         "page": 132,
         "quote": "Summa 496 405 886 478 432 824 609 480 Per 31 december 2025 865 828 101 399 967 226 412 211 20 613 432 824"
@@ -23,6 +23,7 @@
         "value_in_quote",
         "arith_ok",
         "period_ok",
+        "bs_tie",
         "page_is_statement",
         "unit_ok"
       ]
@@ -102,6 +103,12 @@
     "two_pass: page [132, 133] selected from candidates [132, 133, 131]",
     "due_1_to_5_years: 435842 is printed on none of pages [132, 133]; dropped as computed, not read",
     "due_1_to_5_years: model returned null; the rows above the total (Mellan 1 år och 2 år + Mellan 2 år och 5 år) sum to 435842 in the 2025 column, closing maturity_sums_to_total",
-    "published: seedseed-rerun-v118-kb run replayed with extract.py @ d3eb5fc8"
-  ]
+    "published: seedseed-rerun-v118-kb run replayed with extract.py @ d3eb5fc8",
+    "published: seedv166-publish-kb run replayed with extract.py @ a0dcac21"
+  ],
+  "timings": {
+    "model": 0.0,
+    "attempts": 1,
+    "validate": 0.892
+  }
 }

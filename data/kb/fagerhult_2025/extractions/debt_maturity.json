@@ -12,7 +12,7 @@
       "value": 3449.5,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Total",
+      "raw_label": "Total (ties to BS: Borrowings + Borrowings)",
       "source": {
         "page": 140,
         "quote": "Financial expenses 6.3 7.9 6.1 7.9 Total 3,449.5 3,219.9 3,329.2 3,069.6 Shipping 6.3 6.9 – –"
@@ -25,6 +25,7 @@
         "arith_ok",
         "label_known",
         "period_ok",
+        "bs_tie",
         "page_is_statement",
         "unit_ok"
       ]
@@ -112,6 +113,12 @@
     "due_within_1_year: 56 kept: closes the identity exactly, even though column 1 of 4 prints 5.2",
     "due_1_to_5_years: 3390 kept: closes the identity exactly, even though column 1 of 4 prints 6",
     "due_after_5_years: 3.5 kept: closes the identity exactly, even though column 1 of 4 prints 13.1",
-    "published: seedseed-rerun-v118-kb run replayed with extract.py @ d3eb5fc8"
-  ]
+    "published: seedseed-rerun-v118-kb run replayed with extract.py @ d3eb5fc8",
+    "published: seedv166-publish-kb run replayed with extract.py @ a0dcac21"
+  ],
+  "timings": {
+    "model": 0.0,
+    "attempts": 1,
+    "validate": 0.482
+  }
 }

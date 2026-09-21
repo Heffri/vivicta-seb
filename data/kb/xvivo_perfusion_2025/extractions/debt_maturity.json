@@ -12,7 +12,7 @@
       "value": 124721,
       "unit": "SEK thousand",
       "period": "2025",
-      "raw_label": "Total",
+      "raw_label": "Total (ties to BS: Interest-bearing liabilities, non-current + Lease liabilities)",
       "source": {
         "page": 92,
         "quote": "Total 124,721 34,043 83,272 -"
@@ -23,6 +23,7 @@
         "value_in_quote",
         "arith_ok",
         "period_ok",
+        "bs_tie",
         "page_is_statement",
         "unit_ok"
       ]
@@ -70,6 +71,12 @@
   ],
   "warnings": [
     "two_pass: page [92, 93] selected from candidates [93, 94, 72, 65, 81, 96, 67, 92, 95, 70]",
-    "published: seedv160-publish-kb run replayed with extract.py @ be8b2c4e"
-  ]
+    "published: seedv160-publish-kb run replayed with extract.py @ be8b2c4e",
+    "published: seedv166-publish-kb run replayed with extract.py @ a0dcac21"
+  ],
+  "timings": {
+    "model": 0.0,
+    "attempts": 1,
+    "validate": 0.288
+  }
 }

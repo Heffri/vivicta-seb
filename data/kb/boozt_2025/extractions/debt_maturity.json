@@ -12,7 +12,7 @@
       "value": 441,
       "unit": "SEK million",
       "period": "2025",
-      "raw_label": "Lease liabilities",
+      "raw_label": "Lease liabilities (ties to BS: Non-current lease liabilities + Lease liabilities)",
       "source": {
         "page": 122,
         "quote": "Lease liabilities - 441 - 441 441"
@@ -23,6 +23,7 @@
         "value_in_quote",
         "arith_ok",
         "period_ok",
+        "bs_tie",
         "page_is_statement",
         "unit_ok"
       ]
@@ -102,6 +103,12 @@
   "warnings": [
     "two_pass: page [121, 122] selected from candidates [121, 122, 108, 98, 139]",
     "due_within_1_year: 104 is printed on none of pages [121, 122]; dropped as computed, not read",
-    "published: seed5 run replayed with extract.py @ d3eb5fc8"
-  ]
+    "published: seed5 run replayed with extract.py @ d3eb5fc8",
+    "published: seedv166-publish-kb run replayed with extract.py @ a0dcac21"
+  ],
+  "timings": {
+    "model": 0.0,
+    "attempts": 1,
+    "validate": 0.881
+  }
 }

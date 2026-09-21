@@ -12,7 +12,7 @@
       "value": 2475.3,
       "unit": "SEKm",
       "period": "2025",
-      "raw_label": "Total interest-bearing liabilities",
+      "raw_label": "Total interest-bearing liabilities (ties to BS: Long-term interest-bearing liabilities + Long-term lease liabilities + Current interest-bearing liabilities + Current lease liabilities)",
       "source": {
         "page": 150,
         "quote": "As of 31 December 2025, the group had pension provisions of SEK 37.5m (42.3) Total interest-bearing liabilities 2,475.3 2,479.7"
@@ -24,6 +24,7 @@
         "arith_ok",
         "label_known",
         "period_ok",
+        "bs_tie",
         "page_is_statement",
         "unit_ok"
       ]
@@ -81,6 +82,12 @@
   ],
   "warnings": [
     "two_pass: page [150, 151] selected from candidates [150, 151]",
-    "published: seedseed-rerun-v118-kb run replayed with extract.py @ d3eb5fc8"
-  ]
+    "published: seedseed-rerun-v118-kb run replayed with extract.py @ d3eb5fc8",
+    "published: seedv166-publish-kb run replayed with extract.py @ a0dcac21"
+  ],
+  "timings": {
+    "model": 0.0,
+    "attempts": 1,
+    "validate": 0.495
+  }
 }
