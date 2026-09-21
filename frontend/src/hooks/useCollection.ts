@@ -1,12 +1,15 @@
 import { useState } from 'react'
 
-export type Collection = 'wallenberg' | 'all'
+export type Collection = 'wallenberg' | 'midcap' | 'all'
 const KEY = 'arp-kb-collection'
 
 // Tabs mount one at a time; share the user's choice when moving between them.
 export function useCollection() {
   const [collection, setCollection] = useState<Collection>(() => {
-    try { return localStorage.getItem(KEY) === 'all' ? 'all' : 'wallenberg' }
+    try {
+      const saved = localStorage.getItem(KEY)
+      return saved === 'all' || saved === 'midcap' ? saved : 'wallenberg'
+    }
     catch { return 'wallenberg' }
   })
   const changeCollection = (value: Collection) => {
