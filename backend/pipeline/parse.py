@@ -47,7 +47,7 @@ _DIGIT_SPACE = re.compile(r" (?=\d)|(?<=\d) ")  # any space touching a digit
 _CHARMAP = str.maketrans({"\u00a0": " ", "\u202f": " ", "\u2013": "-", "\u2212": "-"})  # NBSP, narrow NBSP, en dash, minus
 
 
-PARSER_VERSION = 7  # bump when page_text changes so kb.save_report rewrites cached pages.jsonl -- v068's transposed-header rebuild changes output on the pages it fires on
+PARSER_VERSION = 8  # link-backed navigation gutters must not merge into table rows
 NUMERIC_RUN = 12  # consecutive letterless lines: a column-major text layer (Arion Bank prints every figure first, then every label, in no order)
 _LEADERS = re.compile(r"(?:\s*\.){3,}")
 _PURE_VALUE = re.compile(r"[\s\d.,()\-–—%*]+")  # a figures-only line ("164,155 164,155", " - "), as opposed to a label
@@ -73,6 +73,9 @@ def page_text(page, metadata: dict | None = None) -> str:
     """Plain text; a text layer that splits table rows (a row label on one line, its figures on the next) gets its
     lines rebuilt so each printed row is one line. Prose-only pages are returned as get_text() wrote them."""
     text = page.get_text()
+    navigation = _navigation_columns(page)
+    if navigation is not None:
+        return navigation
     if len(re.sub(r"\W", "", text)) < 20 and (page.get_images() or len(page.get_drawings()) > 100):
         # PyMuPDF bundles the OCR engine. Language files stay local, no report upload.
         settings = ocr_settings()
@@ -95,6 +98,36 @@ def page_text(page, metadata: dict | None = None) -> str:
         if _split_rows(alt) < leftover:
             return alt
     return merged
+
+
+def _navigation_columns(page) -> str | None:
+    """Keep a PDF's linked navigation rail separate from its financial tables.
+
+    Baseline alignment alone can mistake a sidebar for table labels. Require
+    at least five internal links to distinct pages in the outer left fifth,
+    a substantial vertical span, and a genuinely empty full-height gutter.
+    Keep all words, including navigation; only their reading order changes.
+    """
+    width, height = page.rect.width, page.rect.height
+    links = [link for link in page.get_links()
+             if link.get('kind') in (pymupdf.LINK_GOTO, pymupdf.LINK_NAMED) and link.get('page', -1) >= 0
+             and link['from'].x1 <= width * .2]
+    if len({link['page'] for link in links}) < 5:
+        return None
+    if max(link['from'].y1 for link in links) - min(link['from'].y0 for link in links) < height * .25:
+        return None
+    edge = max(link['from'].x1 for link in links)
+    words = [word[:5] for word in page.get_text('words') if word[4].strip()]
+    for gap, lo, hi in _gaps(words, 0, 2):
+        if gap < max(12, width * .02) or edge > (lo + hi) / 2 or lo > edge + width * .025 or hi > width * .3:
+            continue
+        left = [word for word in words if word[2] <= lo]
+        right = [word for word in words if word[0] >= hi]
+        if len(left) + len(right) != len(words) or len(right) < 20:
+            continue
+        regions = [left, *_cut_regions(right, width, height)]
+        return '\n'.join(_words_to_lines(region) for region in regions)
+    return None
 
 
 def _split_rows(text: str) -> int:

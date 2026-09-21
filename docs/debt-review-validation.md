@@ -32,6 +32,14 @@ Validation:
   Libraries.dev orb themes, stop/retry, citations, and reduced motion without WebGL.
 - Frontend production build passed.
 
+The first installed-app extraction exposed an additional PDF parsing issue:
+the freshly downloaded PDF's navigation sidebar was merged into financial rows,
+so the printed dash was dropped. The parser now separates a navigation rail only
+when at least five distinct internal link destinations, a tall left-edge column,
+and an empty gutter prove its layout. All text is retained. The parser version
+is incremented so locally cached PDFs are reparsed. Synthetic sidebar and normal
+table counterexamples, plus the existing parser suite, pass.
+
 The review shell stays fixed to the viewport, with navigation scrolling only the
 content pane. The orb uses `thinking-orbs` 0.3.1, replacing the ElevenLabs shader
 and Three.js dependency. The installed app must be updated before those changes
