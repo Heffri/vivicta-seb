@@ -73,9 +73,6 @@ def page_text(page, metadata: dict | None = None) -> str:
     """Plain text; a text layer that splits table rows (a row label on one line, its figures on the next) gets its
     lines rebuilt so each printed row is one line. Prose-only pages are returned as get_text() wrote them."""
     text = page.get_text()
-    navigation = _navigation_columns(page)
-    if navigation is not None:
-        return navigation
     if len(re.sub(r"\W", "", text)) < 20 and (page.get_images() or len(page.get_drawings()) > 100):
         # PyMuPDF bundles the OCR engine. Language files stay local, no report upload.
         settings = ocr_settings()
@@ -87,6 +84,9 @@ def page_text(page, metadata: dict | None = None) -> str:
         if metadata is not None:
             metadata.setdefault("ocr_pages", []).append(page.number + 1)
         return _words_to_lines([w[:5] for w in page.get_text("words", textpage=tp)])
+    navigation = _navigation_columns(page)
+    if navigation is not None:
+        return navigation
     if _numeric_run(text) >= NUMERIC_RUN:
         return _best_words(page)
     if not _split_rows(text):
