@@ -10,6 +10,7 @@ import logging
 import math
 import os
 import re
+import statistics
 import sys
 import time
 from logging.handlers import RotatingFileHandler
@@ -589,8 +590,35 @@ def kb_export_pptx(section: str = "debt_maturity", collection_name: Literal["all
 def kb_maturity_wall(section: Literal["debt_maturity"] = "debt_maturity", collection_name: Literal["all", "wallenberg", "midcap"] = Query("all", alias="collection")):
     """v174: deterministic upcoming-maturities list over the saved collection -- reads the same decorated
     extracts as the CSV/PPTX exports, zero model calls. 200 with empty rows when the collection has no
-    debt_maturity extractions yet -- the empty state is the frontend's to render, not a 404."""
-    return workbench.maturity_wall(kb_export_extractions(section, collection_name))
+    debt_maturity extractions yet -- the empty state is the frontend's to render, not a 404.
+    v180: every row also carries its data/companies.json `sector` (None when the company is not in the
+    universe file) and a `complete` flag (ppt.complete_buckets: the stored identity check passed and both
+    total_debt and due_within_1_year are present), aggregated per sector as `sectors` -- companies/complete
+    counts plus median/min/max share over complete companies only, never over guessed figures."""
+    normalize = lambda name: re.sub(r"[\W_]+", " ", name.casefold()).strip()  # same mapping as list_kb
+    sector_of = {normalize(c["name"]): c.get("sector") for c in COMPANIES}
+    extracts = kb_export_extractions(section, collection_name)
+    wall = workbench.maturity_wall(extracts)
+    by_stem = {x["stem"]: x for x in extracts}
+    for row in wall["rows"]:
+        row["sector"] = sector_of.get(normalize(row.get("company") or ""))
+        row["complete"] = ppt.complete_buckets(by_stem.get(row["stem"], {}))
+    grouped = {}
+    for row in wall["rows"]:
+        grouped.setdefault(row["sector"], []).append(row)
+    wall["sectors"] = []
+    for sector in sorted(grouped, key=lambda s: (s is None, s or "")):  # unknown sector groups last
+        rows = grouped[sector]
+        shares = sorted(r["share"] for r in rows if r["complete"] and r["share"] is not None)
+        wall["sectors"].append({
+            "sector": sector,
+            "companies": len(rows),
+            "complete": sum(1 for r in rows if r["complete"]),
+            "median_share": round(statistics.median(shares), 4) if shares else None,
+            "min": round(shares[0], 4) if shares else None,
+            "max": round(shares[-1], 4) if shares else None,
+        })
+    return wall
 
 
 @app.get("/api/kb/{stem}/pages/{page}")

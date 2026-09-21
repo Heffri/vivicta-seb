@@ -121,10 +121,21 @@ export type MaturityWallRow = {
   review_status: string;
   comparable: boolean;
   reason: string;
+  // v180: the data/companies.json sector (null when the company is not in the universe file) and
+  // whether the buckets are complete: the stored identity check passed AND total AND <1y present.
+  sector: string | null;
+  complete: boolean;
+};
+// v180: the same wall aggregated per sector. median/min/max only count complete companies' shares
+// (a missing bucket is never back-filled with 0); all three are null until one company completes.
+export type MaturityWallSector = {
+  sector: string | null; companies: number; complete: number;
+  median_share: number | null; min: number | null; max: number | null;
 };
 export type MaturityWall = {
   rows: MaturityWallRow[];
   coverage: { total: number; comparable: number; missing_total: number; missing_w1y: number; basis_unconfirmed: number };
+  sectors: MaturityWallSector[];
 };
 // v091: the prior fiscal year's own figures, read deterministically from the same table as the
 // current year (identity-gated on explicit values) — absent entirely when they could not be.
