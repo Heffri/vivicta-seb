@@ -14,9 +14,11 @@ import threading
 import functools
 import http.server
 from pathlib import Path
+from unittest.mock import patch
 
 import pymupdf as fitz
 
+import app
 from . import fetch
 
 COMPANY, YEAR = "Nestle", 2025
@@ -176,6 +178,13 @@ def demo():
             fetch.llm.web_lookup = fake
             patched["_candidates"] = fetch._candidates, (lambda company, year: [])
             fetch._candidates = lambda company, year: []
+
+            # An isolated ARP_DATA_DIR may begin with no reports/index.json. Treat that
+            # as an empty cache so the fetch route can proceed to discovery rather than 500.
+            empty_library = tmp / "empty-library"
+            empty_library.mkdir()
+            with patch.object(app, "LIBRARY", empty_library):
+                assert app.library_index() == []
 
             dest = tmp / "reports"
 
