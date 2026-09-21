@@ -101,13 +101,16 @@ type Source = {
 type Field = {
   key: string;              // canonical key from the schema, e.g. "revenue"
   label: string;            // human label from the schema
-  value: number | string | null;  // null = not found
+  value: number | string | null;  // null = not found, or (with "absent_in_table" evidence) not printed in this report
   unit: string | null;      // "MSEK", "SEK", "%", ...
   period: string | null;    // "2025", "2024", "2025-Q4"
   raw_label: string | null; // the label as printed in the report, e.g. "Intäkter"
   source: Source | null;
   confidence: number;       // 0..1, computed from evidence by the backend — see docs/CONFIDENCE.md. Never the model's opinion.
   evidence: string[];       // satisfied evidence codes, e.g. ["quote_on_page","value_in_quote","arith_ok"]; 1.0 <=> all seven present
+                            // "absent_in_table" (v165, debt_maturity buckets): the maturity table's own parsed header prints no
+                            // column for this window — value stays null and `source` quotes the header row that proves it; the
+                            // identity check counts the operand as 0 (see docs/acrylic/evidence/v165.md)
 };
 
 type Check = {
@@ -311,7 +314,7 @@ Extractions gain optional `basis`, `basis_history`, `check_history`, `issues`, a
 
 `basis` is `{values: Record<string,string>, reviewer, note, at}`. Shared value keys: `entity`, `consolidation`, `period`, `currency`, `scale`, `source`, `restatement`. Debt adds `debt_basis`, `leases`, `bucket_mapping`. Empty values remain unknown. Basis review accepts `{section, expected: previousBasisOrEmptyObject, values, reviewer, note}` and rejects stale snapshots with 409. `basis_history` records each prior basis. `check_history` records previous checks when recalculation changes them.
 
-Checks include `status: passed|failed|unavailable`. Reconciliation requires every operand to be explicit and use the same nonempty unit and period. Source evidence remains distinct from arithmetic and human review. `issues` contains `{kind: basis|field|check, key, detail}`. `ready` requires no unresolved issues, including missing figures even when a human confirmed their absence. Queue entries add `report: KbEntry` and `section`.
+Checks include `status: passed|failed|unavailable`. Reconciliation requires every operand to be explicit and use the same nonempty unit and period — except a bucket whose evidence marks it `absent_in_table` (the report's maturity table prints no column for that window): it joins the reconciliation as 0. Source evidence remains distinct from arithmetic and human review. `issues` contains `{kind: basis|field|check, key, detail}`. `ready` requires no unresolved issues, including missing figures even when a human confirmed their absence; an `absent_in_table` bucket is not an issue (a reviewer marking it unresolved re-opens it). Queue entries add `report: KbEntry` and `section`.
 
 Comparison responses include saved `candidates`, `previous_stem`, `current_year`, `previous_year`, `reasons`, and per-field `rows` with current/previous values, delta, percent, sign-change flag, sources and human reviews. Missing immediate prior years and duplicate sources require explicit selection. Definitions must be confirmed and compatible before calculating changes. Period formats must match after replacing each fiscal year. A zero previous value gives a null percentage, never infinity. Alternate intervals and declared restatements remain explicit. Export query parameters `section` and `previous_stem` select the saved statement and comparison, regardless of the last statement opened.
 

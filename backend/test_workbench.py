@@ -33,6 +33,21 @@ for section in ('income_statement', 'debt_maturity'):
     x = statement(section)
     x['fields'][0]['period'] = '2024'
     assert any(c['status'] == 'unavailable' for c in workbench.checks(x, schema))
+    # v165: a null bucket the maturity table prints no column for (evidence "absent_in_table") joins the
+    # reconciliation as 0 instead of holding it unavailable, and is not a queue issue; a reviewer marking
+    # it unresolved re-opens it. A null income-statement field stays unavailable -- the participation is
+    # require_explicit_values checks only, never a general null-to-zero.
+    x = statement(section)
+    null_key = 'due_after_5_years' if section == 'debt_maturity' else x['fields'][0]['key']
+    next(f for f in x['fields'] if f['key'] == null_key).update(value=None, unit=None, period=None, source=None, evidence=['absent_in_table'])
+    if section == 'debt_maturity':
+        next(f for f in x['fields'] if f['key'] == 'total_debt')['value'] = 70  # 20 + 50 + the absent bucket's 0
+        assert all(c['passed'] and c['status'] != 'unavailable' for c in workbench.checks(x, schema)), workbench.checks(x, schema)
+        assert not any(i['kind'] == 'field' and i['key'] == null_key for i in workbench.decorate(x, schema)['issues'])
+        next(f for f in x['fields'] if f['key'] == null_key)['human_review'] = {'decision': 'unresolved', 'reviewer': 'Analyst', 'at': 'now', 'note': 'Rechecked'}
+        assert any(i['kind'] == 'field' and i['key'] == null_key for i in workbench.decorate(x, schema)['issues'])
+    else:
+        assert any(c['status'] == 'unavailable' for c in workbench.checks(x, schema))
     current, previous = statement(section), statement(section, 2024)
     current['fields'][0]['value'], previous['fields'][0]['value'] = 20, -10
     row = workbench.compare(current, previous)['rows'][0]
