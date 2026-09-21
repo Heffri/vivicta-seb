@@ -25,7 +25,7 @@ Backend runs on `http://localhost:8000`, frontend dev server proxies `/api` to i
 | `GET`  | `/api/kb` | `?collection_name=wallenberg\|midcap\|all` | `KbEntry[]` — what is in `data/kb/` (one per parsed report: pages indexed, sections extracted). `collection_name` filters the list: `all` (the backend default), the curated Wallenberg roster (`wallenberg` — what the KB page sends by default), or the 132-company SEB Mid Cap universe (`midcap`) |
 | `GET` | `/api/kb/export.csv` | `?section=debt_maturity&collection=wallenberg\|midcap\|all&q=` | One CSV row per saved company extraction. `collection` follows the KB page scope; optional `q` matches its company/stem filter. No PDF or model call is needed. |
 | `GET` | `/api/kb/export.pptx` | `?section=debt_maturity&collection=wallenberg\|midcap\|all&q=` | A PPTX deck with one maturity-wall summary table, then one established PowerPoint slide per saved company. Filtering is identical to the whole-KB CSV and no PDF or model call is needed. |
-| `GET` | `/api/kb/maturity-wall` | `?section=debt_maturity&collection=wallenberg\|midcap\|all` | `MaturityWall` — deterministic upcoming-maturities list (v174): total debt, amount due within 1 year and their share for every saved `debt_maturity` extraction in the collection, sorted comparable-first by share descending. Reads the same decorated extracts as the CSV/PPTX exports (no PDF, no model call); 200 with `rows: []` when the collection has none yet |
+| `GET` | `/api/kb/maturity-wall` | `?section=debt_maturity&collection=wallenberg\|midcap\|all` | `MaturityWall` — deterministic upcoming-maturities list (v174): total debt, amount due within 1 year and their share for every saved `debt_maturity` extraction in the collection, sorted comparable-first by share descending. Each row also names its `data/companies.json` sector and whether its buckets are complete (v180), and the wall is aggregated per sector — counts plus median/min/max share over complete companies only. Reads the same decorated extracts as the CSV/PPTX exports (no PDF, no model call); 200 with `rows: []` when the collection has none yet |
 | `GET` | `/api/kb/{stem}/pages/{page}` | – | `{ page: number, text: string }` — saved page text, available even without the PDF; exact known stem and valid page required |
 | `GET` | `/api/kb/{stem}/{section}` | – | Saved `Extraction`, no model call, available without the original PDF |
 | `GET`  | `/api/config` | – | `{ model, embed_model, base_url, llm, provider, retrieval, maturity_basis }` — what the backend runs with; `retrieval` is `"hybrid"` (cosine+BM25) \| `"bm25"` (keyword-only, e.g. codex/claude subscription with no embeddings endpoint) \| `"fixture"`; `maturity_basis` (v089) is `"carrying"` (default) \| `"undiscounted"`, from env `DEBT_BASIS` |
@@ -188,10 +188,20 @@ type MaturityWallRow = {
   review_status: string;                     // e.g. "confirmed", "unreviewed", "unresolved"
   comparable: boolean;
   reason: string;
+  sector: string | null;                     // v180: data/companies.json sector, null when unknown
+  complete: boolean;                         // v180: identity check passed AND total AND <1y present
+};
+// v180: the wall aggregated per sector (alphabetical, the null sector last). median/min/max count
+// complete companies' shares only — a missing bucket is never back-filled with 0, so a sector with
+// no complete company reports null stats while still counting its companies.
+type MaturityWallSector = {
+  sector: string | null; companies: number; complete: number;
+  median_share: number | null; min: number | null; max: number | null;
 };
 type MaturityWall = {
   rows: MaturityWallRow[];                   // sorted comparable-first, then by share descending
   coverage: { total: number; comparable: number; missing_total: number; missing_w1y: number; basis_unconfirmed: number };
+  sectors: MaturityWallSector[];
 };
 ```
 
