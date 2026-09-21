@@ -23,6 +23,7 @@ Backend runs on `http://localhost:8000`, frontend dev server proxies `/api` to i
 | `GET`  | `/api/kb` | `?collection_name=wallenberg\|midcap\|all` | `KbEntry[]` — what is in `data/kb/` (one per parsed report: pages indexed, sections extracted). `collection_name` filters the list: `all` (the backend default), the curated Wallenberg roster (`wallenberg` — what the KB page sends by default), or the 132-company SEB Mid Cap universe (`midcap`) |
 | `GET` | `/api/kb/export.csv` | `?section=debt_maturity&collection=wallenberg\|midcap\|all&q=` | One CSV row per saved company extraction. `collection` follows the KB page scope; optional `q` matches its company/stem filter. No PDF or model call is needed. |
 | `GET` | `/api/kb/export.pptx` | `?section=debt_maturity&collection=wallenberg\|midcap\|all&q=` | A PPTX deck with one maturity-wall summary table, then one established PowerPoint slide per saved company. Filtering is identical to the whole-KB CSV and no PDF or model call is needed. |
+| `GET` | `/api/kb/maturity-wall` | `?section=debt_maturity&collection=wallenberg\|midcap\|all` | `MaturityWall` — deterministic upcoming-maturities list (v174): total debt, amount due within 1 year and their share for every saved `debt_maturity` extraction in the collection, sorted comparable-first by share descending. Reads the same decorated extracts as the CSV/PPTX exports (no PDF, no model call); 200 with `rows: []` when the collection has none yet |
 | `GET` | `/api/kb/{stem}/pages/{page}` | – | `{ page: number, text: string }` — saved page text, available even without the PDF; exact known stem and valid page required |
 | `GET` | `/api/kb/{stem}/{section}` | – | Saved `Extraction`, no model call, available without the original PDF |
 | `GET`  | `/api/config` | – | `{ model, embed_model, base_url, llm, provider, retrieval, maturity_basis }` — what the backend runs with; `retrieval` is `"hybrid"` (cosine+BM25) \| `"bm25"` (keyword-only, e.g. codex/claude subscription with no embeddings endpoint) \| `"fixture"`; `maturity_basis` (v089) is `"carrying"` (default) \| `"undiscounted"`, from env `DEBT_BASIS` |
@@ -99,6 +100,13 @@ type Source = {
   quote: string;            // verbatim text from that page that supports the value
 };
 
+type ReviewComponent = {
+  value: number;            // one printed amount; the corrected field is their exact sum
+  page: number;             // 1-based page holding this component's quoted row
+  quote: string;            // verbatim row, checked against that saved page
+  label: string;            // a short analyst label, e.g. "Current borrowings"
+};
+
 type Field = {
   key: string;              // canonical key from the schema, e.g. "revenue"
   label: string;            // human label from the schema
@@ -107,6 +115,7 @@ type Field = {
   period: string | null;    // "2025", "2024", "2025-Q4"
   raw_label: string | null; // the label as printed in the report, e.g. "Intäkter"
   source: Source | null;
+  components?: ReviewComponent[]; // analyst-reviewed printed amounts used to derive this field; never a claim that one printed row equals their sum
   confidence: number;       // 0..1, computed from evidence by the backend — see docs/CONFIDENCE.md. Never the model's opinion.
   evidence: string[];       // satisfied evidence codes, e.g. ["quote_on_page","value_in_quote","arith_ok"]; 1.0 <=> all seven present
                             // "absent_in_table" (v165, debt_maturity buckets): the maturity table's own parsed header prints no
@@ -160,6 +169,28 @@ type BucketsByYear = {
     source: Source | null;                   // the printed row the year came from (page + verbatim quote)
   }[];
 };
+
+// v174: GET /api/kb/maturity-wall. No FX conversion: total/due_within_1_year keep the printed unit
+// unless both fields share a recognised currency at different scales (MSEK vs TSEK), in which case
+// both are shown at the coarser scale. `comparable` is false when the basis is unconfirmed, either
+// field lacks verified evidence, or the two units don't share a recognised currency — `share` can
+// still be present in that case (an analyst can read an unconfirmed number); `reason` explains why,
+// or carries a soft note (e.g. "No debt outstanding.") when comparable but share is still null.
+type MaturityAmount = { value: number | null; unit: string | null };
+type MaturityWallRow = {
+  stem: string; report_id: string | null; company: string | null; fiscal_year: number | null;
+  total: MaturityAmount; due_within_1_year: MaturityAmount;
+  share: number | null;                      // due_within_1_year / total, 0..1; null if not computable
+  basis_confirmed: boolean;
+  consolidation: string | null; debt_basis: string | null; leases: string | null; // the confirmed basis values, when present
+  review_status: string;                     // e.g. "confirmed", "unreviewed", "unresolved"
+  comparable: boolean;
+  reason: string;
+};
+type MaturityWall = {
+  rows: MaturityWallRow[];                   // sorted comparable-first, then by share descending
+  coverage: { total: number; comparable: number; missing_total: number; missing_w1y: number; basis_unconfirmed: number };
+};
 ```
 
 Every non-null `value` **must** carry a `source`. Backend verifies `source.quote` occurs on `source.page`
@@ -196,12 +227,12 @@ One file per report section. Adding a section = adding a file. The prompt is gen
 
 ## CSV export
 
-Header: `report_id,company,fiscal_year,section,key,label,value,unit,period,raw_label,page,quote,confidence`
-One row per field. UTF-8, comma-separated, quotes escaped per RFC 4180.
+Header begins `report_id,company,fiscal_year,section,key,label,value,unit,period,raw_label,page,quote,confidence` and adds current review metadata plus `human_source_page`, `human_source_quote`, and JSON-encoded `components`.
+One row per field. UTF-8, comma-separated, quotes escaped per RFC 4180. JSON export carries the same field source, components, and append-only history; a human citation is not reclassified as automated evidence.
 
 ### Whole-KB maturity CSV
 
-`GET /api/kb/export.csv` is the downstream-universe variant: it emits one row per saved company that has the requested section (rather than one row per field). Its leading columns are the header above, populated from the `total_debt` field and its source; it then adds `stem`, `due_within_1_year`, `due_1_to_5_years`, `due_after_5_years`, `review_status`, `human_review`, and `ready`. `review_status` preserves every present human-review decision (for example `confirmed`); `human_review=yes` makes reviewed values visible without changing them. Missing amounts remain blank, never zero-filled.
+`GET /api/kb/export.csv` is the downstream-universe variant: it emits one row per saved company that has the requested section (rather than one row per field). Its leading columns are the header above, populated from the `total_debt` field and its source; it then adds `stem`, `due_within_1_year`, `due_1_to_5_years`, `due_after_5_years`, `review_status`, `human_review`, `ready`, `human_source_page`, `human_source_quote`, and `components`. `review_status` preserves every present human-review decision (for example `confirmed`); `human_review=yes` makes reviewed values visible without changing them. Missing amounts remain blank, never zero-filled.
 
 ## Company directory + on-demand report fetching
 
@@ -301,7 +332,9 @@ continues to accept `report_ids` and retains its retrieval mode.
 
 
 ### Human review
-`POST /api/reports/{report_id}/review` accepts `section`, `key`, `expected` (the complete field last read), `decision` (`confirmed`, `corrected`, `unresolved`), `reviewer` (self-reported name), `note`, and optional `value`, `unit`, `period` for corrections. Returns the updated Extraction. Requires a saved extraction. Stale fields return 409. Reviews persist inside each field as `human_review` and append-only `review_history` with the previous field snapshot and a UTC timestamp. Corrections retain source provenance, clear the changed field's automated evidence, and mark calculation checks `stale: true`. Review does not certify automated checks. Re-extraction of a reviewed section is rejected (409) to prevent loss of reviews. JSON export includes the full history; CSV includes current review status, name, time, and note.
+`POST /api/reports/{report_id}/review` accepts `section`, `key`, `expected` (the complete field last read), `decision` (`confirmed`, `corrected`, `unresolved`), `reviewer` (self-reported name), `note`, and optional `value`, `unit`, `period` for corrections. A correction may also provide a paired `source_page` (positive integer) + `source_quote`; the backend checks that quote against the saved page text before replacing the field's source. A correction may instead provide `components: [{value, page, quote, label}]`: every component quote is checked on its own page and the backend writes the exact component sum as the field value, records the components, and uses the first component as the field's clickable source. `value` is required for a direct correction and ignored for a component sum; `unit` and `period` are required for both. The current `human_review` records `source_verified: true` only when the submitted source or every submitted component was found on its page; a human decision without a new citation does not gain that key.
+
+Returns the updated Extraction. Requires a saved extraction. Stale fields return 409. Reviews persist inside each field as `human_review` and append-only `review_history` with the previous field snapshot and a UTC timestamp. Corrections replace the field source only when a new citation was supplied, retain the original value and source in history, replace automated evidence with human-review evidence, and mark calculation checks stale/unavailable. Review does not certify automated checks. Re-extraction of a reviewed section is rejected (409) to prevent loss of reviews. JSON export includes the full history and components. Per-report and whole-KB CSV add `human_source_page`, `human_source_quote`, and JSON-encoded `components`; PPTX writes the first reviewed field's page/quote and component count on the slide while full history remains in speaker notes.
 
 
 ### Collections and opt-in PDFs

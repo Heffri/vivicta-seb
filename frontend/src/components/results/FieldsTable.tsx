@@ -58,6 +58,9 @@ export function FieldsTable({ fields, selectedKey, onSelect }: FieldsTableProps)
                     {verification.label}
                   </Badge>
                   {f.human_review && <p className="mt-2 text-xs text-muted-foreground" title={fieldVerification({ ...f, human_review: undefined }).detail}>Automated evidence: {fieldVerification({ ...f, human_review: undefined }).label.toLowerCase()}</p>}
+                  {f.human_review?.source_verified && f.source && <button type="button" className="mt-2 block text-left text-xs text-primary underline-offset-2 hover:underline" title={f.source.quote} onClick={(e) => { e.stopPropagation(); onSelect(f.key) }}>
+                    Reviewed source · p.{f.source.page} · “{f.source.quote.length > 96 ? `${f.source.quote.slice(0, 93).trimEnd()}…` : f.source.quote}”{f.components?.length ? ` · ${f.components.length} components` : ''}
+                  </button>}
                   {['Needs review', 'Not checked', 'Not found'].includes(verification.label) && (
                     <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{verification.detail}</p>
                   )}

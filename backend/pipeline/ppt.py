@@ -43,18 +43,22 @@ def add_slide(prs: Presentation, x: dict, prior_year: bool = False, per_year: bo
     if x.get("stale"):
         sub += " · Saved result predates current extraction settings"
     _textbox(slide, sub, Pt(14), top=Inches(0.95), color=(100, 100, 100))
+    human_line = human_review_line(x)
+    if human_line:
+        _textbox(slide, human_line, Pt(10), top=Inches(1.25), color=(100, 100, 100))
 
     by_key = {f["key"]: f for f in x["fields"]}
     buckets = [k for k in BUCKET_ORDER if k in by_key and by_key[k]["value"] is not None]
 
     basis = (x.get("basis") or {}).get("values", {})
     status = "Ready for analyst use" if x.get("ready") else "Draft - unresolved items"
-    _textbox(slide, status, Pt(16), bold=True, top=Inches(1.35), color=(30, 100, 60) if x.get("ready") else (160, 70, 20))
+    offset = 0.3 if human_line else 0
+    _textbox(slide, status, Pt(16), bold=True, top=Inches(1.35 + offset), color=(30, 100, 60) if x.get("ready") else (160, 70, 20))
     summary = " | ".join(str(basis.get(k) or "Unknown " + k) for k in ("entity", "consolidation", "currency", "scale"))
-    _textbox(slide, summary[:160], Pt(12), top=Inches(1.75))
+    _textbox(slide, summary[:160], Pt(12), top=Inches(1.75 + offset))
     if len(buckets) == 3 and all(c.get("passed") for c in x.get("checks", [])):
         debt_basis = f"{basis.get('debt_basis') or 'Debt basis unknown'} | Leases: {basis.get('leases') or 'unknown'}"
-        _textbox(slide, debt_basis, Pt(12), top=Inches(2.05))
+        _textbox(slide, debt_basis, Pt(12), top=Inches(2.05 + offset))
         # v091: the prior year rides along only when the caller asked for it (?prior_year=1) and the
         # extraction carries it; anything else renders exactly as before.
         # v109: ?per_year=1 swaps the three-bucket series for the report's own calendar-year columns
@@ -62,9 +66,9 @@ def add_slide(prs: Presentation, x: dict, prior_year: bool = False, per_year: bo
         # and a bucket series on one chart would answer two different questions, so per_year wins and
         # the prior series steps aside). Without the flag or without buckets_by_year: exactly as before.
         _debt_chart(slide, by_key, buckets, x.get("prior_year") if prior_year else None,
-                    x.get("buckets_by_year") if per_year else None)
+                    x.get("buckets_by_year") if per_year else None, offset)
     else:
-        _table(slide, x["fields"])
+        _table(slide, x["fields"], offset)
 
     comparison = x.get("comparison") or {}
     period = f"Comparison: {comparison.get('previous_year')} to {comparison.get('current_year')} | " if comparison else ""
@@ -72,6 +76,21 @@ def add_slide(prs: Presentation, x: dict, prior_year: bool = False, per_year: bo
     counts = {kind: sum(i["kind"] == kind for i in unresolved) for kind in ("field", "basis", "check")}
     _textbox(slide, period + (f"Unresolved: {counts['field']} figures, {counts['basis']} definitions, {counts['check']} calculations. " if unresolved else "") + "Full sources and review history in speaker notes.", Pt(11), top=Inches(6.9))
     slide.notes_slide.notes_text_frame.text = json.dumps(x, ensure_ascii=False, indent=2)
+
+
+def human_review_line(x: dict) -> str:
+    """A visible pointer to a new analyst citation; the full history stays in notes/JSON."""
+    for field in x.get("fields", []):
+        review = field.get("human_review") or {}
+        source = field.get("source") or {}
+        if not review.get("source_verified") or not source.get("quote"):
+            continue
+        quote = " ".join(str(source["quote"]).split())
+        if len(quote) > 110:
+            quote = quote[:107].rstrip() + "…"
+        components = field.get("components") or []
+        return f"Human review: p.{source.get('page')} '{quote}'" + (f" — components {len(components)}" if components else "")
+    return ""
 
 
 def summary_row(x: dict) -> dict:
@@ -130,11 +149,11 @@ def _summary_value(value) -> str:
     return str(value) if value is not None else "—"
 
 
-def _debt_chart(slide, by_key, buckets, prior=None, by_year=None):
+def _debt_chart(slide, by_key, buckets, prior=None, by_year=None, offset=0):
     total = by_key.get("total_debt", {}).get("value")
     unit = next((by_key[k]["unit"] for k in buckets if by_key[k].get("unit")), "")
     if total is not None:
-        _textbox(slide, "Total debt: " + f"{total:,.6f}".rstrip("0").rstrip(".").replace(",", " ") + " " + unit, Pt(20), bold=True, top=Inches(2.4))
+        _textbox(slide, "Total debt: " + f"{total:,.6f}".rstrip("0").rstrip(".").replace(",", " ") + " " + unit, Pt(20), bold=True, top=Inches(2.4 + offset))
 
     data = CategoryChartData()
     if by_year:  # v109: the report's own calendar-year columns as the categories, one series of the same "Debt due"
@@ -145,7 +164,7 @@ def _debt_chart(slide, by_key, buckets, prior=None, by_year=None):
         data.add_series("Debt due", [by_key[k]["value"] for k in buckets])
         if prior:  # v091: a second, fainter series beside each bucket, named for its own fiscal year
             data.add_series(f"FY{prior.get('fiscal_year')}", [prior.get("fields", {}).get(k, {}).get("value") for k in buckets])
-    frame = slide.shapes.add_chart(XL_CHART_TYPE.COLUMN_CLUSTERED, Inches(1.2), Inches(2.95), Inches(10.9), Inches(3.7), data)
+    frame = slide.shapes.add_chart(XL_CHART_TYPE.COLUMN_CLUSTERED, Inches(1.2), Inches(2.95 + offset), Inches(10.9), Inches(3.7 - offset), data)
     chart = frame.chart
     chart.has_legend = bool(prior and not by_year)  # one series needs no legend; two are told apart by theirs
     if prior and not by_year:  # v109: the year view has one series again -- no legend to place
@@ -161,9 +180,9 @@ def _debt_chart(slide, by_key, buckets, prior=None, by_year=None):
         element.set("val", str(int(element.get("val")) % (1 << 32)))
 
 
-def _table(slide, fields):
+def _table(slide, fields, offset=0):
     rows = fields
-    shape = slide.shapes.add_table(len(rows) + 1, 3, Inches(1.2), Inches(2.2), Inches(10.9), Inches(4.45))
+    shape = slide.shapes.add_table(len(rows) + 1, 3, Inches(1.2), Inches(2.2 + offset), Inches(10.9), Inches(4.45 - offset))
     table = shape.table
     for c, h in enumerate(["Field", "Value", "Unit"]):
         table.cell(0, c).text = h

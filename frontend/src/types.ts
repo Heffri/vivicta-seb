@@ -74,7 +74,8 @@ export type Source = {
   quote: string;            // verbatim text from that page that supports the value
 };
 
-export type HumanReview = { decision: 'confirmed' | 'corrected' | 'unresolved'; reviewer: string; note: string; at: string };
+export type ReviewComponent = { value: number; page: number; quote: string; label: string };
+export type HumanReview = { decision: 'confirmed' | 'corrected' | 'unresolved'; reviewer: string; note: string; at: string; source_verified?: boolean };
 export type Field = {
   human_review?: HumanReview;
   review_history?: (HumanReview & { previous: Omit<Field, 'review_history'> })[];
@@ -85,6 +86,7 @@ export type Field = {
   period: string | null;    // "2025", "2024", "2025-Q4"
   raw_label: string | null; // the label as printed in the report, e.g. "Intäkter"
   source: Source | null;
+  components?: ReviewComponent[]; // individually cited human-review inputs whose exact sum is this value
   confidence: number;       // 0..1, computed from evidence by the backend — see docs/CONFIDENCE.md. Never the model's opinion.
   evidence: string[];       // satisfied evidence codes, e.g. ["quote_on_page","value_in_quote","arith_ok"]; 1.0 <=> all seven present; "absent_in_table" = the maturity table prints no column for this window (v165: value stays null, source quotes the header row, the identity counts it as 0)
 };
@@ -101,6 +103,29 @@ export type Basis = { values: Record<string, string>; reviewer: string; note: st
 export type ReviewIssue = { kind: 'basis' | 'field' | 'check'; key: string; detail: string };
 export type Comparison = { candidates: KbEntry[]; previous_stem?: string; current_year?: number; previous_year?: number; reasons: string[]; restatement?: Record<string, string>; rows: { key: string; label: string; current: Field['value']; previous: Field['value']; delta: number | null; percent: number | null; sign_change: boolean; reason: string }[] };
 export type QueueIssue = ReviewIssue & { report: KbEntry; section: string };
+// v174: GET /api/kb/maturity-wall — deterministic upcoming-maturities list over a saved collection.
+// No FX conversion: `total`/`due_within_1_year` carry the printed unit unless both fields share a
+// recognised currency at different scales (MSEK vs TSEK), in which case both are shown at the coarser
+// scale. `share` (due_within_1_year / total) is 0..1, or null when it cannot be computed (a missing
+// value, an unrecognised/mismatched currency, or a zero total). `comparable` is false whenever the
+// basis is unconfirmed, either field lacks verified evidence, or the currencies do not match — `share`
+// can still be present in that case; `reason` explains why (or, if comparable, a soft note like "No
+// debt outstanding.").
+export type MaturityAmount = { value: number | null; unit: string | null };
+export type MaturityWallRow = {
+  stem: string; report_id: string | null; company: string | null; fiscal_year: number | null;
+  total: MaturityAmount; due_within_1_year: MaturityAmount;
+  share: number | null;
+  basis_confirmed: boolean;
+  consolidation: string | null; debt_basis: string | null; leases: string | null;
+  review_status: string;
+  comparable: boolean;
+  reason: string;
+};
+export type MaturityWall = {
+  rows: MaturityWallRow[];
+  coverage: { total: number; comparable: number; missing_total: number; missing_w1y: number; basis_unconfirmed: number };
+};
 // v091: the prior fiscal year's own figures, read deterministically from the same table as the
 // current year (identity-gated on explicit values) — absent entirely when they could not be.
 export type PriorYear = {

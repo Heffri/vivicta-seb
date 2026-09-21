@@ -2,7 +2,7 @@
 import copy
 import math
 import re
-from . import extract
+from . import extract, merge
 
 COMMON = ["entity", "consolidation", "period", "currency", "scale", "source", "restatement"]
 DEBT = ["debt_basis", "leases", "bucket_mapping"]
@@ -10,6 +10,23 @@ CHOICES = {"consolidation": {"Group", "Parent"}, "scale": {"Units", "Thousands",
 
 def required(section):
     return COMMON + (DEBT if section == "debt_maturity" else [])
+
+def _field_ok(f):
+    """Same bar decorate() uses to close a field's queue issue: a human confirmed or corrected it, or
+    every automatic trust signal is present (quote on page, value in quote, label/period/unit checked,
+    right statement page, and a source at all)."""
+    review = f.get("human_review", {})
+    evidence = set(f.get("evidence", []))
+    return review.get("decision") in ("confirmed", "corrected") or ({"quote_on_page", "value_in_quote", "label_known", "period_ok", "page_is_statement", "unit_ok"} <= evidence and bool(f.get("source")))
+
+def _basis_confirmed(x):
+    """Same bar compare() uses for a usable basis: a reviewer, and every required() field filled in,
+    with a confirmed period that actually names the saved fiscal year."""
+    basis = x.get("basis") or {}
+    values = basis.get("values", {})
+    if not basis.get("reviewer") or any(not values.get(k, "").strip() for k in required(x.get("section"))):
+        return False
+    return not values.get("period") or str(x.get("fiscal_year")) in values["period"]
 
 def checks(x, schema):
     fields = {f["key"]: f for f in x["fields"]}
@@ -56,7 +73,7 @@ def decorate(x, schema, audit=None):
         # A reviewer actively marking it unresolved re-opens it below like any other field.
         if f.get("value") is None and "absent_in_table" in evidence and review.get("decision") != "unresolved":
             continue
-        resolved = review.get("decision") in ("confirmed", "corrected") or ({"quote_on_page", "value_in_quote", "label_known", "period_ok", "page_is_statement", "unit_ok"} <= evidence and bool(f.get("source")))
+        resolved = _field_ok(f)
         if f.get("value") is None or not f.get("unit") or not f.get("period") or review.get("decision") == "unresolved" or not resolved or (values.get("period") and str(f.get("period")) != values["period"]):
             issues.append({"kind": "field", "key": f["key"], "detail": f.get("label", f["key"]) + (": missing value (not zero)" if f.get("value") is None else ": verify value, unit, period and source")})
     issues += [{"kind": "check", "key": c["name"], "detail": c["name"] + ": " + c["detail"]} for c in x["checks"] if not c["passed"]]
@@ -94,3 +111,92 @@ def compare(current, previous):
                      "current_source": f.get("source"), "previous_source": g.get("source"), "current_review": f.get("human_review"), "previous_review": g.get("human_review")})
     return {"previous_stem": previous.get("stem"), "current_year": current.get("fiscal_year"), "previous_year": previous.get("fiscal_year"),
             "previous_basis": b, "restatement": {"current": av.get("restatement", "unknown"), "previous": bv.get("restatement", "unknown")}, "reasons": reasons, "rows": rows}
+
+
+# v174: upcoming-maturities list over a whole saved collection -- consult-gpt6 #8 / consult-fable #2.
+# Deterministic (no model, no FX): total debt, the amount due within a year, and their share, for every
+# debt_maturity extraction handed in (kb_export_extractions' decorated output). No pairwise comparison --
+# each row judges only its own basis/evidence/units, so the share stays visible even when "comparable" is
+# false (an analyst can still read an unconfirmed number; the flag says not to rank on it yet).
+_SCALE_MULTIPLIER = {"": 1.0, "k": 1e3, "m": 1e6, "bn": 1e9}
+_SCALE_UNIT = {1.0: "", 1e3: "T", 1e6: "M", 1e9: "B"}
+# merge._unit_key parses any alphabetic leftover as a "currency" (fine for its own job: are these two
+# specific strings the same magnitude+currency). We additionally require the code be one we recognise,
+# so a genuinely unparseable unit ("doubloons") reads as unknown here rather than a confident code.
+_KNOWN_CCY = {"SEK", "EUR", "USD", "GBP", "NOK", "DKK", "CHF", "JPY", "CAD", "AUD", "PLN", "CNY"}
+
+def _parse_unit(unit):
+    """(currency, scale-multiplier) from a free-text unit ('MSEK', 'SEK million', 'TSEK', 'EUR'000',
+    'Mkr' ...) -- reuses merge._unit_key (v168's tested magnitude/currency parser, already exercised
+    against real saved units) instead of a second copy of the same regexes. currency is None when no
+    recognised code survives parsing, so callers must treat the figure as not safely combinable with
+    another field, never guess one."""
+    if not unit or not str(unit).strip():
+        return None, None
+    key = merge._unit_key(str(unit))
+    if key is None or key[1] not in _KNOWN_CCY:
+        return None, None
+    scale, ccy = key
+    return ccy, _SCALE_MULTIPLIER[scale]
+
+def _maturity_row(x):
+    fields = {f["key"]: f for f in x.get("fields", [])}
+    total, w1y = fields.get("total_debt", {}), fields.get("due_within_1_year", {})
+    basis_ok = _basis_confirmed(x)
+    reasons = [] if basis_ok else ["Basis not confirmed: entity level, period, debt basis and lease scope must be reviewed first."]
+    for field, label in ((total, "total debt"), (w1y, "amount due within 1 year")):
+        if field.get("value") is None:
+            reasons.append(f"Missing {label}.")
+        elif not _field_ok(field):
+            reasons.append(f"{label[0].upper()}{label[1:]} is not yet verified (no confirmed source).")
+    total_ccy, total_scale = _parse_unit(total.get("unit"))
+    w1y_ccy, w1y_scale = _parse_unit(w1y.get("unit"))
+    share, note = None, ""
+    display_total, display_w1y = {"value": total.get("value"), "unit": total.get("unit")}, {"value": w1y.get("value"), "unit": w1y.get("unit")}
+    # Share is arithmetic on whatever numbers exist -- it stays visible even when basis/evidence make the
+    # row not "comparable" yet (an analyst can still read an unconfirmed number). Only a missing value, an
+    # unrecognised/mismatched currency, or a zero denominator actually block computing it.
+    if total.get("value") is not None and w1y.get("value") is not None:
+        if not total_ccy or not w1y_ccy or total_ccy != w1y_ccy:
+            reasons.append("Total and the <1y bucket are not in a recognised, matching currency; no FX conversion is applied.")
+        elif total["value"] == 0:
+            note = "No debt outstanding."
+        else:
+            share = (w1y["value"] * w1y_scale) / (total["value"] * total_scale)
+            if total_scale != w1y_scale:
+                # Same currency (checked above), different printed scale (e.g. MSEK vs TSEK): normalise
+                # both to the coarser scale so the pair reads consistently -- never a currency guess.
+                target = max(total_scale, w1y_scale)
+                unit = f"{_SCALE_UNIT.get(target, '')}{total_ccy}"
+                display_total = {"value": round(total["value"] * total_scale / target, 3), "unit": unit}
+                display_w1y = {"value": round(w1y["value"] * w1y_scale / target, 3), "unit": unit}
+    decisions = {(f.get("human_review") or {}).get("decision") for f in (total, w1y) if (f.get("human_review") or {}).get("decision")}
+    values = (x.get("basis") or {}).get("values", {})
+    return {
+        "stem": x.get("stem"), "report_id": x.get("report_id"), "company": x.get("company"), "fiscal_year": x.get("fiscal_year"),
+        "total": display_total,
+        "due_within_1_year": display_w1y,
+        "share": round(share, 4) if share is not None else None,
+        "basis_confirmed": basis_ok,
+        "consolidation": values.get("consolidation") or None, "debt_basis": values.get("debt_basis") or None, "leases": values.get("leases") or None,
+        "review_status": "unresolved" if "unresolved" in decisions else (", ".join(sorted(decisions)) if decisions else "unreviewed"),
+        "comparable": not reasons,
+        "reason": "; ".join(reasons) if reasons else note,
+    }
+
+def maturity_wall(extractions):
+    """{rows, coverage} over a list of decorated debt_maturity extractions (kb_export_extractions'
+    output) -- deterministic total/<1y/share per company, comparable only when basis, period, debt
+    basis, lease scope and both fields' evidence all hold and the two amounts share a recognised
+    currency (no FX). Rows sort comparable-first, by share descending; non-comparable rows sort last
+    but stay in the list -- coverage counts, not silence, explain what isn't ready."""
+    rows = [_maturity_row(x) for x in extractions if x.get("section") == "debt_maturity"]
+    rows.sort(key=lambda r: (not r["comparable"], r["share"] is None, -(r["share"] or 0)))
+    coverage = {
+        "total": len(rows),
+        "comparable": sum(1 for r in rows if r["comparable"]),
+        "missing_total": sum(1 for r in rows if r["total"]["value"] is None),
+        "missing_w1y": sum(1 for r in rows if r["due_within_1_year"]["value"] is None),
+        "basis_unconfirmed": sum(1 for r in rows if not r["basis_confirmed"]),
+    }
+    return {"rows": rows, "coverage": coverage}
