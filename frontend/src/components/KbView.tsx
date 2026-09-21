@@ -127,7 +127,7 @@ export function KbView({ onOpen, onOpenReport }: Props) {
           <p className="text-xs text-muted-foreground uppercase tracking-wide">Knowledge base</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">
             {entries
-              ? `${entries.length} reports · ${collection === 'wallenberg' ? 'Wallenberg collection' : 'all saved reports'}`
+              ? `${entries.length} reports · ${collection === 'wallenberg' ? 'Wallenberg collection' : collection === 'midcap' ? 'SEB Mid Cap universe' : 'all saved reports'}`
               : 'Reports'}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">

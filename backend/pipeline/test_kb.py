@@ -44,6 +44,7 @@ def _seed(kb, tmp) -> str:
     kb._vecs.clear()
     kb._pages_cache.clear()
     kb._bm25_cache.clear()
+    kb._entry_cache.clear()
     stem = "acme_2025"
     meta = {"company": "Acme", "fiscal_year": 2025, "language": "sv", "source_url": None,
             "pages": 3, "sha256": "beef", "filename": "acme.pdf"}
@@ -470,8 +471,56 @@ def test_catalog_content_availability():
     print('Catalog counts actual saved text and non-null figures')
 
 
+def test_entry_cache_warm_call_reads_no_files():
+    """v173: once cached by file fingerprint, a second entries() call must be served by os.stat and
+    directory listings alone -- zero file-content reads (proved with counting stubs)."""
+    import builtins
+    from . import kb
+    with tempfile.TemporaryDirectory() as tmp, _env(KB_DIR=tmp):
+        stem = _seed(kb, tmp)
+        kb.entries()  # cold: fills the cache
+        reads = []
+        orig_read_text, orig_read_bytes, orig_open = Path.read_text, Path.read_bytes, builtins.open
+
+        def counting_read(original, self, *args, **kwargs):
+            reads.append(str(self))
+            return original(self, *args, **kwargs)
+
+        try:
+            Path.read_text = lambda self, *a, **k: counting_read(orig_read_text, self, *a, **k)
+            Path.read_bytes = lambda self, *a, **k: counting_read(orig_read_bytes, self, *a, **k)
+            builtins.open = lambda file, *a, **k: (reads.append(str(file)), orig_open(file, *a, **k))[1]
+            entries = kb.entries()
+        finally:
+            Path.read_text, Path.read_bytes, builtins.open = orig_read_text, orig_read_bytes, orig_open
+        assert len(entries) == 1 and entries[0]["stem"] == stem, entries
+        assert entries[0]["text_available"] and entries[0]["figures_available"], entries[0]
+        assert reads == [], f"warm entries() read file contents: {reads}"
+    print('Entry cache: a warm entries() call reads no file contents')
+
+
+def test_entry_cache_write_visibility():
+    """v173: writes invalidate by fingerprint -- a new extraction section and a new stem must be
+    visible on the very next entries() call, with no manual eviction anywhere."""
+    from . import kb
+    with tempfile.TemporaryDirectory() as tmp, _env(KB_DIR=tmp):
+        stem = _seed(kb, tmp)
+        first = {e["stem"]: e for e in kb.entries()}
+        assert first[stem]["sections"] == ["income_statement"], first[stem]
+        kb.save_extraction(stem, "debt_maturity", {"fields": [{"key": "total_debt", "value": 1}]})
+        kb.save_report("beta_2024", {"company": "Beta", "pages": 1, "sha256": "ff"}, ["Beta page one"])
+        second = {e["stem"]: e for e in kb.entries()}
+        assert second[stem]["sections"] == ["debt_maturity", "income_statement"], second[stem]
+        assert second[stem]["figures_available"] is True, second[stem]
+        assert set(second) == {stem, "beta_2024"}, sorted(second)
+        assert second["beta_2024"]["text_available"] is True, second["beta_2024"]
+    print('Entry cache: new sections and stems are visible on the next call')
+
+
 if __name__ == "__main__":
     test_catalog_content_availability()
+    test_entry_cache_warm_call_reads_no_files()
+    test_entry_cache_write_visibility()
     demo()
     test_retrieval_modes()
     test_bm25_ranking()
