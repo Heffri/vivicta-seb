@@ -1,13 +1,13 @@
 import { Database, Loader2, Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { type ApiError, getConfig, getKb, getLibrary, getSchemas, openKbExtraction, type Config } from '@/api'
+import { type ApiError, getChunks, rebuildIndex, openKnowledge, pdfUrl, getConfig, getKb, getLibrary, getSchemas, openKbExtraction, type Config } from '@/api'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ErrorBlock, LoadingLine } from '@/components/ui/state'
 import { Segmented } from '@/components/ui/segmented'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import type { KbEntry, Result, Schema } from '@/types'
+import type { ChunkPage, KbEntry, Result, Schema } from '@/types'
 
 type Props = { onOpen: (results: Result[]) => void; onOpenReport: (report: KbEntry) => void }
 
@@ -41,6 +41,22 @@ export function KbView({ onOpen, onOpenReport }: Props) {
   // still loading or the call failed (old backend / network); either way fall back to "everything openable".
   const [pdfFiles, setPdfFiles] = useState<Set<string> | null>(null)
   const [pdfOnly, setPdfOnly] = useState(false)
+  const [inspected, setInspected] = useState<KbEntry | null>(null)
+  const build = async (stem: string) => {
+    setBusy(stem)
+    setError(null)
+    try { await rebuildIndex(stem); setEntries(await getKb(collection)) }
+    catch (e) { setError((e as Error).message) }
+    finally { setBusy(null) }
+  }
+  useEffect(() => {
+    if (!entries?.some((e) => e.status === 'building')) return
+    let stale = false
+    const timer = setTimeout(() => {
+      getKb(collection).then((rows) => { if (!stale) setEntries(rows) }).catch((e: Error) => { if (!stale) setError(e.message) })
+    }, 2000)
+    return () => { stale = true; clearTimeout(timer) }
+  }, [entries, collection])
 
   useEffect(() => {
     getKb(collection).then(setEntries).catch((e: Error) => setError(e.message))
@@ -135,6 +151,7 @@ export function KbView({ onOpen, onOpenReport }: Props) {
         </Button>
       </header>
 
+      {inspected && <ChunkBrowser key={inspected.stem} entry={entries?.find((e) => e.stem === inspected.stem) ?? inspected} onClose={() => setInspected(null)} />}
       {error && (
         <ErrorBlock
           details={
@@ -271,11 +288,14 @@ export function KbView({ onOpen, onOpenReport }: Props) {
                         </Badge>
                       ) : (
                         <Badge variant={e.indexed ? 'success' : 'outline'} className={e.indexed ? undefined : 'text-muted-foreground'}>
-                          {e.indexed ? 'indexed' : 'not yet'}
+                          {e.status ?? (e.indexed ? 'ready' : 'missing')}
                         </Badge>
                       )}
+                      <p className="text-xs text-muted-foreground" title={e.reason}>{e.embed_model ?? config?.embed_model} · {e.dimensions ?? "?"} dimensions<br />{e.page_chunks} passages · {e.fact_chunks} facts</p>
                     </TableCell>
                     <TableCell className="text-right">
+                      <Button size="xs" variant="outline" onClick={() => setInspected(e)}>Inspect</Button>
+                      <Button size="xs" variant="outline" disabled={!!busy || e.status === 'building'} onClick={() => build(e.stem)}>{busy === e.stem || e.status === 'building' ? 'Building…' : 'Rebuild'}</Button>
                       <Button size="xs" variant="outline" disabled={!!busy} onClick={() => onOpenReport(e)}>
                         Open
                       </Button>
@@ -289,4 +309,46 @@ export function KbView({ onOpen, onOpenReport }: Props) {
       )}
     </div>
   )
+}
+
+function ChunkBrowser({ entry, onClose }: { entry: KbEntry; onClose: () => void }) {
+  const [query, setQuery] = useState('')
+  const [offset, setOffset] = useState(0)
+  const [data, setData] = useState<ChunkPage | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [reportId, setReportId] = useState<string | null>(null)
+  const [sourceError, setSourceError] = useState<string | null>(null)
+  const browse = (nextOffset: number, nextQuery = query) => {
+    setOffset(nextOffset)
+    setQuery(nextQuery)
+    setData(null)
+    setError(null)
+  }
+  useEffect(() => {
+    let stale = false
+    openKnowledge(entry.stem).then((r) => { if (!stale) setReportId(r.report_id) }).catch((e: Error) => { if (!stale) setSourceError(e.message) })
+    return () => { stale = true }
+  }, [entry.stem])
+  useEffect(() => {
+    let stale = false
+    const timer = setTimeout(() => {
+      getChunks(entry.stem, query, offset).then((r) => { if (!stale) setData(r) }).catch((e: Error) => { if (!stale) setError(e.message) })
+    }, 200)
+    return () => { stale = true; clearTimeout(timer) }
+  }, [entry.stem, query, offset])
+  return <section className="space-y-4 rounded-xl border p-5" aria-label="Indexed chunks">
+    <div className="flex justify-between gap-3"><h2 className="font-semibold">{entry.company ?? entry.stem}: indexed content</h2><Button variant="outline" size="sm" onClick={onClose}>Close</Button></div>
+    {entry.status !== 'ready' && <p role="status" className="text-sm text-amber-700">{entry.reason}.{entry.status !== 'building' && ' Rebuild the index to inspect current content.'}</p>}
+    <input aria-label="Search chunk text" placeholder="Search indexed text" maxLength={200} className="w-full rounded-md border p-2 text-sm" value={query} onChange={(e) => browse(0, e.target.value)} />
+    {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+    {sourceError && <p role="alert" className="text-sm text-destructive">{sourceError}</p>}
+    {!data ? !error && <p>Loading chunks…</p> : <>
+      <p className="text-sm text-muted-foreground">{data.total} matching chunks</p>
+      {data.items.map((chunk, i) => <article key={`${offset}-${i}`} className="space-y-2 rounded-md bg-muted/40 p-3">
+        <div className="flex gap-3 text-xs"><Badge variant="outline">{chunk.kind}</Badge>{reportId && entry.pdf_available ? <a className="underline" href={pdfUrl(reportId, chunk.page)} target="_blank" rel="noreferrer">Page {chunk.page}</a> : <span>Page {chunk.page}</span>}</div>
+        <p className="whitespace-pre-wrap text-sm">{chunk.text}</p>
+      </article>)}
+      <div className="flex items-center gap-3"><Button variant="outline" disabled={offset === 0} onClick={() => browse(Math.max(0, offset - 25))}>Previous</Button><span className="text-sm">Page {Math.floor(offset / 25) + 1}</span><Button variant="outline" disabled={offset + 25 >= data.total} onClick={() => browse(offset + 25)}>Next</Button></div>
+    </>}
+  </section>
 }

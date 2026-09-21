@@ -55,6 +55,14 @@ export type KbEntry = {
   pages: number;
   sections: string[];       // extractions present, e.g. ["income_statement"]
   indexed: boolean;         // embeddings cached
+  status: 'ready' | 'missing' | 'outdated' | 'invalid' | 'building';
+  reason: string;
+  embed_model: string | null;
+  dimensions: number | null;
+  chunks: number;
+  page_chunks: number;
+  fact_chunks: number;
+  built_at: string | null;
   sector: string | null;
   pdf_available: boolean;
 };
@@ -106,6 +114,10 @@ export type BucketsByYear = {
   years: { label: string; value: number; source: Source | null }[]; // one per printed column, label as printed ("2026" … "Later")
 };
 export type Extraction = {
+  cached?: boolean;
+  stale?: boolean;
+  model?: string;
+  timings?: { total?: number; attempts?: number; model?: number };
   basis?: Basis;
   basis_history?: (Basis & { previous: Partial<Basis> })[];
   check_history?: unknown[];
@@ -139,4 +151,9 @@ export type Result = {
   sectionTitle: string;
   extraction?: Extraction;
   error?: string;
+};
+
+export type ChunkPage = {
+  items: { page: number; start: number; text: string; kind: 'page' | 'fact' }[];
+  total: number; offset: number; limit: number;
 };

@@ -309,3 +309,34 @@ Comparison responses include saved `candidates`, `previous_stem`, `current_year`
 `GET /api/reports/{report_id}/extraction.pptx` additionally accepts `prior_year=1`: the maturity chart gains a second, fainter series named `FY<n-1>` beside the current one (plus a legend naming both). The flag is ignored — the slide renders exactly as before — when the extraction carries no `prior_year` or the parameter is absent. The two deterministic sources are: a maturity table printing one row per bucket under year columns (the prior year is the prior-year column of the same rows), and one printing buckets as columns under stacked per-year blocks (the prior year is the same-labelled row of the FY-1 block, read with the same column keys). Date-per-instrument notes and model-only answers never produce a prior year.
 
 `GET /api/reports/{report_id}/extraction.pptx` also accepts `per_year=1` (v109): when the extraction carries `buckets_by_year`, the maturity chart's three bucket categories are replaced by the report's own calendar-year columns, one "Debt due" series of the printed years (labels as printed). The flag is ignored — the slide renders exactly the three buckets — when the extraction carries no `buckets_by_year` or the parameter is absent; when both `per_year=1` and `prior_year=1` are sent, the year series wins (a year series and a bucket series answer two different questions). See "Per-year maturity metadata (`buckets_by_year`)" in `backend/README.md`.
+
+
+## Cache and embedding integration (21 September 2026)
+
+- `POST /api/reports/{id}/extract` accepts `force: true` to bypass the automatic
+  source/model/settings cache. `reuse_saved: true` still opens the saved result,
+  including human reviews. Force never replaces human-reviewed fields or definitions.
+- Extraction responses add `cached`, `stale`, `model`, `provider`, and `timings`
+  (`total`, `model`, `validate`, `attempts`). Opening a saved result reports zero model
+  calls and its current load time. `stale` compares pipeline, report, prompt and model
+  configuration. Saved files with invalid structure return 409.
+- `EMBED_BASE_URL`, `EMBED_API_KEY` and `EMBED_TIMEOUT` independently configure
+  embeddings. Selected-report Ask uses cosine plus BM25 when an embedding endpoint
+  is configured. Subscription-only setups retain BM25. Global Ask retains bounded
+  keyword retrieval across all saved reports. Embedding identity, dimensions, source
+  hashes and chunk counts are checked in the derived `index.json` manifest.
+- `/api/kb` rows add `status` (`ready`, `missing`, `outdated`, `invalid`, `building`),
+  `reason`, `embed_model`, `dimensions`, `chunks`, `page_chunks`, `fact_chunks`, `built_at`.
+  Listing never waits for a long index build.
+- `GET /api/knowledge/{stem}/chunks?q=&offset=0&limit=25` returns
+  `{items: [{page,start,text,kind}], total,offset,limit}` without vectors. Limit is 1–100.
+  `POST /api/knowledge/{stem}/index` rebuilds all embeddings.
+  `POST /api/knowledge/{stem}/open` restores a report, including saved-text-only reports.
+- Fact chunks require printed amounts, verified sources, matching year and confidence
+  at least 0.7. Raw per-run extraction records are excluded. Answers containing rejected
+  citations are withheld, with warnings explaining the rejected evidence.
+- Parser 7 combines the current column/header reconstruction with selective local OCR.
+  OCR language/path and page provenance are recorded with the cached text. OCR-derived
+  fields are capped at 0.8 confidence. Missing language files return an actionable 422.
+- PPTX keeps analyst-review metadata and prior-year/per-year options. Incomplete or
+  failed-check maturity splits render as a table. Chart axis IDs are unsigned.

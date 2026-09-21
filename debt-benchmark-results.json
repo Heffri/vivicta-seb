@@ -1,0 +1,737 @@
+{
+  "provider": "codex",
+  "model": "gpt-5.6-terra",
+  "live": true,
+  "results": [
+    {
+      "report": "atlas_copco_2025",
+      "section": "debt_maturity",
+      "registration_seconds": 0.933,
+      "fresh": {
+        "model": 38.725,
+        "validate": 0.003,
+        "attempts": 1,
+        "parse": 0.0,
+        "locate": 0.058,
+        "total": 38.793
+      },
+      "cached": {
+        "parse": 0,
+        "locate": 0,
+        "model": 0,
+        "validate": 0,
+        "attempts": 0,
+        "total": 0.008
+      },
+      "values": {
+        "total_debt": 34899,
+        "due_within_1_year": 6471,
+        "due_1_to_5_years": 16025,
+        "due_after_5_years": 12403
+      },
+      "warnings": [
+        "Lease liabilities are included because the issuer's consolidated borrowing maturity table and total borrowings include them.",
+        "This report contains OCR text. Verify extracted figures against the rendered PDF, especially signs and decimal separators."
+      ],
+      "checks": [
+        {
+          "name": "maturity_sums_to_total",
+          "passed": true,
+          "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (\u00b12 rounding) | abs((6471 + 16025 + 12403) - 34899) <= 2"
+        }
+      ],
+      "fields": [
+        {
+          "key": "total_debt",
+          "label": "Total borrowings",
+          "value": 34899,
+          "unit": "MSEK",
+          "period": "2025",
+          "raw_label": "Total",
+          "source": {
+            "page": 135,
+            "quote": "Total 27 657 7 242 34 899 33 949"
+          },
+          "components": [
+            {
+              "value": 34899,
+              "source": {
+                "page": 135,
+                "quote": "Total 27 657 7 242 34 899 33 949"
+              }
+            }
+          ],
+          "calculation": null,
+          "confidence": 0.8,
+          "evidence": [
+            "quote_on_page",
+            "value_in_quote",
+            "period_ok",
+            "arith_ok"
+          ]
+        },
+        {
+          "key": "due_within_1_year",
+          "label": "Due within 1 year",
+          "value": 6471,
+          "unit": "MSEK",
+          "period": "2025",
+          "raw_label": "2026",
+          "source": {
+            "page": 135,
+            "quote": "2026 6 337 134 6 471 6 436"
+          },
+          "components": [
+            {
+              "value": 6471,
+              "source": {
+                "page": 135,
+                "quote": "2026 6 337 134 6 471 6 436"
+              }
+            }
+          ],
+          "calculation": null,
+          "confidence": 0.8,
+          "evidence": [
+            "quote_on_page",
+            "value_in_quote",
+            "period_ok",
+            "arith_ok"
+          ]
+        },
+        {
+          "key": "due_1_to_5_years",
+          "label": "Due 1\u20135 years",
+          "value": 16025,
+          "unit": "MSEK",
+          "period": "2025",
+          "raw_label": "2027\u20132030",
+          "source": {
+            "page": 135,
+            "quote": "2027 3 953 2 3 955 3 894"
+          },
+          "components": [
+            {
+              "value": 3955,
+              "source": {
+                "page": 135,
+                "quote": "2027 3 953 2 3 955 3 894"
+              }
+            },
+            {
+              "value": 2357,
+              "source": {
+                "page": 135,
+                "quote": "2028 2 356 1 2 357 2 314"
+              }
+            },
+            {
+              "value": 4033,
+              "source": {
+                "page": 135,
+                "quote": "2029 4 033 \u2013 4 033 3 752"
+              }
+            },
+            {
+              "value": 5680,
+              "source": {
+                "page": 135,
+                "quote": "2030 551 5 129 5 680 5 789"
+              }
+            }
+          ],
+          "calculation": "3955 + 2357 + 4033 + 5680 = 16025",
+          "confidence": 0.8,
+          "evidence": [
+            "quote_on_page",
+            "value_derived",
+            "period_ok",
+            "arith_ok"
+          ]
+        },
+        {
+          "key": "due_after_5_years",
+          "label": "Due after 5 years",
+          "value": 12403,
+          "unit": "MSEK",
+          "period": "2025",
+          "raw_label": "2031\u20132034 and after",
+          "source": {
+            "page": 135,
+            "quote": "2031 426 1 976 2 402 2 427"
+          },
+          "components": [
+            {
+              "value": 2402,
+              "source": {
+                "page": 135,
+                "quote": "2031 426 1 976 2 402 2 427"
+              }
+            },
+            {
+              "value": 5696,
+              "source": {
+                "page": 135,
+                "quote": "2032 5 696 \u2013 5 696 5 025"
+              }
+            },
+            {
+              "value": 260,
+              "source": {
+                "page": 135,
+                "quote": "2033 260 \u2013 260 260"
+              }
+            },
+            {
+              "value": 4045,
+              "source": {
+                "page": 135,
+                "quote": "2034 and after 4 045 \u2013 4 045 4 052"
+              }
+            }
+          ],
+          "calculation": "2402 + 5696 + 260 + 4045 = 12403",
+          "confidence": 0.8,
+          "evidence": [
+            "quote_on_page",
+            "value_derived",
+            "period_ok",
+            "arith_ok"
+          ]
+        }
+      ],
+      "debt_scope": "The Group's reported borrowings, including lease liabilities.",
+      "verified": 4
+    },
+    {
+      "report": "ericsson_2025",
+      "section": "debt_maturity",
+      "registration_seconds": 1.467,
+      "fresh": {
+        "model": 19.434,
+        "validate": 0.001,
+        "attempts": 1,
+        "parse": 0.0,
+        "locate": 0.08,
+        "total": 19.518
+      },
+      "cached": {
+        "parse": 0,
+        "locate": 0,
+        "model": 0,
+        "validate": 0,
+        "attempts": 0,
+        "total": 0.006
+      },
+      "values": {
+        "total_debt": 32703,
+        "due_within_1_year": 3538,
+        "due_1_to_5_years": null,
+        "due_after_5_years": null
+      },
+      "warnings": [
+        "Lease obligations are explicitly excluded from the reported interest-bearing-liabilities scope.",
+        "The consolidated borrowing note reports current and non-current carrying amounts only; it does not disclose a carrying-amount maturity breakdown for 1\u20135 years.",
+        "The consolidated borrowing note reports current and non-current carrying amounts only; it does not disclose a carrying-amount maturity breakdown for more than 5 years."
+      ],
+      "checks": [
+        {
+          "name": "maturity_sums_to_total",
+          "passed": false,
+          "detail": "missing: due_1_to_5_years"
+        }
+      ],
+      "fields": [
+        {
+          "key": "total_debt",
+          "label": "Total borrowings",
+          "value": 32703,
+          "unit": "SEK_millions",
+          "period": "2025",
+          "raw_label": "Total interest-bearing liabilities",
+          "source": {
+            "page": 65,
+            "quote": "Total interest-bearing liabilities\n \n32,703  \n38,041"
+          },
+          "components": [
+            {
+              "value": 32703,
+              "source": {
+                "page": 65,
+                "quote": "Total interest-bearing liabilities\n \n32,703  \n38,041"
+              }
+            }
+          ],
+          "calculation": null,
+          "confidence": 0.6,
+          "evidence": [
+            "quote_on_page",
+            "value_in_quote",
+            "period_ok"
+          ]
+        },
+        {
+          "key": "due_within_1_year",
+          "label": "Due within 1 year",
+          "value": 3538,
+          "unit": "SEK_millions",
+          "period": "2025",
+          "raw_label": "Total borrowings, current",
+          "source": {
+            "page": 65,
+            "quote": "Total borrowings, current\n \n3,538  \n6,137"
+          },
+          "components": [
+            {
+              "value": 3538,
+              "source": {
+                "page": 65,
+                "quote": "Total borrowings, current\n \n3,538  \n6,137"
+              }
+            }
+          ],
+          "calculation": null,
+          "confidence": 0.6,
+          "evidence": [
+            "quote_on_page",
+            "value_in_quote",
+            "period_ok"
+          ]
+        },
+        {
+          "key": "due_1_to_5_years",
+          "label": "Due 1\u20135 years",
+          "value": null,
+          "unit": "SEK_millions",
+          "period": "2025",
+          "raw_label": "1\u20135 years",
+          "source": null,
+          "confidence": 0,
+          "evidence": []
+        },
+        {
+          "key": "due_after_5_years",
+          "label": "Due after 5 years",
+          "value": null,
+          "unit": "SEK_millions",
+          "period": "2025",
+          "raw_label": ">5 years",
+          "source": null,
+          "confidence": 0,
+          "evidence": []
+        }
+      ],
+      "debt_scope": "Interest-bearing liabilities (excluding lease obligations)",
+      "verified": 2
+    },
+    {
+      "report": "investor_2025",
+      "section": "debt_maturity",
+      "registration_seconds": 0.747,
+      "fresh": {
+        "model": 39.877,
+        "validate": 0.002,
+        "attempts": 1,
+        "parse": 0.0,
+        "locate": 0.053,
+        "total": 39.94
+      },
+      "cached": {
+        "parse": 0,
+        "locate": 0,
+        "model": 0,
+        "validate": 0,
+        "attempts": 0,
+        "total": 0.007
+      },
+      "values": {
+        "total_debt": 115312,
+        "due_within_1_year": 1424,
+        "due_1_to_5_years": null,
+        "due_after_5_years": null
+      },
+      "warnings": [
+        "The report provides no consolidated carrying-amount maturity table for non-lease borrowings. The only carrying-amount maturity table is lease-only, so it is not used as the Group's debt maturity.",
+        "The cash-flow maturity schedule on page 128 is excluded because it reports contracted cash flows, includes interest and other financial payment commitments and derivatives, rather than carrying amounts.",
+        "Due 1\u20135 years and due after 5 years are therefore unavailable and left empty.",
+        "This report contains OCR text. Verify extracted figures against the rendered PDF, especially signs and decimal separators."
+      ],
+      "checks": [
+        {
+          "name": "maturity_sums_to_total",
+          "passed": false,
+          "detail": "missing: due_1_to_5_years"
+        }
+      ],
+      "fields": [
+        {
+          "key": "total_debt",
+          "label": "Total borrowings",
+          "value": 115312,
+          "unit": "SEK m",
+          "period": "2025",
+          "raw_label": "Long-term interest-bearing liabilities; Short-term interest-bearing liabilities",
+          "source": {
+            "page": 158,
+            "quote": "Bond loans\n78,629\n65,599"
+          },
+          "components": [
+            {
+              "value": 78629,
+              "source": {
+                "page": 158,
+                "quote": "Bond loans\n78,629\n65,599"
+              }
+            },
+            {
+              "value": 32407,
+              "source": {
+                "page": 158,
+                "quote": "Bank loans\n32,407\n26,335"
+              }
+            },
+            {
+              "value": 2687,
+              "source": {
+                "page": 158,
+                "quote": "Lease liabilities\n2,687\n2,350"
+              }
+            },
+            {
+              "value": 165,
+              "source": {
+                "page": 158,
+                "quote": "Other\n165\n81"
+              }
+            },
+            {
+              "value": 788,
+              "source": {
+                "page": 158,
+                "quote": "Bank loans\n788\n753"
+              }
+            },
+            {
+              "value": 636,
+              "source": {
+                "page": 158,
+                "quote": "Lease liabilities\n636\n600"
+              }
+            },
+            {
+              "value": 0,
+              "source": {
+                "page": 158,
+                "quote": "Other\n0\n\u2013"
+              }
+            }
+          ],
+          "calculation": "78629 + 32407 + 2687 + 165 + 788 + 636 + 0 = 115312",
+          "confidence": 0.6,
+          "evidence": [
+            "quote_on_page",
+            "value_derived",
+            "period_ok"
+          ]
+        },
+        {
+          "key": "due_within_1_year",
+          "label": "Due within 1 year",
+          "value": 1424,
+          "unit": "SEK m",
+          "period": "2025",
+          "raw_label": "Short-term interest-bearing liabilities",
+          "source": {
+            "page": 158,
+            "quote": "Bank loans\n788\n753"
+          },
+          "components": [
+            {
+              "value": 788,
+              "source": {
+                "page": 158,
+                "quote": "Bank loans\n788\n753"
+              }
+            },
+            {
+              "value": 636,
+              "source": {
+                "page": 158,
+                "quote": "Lease liabilities\n636\n600"
+              }
+            },
+            {
+              "value": 0,
+              "source": {
+                "page": 158,
+                "quote": "Other\n0\n\u2013"
+              }
+            }
+          ],
+          "calculation": "788 + 636 + 0 = 1424",
+          "confidence": 0.6,
+          "evidence": [
+            "quote_on_page",
+            "value_derived",
+            "period_ok"
+          ]
+        },
+        {
+          "key": "due_1_to_5_years",
+          "label": "Due 1\u20135 years",
+          "value": null,
+          "unit": "SEK m",
+          "period": "2025",
+          "raw_label": null,
+          "source": null,
+          "confidence": 0,
+          "evidence": []
+        },
+        {
+          "key": "due_after_5_years",
+          "label": "Due after 5 years",
+          "value": null,
+          "unit": "SEK m",
+          "period": "2025",
+          "raw_label": null,
+          "source": null,
+          "confidence": 0,
+          "evidence": []
+        }
+      ],
+      "debt_scope": "Consolidated interest-bearing liabilities, including lease liabilities and other interest-bearing liabilities; interest-rate and currency derivatives excluded.",
+      "verified": 2
+    },
+    {
+      "report": "skf_2025",
+      "section": "debt_maturity",
+      "registration_seconds": 0.6,
+      "fresh": {
+        "model": 49.455,
+        "validate": 0.005,
+        "attempts": 1,
+        "parse": 0.0,
+        "locate": 0.05,
+        "total": 49.512
+      },
+      "cached": {
+        "parse": 0,
+        "locate": 0,
+        "model": 0,
+        "validate": 0,
+        "attempts": 0,
+        "total": 0.008
+      },
+      "values": {
+        "total_debt": 14984,
+        "due_within_1_year": 987,
+        "due_1_to_5_years": 8618,
+        "due_after_5_years": 3212
+      },
+      "warnings": [
+        "The MSEK 2,167 long-term lease liability is included in total debt but not allocated to maturity buckets because its reported interval, \"2027 and thereafter\", crosses the 1\u20135-years and after-5-years boundaries.",
+        "Maturity buckets do not reconcile to total debt. Review completeness, scope and column selection before use."
+      ],
+      "checks": [
+        {
+          "name": "maturity_sums_to_total",
+          "passed": false,
+          "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (\u00b12 rounding) | abs((987 + 8618 + 3212) - 14984) <= 2"
+        }
+      ],
+      "fields": [
+        {
+          "key": "total_debt",
+          "label": "Total borrowings",
+          "value": 14984,
+          "unit": "MSEK",
+          "period": "2025",
+          "raw_label": "Loans and lease liabilities",
+          "source": {
+            "page": 126,
+            "quote": "MUSD 100\n2027\n918\n950\n1,101\n1,128"
+          },
+          "components": [
+            {
+              "value": 918,
+              "source": {
+                "page": 126,
+                "quote": "MUSD 100\n2027\n918\n950\n1,101\n1,128"
+              }
+            },
+            {
+              "value": 4294,
+              "source": {
+                "page": 126,
+                "quote": "MEUR 400\n2028\n4,294\n4,344\n4,557\n4,617"
+              }
+            },
+            {
+              "value": 3235,
+              "source": {
+                "page": 126,
+                "quote": "MEUR 300\n2029\n3,235\n3,057\n3,429\n3,224"
+              }
+            },
+            {
+              "value": 3212,
+              "source": {
+                "page": 126,
+                "quote": "MEUR 300\n2031\n3,212\n2,890\n3,307\n3,048"
+              }
+            },
+            {
+              "value": 2167,
+              "source": {
+                "page": 126,
+                "quote": "Long-term lease liabilities\n2027 and  thereafter\n2,167\n2,167\n2,714\n2,714"
+              }
+            },
+            {
+              "value": 171,
+              "source": {
+                "page": 126,
+                "quote": "Other long-term loans \n2027\u20132030\n171\n171\n200\n200"
+              }
+            },
+            {
+              "value": 728,
+              "source": {
+                "page": 126,
+                "quote": "Short-term lease liabilities\n2026\n728\n728\n802\n802"
+              }
+            },
+            {
+              "value": 259,
+              "source": {
+                "page": 126,
+                "quote": "Short-term loans\n2026\n259\n259\n485\n485"
+              }
+            }
+          ],
+          "calculation": "918 + 4294 + 3235 + 3212 + 2167 + 171 + 728 + 259 = 14984",
+          "confidence": 0.6,
+          "evidence": [
+            "quote_on_page",
+            "value_derived",
+            "period_ok"
+          ]
+        },
+        {
+          "key": "due_within_1_year",
+          "label": "Due within 1 year",
+          "value": 987,
+          "unit": "MSEK",
+          "period": "2025",
+          "raw_label": "2026",
+          "source": {
+            "page": 126,
+            "quote": "Short-term lease liabilities\n2026\n728\n728\n802\n802"
+          },
+          "components": [
+            {
+              "value": 728,
+              "source": {
+                "page": 126,
+                "quote": "Short-term lease liabilities\n2026\n728\n728\n802\n802"
+              }
+            },
+            {
+              "value": 259,
+              "source": {
+                "page": 126,
+                "quote": "Short-term loans\n2026\n259\n259\n485\n485"
+              }
+            }
+          ],
+          "calculation": "728 + 259 = 987",
+          "confidence": 0.6,
+          "evidence": [
+            "quote_on_page",
+            "value_derived",
+            "period_ok"
+          ]
+        },
+        {
+          "key": "due_1_to_5_years",
+          "label": "Due 1\u20135 years",
+          "value": 8618,
+          "unit": "MSEK",
+          "period": "2025",
+          "raw_label": "2027\u20132030",
+          "source": {
+            "page": 126,
+            "quote": "MUSD 100\n2027\n918\n950\n1,101\n1,128"
+          },
+          "components": [
+            {
+              "value": 918,
+              "source": {
+                "page": 126,
+                "quote": "MUSD 100\n2027\n918\n950\n1,101\n1,128"
+              }
+            },
+            {
+              "value": 4294,
+              "source": {
+                "page": 126,
+                "quote": "MEUR 400\n2028\n4,294\n4,344\n4,557\n4,617"
+              }
+            },
+            {
+              "value": 3235,
+              "source": {
+                "page": 126,
+                "quote": "MEUR 300\n2029\n3,235\n3,057\n3,429\n3,224"
+              }
+            },
+            {
+              "value": 171,
+              "source": {
+                "page": 126,
+                "quote": "Other long-term loans \n2027\u20132030\n171\n171\n200\n200"
+              }
+            }
+          ],
+          "calculation": "918 + 4294 + 3235 + 171 = 8618",
+          "confidence": 0.6,
+          "evidence": [
+            "quote_on_page",
+            "value_derived",
+            "period_ok"
+          ]
+        },
+        {
+          "key": "due_after_5_years",
+          "label": "Due after 5 years",
+          "value": 3212,
+          "unit": "MSEK",
+          "period": "2025",
+          "raw_label": "2031 and thereafter",
+          "source": {
+            "page": 126,
+            "quote": "MEUR 300\n2031\n3,212\n2,890\n3,307\n3,048"
+          },
+          "components": [
+            {
+              "value": 3212,
+              "source": {
+                "page": 126,
+                "quote": "MEUR 300\n2031\n3,212\n2,890\n3,307\n3,048"
+              }
+            }
+          ],
+          "calculation": null,
+          "confidence": 0.6,
+          "evidence": [
+            "quote_on_page",
+            "value_in_quote",
+            "period_ok"
+          ]
+        }
+      ],
+      "debt_scope": "Group borrowings comprise loans and lease liabilities; leases are included. Trade payables and derivatives are excluded.",
+      "verified": 4
+    }
+  ]
+}

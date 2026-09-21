@@ -12,6 +12,7 @@ whether to flip the default;
 the model's "leftmost number" habit; (4) tune SYSTEM_PROMPT_TEMPLATE against eval/.
 """
 import json
+import time
 import os
 import re
 import unicodedata
@@ -3472,6 +3473,8 @@ def _buckets_by_year_fill(schema: dict, texts: list[str], fiscal_year, bucket_pi
 
 def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
             page_select_hints: bool | None = None) -> dict:
+    extraction_started = time.perf_counter()
+    model_seconds, attempts = 0.0, 0
     fiscal_year = report_meta.get("fiscal_year")
     basis = debt_basis()  # v089: which maturity table total_debt and the buckets are read from
     system, warnings, raw = system_prompt(schema, report_meta.get("stem")), [], []
@@ -3490,13 +3493,17 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
         attempt = windows.pop()
         user = (f"Fiscal year to extract: {fiscal_year}\n\n" if fiscal_year else "") + \
             "\n\n".join(f"=== PAGE {n} ===\n{texts[n - 1]}" for n in attempt)
+        call_started = time.perf_counter()
+        attempts += 1
         try:
             got = call_llm(system, user).get("fields", [])
         except Exception as e:  # ponytail: teammates feed the error back to the model
+            model_seconds += time.perf_counter() - call_started
             warnings.append(f"llm: {type(e).__name__}: {e} (pages {list(attempt)})")
             if "timeout" in type(e).__name__.lower() and len(attempt) > 1 and pages:
                 windows = [tuple(pages[:1])]  # IPC: pages 10-11 never answer, page 10 alone does in a minute; a hung single page ends it
             continue
+        model_seconds += time.perf_counter() - call_started
         if nonnull(got) > nonnull(raw):
             raw = got
         if 2 * nonnull(raw) < len(schema["fields"]) and len(attempt) == 2 and len(pages) > 2:
@@ -4007,4 +4014,5 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
         out["prior_year"] = prior  # v091: the prior year's own figures, identity-gated on explicit values; no key at all when they cannot be read deterministically
     if (by_year := _buckets_by_year_fill(schema, texts, fiscal_year, bucket_pick, values, basis)) is not None:
         out["buckets_by_year"] = by_year  # v109: the report's own calendar-year columns, identity-gated on total_debt; no key at all when the report prints named buckets or the years cannot be read deterministically
+    out["timings"] = {"model": round(model_seconds, 3), "attempts": attempts, "validate": round(time.perf_counter() - extraction_started - model_seconds, 3)}
     return out

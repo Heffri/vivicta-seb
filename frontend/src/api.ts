@@ -1,4 +1,4 @@
-import type { Answer, Company, Extraction, IndexStatus, KbEntry, LibraryEntry, Report, Schema } from './types'
+import type { ChunkPage, Answer, Company, Extraction, IndexStatus, KbEntry, LibraryEntry, Report, Schema } from './types'
 
 export type ApiError = Error & { status: number; tried?: string[] }
 
@@ -43,11 +43,11 @@ export const fetchReport = (company: string, year: number, opts?: { country?: st
     body: JSON.stringify({ company, year, ...opts }),
   })
 
-export const extractSection = (reportId: string, section: string) =>
+export const extractSection = (reportId: string, section: string, force = false) =>
   request<Extraction>(`/api/reports/${reportId}/extract`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ section, reuse_saved: true }),
+    body: JSON.stringify({ section, reuse_saved: !force, force }),
   })
 
 export const indexReport = (reportId: string) =>
@@ -103,3 +103,10 @@ export const saveBasis = (reportId: string, body: { section: string; expected: P
   request<Extraction>(`/api/reports/${encodeURIComponent(reportId)}/basis`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 export const getComparison = (stem: string, section: string, previous?: string) =>
   request<import('./types').Comparison>(`/api/kb/${encodeURIComponent(stem)}/${encodeURIComponent(section)}/comparison${previous ? `?previous_stem=${encodeURIComponent(previous)}` : ''}`)
+
+export const getChunks = (stem: string, q = '', offset = 0) =>
+  request<ChunkPage>(`/api/knowledge/${encodeURIComponent(stem)}/chunks?${new URLSearchParams({ q, offset: String(offset) })}`)
+export const rebuildIndex = (stem: string) =>
+  request<IndexStatus>(`/api/knowledge/${encodeURIComponent(stem)}/index`, { method: 'POST' })
+export const openKnowledge = (stem: string) =>
+  request<Report>(`/api/knowledge/${encodeURIComponent(stem)}/open`, { method: 'POST' })

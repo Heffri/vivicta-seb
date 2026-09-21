@@ -370,3 +370,21 @@ dist\backend\backend.exe --port 8000 --host 127.0.0.1
   implementations need to be listed), plus `pymupdf`/`pptx` package data PyInstaller's static analysis can't see
   on its own. A PyInstaller `tzdata` hidden-import warning is expected and harmless (nothing here does named-zone
   `zoneinfo` conversion).
+
+
+### Independent embeddings and OCR
+
+Set `EMBED_BASE_URL=http://localhost:11434/v1` and `EMBED_MODEL=bge-m3` to use local
+semantic retrieval with Codex or Claude extraction. Pull the model once with
+`ollama pull bge-m3`. Without an embedding endpoint, the existing BM25 fallback
+remains available. The Knowledge base view shows index status, model, dimensions,
+passage/fact counts, chunk inspection and Rebuild.
+
+For scanned/outlined PDFs in a source checkout, run `python scripts/setup_ocr.py`
+from the repository root. Desktop releases bundle the English/Swedish language files.
+`OCR_LANGUAGE` defaults to `eng+swe`; `TESSDATA_PREFIX` can point at another local
+language-data directory. OCR results are cached with provenance and settings.
+
+Run `python -m pipeline.test_runtime` and `python -m pipeline.test_maturity_ocr`
+from `backend/` for the cache, retrieval, export and OCR regression checks. See
+`docs/PERFORMANCE.md` for revision-specific measurements and integration notes.

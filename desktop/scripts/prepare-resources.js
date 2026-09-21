@@ -14,6 +14,9 @@ function shouldSkipDataEntry(relPath) {
   const p = relPath.replace(/\\/g, '/')
   return (
     /^reports\/.*\.pdf$/i.test(p) ||
+    /^uploads(?:\/|$)/.test(p) ||
+    /\.log$/.test(p) ||
+    /^kb\/[^/]+\/index\.json$/.test(p) ||
     /^kb\/[^/]+\/embeddings\.jsonl$/.test(p) ||
     /^kb\/[^/]+\/.*\.tmp$/.test(p) ||
     /^kb\/up-/.test(p)

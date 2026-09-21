@@ -12,6 +12,7 @@ from pathlib import Path
 @contextmanager
 def _env(**vals):
     """Temporarily set/unset LLM_* env vars (None = unset); restores whatever was there before."""
+    vals.setdefault("EMBED_BASE_URL", None)
     saved = {k: os.environ.get(k) for k in vals}
     for k, v in vals.items():
         if v is None:
@@ -182,8 +183,9 @@ def test_swedish_prefix_stem():
 
 def test_bm25_mode_never_embeds():
     from . import kb
+    from unittest.mock import patch
     with tempfile.TemporaryDirectory() as tmp:
-        with _env(LLM_BASE_URL=None, LLM_PROVIDER="codex"):
+        with _env(LLM_BASE_URL=None, LLM_PROVIDER="codex"), patch.object(kb.llm, "chat", side_effect=RuntimeError("offline test")):
             stem = _seed(kb, tmp)
             orig = kb.embed
 
@@ -219,7 +221,7 @@ def test_ask_citation_verification():
                 out = kb.ask([stem], "what was net sales in 2025")
             finally:
                 kb.llm.chat = orig
-            assert out["answer"] == fake["answer"]
+            assert "withheld" in out["answer"]
             assert len(out["citations"]) == 1, out["citations"]
             assert out["citations"][0]["page"] == 1 and out["citations"][0]["company"] == "Acme"
             assert 0 <= out["citations"][0]["score"] <= 1
@@ -330,9 +332,9 @@ def test_embed_model_invalidation():
                 assert r3["cached"] is False and r3["embed_model"] == "fake-b", "EMBED_MODEL change stayed cached"
                 assert sum(len(c) for c in calls) > n1, "EMBED_MODEL change did not re-embed"
                 emb = kb.kb_dir() / stem / "embeddings.jsonl"
-                first = emb.open(encoding="utf-8").readline()
-                assert json.loads(first)["embed_model"] == "fake-b", "meta line missing/wrong"
-                assert all("text" in json.loads(l) for l in emb.read_text(encoding="utf-8").split("\n")[1:] if l), \
+                manifest = json.loads((emb.parent / "index.json").read_text(encoding="utf-8"))
+                assert manifest["embed_model"] == "fake-b", "model manifest missing/wrong"
+                assert all("text" in json.loads(l) for l in emb.read_text(encoding="utf-8").split("\n") if l), \
                     "a chunk row lost its text (or the meta line is not first)"
 
                 # backward compat: a legacy file with no meta line is rebuilt exactly once, then cached
