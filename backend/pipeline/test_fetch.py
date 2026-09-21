@@ -1,5 +1,5 @@
-"""Self-check for fetch.py's fourth (v074) and fifth (v080) sources: the model's own web search, asked
-only when the feeds and the plain web search produced nothing, and the IR-page crawl that follows when
+"""Self-check for AI-first report discovery: the model's own web search and the
+IR-page retrieval that follows when
 a model candidate turns out to be a page instead of a direct PDF. Also v081: the second model ask (only
 after the fourth source and the first IR-page crawl both fail) and the complete-report-over-summary
 ranking. `llm.web_lookup` is faked (a scripted function, no CLI, no network beyond a loopback
@@ -192,6 +192,7 @@ def demo():
             # 2. happy path: the model's first candidate is name-filtered (interim), the second is a
             #    real PDF on the loopback server -> registered with the model-search note + foreign tag
             os.environ["LLM_PROVIDER"] = "codex"
+            fetch._candidates = lambda company, year: (_ for _ in ()).throw(AssertionError('AI success must not scrape feeds'))
             os.environ["FAKE_WEB_REPLY"] = _reply([
                 {"url": INTERIM_URL, "title": "Q4 interim", "reason": "wrong report"},
                 {"url": good_url, "title": "Annual Report 2025", "reason": "official IR pdf"},
@@ -214,6 +215,7 @@ def demo():
             again = fetch.fetch_report(COMPANY, YEAR, dest)
             assert again["tried"] == [] and again["file"] == entry["file"], again
             assert len(fake.calls) == 1, "cache hit must not re-search"
+            fetch._candidates = lambda company, year: []
 
             # 4. unparseable model reply -> the 404 detail says the search itself failed
             dest2 = tmp / "reports2"
@@ -265,14 +267,14 @@ def demo():
                             "https://assets.example.com/api/uuid:428e/Annual-Report-2025.pdf"], urls
             assert note is None, note
 
-            # 9. Swedish path unchanged: a candidate found above the model layer registers exactly as
-            #    before (tags without "foreign", no note) and the model is never asked
+            # 9. Legacy sources remain available after AI discovery fails.
             dest3 = tmp / "reports3"
             fetch._candidates = lambda company, year: [good_url]
+            os.environ["FAKE_WEB_REPLY"] = "raise"
             calls_before = len(fake.calls)
             entry3 = fetch.fetch_report(COMPANY, YEAR, dest3)
             assert entry3["source_url"] == good_url and entry3["tags"] == ["fetched"] and entry3["note"] is None, entry3
-            assert len(fake.calls) == calls_before, "a feed-level hit must not trigger a model search"
+            assert len(fake.calls) == calls_before + 2, "model discovery precedes feed fallback"
             fetch._candidates = lambda company, year: []  # back to "nothing above the model layer" for 10-12
 
             # 10. v080 fifth source: the model names the issuer's IR page instead of a direct PDF --

@@ -454,7 +454,24 @@ def test_kb_open_without_pdf():
     print("kb open without the cached PDF ok")
 
 
+def test_catalog_content_availability():
+    from . import kb
+    with tempfile.TemporaryDirectory() as tmp, _env(KB_DIR=tmp):
+        kb.save_report('empty_2025', {'company': 'Empty', 'pages': 2, 'sha256': 'empty-fixture'}, ['', '  '])
+        kb.save_extraction('empty_2025', 'income_statement', {'fields': [{'key': 'revenue', 'value': None}]})
+        entry = kb.entries()[0]
+        assert not entry['text_available'] and not entry['figures_available'], entry
+        # Replacing cached data must invalidate content flags, including numeric zero.
+        pages = Path(tmp) / 'empty_2025/pages.jsonl'
+        pages.write_text(json.dumps({'page': 1, 'text': 'Revenue 0'}) + '\n', encoding='utf-8')
+        kb.save_extraction('empty_2025', 'income_statement', {'fields': [{'key': 'revenue', 'value': 0}]})
+        entry = kb.entries()[0]
+        assert entry['text_available'] and entry['figures_available'], entry
+    print('Catalog counts actual saved text and non-null figures')
+
+
 if __name__ == "__main__":
+    test_catalog_content_availability()
     demo()
     test_retrieval_modes()
     test_bm25_ranking()

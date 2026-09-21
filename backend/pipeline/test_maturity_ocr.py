@@ -46,6 +46,7 @@ def main():
     page = Mock()
     page.get_images.return_value = []
     page.get_drawings.return_value = []
+    page.get_links.return_value = []
     page.get_text.return_value = "Revenue 100 90"
     assert parse.page_text(page) == "Revenue 100 90"
     page.get_textpage_ocr.assert_not_called()

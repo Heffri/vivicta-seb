@@ -6,6 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ErrorBlock, LoadingLine } from '@/components/ui/state'
 import { CachedReports } from '@/components/upload/CachedReports'
 import { CompanySearch } from '@/components/upload/CompanySearch'
+import { CollectionPicker } from '@/components/CollectionPicker'
+import { useCollection } from '@/hooks/useCollection'
 import { Dropzone } from '@/components/upload/Dropzone'
 import type { Company, LibraryEntry, Report, Result, Schema } from '@/types'
 
@@ -16,6 +18,7 @@ type QueueItem = { label: string; prep?: string; getReport: () => Promise<Report
 const isPdf = (f: File) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
 
 export function UploadView({ onDone }: Props) {
+  const [collection, setCollection] = useCollection()
   const [schemas, setSchemas] = useState<Schema[]>([])
   const [schemasError, setSchemasError] = useState<string | null>(null)
   const [section, setSection] = useState<string | null>(null)
@@ -39,7 +42,7 @@ export function UploadView({ onDone }: Props) {
   useEffect(() => {
     let stale = false
     const t = setTimeout(() => {
-      getCompanies(query)
+      getCompanies(query, collection)
         .then((list) => {
           if (stale) return
           setCompanies(list)
@@ -51,7 +54,7 @@ export function UploadView({ onDone }: Props) {
       stale = true
       clearTimeout(t)
     }
-  }, [query])
+  }, [query, collection])
 
   useEffect(() => {
     getSchemas()
@@ -60,15 +63,19 @@ export function UploadView({ onDone }: Props) {
         setSection(list[0]?.name ?? null)
       })
       .catch((e: Error) => setSchemasError(e.message))
-    getLibrary()
-      .then(setLibrary)
-      .catch((e: Error) => setLibraryError(e.message))
     // v074: the web-search action is only offerable when the backend runs on a provider that has a
     // web-search tool (codex/claude); fixture/openai get the "needs a model provider" hint instead.
     getConfig()
       .then((c) => setProvider(c.provider))
       .catch(() => setProvider(null))
   }, [])
+
+  useEffect(() => {
+    let alive = true
+    getLibrary(collection).then(rows => { if (alive) { setLibrary(rows); setLibraryError(null) } })
+      .catch((e: Error) => { if (alive) setLibraryError(e.message) })
+    return () => { alive = false }
+  }, [collection])
 
   // Reject non-PDFs individually (named in the error) and keep the rest; re-picking/re-dropping appends.
   const pickFiles = (incoming: File[]) => {
@@ -114,12 +121,10 @@ export function UploadView({ onDone }: Props) {
   const busy = progress !== null
   const count = picked.length + selected.size + files.length
   const canExtract = count > 0 && !!section && !busy
-  // The directory is Swedish-listed only; a no-hit query can still be fetched through the backend's
-  // fourth source (the model's own web search), which only a codex/claude provider has.
-  const noDirHit = query.trim().length > 0 && companies.length === 0 && dirError === null
+  const hasWebQuery = query.trim().length > 0
   const webSearchAvailable = provider === 'codex' || provider === 'claude'
 
-  const run = async (extra: QueueItem[] = []) => {
+  const run = async (extra: QueueItem[] = [], onlyExtra = false) => {
     if (!section) return
     setError(null)
     setTried({})
@@ -130,23 +135,23 @@ export function UploadView({ onDone }: Props) {
     // per-report progress line.
     const queue: QueueItem[] = [
       ...extra,
-      ...picked.map((c) => ({
+      ...(onlyExtra ? [] : picked).map((c) => ({
         label: c.name,
         prep: `Opening ${c.name} annual report ${year}…`,
         getReport: () => fetchReport(c.name, Number(year), { download_pdf: downloadPdf }),
       })),
-      ...library
+      ...(onlyExtra ? [] : library)
         .filter((e) => selected.has(e.file))
         .map((e) => ({ label: e.company, getReport: () => registerLibraryReport(e.file) })),
-      ...files.map((f) => ({ label: f.name, getReport: () => uploadReport(f), fromUpload: true })),
+      ...(onlyExtra ? [] : files).map((f) => ({ label: f.name, getReport: () => uploadReport(f), fromUpload: true })),
     ]
     const results: Result[] = []
     for (const [i, item] of queue.entries()) {
-      const n = `(${i + 1}/${queue.length}${item.web ? ', can take 10–90 s' : item.prep ? ', can take a minute' : ''})`
+      const n = `(${i + 1}/${queue.length}${item.web ? ', checking saved reports and official sources' : item.prep ? ', can take a minute' : ''})`
       try {
         setProgress(`${item.prep ?? `Preparing ${item.label}`} ${n}`)
         const report = await item.getReport()
-        setProgress(`Extracting ${item.label} ${n}… about a minute per report with a local model.`)
+        setProgress(`Extracting ${item.label} ${n}… preparing source-linked figures.`)
         const extraction = await extractSection(report.report_id, section)
         // Library entries keep the curated name; each upload gets whatever the backend/LLM guessed.
         const label = item.fromUpload ? (extraction.company ?? report.company ?? item.label) : item.label
@@ -163,16 +168,22 @@ export function UploadView({ onDone }: Props) {
     else onDone(results)
   }
 
-  // v074: a name the directory doesn't know goes straight through fetch → extract as its own run.
+  // Any company name can use live discovery; other queued picks stay untouched.
   const runWeb = (name: string) => {
     void run([
       {
         label: name,
-        prep: `Searching the web for ${name} annual report ${year}…`,
-        getReport: () => fetchReport(name, Number(year), { download_pdf: true }),
+        prep: `Finding ${name} annual report ${year}…`,
+        getReport: async () => {
+          try { return await fetchReport(name, Number(year), { download_pdf: false }) }
+          catch (error) {
+            if ((error as ApiError).status !== 409) throw error
+            return fetchReport(name, Number(year), { download_pdf: true })
+          }
+        },
         web: true,
       },
-    ])
+    ], true)
   }
 
   return (
@@ -181,8 +192,12 @@ export function UploadView({ onDone }: Props) {
         <p className="text-xs text-muted-foreground uppercase tracking-wide">Extract</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">Pick reports, get source-linked numbers</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Wallenberg collection: reuse saved figures and page text, choose a local report or upload your own. PDFs are never downloaded automatically.
+          Find a company’s annual report with AI web search, reuse saved reports, or upload a PDF.
         </p>
+        <div className="mt-4"><CollectionPicker companies value={collection} disabled={busy} onChange={value => {
+          if (value === collection) return
+          setCollection(value); setPicked([]); setSelected(new Set()); setCompanies([]); setLibrary([]); setError(null)
+        }} /></div>
       </header>
 
       {/* One material: the whole screen is a single flat translucent step over the shell glass —
@@ -199,6 +214,7 @@ export function UploadView({ onDone }: Props) {
           }`}
         >
           <CompanySearch
+            collection={collection}
             query={query}
             year={year}
             companies={companies}
@@ -229,16 +245,14 @@ export function UploadView({ onDone }: Props) {
           />
         </div>
 
-        {/* v074: no directory hit for a non-empty query — offer the model's web search for that
-            name (available only on a codex/claude provider; fixture/openai get the pointer to
-            Settings instead). Same fetch → extract flow, same progress and error states. */}
-        {noDirHit && downloadPdf && (
+        {/* Live discovery is independent of the local directory and collection. */}
+        {hasWebQuery && (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border bg-background/50 px-5 py-3">
-            <span className="text-sm text-muted-foreground">No match in the directory for “{query.trim()}”.</span>
+            <div className="min-w-0 flex-1"><p className="text-sm font-medium">Find “{query.trim()}” on the web</p><p className="text-xs text-muted-foreground">Reuses saved reports first. Otherwise AI finds the official report, downloads the PDF and extracts your selected section.</p></div>
             {webSearchAvailable ? (
               <Button variant="outline" size="sm" disabled={busy || !section} onClick={() => runWeb(query.trim())}>
                 <Globe className="size-3.5" />
-                Find and download PDF for ‘{query.trim()}’ FY {year}
+                AI search, download & extract · {year}
               </Button>
             ) : (
               <span className="text-xs text-muted-foreground">Web search needs a model provider (Settings).</span>

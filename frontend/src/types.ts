@@ -48,6 +48,8 @@ export type Answer = {
 };
 
 export type KbEntry = {
+  text_available?: boolean; // false for empty saved page text; optional for older backends
+  figures_available?: boolean; // at least one non-null extracted field
   stem: string;             // data/kb/<stem>/, = report filename without .pdf
   report_id: string | null; // stable ID, restored after restart
   company: string | null;
