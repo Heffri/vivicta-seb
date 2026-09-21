@@ -567,6 +567,14 @@ def kb_export_pptx(section: str = "debt_maturity", collection_name: Literal["all
                     headers={"Content-Disposition": f'attachment; filename="{kb_export_filename(section, collection_name, q, "pptx")}"'})
 
 
+@app.get("/api/kb/maturity-wall")
+def kb_maturity_wall(section: Literal["debt_maturity"] = "debt_maturity", collection_name: Literal["all", "wallenberg", "midcap"] = Query("all", alias="collection")):
+    """v174: deterministic upcoming-maturities list over the saved collection -- reads the same decorated
+    extracts as the CSV/PPTX exports, zero model calls. 200 with empty rows when the collection has no
+    debt_maturity extractions yet -- the empty state is the frontend's to render, not a 404."""
+    return workbench.maturity_wall(kb_export_extractions(section, collection_name))
+
+
 @app.get("/api/kb/{stem}/pages/{page}")
 def kb_page(stem: str, page: int):
     if not re.fullmatch(r"[a-z0-9_-]+", stem) or not (kb.kb_dir() / stem / "pages.jsonl").is_file():
