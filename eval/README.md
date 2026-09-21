@@ -9,6 +9,12 @@ Columns: `report_file,section,key,expected_value,expected_page,notes`.
 4. `section`/`key` come from the schema files, see `docs/API.md`.
 5. Save as CSV (Excel will prompt — say yes, keep UTF-8).
 
+## Held-out labels
+`heldout-smallcap-2025.csv` is a frozen, blind held-out measurement set. It must never be copied
+or merged into `labels.csv`, used in prompts or few-shot examples, or used to tune extraction or
+shipping decisions; score it only through its explicit `--labels` path against an isolated stored-KB
+snapshot after the first extraction has completed.
+
 ## Running
 - `python eval/run.py --dry-run` — no backend needed, scores against the fixture (sanity check).
 - `python eval/run.py` — uploads each report in `data/reports/` and runs real extractions.
