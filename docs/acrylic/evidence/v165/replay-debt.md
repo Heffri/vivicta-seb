@@ -1,22 +1,22 @@
 replay_check: baseline origin/acrylic, sections ['debt_maturity'], worktree extract.py; stored fields fed back as the model answer, zero model calls
-  kb: C:\Users\xingyi chen\.ao\data\worktrees\vivicta-glm\vivicta-glm-93\data\kb
-  kb: C:\Users\xingyi chen\Documents\GitHub\uaw-lanes\vivicta-shared\seed-fin-kb
-  kb: C:\Users\xingyi chen\Documents\GitHub\uaw-lanes\vivicta-shared\seed-rerun-v114-kb
-  kb: C:\Users\xingyi chen\Documents\GitHub\uaw-lanes\vivicta-shared\seed-rerun-v115-kb
-  kb: C:\Users\xingyi chen\Documents\GitHub\uaw-lanes\vivicta-shared\seed-rerun-v118-kb
-  kb: C:\Users\xingyi chen\Documents\GitHub\uaw-lanes\vivicta-shared\seed-rerun-v119-kb
-  kb: C:\Users\xingyi chen\Documents\GitHub\uaw-lanes\vivicta-shared\seed-rex-kb
-  kb: C:\Users\xingyi chen\Documents\GitHub\uaw-lanes\vivicta-shared\seed1-kb
-  kb: C:\Users\xingyi chen\Documents\GitHub\uaw-lanes\vivicta-shared\seed2-kb
-  kb: C:\Users\xingyi chen\Documents\GitHub\uaw-lanes\vivicta-shared\seed3-kb
-  kb: C:\Users\xingyi chen\Documents\GitHub\uaw-lanes\vivicta-shared\seed4-kb
-  kb: C:\Users\xingyi chen\Documents\GitHub\uaw-lanes\vivicta-shared\seed5-kb
-  kb: C:\Users\xingyi chen\Documents\GitHub\uaw-lanes\vivicta-shared\seed6-kb
-  kb: C:\Users\xingyi chen\Documents\GitHub\uaw-lanes\vivicta-shared\seed7-kb
-  kb: C:\Users\xingyi chen\Documents\GitHub\uaw-lanes\vivicta-shared\seed8-kb
-  kb: C:\Users\xingyi chen\Documents\GitHub\uaw-lanes\vivicta-shared\seed9-kb
-  kb: C:\Users\xingyi chen\Documents\GitHub\uaw-lanes\vivicta-shared\seed10-kb
-  kb: C:\Users\xingyi chen\Documents\GitHub\uaw-lanes\vivicta-shared\seed11-kb
+  kb: <worktree>\data\kb
+  kb: <shared-lanes>\vivicta-shared\seed-fin-kb
+  kb: <shared-lanes>\vivicta-shared\seed-rerun-v114-kb
+  kb: <shared-lanes>\vivicta-shared\seed-rerun-v115-kb
+  kb: <shared-lanes>\vivicta-shared\seed-rerun-v118-kb
+  kb: <shared-lanes>\vivicta-shared\seed-rerun-v119-kb
+  kb: <shared-lanes>\vivicta-shared\seed-rex-kb
+  kb: <shared-lanes>\vivicta-shared\seed1-kb
+  kb: <shared-lanes>\vivicta-shared\seed2-kb
+  kb: <shared-lanes>\vivicta-shared\seed3-kb
+  kb: <shared-lanes>\vivicta-shared\seed4-kb
+  kb: <shared-lanes>\vivicta-shared\seed5-kb
+  kb: <shared-lanes>\vivicta-shared\seed6-kb
+  kb: <shared-lanes>\vivicta-shared\seed7-kb
+  kb: <shared-lanes>\vivicta-shared\seed8-kb
+  kb: <shared-lanes>\vivicta-shared\seed9-kb
+  kb: <shared-lanes>\vivicta-shared\seed10-kb
+  kb: <shared-lanes>\vivicta-shared\seed11-kb
   kb/academedia_2025                           debt_maturity    same
   kb/acast_2025                                debt_maturity    same
   kb/alligo_2025                               debt_maturity    same
@@ -359,7 +359,7 @@ replay_check: baseline origin/acrylic, sections ['debt_maturity'], worktree extr
   seed11-kb/orron_energy_2025                  debt_maturity    same
   seed11-kb/volati_2025                        debt_maturity    same
 
-totals: companies=320 same=315 changed=5 not_replayable=113
+totals: companies=320 same=315 changed=5 not_replayable=116
   not replayable: kb/4c_2025: no debt_maturity
   not replayable: kb/aak_2025: no debt_maturity
   not replayable: kb/abb_2025: no debt_maturity
@@ -455,6 +455,9 @@ totals: companies=320 same=315 changed=5 not_replayable=113
   not replayable: kb/traton_2025: no debt_maturity
   not replayable: kb/trelleborg_2025: no debt_maturity
   not replayable: kb/truecaller_2025: no debt_maturity
+  not replayable: kb/up-1c7475957fa6: no debt_maturity
+  not replayable: kb/up-7d81079b4cf2: no debt_maturity
+  not replayable: kb/up-d6a30c34b48c: no debt_maturity
   not replayable: kb/verisure_2025: no debt_maturity
   not replayable: kb/vitec_software_2025: no debt_maturity
   not replayable: kb/vitrolife_2025: no debt_maturity
