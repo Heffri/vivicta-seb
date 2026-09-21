@@ -58,6 +58,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m pipeline.test_runtime
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m pipeline.test_debt_selection
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m pipeline.test_maturity_ocr
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python ../scripts/setup_ocr.py

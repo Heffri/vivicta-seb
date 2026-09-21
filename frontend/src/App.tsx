@@ -63,7 +63,7 @@ export default function App() {
   }
 
   return (
-    <div className="glass flex h-screen flex-col overflow-hidden text-foreground">
+    <div className="glass fixed inset-0 flex flex-col overflow-hidden text-foreground">
       <SkipLink />
       <Titlebar subtitle="PDF annual report in → structured, source-linked data out → JSON/CSV for downstream banking systems." />
       <div className="flex min-h-0 flex-1">

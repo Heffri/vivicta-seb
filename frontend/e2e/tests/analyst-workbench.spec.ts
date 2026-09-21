@@ -1,5 +1,37 @@
 import { expect, test } from '@playwright/test'
 
+for (const width of [1440, 900]) test(`review issue scroll stays inside the app [${width}px]`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 738 })
+  const entry = { stem: 'aak_2025', report_id: 'lib-aak_2025', company: 'AAK', fiscal_year: 2025, sections: ['debt_maturity'], pages: 190, pdf_available: false, indexed: false }
+  const extraction = { ...entry, section: 'debt_maturity', currency: 'SEK million', fields: ['total_debt', 'due_within_1_year', 'due_1_to_5_years', 'due_after_5_years'].map((key, i) => ({ key, label: ['Total borrowings', 'Due within 1 year', 'Due 1–5 years', 'Due after 5 years'][i], value: [4478, 4088, 0, 390][i], unit: 'SEK million', period: '2025', source: { page: 169, quote: 'Borrowings note' }, confidence: 0, evidence: [] })), checks: [{ name: 'maturity_sums_to_total', passed: false, detail: 'Check debt repayment figures' }], warnings: [], issues: [{ kind: 'check', key: 'maturity_sums_to_total', detail: 'Check debt repayment figures' }], ready: false }
+  await page.route('**/api/**', route => {
+    const path = new URL(route.request().url()).pathname
+    const json = path === '/api/config' ? { provider: 'codex', model: 'test' }
+      : path === '/api/review-queue' ? [{ ...extraction.issues[0], report: entry, section: 'debt_maturity' }]
+      : path === '/api/kb/aak_2025/debt_maturity' ? extraction
+      : path.includes('/pages/') ? { page: 169, text: 'Borrowings note' } : []
+    return route.fulfill({ json })
+  })
+  await page.goto('/')
+  await page.getByRole('tab', { name: 'Review', exact: true }).click()
+  await page.getByText('Show outstanding checks', { exact: true }).click()
+  await page.getByRole('button', { name: 'Review Check debt repayment figures', exact: true }).click()
+  await expect(page.locator('#calculation-checks')).toBeInViewport()
+  const geometry = await page.evaluate(() => {
+    const content = document.getElementById('content')!
+    const shell = document.querySelector('#root > div')!.getBoundingClientRect()
+    return { windowY: window.scrollY, contentY: content.scrollTop, top: shell.top, bottom: shell.bottom, height: innerHeight, bodyHeight: document.body.scrollHeight }
+  })
+  expect(geometry.windowY).toBe(0)
+  expect(geometry.contentY).toBeGreaterThan(0)
+  expect(geometry.top).toBe(0)
+  expect(geometry.bottom).toBe(geometry.height)
+  expect(geometry.bodyHeight).toBe(geometry.height)
+  await page.screenshot({ path: `e2e/test-results/review-scroll-${width}.png` })
+  await page.getByRole('tab', { name: 'Ask', exact: true }).click()
+  await expect(page.getByRole('combobox', { name: 'Question', exact: true })).toBeVisible()
+})
+
 for (const tone of ['light', 'dark']) test(`review queue, basis and saved comparison [${tone}]`, async ({ page }) => {
   const entry = { stem: 'atlas_2025', report_id: 'lib-atlas_2025', company: 'Atlas Copco', fiscal_year: 2025, sections: ['income_statement'], pages: 1, pdf_available: false, indexed: false }
   const previous = { ...entry, stem: 'atlas_2024', fiscal_year: 2024 }

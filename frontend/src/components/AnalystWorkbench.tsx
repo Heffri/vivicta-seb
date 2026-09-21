@@ -15,7 +15,7 @@ export function BasisPanel({ extraction: x, onUpdated }: { extraction: Extractio
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   return <details className="rounded-xl border bg-card p-4" id="basis-review">
-    <summary className="cursor-pointer font-semibold">Basis of figures · {x.ready ? 'Ready for analyst use' : `${x.issues?.length ?? 'Unresolved'} items to review`}</summary>
+    <summary className="cursor-pointer font-semibold">Basis of figures · {x.ready ? 'Ready for analyst use' : `${x.issues?.filter(issue => issue.kind === 'basis').length ?? 'Unresolved'} definitions to confirm`}</summary>
     <p className="my-3 text-sm text-muted-foreground">Unknown definitions remain unresolved. Enter definitions from the source and explain assumptions in your note. Human confirmation is separate from automated evidence.</p>
     {x.basis && <p className="mb-3 text-sm">Last confirmed by {x.basis.reviewer} · {x.basis.at} · {x.basis.note}</p>}
     <form className="space-y-3" onSubmit={async e => { e.preventDefault(); setBusy(true); setError(''); try { onUpdated(await saveBasis(x.report_id, { section: x.section, expected: x.basis ?? {}, values, reviewer, note })) } catch (err) { setError((err as Error).message) } finally { setBusy(false) } }}>
