@@ -6,6 +6,7 @@ This deliberately reads the same labels, stored extractions and scoring predicat
 
     python scripts/eval_breakdown.py --stored-kb data/kb
     python scripts/eval_breakdown.py --stored-kb data/kb --section income_statement
+    python scripts/eval_breakdown.py --stored-kb data/kb --labels eval/heldout-smallcap-2025.csv
     python scripts/eval_breakdown.py --stored-kb data/kb --out breakdown.md
 
 The A--D bucket is a triage aid, not a claim that the heuristic has proved a
@@ -378,10 +379,12 @@ def main() -> int:
                         help="stored KB root; repeatable, matching eval/run.py")
     parser.add_argument("--section", action="append", default=[], metavar="NAME",
                         help="limit to a labelled section; repeatable (default: every labelled section)")
+    parser.add_argument("--labels", default=str(ROOT / "eval" / "labels.csv"), metavar="CSV",
+                        help="labels CSV to score (default: eval/labels.csv)")
     parser.add_argument("--out", help="write Markdown to this UTF-8/LF file instead of stdout")
     args = parser.parse_args()
 
-    labels = ev_run.load_labels(str(ROOT / "eval" / "labels.csv"))
+    labels = ev_run.load_labels(args.labels)
     available = list(dict.fromkeys(row["section"] for row in labels))
     selected = args.section or available
     unknown = sorted(set(selected) - set(available))
