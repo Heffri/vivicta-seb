@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { scrollContent } from '@/components/shell/scrollContent'
 import { fieldVerification } from '@/components/results/verification'
 import { Button, buttonVariants } from '@/components/ui/button'
-import type { Comparison, Extraction, Field } from '@/types'
+import type { Comparison, Extraction, Field, Source } from '@/types'
 
 type Props = {
   extraction: Extraction
@@ -60,6 +60,7 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
   const [viewer, setViewerState] = useState<Viewer>(loadViewer)
   const [priorYear, setPriorYear] = useState(false) // v091: mirrors MaturityChart's "Show prior year" switch so Export PPTX requests the second series
   const [perYear, setPerYear] = useState(false) // v109: mirrors "Per year" the same way (?per_year=1)
+  const [reviewCitation, setReviewCitation] = useState({ page: '', quote: '' })
   const setViewer = (v: Viewer) => {
     setViewerState(v)
     try {
@@ -80,6 +81,7 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
   const selectField = (key: string) => {
     setSelectedKey(key)
     setAskPage(null)
+    setReviewCitation({ page: '', quote: '' })
   }
   const reviewCount = fields.filter((f) => ['Needs review', 'Not checked', 'Not found'].includes(fieldVerification(f).label)).length
 
@@ -158,7 +160,7 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
 
         <div className="space-y-4">
           <FieldsTable fields={fields} selectedKey={selectedKey} onSelect={selectField} />
-          {selected && <HumanReviewForm key={`${selected.key}:${selected.human_review?.at ?? ''}`} extraction={extraction} field={selected} onSaved={onUpdated} />}
+          {selected && <HumanReviewForm key={`${selected.key}:${selected.human_review?.at ?? ''}`} extraction={extraction} field={selected} citation={reviewCitation} onCitationChange={setReviewCitation} onSaved={(result) => { setReviewCitation({ page: '', quote: '' }); onUpdated(result) }} />}
         </div>
 
         {/* ponytail: no longer sticky — it would slide over the Ask panel below it. */}
@@ -173,6 +175,7 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
           onViewerChange={setViewer}
           brokenPage={brokenPage}
           onBrokenPage={setBrokenPage}
+          onUseSource={(source: Source) => setReviewCitation({ page: String(source.page), quote: source.quote })}
         />
 
         <div id="calculation-checks"><StatusCards checks={checks} warnings={warnings} fields={fields} onSelect={(key) => {

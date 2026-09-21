@@ -98,6 +98,13 @@ type Source = {
   quote: string;            // verbatim text from that page that supports the value
 };
 
+type ReviewComponent = {
+  value: number;            // one printed amount; the corrected field is their exact sum
+  page: number;             // 1-based page holding this component's quoted row
+  quote: string;            // verbatim row, checked against that saved page
+  label: string;            // a short analyst label, e.g. "Current borrowings"
+};
+
 type Field = {
   key: string;              // canonical key from the schema, e.g. "revenue"
   label: string;            // human label from the schema
@@ -106,6 +113,7 @@ type Field = {
   period: string | null;    // "2025", "2024", "2025-Q4"
   raw_label: string | null; // the label as printed in the report, e.g. "Intäkter"
   source: Source | null;
+  components?: ReviewComponent[]; // analyst-reviewed printed amounts used to derive this field; never a claim that one printed row equals their sum
   confidence: number;       // 0..1, computed from evidence by the backend — see docs/CONFIDENCE.md. Never the model's opinion.
   evidence: string[];       // satisfied evidence codes, e.g. ["quote_on_page","value_in_quote","arith_ok"]; 1.0 <=> all seven present
 };
@@ -192,12 +200,12 @@ One file per report section. Adding a section = adding a file. The prompt is gen
 
 ## CSV export
 
-Header: `report_id,company,fiscal_year,section,key,label,value,unit,period,raw_label,page,quote,confidence`
-One row per field. UTF-8, comma-separated, quotes escaped per RFC 4180.
+Header begins `report_id,company,fiscal_year,section,key,label,value,unit,period,raw_label,page,quote,confidence` and adds current review metadata plus `human_source_page`, `human_source_quote`, and JSON-encoded `components`.
+One row per field. UTF-8, comma-separated, quotes escaped per RFC 4180. JSON export carries the same field source, components, and append-only history; a human citation is not reclassified as automated evidence.
 
 ### Whole-KB maturity CSV
 
-`GET /api/kb/export.csv` is the downstream-universe variant: it emits one row per saved company that has the requested section (rather than one row per field). Its leading columns are the header above, populated from the `total_debt` field and its source; it then adds `stem`, `due_within_1_year`, `due_1_to_5_years`, `due_after_5_years`, `review_status`, `human_review`, and `ready`. `review_status` preserves every present human-review decision (for example `confirmed`); `human_review=yes` makes reviewed values visible without changing them. Missing amounts remain blank, never zero-filled.
+`GET /api/kb/export.csv` is the downstream-universe variant: it emits one row per saved company that has the requested section (rather than one row per field). Its leading columns are the header above, populated from the `total_debt` field and its source; it then adds `stem`, `due_within_1_year`, `due_1_to_5_years`, `due_after_5_years`, `review_status`, `human_review`, `ready`, `human_source_page`, `human_source_quote`, and `components`. `review_status` preserves every present human-review decision (for example `confirmed`); `human_review=yes` makes reviewed values visible without changing them. Missing amounts remain blank, never zero-filled.
 
 ## Company directory + on-demand report fetching
 
@@ -288,7 +296,9 @@ continues to accept `report_ids` and retains its retrieval mode.
 
 
 ### Human review
-`POST /api/reports/{report_id}/review` accepts `section`, `key`, `expected` (the complete field last read), `decision` (`confirmed`, `corrected`, `unresolved`), `reviewer` (self-reported name), `note`, and optional `value`, `unit`, `period` for corrections. Returns the updated Extraction. Requires a saved extraction. Stale fields return 409. Reviews persist inside each field as `human_review` and append-only `review_history` with the previous field snapshot and a UTC timestamp. Corrections retain source provenance, clear the changed field's automated evidence, and mark calculation checks `stale: true`. Review does not certify automated checks. Re-extraction of a reviewed section is rejected (409) to prevent loss of reviews. JSON export includes the full history; CSV includes current review status, name, time, and note.
+`POST /api/reports/{report_id}/review` accepts `section`, `key`, `expected` (the complete field last read), `decision` (`confirmed`, `corrected`, `unresolved`), `reviewer` (self-reported name), `note`, and optional `value`, `unit`, `period` for corrections. A correction may also provide a paired `source_page` (positive integer) + `source_quote`; the backend checks that quote against the saved page text before replacing the field's source. A correction may instead provide `components: [{value, page, quote, label}]`: every component quote is checked on its own page and the backend writes the exact component sum as the field value, records the components, and uses the first component as the field's clickable source. `value` is required for a direct correction and ignored for a component sum; `unit` and `period` are required for both. The current `human_review` records `source_verified: true` only when the submitted source or every submitted component was found on its page; a human decision without a new citation does not gain that key.
+
+Returns the updated Extraction. Requires a saved extraction. Stale fields return 409. Reviews persist inside each field as `human_review` and append-only `review_history` with the previous field snapshot and a UTC timestamp. Corrections replace the field source only when a new citation was supplied, retain the original value and source in history, replace automated evidence with human-review evidence, and mark calculation checks stale/unavailable. Review does not certify automated checks. Re-extraction of a reviewed section is rejected (409) to prevent loss of reviews. JSON export includes the full history and components. Per-report and whole-KB CSV add `human_source_page`, `human_source_quote`, and JSON-encoded `components`; PPTX writes the first reviewed field's page/quote and component count on the slide while full history remains in speaker notes.
 
 
 ### Wallenberg collection and opt-in PDFs

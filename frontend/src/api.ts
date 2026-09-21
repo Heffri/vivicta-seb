@@ -1,4 +1,4 @@
-import type { ChunkPage, Answer, Company, Extraction, IndexStatus, KbEntry, LibraryEntry, Report, Schema } from './types'
+import type { ChunkPage, Answer, Company, Extraction, IndexStatus, KbEntry, LibraryEntry, Report, ReviewComponent, Schema } from './types'
 
 export type ApiError = Error & { status: number; tried?: string[] }
 
@@ -103,7 +103,7 @@ export const openKbExtraction = (stem: string, section: string) =>
 export const getKbPage = (stem: string, page: number) =>
   request<{ page: number; text: string }>(`/api/kb/${encodeURIComponent(stem)}/pages/${page}`)
 
-export const reviewField = (reportId: string, body: { section: string; key: string; expected: import('./types').Field; decision: import('./types').HumanReview['decision']; reviewer: string; note: string; value?: number | string | null; unit?: string | null; period?: string | null }) =>
+export const reviewField = (reportId: string, body: { section: string; key: string; expected: import('./types').Field; decision: import('./types').HumanReview['decision']; reviewer: string; note: string; value?: number | string | null; unit?: string | null; period?: string | null; source_page?: number; source_quote?: string; components?: ReviewComponent[] }) =>
   request<Extraction>(`/api/reports/${encodeURIComponent(reportId)}/review`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 
 export const getReviewQueue = () => request<import('./types').QueueIssue[]>('/api/review-queue')

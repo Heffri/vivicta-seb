@@ -7,6 +7,7 @@ import csv
 import io
 import json
 import logging
+import math
 import os
 import re
 import sys
@@ -65,6 +66,13 @@ class ExtractBody(BaseModel):
     section: str
 
 
+class ReviewComponent(BaseModel):
+    value: FiniteFloat
+    page: int = Field(ge=1)
+    quote: str = Field(min_length=1, max_length=8000)
+    label: str = Field(default="", max_length=160)
+
+
 class ReviewBody(BaseModel):
     section: str = Field(pattern=r"^[a-z0-9_]+$")
     key: str
@@ -75,6 +83,9 @@ class ReviewBody(BaseModel):
     value: FiniteFloat | str | None = None
     unit: str | None = Field(default=None, max_length=80)
     period: str | None = Field(default=None, max_length=80)
+    source_page: int | None = Field(default=None, ge=1)
+    source_quote: str | None = Field(default=None, max_length=8000)
+    components: list[ReviewComponent] | None = Field(default=None, max_length=50)
 
 
 class BasisBody(BaseModel):
@@ -503,6 +514,12 @@ def export_review_status(x: dict) -> tuple[str, str]:
     return (", ".join(statuses), "yes" if statuses else "no")
 
 
+def human_evidence_csv(field: dict) -> tuple[object, object, str]:
+    """Only expose a citation as human-supplied when this review actually verified one."""
+    source = (field.get("source") or {}) if (field.get("human_review") or {}).get("source_verified") else {}
+    return source.get("page"), source.get("quote"), json.dumps(field.get("components", []), ensure_ascii=False)
+
+
 def universe_csv_row(x: dict) -> list:
     """One downstream row per company, anchored to the total-debt field's existing CSV columns."""
     fields = {field["key"]: field for field in x["fields"]}
@@ -510,12 +527,13 @@ def universe_csv_row(x: dict) -> list:
     source = total.get("source") or {}
     status, reviewed = export_review_status(x)
     return [x["report_id"], x.get("company"), x.get("fiscal_year"), x["section"], total.get("key", "total_debt"),
-            total.get("label", "Total debt"), total.get("value"), total.get("unit"), total.get("period"),
-            total.get("raw_label"), source.get("page"), source.get("quote"), total.get("confidence"), x["stem"],
-            *[fields.get(key, {}).get("value") for key in ppt.BUCKET_ORDER], status, reviewed, x.get("ready", False)]
+             total.get("label", "Total debt"), total.get("value"), total.get("unit"), total.get("period"),
+             total.get("raw_label"), source.get("page"), source.get("quote"), total.get("confidence"), x["stem"],
+             *[fields.get(key, {}).get("value") for key in ppt.BUCKET_ORDER], status, reviewed, x.get("ready", False),
+             *human_evidence_csv(total)]
 
 
-UNIVERSE_CSV_HEADER = CSV_HEADER + ["stem", *ppt.BUCKET_ORDER, "review_status", "human_review", "ready"]
+UNIVERSE_CSV_HEADER = CSV_HEADER + ["stem", *ppt.BUCKET_ORDER, "review_status", "human_review", "ready", "human_source_page", "human_source_quote", "components"]
 
 
 def kb_export_filename(section: str, collection_name: str, q: str, extension: str) -> str:
@@ -580,8 +598,16 @@ def review_field(report_id: str, body: ReviewBody):
     reviewer = body.reviewer.strip()
     if not reviewer or (body.decision != "confirmed" and not body.note.strip()):
         raise HTTPException(422, "Enter your name and a note for corrections or unresolved reviews")
-    if body.decision == "corrected" and not {"value", "unit", "period"} <= body.model_fields_set:
-        raise HTTPException(422, "Corrections require value, unit and period")
+    source_requested = body.source_page is not None or body.source_quote is not None
+    if source_requested and (body.source_page is None or not (body.source_quote or "").strip()):
+        raise HTTPException(422, "Provide both a citation page and its quoted text")
+    if body.components is not None and source_requested:
+        raise HTTPException(422, "Use either one citation or component citations, not both")
+    if body.components is not None and (body.decision != "corrected" or not body.components):
+        raise HTTPException(422, "Component citations require a corrected figure and at least one component")
+    required_correction = {"unit", "period"} | (set() if body.components is not None else {"value"})
+    if body.decision == "corrected" and not required_correction <= body.model_fields_set:
+        raise HTTPException(422, "Corrections require unit and period, plus a value or component citations")
     with review_lock:
         path = kb.kb_dir() / stem / "extractions" / f"{body.section}.json"
         if not path.is_file():
@@ -594,13 +620,41 @@ def review_field(report_id: str, body: ReviewBody):
             raise HTTPException(409, "This figure changed. Reopen the report before reviewing it.")
         if body.decision == "corrected" and isinstance(body.value, str) and not isinstance(field.get("value"), str):
             raise HTTPException(422, "Enter a finite number with a decimal point, or leave the value blank")
+
+        texts = report_texts(report_id) if source_requested or body.components is not None else []
+
+        def verified_source(page: int, quote: str) -> dict:
+            if page > len(texts):
+                raise HTTPException(400, f"Citation page {page} does not exist in this saved report")
+            quote = quote.strip()
+            if not extract_mod.quote_on_page(quote, texts[page - 1]):
+                raise HTTPException(400, f"Citation is not on page {page}")
+            return {"page": page, "quote": quote}
+
+        source = verified_source(body.source_page, body.source_quote) if source_requested else None
+        components = ([dict(value=component.value, label=component.label.strip(),
+                            **verified_source(component.page, component.quote)) for component in body.components]
+                      if body.components is not None else None)
         previous = copy.deepcopy({k: v for k, v in field.items() if k != "review_history"})
         review = {"decision": body.decision, "reviewer": reviewer, "note": body.note.strip(),
                   "at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+        if source or components:
+            review["source_verified"] = True
         if body.decision == "corrected":
-            field.update(value=body.value, unit=body.unit, period=body.period, evidence=[], confidence=0)
+            value = math.fsum(component["value"] for component in components) if components is not None else body.value
+            field.update(value=value, unit=body.unit, period=body.period,
+                         evidence=["human_reviewed", *(["components_sum"] if components is not None else [])], confidence=0)
+            if components is not None:
+                field["components"] = components
+                field["source"] = {"page": components[0]["page"], "quote": components[0]["quote"]}
+            else:
+                field.pop("components", None)
+                if source:
+                    field["source"] = source
             for other in result["fields"]:
                 other["evidence"] = [e for e in other.get("evidence", []) if e != "arith_ok"]
+        elif source:
+            field.update(source=source, evidence=["human_reviewed"], confidence=0)
         field["human_review"] = review
         field.setdefault("review_history", []).append({**review, "previous": previous})
         workbench.decorate(result, load_schema(body.section), review)
@@ -698,11 +752,11 @@ def extraction_csv(report_id: str, section: str | None = None, previous_stem: st
     x = export_extraction(report_id, section, previous_stem)
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(CSV_HEADER + ["human_review", "reviewer", "reviewed_at", "review_note", "ready", "basis", "unresolved", "comparison", "review_history", "basis_history", "check_history"])
+    w.writerow(CSV_HEADER + ["human_review", "reviewer", "reviewed_at", "review_note", "human_source_page", "human_source_quote", "components", "ready", "basis", "unresolved", "comparison", "review_history", "basis_history", "check_history"])
     for f in x["fields"]:
         src = f.get("source") or {}
         w.writerow([x["report_id"], x["company"], x["fiscal_year"], x["section"], f["key"], f["label"], f["value"],
-                    f["unit"], f["period"], f["raw_label"], src.get("page"), src.get("quote"), f["confidence"], *[(f.get("human_review") or {}).get(k, "") for k in ("decision", "reviewer", "at", "note")], x.get("ready", False), json.dumps(x.get("basis", {})), json.dumps(x.get("issues", [])), json.dumps(x.get("comparison", {})), json.dumps(f.get("review_history", [])), json.dumps(x.get("basis_history", [])), json.dumps(x.get("check_history", []))])
+                    f["unit"], f["period"], f["raw_label"], src.get("page"), src.get("quote"), f["confidence"], *[(f.get("human_review") or {}).get(k, "") for k in ("decision", "reviewer", "at", "note")], *human_evidence_csv(f), x.get("ready", False), json.dumps(x.get("basis", {})), json.dumps(x.get("issues", [])), json.dumps(x.get("comparison", {})), json.dumps(f.get("review_history", [])), json.dumps(x.get("basis_history", [])), json.dumps(x.get("check_history", []))])
     return Response(buf.getvalue(), media_type="text/csv; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="{report_id}_{x["section"]}.csv"'})
 

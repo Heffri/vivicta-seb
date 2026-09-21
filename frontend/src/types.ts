@@ -74,7 +74,8 @@ export type Source = {
   quote: string;            // verbatim text from that page that supports the value
 };
 
-export type HumanReview = { decision: 'confirmed' | 'corrected' | 'unresolved'; reviewer: string; note: string; at: string };
+export type ReviewComponent = { value: number; page: number; quote: string; label: string };
+export type HumanReview = { decision: 'confirmed' | 'corrected' | 'unresolved'; reviewer: string; note: string; at: string; source_verified?: boolean };
 export type Field = {
   human_review?: HumanReview;
   review_history?: (HumanReview & { previous: Omit<Field, 'review_history'> })[];
@@ -85,6 +86,7 @@ export type Field = {
   period: string | null;    // "2025", "2024", "2025-Q4"
   raw_label: string | null; // the label as printed in the report, e.g. "Intäkter"
   source: Source | null;
+  components?: ReviewComponent[]; // individually cited human-review inputs whose exact sum is this value
   confidence: number;       // 0..1, computed from evidence by the backend — see docs/CONFIDENCE.md. Never the model's opinion.
   evidence: string[];       // satisfied evidence codes, e.g. ["quote_on_page","value_in_quote","arith_ok"]; 1.0 <=> all seven present
 };
