@@ -32,6 +32,70 @@ for (const width of [1440, 900]) test(`review issue scroll stays inside the app 
   await expect(page.getByRole('combobox', { name: 'Question', exact: true })).toBeVisible()
 })
 
+test('one statement card keeps sourced basis hints, categories, reviewer and filter', async ({ page }) => {
+  const entry = { stem: 'atlas_2025', report_id: 'lib-atlas_2025', company: 'Atlas Copco', fiscal_year: 2025, sections: ['debt_maturity'], pages: 7, pdf_available: false, indexed: false }
+  const source = { page: 7, quote: 'Maturity profile: due within 1 year, due 1 to 5 years and due after 5 years (carrying amount)' }
+  const fields = [
+    { key: 'total_debt', label: 'Total borrowings', value: 100, unit: 'MSEK', period: '2025', raw_label: 'Total borrowings', source, confidence: 0, evidence: [] },
+    { key: 'due_within_1_year', label: 'Due within 1 year', value: null, unit: null, period: null, raw_label: 'Due within 1 year', source: null, confidence: 0, evidence: [] },
+    { key: 'due_1_to_5_years', label: 'Due 1–5 years', value: 50, unit: 'MSEK', period: '2025', raw_label: 'Due 1–5 years', source, confidence: 0, evidence: [] },
+    { key: 'due_after_5_years', label: 'Due after 5 years', value: 30, unit: 'MSEK', period: '2025', raw_label: 'Due after 5 years', source, confidence: 0, evidence: [] },
+  ]
+  const issues: any[] = [
+    { kind: 'basis', key: 'period', detail: 'Confirm period' },
+    { kind: 'field', key: 'total_debt', detail: 'Total borrowings: verify value, unit, period and source' },
+    { kind: 'field', key: 'due_within_1_year', detail: 'Due within 1 year: missing value (not zero)' },
+    { kind: 'check', key: 'maturity_sums_to_total', detail: 'maturity_sums_to_total: 100 != 80' },
+    { kind: 'check', key: 'periods', detail: 'periods: Cannot reconcile missing or incompatible units/periods.' },
+  ]
+  const extraction: any = {
+    ...entry, section: 'debt_maturity', currency: 'MSEK', fields, checks: [], warnings: [], issues, ready: false,
+    basis_suggestions: [
+      { key: 'entity', value: 'Atlas Copco', source: 'report metadata' },
+      { key: 'period', value: '2025', source: 'report metadata' },
+      { key: 'currency', value: 'SEK', source }, { key: 'scale', value: 'Millions', source },
+      { key: 'source', value: 'Cited pages p. 7', source }, { key: 'debt_basis', value: 'Carrying amounts', source },
+      { key: 'bucket_mapping', value: 'Under 1, 1 to 5, over 5', source },
+    ],
+  }
+  await page.route('**/api/**', async route => {
+    const path = new URL(route.request().url()).pathname
+    if (path.endsWith('/review')) return route.fulfill({ status: 409, json: { detail: 'The field changed. Reopen before saving.' } })
+    const json = path === '/api/config' ? { provider: 'fixture', model: 'test' }
+      : path === '/api/review-queue' ? issues.map(issue => ({ ...issue, report: entry, section: 'debt_maturity' }))
+      : path === '/api/kb/atlas_2025/debt_maturity' ? extraction
+      : path.includes('/pages/') ? { page: 7, text: source.quote }
+      : path.endsWith('/comparison') ? { candidates: [], reasons: [], rows: [] } : []
+    await route.fulfill({ json })
+  })
+  await page.goto('/')
+  await page.getByRole('tab', { name: 'Review', exact: true }).click()
+  await expect(page.getByRole('article')).toHaveCount(1)
+  const statement = page.getByRole('article', { name: 'Atlas Copco 2025 debt maturity' })
+  await statement.getByText('Show outstanding checks', { exact: true }).click()
+  for (const heading of ['Basis to confirm', 'Numeric conflicts', 'Missing evidence', 'Cannot calculate']) await expect(statement.getByRole('heading', { name: heading, exact: true })).toBeVisible()
+  await page.getByLabel('kind', { exact: true }).selectOption('basis')
+  await statement.getByRole('button', { name: 'Review statement', exact: true }).click()
+  const basis = page.locator('#basis-review')
+  await expect(basis).toHaveAttribute('open', '')
+  await expect(basis.getByLabel('Reporting entity', { exact: true })).toHaveValue('Atlas Copco')
+  await expect(basis.getByText('Suggested from report metadata', { exact: true }).first()).toBeVisible()
+  await expect(basis.getByText('Suggested from p. 7', { exact: true }).first()).toBeVisible()
+  await expect(basis.getByRole('button', { name: 'Use suggestion for Reporting entity', exact: true })).toBeVisible()
+  await expect(basis).toContainText('1 definitions to confirm')
+  await page.getByRole('button', { name: 'Next unresolved field', exact: true }).click()
+  const totalReview = page.getByRole('form', { name: 'Review Total borrowings', exact: true })
+  await totalReview.getByLabel('Your name', { exact: true }).fill('Alex Analyst')
+  await totalReview.getByRole('button', { name: 'Save review', exact: true }).click()
+  await expect(totalReview.getByRole('alert')).toContainText('The field changed')
+  await expect(totalReview.getByLabel('Your name', { exact: true })).toHaveValue('Alex Analyst')
+  await page.getByRole('button', { name: 'Next unresolved field', exact: true }).click()
+  const nextReview = page.getByRole('form', { name: 'Review Due within 1 year', exact: true })
+  await expect(nextReview.getByLabel('Your name', { exact: true })).toHaveValue('Alex Analyst')
+  await page.getByRole('button', { name: 'Back to reports', exact: true }).click()
+  await expect(page.getByLabel('kind', { exact: true })).toHaveValue('basis')
+})
+
 for (const tone of ['light', 'dark']) test(`review queue, basis and saved comparison [${tone}]`, async ({ page }) => {
   const entry = { stem: 'atlas_2025', report_id: 'lib-atlas_2025', company: 'Atlas Copco', fiscal_year: 2025, sections: ['income_statement'], pages: 1, pdf_available: false, indexed: false }
   const previous = { ...entry, stem: 'atlas_2024', fiscal_year: 2024 }

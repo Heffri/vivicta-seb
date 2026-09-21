@@ -104,6 +104,9 @@ export type Check = {
 };
 
 export type Basis = { values: Record<string, string>; reviewer: string; note: string; at: string };
+// v182: deterministic, source-backed form hints. They are not analyst confirmation and do not
+// contribute to `ready`; a missing key is deliberately still unknown.
+export type BasisSuggestion = { key: string; value: string; source: Source | 'report metadata' };
 export type ReviewIssue = { kind: 'basis' | 'field' | 'check'; key: string; detail: string };
 export type Comparison = { candidates: KbEntry[]; previous_stem?: string; current_year?: number; previous_year?: number; reasons: string[]; restatement?: Record<string, string>; rows: { key: string; label: string; current: Field['value']; previous: Field['value']; delta: number | null; percent: number | null; sign_change: boolean; reason: string }[] };
 export type QueueIssue = ReviewIssue & { report: KbEntry; section: string };
@@ -150,6 +153,7 @@ export type Extraction = {
   model?: string;
   timings?: { total?: number; attempts?: number; model?: number };
   basis?: Basis;
+  basis_suggestions?: BasisSuggestion[];
   basis_history?: (Basis & { previous: Partial<Basis> })[];
   check_history?: unknown[];
   issues?: ReviewIssue[];

@@ -1,4 +1,4 @@
-import { ReviewQueue } from './components/AnalystWorkbench'
+import { ReviewQueue, type ReviewFilters } from './components/AnalystWorkbench'
 import { useEffect, useState } from 'react'
 import { type Config, getConfig } from './api'
 import { AskView } from './components/AskView'
@@ -25,6 +25,9 @@ export default function App() {
   const [savedReport, setSavedReport] = useState<KbEntry | null>(null)
   const [reportOrigin, setReportOrigin] = useState<'kb' | 'map' | 'review' | 'compare'>('kb')
   const [reviewTarget, setReviewTarget] = useState<{ section?: string; key?: string }>({})
+  // Keep the analyst's queue scope intact while a saved statement is conditionally mounted in
+  // Results. The queue otherwise unmounts during review and would silently discard the filter.
+  const [reviewFilters, setReviewFilters] = useState<ReviewFilters>({ company: '', year: '', section: '', kind: '' })
   const [results, setResults] = useState<Result[]>([])
   const [detail, setDetail] = useState<number | null>(null) // index into results shown on the Results tab
   const [detailPage, setDetailPage] = useState<number | null>(null) // page a citation chip asked for, if any
@@ -123,7 +126,7 @@ export default function App() {
               />
             )}
             {tab === 'ask' && <AskView key={askCompany ?? 'global'} initialCompany={askCompany} />}
-            {tab === 'review' && <ReviewQueue onOpen={(report, section, key) => { setReviewTarget({ section, key }); setSavedReport(report); setReportOrigin('review'); setTab('results') }} />}
+            {tab === 'review' && <ReviewQueue filters={reviewFilters} onFiltersChange={setReviewFilters} onOpen={(report, section, key) => { setReviewTarget({ section, key }); setSavedReport(report); setReportOrigin('review'); setTab('results') }} />}
             {tab === 'kb' && <KbView onOpen={done} onOpenReport={report => { setSavedReport(report); setReportOrigin('kb'); setTab('results') }} />}
             {tab === 'map' && <KnowledgeMap onOpenReport={report => { setSavedReport(report); setReportOrigin('map'); setTab('results') }} onAsk={(company) => { setAskCompany(company); setTab('ask') }} />}
             {/* v065: a Save restarts the backend, leaving this mount-time `config` stale until

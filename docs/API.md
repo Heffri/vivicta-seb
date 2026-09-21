@@ -131,6 +131,15 @@ type Check = {
   detail: string;           // human-readable, e.g. "152340 + -88120 = 64220 == 64220"
 };
 
+// v182: a deterministic, unconfirmed starting point for the basis-review form. Every
+// suggestion names its provenance: metadata for the company/year, or a saved field
+// citation for a value inferred from a printed unit/header. It is never a review.
+type BasisSuggestion = {
+  key: string;              // one allowed `basis.values` key
+  value: string;
+  source: Source | "report metadata";
+};
+
 type Extraction = {
   report_id: string;
   stem?: string;            // saved source, provided when opening the knowledge base
@@ -142,6 +151,7 @@ type Extraction = {
   maturity_basis?: "carrying" | "undiscounted"; // v089, debt_maturity only: which maturity table total_debt + the buckets were read from (env DEBT_BASIS); distinct from the analyst-confirmed `basis` object below
   prior_year?: PriorYear;   // v091, debt_maturity only: the prior fiscal year's own figures (see below); the key is absent when they cannot be read deterministically
   buckets_by_year?: BucketsByYear; // v109, debt_maturity only: the report's own calendar-year maturity columns (see below); the key is absent unless the report prints years and they close on total_debt
+  basis_suggestions?: BasisSuggestion[]; // v182: source-backed, deterministic suggestions; omitted keys remain unknown
   fields: Field[];          // one entry per schema field, in schema order (value null if missing)
   checks: Check[];
   warnings: string[];       // free text, e.g. "revenue: quote not found on page 64"
@@ -351,7 +361,7 @@ POST `/api/reports/fetch` defaults `download_pdf` to false. It reuses saved text
 Extractions gain optional `basis`, `basis_history`, `check_history`, `issues`, and derived `ready`. Basis records entity, consolidation, period, currency, scale, source page, restatement status and (debt only) debt basis, leases and bucket mapping. Values are analyst-confirmed, never inferred as confirmed from legacy data. GET `/api/review-queue` returns unresolved issues for its requested collection (Wallenberg by default). POST `/api/reports/{id}/basis` accepts section, expected basis, values, reviewer and note, returning the updated extraction. Existing field reviews recalculate deterministic checks and archive previous checks. GET `/api/kb/{stem}/{section}/comparison?previous_stem=...` returns compatible saved-report deltas or reasons why unavailable. Exports accept optional section and previous_stem to bind the exact statement and comparison. Missing values never implicitly become zero. No endpoint in this workflow downloads PDFs.
 
 
-`basis` is `{values: Record<string,string>, reviewer, note, at}`. Shared value keys: `entity`, `consolidation`, `period`, `currency`, `scale`, `source`, `restatement`. Debt adds `debt_basis`, `leases`, `bucket_mapping`. Empty values remain unknown. Basis review accepts `{section, expected: previousBasisOrEmptyObject, values, reviewer, note}` and rejects stale snapshots with 409. `basis_history` records each prior basis. `check_history` records previous checks when recalculation changes them.
+`basis` is `{values: Record<string,string>, reviewer, note, at}`. Shared value keys: `entity`, `consolidation`, `period`, `currency`, `scale`, `source`, `restatement`. Debt adds `debt_basis`, `leases`, `bucket_mapping`. Empty values remain unknown. `basis_suggestions` is a separate optional list of `{key, value, source}` generated deterministically from report metadata and already-cited field evidence: it may suggest entity, period, a unanimous parsed unit's currency/scale, a complete cited-page list, debt measurement, and an exact standard maturity-bucket mapping. It never suggests consolidation, leases, or restatement; a missing citation means no suggestion. Suggestions prefill the client only and do not make a basis confirmed or a result ready. Basis review accepts `{section, expected: previousBasisOrEmptyObject, values, reviewer, note}` and rejects stale snapshots with 409. `basis_history` records each prior basis. `check_history` records previous checks when recalculation changes them.
 
 Checks include `status: passed|failed|unavailable`. Reconciliation requires every operand to be explicit and use the same nonempty unit and period — except a bucket whose evidence marks it `absent_in_table` (the report's maturity table prints no column for that window): it joins the reconciliation as 0. Source evidence remains distinct from arithmetic and human review. `issues` contains `{kind: basis|field|check, key, detail}`. `ready` requires no unresolved issues, including missing figures even when a human confirmed their absence; an `absent_in_table` bucket is not an issue (a reviewer marking it unresolved re-opens it). Queue entries add `report: KbEntry` and `section`.
 

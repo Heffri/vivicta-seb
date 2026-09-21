@@ -61,6 +61,50 @@ for section in ('income_statement', 'debt_maturity'):
     previous.pop('basis')
     assert workbench.compare(current, previous)['rows'][0]['delta'] is None
 
+# v182: basis suggestions are a source-backed starting point, never a hidden confirmation.
+# The standard maturity-header quote is deliberately present on every cited debt field here so
+# the positive case proves the strict bucket-mapping gate rather than a label-name coincidence.
+x = statement('debt_maturity')
+x['maturity_basis'] = 'carrying'
+header = 'Maturity profile: due within 1 year, due 1 to 5 years and due after 5 years (carrying amount)'
+for field in x['fields']:
+    field['source'] = {'page': 7, 'quote': header}
+workbench.decorate(x, app.load_schema('debt_maturity'))
+suggestions = {item['key']: item for item in x['basis_suggestions']}
+assert set(suggestions) == {'entity', 'period', 'currency', 'scale', 'source', 'debt_basis', 'bucket_mapping'}
+assert suggestions['entity'] == {'key': 'entity', 'value': 'Atlas Copco AB', 'source': 'report metadata'}
+assert suggestions['period'] == {'key': 'period', 'value': '2025', 'source': 'report metadata'}
+assert suggestions['currency']['value'] == 'SEK' and suggestions['scale']['value'] == 'Millions'
+assert suggestions['source']['value'] == 'Cited pages p. 7'
+assert suggestions['debt_basis']['value'] == 'Carrying amounts'
+assert suggestions['bucket_mapping']['value'] == 'Under 1, 1 to 5, over 5'
+assert all(item['source'] == 'report metadata' or item['source'] == {'page': 7, 'quote': header} for item in suggestions.values())
+assert not {'consolidation', 'leases', 'restatement'} & set(suggestions)
+
+# A mixed printed scale is a material ambiguity, not a reason to pick whichever field came first.
+mixed = statement('debt_maturity')
+for field in mixed['fields']:
+    field['source'] = {'page': 7, 'quote': header}
+next(field for field in mixed['fields'] if field['key'] == 'due_within_1_year')['unit'] = 'TSEK'
+workbench.decorate(mixed, app.load_schema('debt_maturity'))
+assert not {'currency', 'scale'} & {item['key'] for item in mixed['basis_suggestions']}
+
+# No cited page means no field-derived value or native-bucket claim. Metadata remains explicitly
+# labelled metadata; it does not turn the missing field evidence into a confirmation.
+uncited = statement('debt_maturity')
+for field in uncited['fields']:
+    field['source'] = None
+workbench.decorate(uncited, app.load_schema('debt_maturity'))
+assert not {'currency', 'scale', 'source', 'bucket_mapping'} & {item['key'] for item in uncited['basis_suggestions']}
+
+# Marking a missing value unresolved is never equivalent to zero or an arithmetic pass.
+missing = statement('debt_maturity')
+field = next(field for field in missing['fields'] if field['key'] == 'due_after_5_years')
+field.update(value=None, unit=None, period=None, source=None, evidence=[], human_review={'decision': 'unresolved', 'reviewer': 'Analyst', 'at': 'now', 'note': 'Not disclosed'})
+workbench.decorate(missing, app.load_schema('debt_maturity'))
+assert not missing['ready'] and not missing['checks'][0]['passed']
+assert any(issue['kind'] == 'field' and issue['key'] == 'due_after_5_years' for issue in missing['issues'])
+
 # v174: maturity_wall -- deterministic upcoming-maturities list (consult-gpt6 #8, consult-fable #2).
 # Pure function, no disk. statement('debt_maturity') is fully confirmed by default: total_debt=100,
 # due_within_1_year=20 (both MSEK) -> share 0.2 is the baseline every case below tweaks one thing in.
