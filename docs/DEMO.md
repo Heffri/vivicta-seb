@@ -8,7 +8,7 @@ zero model calls to set up, and the main show is **stored real results**, not a 
 
 | What | Value |
 |---|---|
-| Branch / commit demoed | `acrylic` at delivery: commit `6f43cd2` (re-run `git rev-parse --short=7 origin/acrylic` after a final fetch and update this row if it moved) |
+| Branch / commit demoed | `acrylic` at delivery: commit `fba373d` (re-run `git rev-parse --short=7 origin/acrylic` after a final fetch and update this row if it moved) |
 | Windows installer feed | [`desktop-demo`](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-demo) (auto-updating, CI-built from the team `demo` branch) — install the Setup exe once; it updates itself. [`desktop-main`](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-main) is the equivalent feed for `main` |
 | Not the installer? | Clone the repo and run `run.bat` (Windows) or `./run.sh` (macOS/Linux) — first run ~2–4 min, later runs seconds |
 | The old portable exe | `desktop-0.3.4` (portable/Setup zip) **cannot update itself** — do not demo from it; use the auto-updating installer above or a fresh `run.bat` checkout |
@@ -110,23 +110,23 @@ after everything below has already succeeded.
   hit `GET /api/kb` / open a KB record, confirm the window survives (a fresh single-instance lock
   conflict closes the second copy silently).
 
-## 实测（2026-09-21 · package source `7f5b617` · shared Windows test machine）
+## 实测（2026-09-21 · package build `25ed26b` / acrylic `fba373d` · shared Windows test machine）
 
 This is a fixture-mode rehearsal of the unpacked shared test package, on a newly created
-`--user-data-dir`. It makes no model calls. The package was refreshed from the listed commit; the
-last warm refresh took **50.9 s** and replaced frontend, backend, data and shell resources.
+`--user-data-dir`. It makes no model calls. The package was refreshed from the listed build; the
+last warm refresh took **41 s** and replaced frontend, backend, data and shell resources.
 
 | Step | Time | Result | Note |
 |---|---:|---|---|
-| First start → `/api/kb` | 19.8 s | 206 saved reports | First sync copied 206 KB entries and 4 other files into the clean userData. |
-| Extract landing page → **Open a real debt sample** | 0.40 s | Karnell Group results | Opens the stored real debt record; no `/extract` call or model call. |
-| Select **Due 1–5 years** → source | 0.06 s | Page 106 + highlighted Karnell quote | The bundled package has saved page text but no PDF image, as documented above. |
-| KB → Ependion | 0.96 s | **Not printed in this report** | The `Due after 5 years` absence is visibly distinct from zero. |
-| Confirm one figure | 0.19 s | Ependion total-borrowings review saved | The confirmation persisted after the close/reopen cycle. |
-| KB **Export all** CSV | 1.21 s | 105 data rows, 25,938 bytes | Debt-maturity export over the All collection. |
-| KB **Export all** PPTX deck | 5.64 s | 106 slides, 494,792 bytes | One summary slide plus 105 report slides. |
-| Compare two selected records → upcoming-maturities list loaded | 0.58 s | All-collection wall rendered | The wall showed 0/105 comparable, 105 basis-unconfirmed, 13 missing totals and 49 missing `<1y`; it does not imply a credit judgment. |
-| Close → reopen → `/api/kb` | close 0.31 s; reopen 4.1 s | 206 saved reports; review retained | Sync reported `+0 kb entries, +0 files` and kept the one user-modified reviewed extraction unchanged. |
+| First start → `/api/kb` | 18.4 s | 206 saved reports | First sync copied 206 KB entries and 4 other files into the clean userData. |
+| Extract landing page → **Open a real debt sample** | 0.28 s | Karnell Group results | Opens the stored real debt record; no `/extract` call or model call. |
+| Select **Due 1–5 years** → source | 0.07 s | Page 106 + highlighted Karnell quote | The bundled package has saved page text but no PDF image, as documented above. |
+| KB → Ependion | 1.48 s | **Not printed in this report** | The `Due after 5 years` absence is visibly distinct from zero. |
+| Confirm one figure | 0.71 s | Ependion total-borrowings review saved | The confirmation persisted after the close/reopen cycle. |
+| KB **Export all** CSV | 1.24 s | 105 data rows, 26,511 bytes | Debt-maturity export over the All collection. |
+| KB **Export all** PPTX deck | 5.75 s | 106 slides, 494,804 bytes | One summary slide plus 105 report slides. |
+| Compare two selected records → upcoming-maturities list fully loaded | 1.23 s | All-collection wall rendered | The wall showed 0/105 comparable, 105 basis-unconfirmed, 13 missing totals and 49 missing `<1y`; it does not imply a credit judgment. |
+| Close → reopen → `/api/kb` | close 0.27 s; reopen 4.9 s | 206 saved reports; review retained | Sync reported `+0 kb entries, +0 files` and kept the one user-modified reviewed extraction unchanged. |
 
 The refresh target's background updater also logs a non-blocking `ENOENT` for its absent
 `app-update.yml`. It did not affect package startup, saved data, review persistence, exports or the
