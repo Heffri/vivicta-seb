@@ -25,7 +25,9 @@ for (const tone of TONES) {
     await expect(extractButton).toBeEnabled()
     await extractButton.click()
 
-    await expect(page.getByRole('button', { name: 'Export JSON' })).toBeVisible({ timeout: 20000 })
+    // v171: a finished batch never forces a tab switch (BatchProgress's own "View results" does).
+    await page.getByRole('main').getByRole('button', { name: /^View results/ }).click({ timeout: 20000 })
+    await expect(page.getByRole('button', { name: 'Export JSON' })).toBeVisible()
 
     expect(errors).toEqual([])
   })

@@ -32,7 +32,9 @@ for (const tone of TONES) {
     await expect(wait).toBeVisible({ timeout: 15000 })
     await expect(page.getByText(/· \d+ s$/)).toBeVisible() // the stopwatch ticks alongside
 
-    await expect(page.getByRole('button', { name: 'Export JSON' })).toBeVisible({ timeout: 30000 })
+    // v171: a finished batch never forces a tab switch (BatchProgress's own "View results" does).
+    await page.getByRole('main').getByRole('button', { name: /^View results/ }).click({ timeout: 30000 })
+    await expect(page.getByRole('button', { name: 'Export JSON' })).toBeVisible()
     expect(errors).toEqual([])
   })
 
@@ -70,8 +72,10 @@ for (const tone of TONES) {
     })
     await page.getByRole('main').getByRole('button', { name: /^Extract/ }).click()
 
+    // v171: a finished batch never forces a tab switch (BatchProgress's own "View results" does).
+    await page.getByRole('main').getByRole('button', { name: /^View results/ }).click({ timeout: 20000 })
     const banner = page.getByRole('region', { name: 'Figures the model did not find' })
-    await expect(banner).toBeVisible({ timeout: 20000 })
+    await expect(banner).toBeVisible()
     await expect(banner.getByText(/Candidates were pages 30–32 of this report/)).toBeVisible()
 
     // The banner's entry lands on the manual review form of the first not-found figure.

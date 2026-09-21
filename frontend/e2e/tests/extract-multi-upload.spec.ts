@@ -22,7 +22,13 @@ for (const tone of TONES) {
     await expect(extractButton).toHaveText('Extract 2 reports')
     await extractButton.click()
 
-    await expect(page.getByRole('heading', { name: 'Comparison' })).toBeVisible({ timeout: 20000 })
+    // v171: a finished batch never forces a tab switch (BatchProgress's own "View results" does);
+    // it also appears as soon as the first of the two is done, so wait for the count to say both
+    // finished before clicking through, or this can land on the single Results view instead.
+    const viewResults = page.getByRole('main').getByRole('button', { name: 'View results (2)' })
+    await expect(viewResults).toBeVisible({ timeout: 20000 })
+    await viewResults.click()
+    await expect(page.getByRole('heading', { name: 'Comparison' })).toBeVisible()
     await expect(page.getByText('2 of 2 reports extracted')).toBeVisible()
     await expect(page.locator('table thead th')).toHaveCount(3) // Field + 2 report columns
 
