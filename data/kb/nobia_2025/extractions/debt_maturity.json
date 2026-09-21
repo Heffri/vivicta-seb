@@ -12,7 +12,7 @@
       "value": 2983,
       "unit": "SEK m",
       "period": "2025",
-      "raw_label": "Total",
+      "raw_label": "Total (ties to BS: Liabilities to credit institutions (IB) + Liabilities to credit institutions (IB))",
       "source": {
         "page": 131,
         "quote": "Total 2,569 2,983 - - 29"
@@ -23,6 +23,7 @@
         "value_in_quote",
         "arith_ok",
         "period_ok",
+        "bs_tie",
         "page_is_statement",
         "unit_ok"
       ]
@@ -102,6 +103,12 @@
     "run1: two_pass: page [131, 132] selected from candidates [131, 132, 110, 99, 135, 101, 134, 133, 31, 146]",
     "run2: two_pass: page [131, 132] selected from candidates [131, 132, 110, 99, 135, 101, 134, 133, 31, 146]",
     "merge: union, per-field: total_debt=run2 (agree: confidence tie -> run2), due_within_1_year=run2 (agree: confidence tie -> run2), due_1_to_5_years=run2 (agree: confidence tie -> run2), due_after_5_years=run2 (agree: confidence tie -> run2)",
-    "published: seedv136-publish-kb run replayed with extract.py @ 3089ab08"
-  ]
+    "published: seedv136-publish-kb run replayed with extract.py @ 3089ab08",
+    "published: seedv166-publish-kb run replayed with extract.py @ a0dcac21"
+  ],
+  "timings": {
+    "model": 0.0,
+    "attempts": 1,
+    "validate": 0.333
+  }
 }

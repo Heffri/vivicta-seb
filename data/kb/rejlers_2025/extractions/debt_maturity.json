@@ -12,7 +12,7 @@
       "value": 400.3,
       "unit": "SEK million",
       "period": "2025",
-      "raw_label": "Total",
+      "raw_label": "Total (ties to BS: Liabilities to credit institutions)",
       "source": {
         "page": 105,
         "quote": "Remeasurement 42.0 Total 400.3 349.5"
@@ -23,6 +23,7 @@
         "value_in_quote",
         "arith_ok",
         "period_ok",
+        "bs_tie",
         "page_is_statement",
         "unit_ok"
       ]
@@ -55,13 +56,15 @@
       "value": 0,
       "unit": "SEK million",
       "period": "2025",
-      "raw_label": "1-2 years; 2–3 years; 3-4 years; 4-5 years",
+      "raw_label": "1-2 years - -",
       "source": {
         "page": 105,
-        "quote": "1-2 years - -\n2–3 years - -\n3-4 years - -\n4-5 years - -"
+        "quote": "1-2 years - -"
       },
-      "confidence": 0.25,
+      "confidence": 0.5,
       "evidence": [
+        "quote_on_page",
+        "printed_nil",
         "arith_ok",
         "label_known",
         "period_ok",
@@ -91,6 +94,42 @@
   "warnings": [
     "two_pass: page [105, 106] selected from candidates [105, 106, 36]",
     "due_1_to_5_years: quote not found on page 105",
-    "published: seed10 run replayed with extract.py @ d3eb5fc8"
-  ]
+    "published: seed10 run replayed with extract.py @ d3eb5fc8",
+    "published: seedv166-publish-kb run replayed with extract.py @ a0dcac21"
+  ],
+  "prior_year": {
+    "fiscal_year": 2024,
+    "fields": {
+      "total_debt": {
+        "value": 349.5,
+        "source": {
+          "page": 105,
+          "quote": "Remeasurement 42.0 Total 400.3 349.5"
+        }
+      },
+      "due_within_1_year": {
+        "value": 349.5,
+        "source": {
+          "page": 105,
+          "quote": "Within one year 400.3 349.5"
+        }
+      },
+      "due_1_to_5_years": {
+        "value": 0,
+        "source": {
+          "page": 105,
+          "quote": "1-2 years - -"
+        }
+      }
+    },
+    "check": {
+      "passed": true,
+      "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((349.5 + 0) - 349.5) <= 2 (due_after_5_years: no prior-year figure in this table)"
+    }
+  },
+  "timings": {
+    "model": 0.0,
+    "attempts": 1,
+    "validate": 0.418
+  }
 }

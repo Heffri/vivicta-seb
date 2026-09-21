@@ -12,7 +12,7 @@
       "value": 1090075,
       "unit": "kSEK",
       "period": "2025",
-      "raw_label": "Total borrowings (Note 27)",
+      "raw_label": "Total borrowings (Note 27) (ties to BS: Borrowings)",
       "source": {
         "page": 93,
         "quote": "Total borrowings (Note 27) 1,090,075 998,103 be made (Note 18)."
@@ -24,6 +24,7 @@
         "arith_ok",
         "label_known",
         "period_ok",
+        "bs_tie",
         "unit_ok"
       ]
     },
@@ -70,6 +71,12 @@
   ],
   "warnings": [
     "two_pass: page [117, 118] selected from candidates [93, 94, 117]",
-    "published: seedseed-rerun-v118-kb run replayed with extract.py @ d3eb5fc8"
-  ]
+    "published: seedseed-rerun-v118-kb run replayed with extract.py @ d3eb5fc8",
+    "published: seedv166-publish-kb run replayed with extract.py @ a0dcac21"
+  ],
+  "timings": {
+    "model": 0.0,
+    "attempts": 2,
+    "validate": 0.329
+  }
 }

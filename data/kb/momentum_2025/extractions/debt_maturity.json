@@ -12,7 +12,7 @@
       "value": 395,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Interest-bearing financial liabilities to credit institutions",
+      "raw_label": "Interest-bearing financial liabilities to credit institutions (ties to BS: Non-current interest-bearing liabilities + Current interest-bearing liabilities)",
       "source": {
         "page": 116,
         "quote": "Interest-bearing financial liabilities to credit institutions 395 431 14 417 –"
@@ -23,6 +23,7 @@
         "value_in_quote",
         "arith_ok",
         "period_ok",
+        "bs_tie",
         "page_is_statement",
         "unit_ok"
       ]
@@ -70,6 +71,12 @@
   ],
   "warnings": [
     "two_pass: page [115, 116] selected from candidates [116, 117, 111, 94, 98, 119, 131, 96, 100, 115]",
-    "published: seedv162-publish-kb run replayed with extract.py @ b5fb0a1a"
-  ]
+    "published: seedv162-publish-kb run replayed with extract.py @ b5fb0a1a",
+    "published: seedv166-publish-kb run replayed with extract.py @ a0dcac21"
+  ],
+  "timings": {
+    "model": 0.0,
+    "attempts": 1,
+    "validate": 0.377
+  }
 }

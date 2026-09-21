@@ -13,9 +13,14 @@ verify — locator, parser, label matching. `main` hasn't moved; nothing here ha
 
 **How a teammate gets it** — three ways, cheapest first:
 
-- **Double-click the Release exe**: download the portable (or Setup) exe from the
-  [`desktop-0.3.4` prerelease](https://github.com/Heffri/vivicta-seb/releases) — no Python or Node
-  needed (unsigned, so SmartScreen asks: "More info" → "Run anyway"). It starts on fixture/demo data.
+- **Double-click the auto-updating installer**: the Setup exe from Sebastijan's CI-built
+  [**`desktop-demo`** release](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-demo)
+  (tracks the team `demo` branch; the [`desktop-main`
+  feed](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-main) tracks `main`) — no
+  Python or Node needed, and installed copies check for updates on startup and apply them on
+  exit (unsigned, so SmartScreen asks: "More info" → "Run anyway"). It starts on fixture/demo
+  data. The old **`desktop-0.3.4`** portable/Setup zip still runs but **cannot update itself** —
+  a legacy fallback, not the recommended entry.
 - **Clone the repo's `demo` branch and run `run.bat`** (macOS/Linux: `./run.sh`): the first run sets
   up the venv, installs dependencies, builds the frontend and opens the app in your browser — about
   2–4 minutes; later runs take seconds.
@@ -40,10 +45,32 @@ verify — locator, parser, label matching. `main` hasn't moved; nothing here ha
 
 ## What a colleague sees now
 
-- **Get it**: Sebastijan's CI-built **`desktop-demo`** release (auto-updating, from team `demo`) or the **`desktop-0.3.4`** zip (portable/Setup, unsigned) for this branch's build — both double-click, no toolchain (the first bullet of "How a teammate gets it" above).
+- **Get it**: Sebastijan's CI-built **`desktop-demo`** release (auto-updating, from team `demo`; the `desktop-main` feed tracks `main`) — double-click, no toolchain; the old **`desktop-0.3.4`** portable/Setup zip is a legacy fallback that cannot update itself (the first bullet of "How a teammate gets it" above).
 - **Data**: a KB of **206 companies**, 105 with a stored `debt_maturity` extraction — the KB page opens on the Wallenberg collection (issue #4), and its Collection switch (Wallenberg / All saved reports, [v112](evidence/v112.md)) exposes the rest without touching that default; every entry stays visible to Ask, Compare and `eval/run.py --stored-kb` regardless.
 - **Look**: Settings' **Theme** switch (Solid default / Acrylic) — the browser UI flips instantly, the desktop window's real material follows; the rail's tone toggle still picks dark/light within either theme.
-- **Accuracy**: `eval/run.py --stored-kb data/kb` — values **317/367 (86.4%)** over 367 scored rows (271 hand-verified `debt_maturity` labels across 105 companies, plus 96 income rows); pages **255/313 (81.5%)** — pages scored only where a value is cited: a null label answered null has no citation, hence no page to score ([v132](evidence/v132.md)); zero model calls.
+- **Accuracy — two separate claims, kept separate** (re-measured on this tree, zero model calls;
+  superseded 86.4% / 81.5%):
+  - **Stored library (curated)**: `eval/run.py --stored-kb data/kb` — values **327/367 (89.1%)**
+    over 367 scored rows (271 hand-verified `debt_maturity` labels across 105 companies, plus 96
+    income rows); pages **263/313 (84.0%)** — pages scored only where a value is cited: a null
+    label answered null has no citation, hence no page to score ([v132](evidence/v132.md)). Debt
+    section alone: values **231/271 (85.2%)**, pages **171/221 (77.4%)**; income 96/96 and 92/92.
+    The library is republished under a "nothing loses on the labels" gate, so this is a curated
+    score, **not** a first-pass rate.
+  - **First extraction (no labels at run time)**, the three measured batches, scored afterwards:
+    9 → **14 of 24** companies the locator had just made reachable ([v124](evidence/v124.md));
+    stored 16/40 → **19/40** fields on the 18 newly-labelled stems — raw fresh runs 14/40
+    ([v136](evidence/v136.md)); stored 23/69 → **31/69** fields (pages 17/62 → 23/62) on the 28
+    remaining value-miss stems ([v160](evidence/v160.md)).
+  - **Error nature** (stored debt misses, each named): of 40 value misses, **34 empty** (not read /
+    declined) vs **6 non-empty wrong**; the label audit found **0 label errors**, **2
+    report-internal disagreements** (Green Landscaping, Volati — the report itself prints two
+    inconsistent totals) and **7 hard cases** blocked by named mechanism gaps
+    ([v154](evidence/v154.md)); Kristian-dependent scope calls are disclosed per company, not
+    silently resolved.
+  - **Boundary**: the 105 labelled companies have been used repeatedly for debugging — none of
+    this is presented as a market-accuracy claim.
+  - The three-minute demo and its frozen samples: [`../DEMO.md`](../DEMO.md).
 
 ## Frontend
 

@@ -107,6 +107,7 @@
     "total_debt: 'Total' is not a known total borrowings label, but maturity_sums_to_total holds with that row in every column",
     "due_within_1_year: '<1 year' is not a known due within 1 year label, but maturity_sums_to_total holds with that row in every column",
     "due_1_to_5_years: '1-5 yeas' is not a known due 1–5 years label, but maturity_sums_to_total holds with that row in every column",
-    "published: seed6 run as stored"
+    "published: seed6 run as stored",
+    "published: seedv166-publish-kb run as stored"
   ]
 }

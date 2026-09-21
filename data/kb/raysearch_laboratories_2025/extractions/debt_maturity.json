@@ -12,7 +12,7 @@
       "value": 394.9,
       "unit": "SEK M",
       "period": "2025",
-      "raw_label": "Total interest-bearing liabilities",
+      "raw_label": "Total interest-bearing liabilities (ties to BS: Long-term lease liabilities + Current lease liabilities)",
       "source": {
         "page": 72,
         "quote": "Total interest-bearing liabilities 471.9 3.5 -76.7 4.4 -0.2 -8.0 - 394.9"
@@ -24,6 +24,7 @@
         "arith_ok",
         "label_known",
         "period_ok",
+        "bs_tie",
         "page_is_statement",
         "unit_ok"
       ]
@@ -80,6 +81,12 @@
   ],
   "warnings": [
     "two_pass: page [72, 73] selected from candidates [72, 73, 82, 83]",
-    "published: seed9 run replayed with extract.py @ d3eb5fc8"
-  ]
+    "published: seed9 run replayed with extract.py @ d3eb5fc8",
+    "published: seedv166-publish-kb run replayed with extract.py @ a0dcac21"
+  ],
+  "timings": {
+    "model": 0.0,
+    "attempts": 1,
+    "validate": 0.348
+  }
 }

@@ -12,7 +12,7 @@
       "value": 8527,
       "unit": "SEK thousand",
       "period": "2025",
-      "raw_label": "Lease liabilities included in statement of financial position for the Group",
+      "raw_label": "Lease liabilities included in statement of financial position for the Group (ties to BS: Lease liabilities + Lease liabilities)",
       "source": {
         "page": 66,
         "quote": "Lease liabilities included in statement of financial position for the Group 8,527 17,413 (R)= Regulatory event"
@@ -23,6 +23,7 @@
         "value_in_quote",
         "arith_ok",
         "period_ok",
+        "bs_tie",
         "page_is_statement",
         "unit_ok"
       ]
@@ -80,6 +81,12 @@
   ],
   "warnings": [
     "two_pass: page [65, 66] selected from candidates [65, 66, 63, 36]",
-    "published: seedseed-rex-kb run replayed with extract.py @ d3eb5fc8"
-  ]
+    "published: seedseed-rex-kb run replayed with extract.py @ d3eb5fc8",
+    "published: seedv166-publish-kb run replayed with extract.py @ a0dcac21"
+  ],
+  "timings": {
+    "model": 0.0,
+    "attempts": 1,
+    "validate": 0.271
+  }
 }

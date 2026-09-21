@@ -12,7 +12,7 @@
       "value": 3122,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Liabilities to credit institutions",
+      "raw_label": "Liabilities to credit institutions (ties to BS: Liabilities to credit institutions)",
       "source": {
         "page": 128,
         "quote": "Liabilities to credit institutions – – 3,209 – 3,209 3,122"
@@ -23,6 +23,7 @@
         "value_in_quote",
         "arith_ok",
         "period_ok",
+        "bs_tie",
         "page_is_statement",
         "unit_ok"
       ]
@@ -70,6 +71,12 @@
   ],
   "warnings": [
     "two_pass: page [127, 128] selected from candidates [127, 128, 140]",
-    "published: seed8 run replayed with extract.py @ d3eb5fc8"
-  ]
+    "published: seed8 run replayed with extract.py @ d3eb5fc8",
+    "published: seedv166-publish-kb run replayed with extract.py @ a0dcac21"
+  ],
+  "timings": {
+    "model": 0.0,
+    "attempts": 1,
+    "validate": 0.35
+  }
 }

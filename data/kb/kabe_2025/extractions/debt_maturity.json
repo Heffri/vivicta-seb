@@ -12,7 +12,7 @@
       "value": 50,
       "unit": "Mkr",
       "period": "2025",
-      "raw_label": "Total finansiell skuld",
+      "raw_label": "Total finansiell skuld (ties to BS: Skulder till kreditinstitut + Långfristiga leaseskulder + Skulder till kreditinstitut + Kortfristiga leaseskulder)",
       "source": {
         "page": 93,
         "quote": "Total finansiell skuld 62 -14 3 0 -4 -2 5 50"
@@ -23,6 +23,7 @@
         "value_in_quote",
         "arith_ok",
         "period_ok",
+        "bs_tie",
         "page_is_statement",
         "unit_ok"
       ]
@@ -70,6 +71,12 @@
   ],
   "warnings": [
     "two_pass: page [92, 93] selected from candidates [29, 30, 93]",
-    "published: seedseed-rerun-v119-kb run replayed with extract.py @ d3eb5fc8"
-  ]
+    "published: seedseed-rerun-v119-kb run replayed with extract.py @ d3eb5fc8",
+    "published: seedv166-publish-kb run replayed with extract.py @ a0dcac21"
+  ],
+  "timings": {
+    "model": 0.0,
+    "attempts": 1,
+    "validate": 0.265
+  }
 }

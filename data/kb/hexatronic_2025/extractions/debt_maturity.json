@@ -12,7 +12,7 @@
       "value": 2243,
       "unit": "SEK million",
       "period": "2025",
-      "raw_label": "Total borrowing",
+      "raw_label": "Total borrowing (ties to BS: Liabilities to credit institutions + Liabilities to credit institutions)",
       "source": {
         "page": 160,
         "quote": "Total borrowing 2,243"
@@ -24,6 +24,7 @@
         "arith_ok",
         "label_known",
         "period_ok",
+        "bs_tie",
         "page_is_statement",
         "unit_ok"
       ]
@@ -88,6 +89,12 @@
     "due_within_1_year: quote not found on page 162",
     "due_1_to_5_years: quote not found on page 162",
     "due_after_5_years: 'Borrowing from credit institutions' 0 dropped: the same row as total_debt, and not a due after 5 years label",
-    "published: seedv152-hexatronic-kb run replayed with extract.py @ 7fabc1c9"
-  ]
+    "published: seedv152-hexatronic-kb run replayed with extract.py @ 7fabc1c9",
+    "published: seedv166-publish-kb run replayed with extract.py @ a0dcac21"
+  ],
+  "timings": {
+    "model": 0.0,
+    "attempts": 1,
+    "validate": 0.291
+  }
 }

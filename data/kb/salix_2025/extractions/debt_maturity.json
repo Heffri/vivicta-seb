@@ -12,7 +12,7 @@
       "value": 3246,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "31 December",
+      "raw_label": "31 December (ties to BS: Non-current interest-bearing liabilities + Non-current lease liabilities + Current interest-bearing liabilities + Current lease liabilities)",
       "source": {
         "page": 177,
         "quote": "unutilised portion of the revolving credit facility was 31 December 3,246 2,944"
@@ -23,6 +23,7 @@
         "value_in_quote",
         "arith_ok",
         "period_ok",
+        "bs_tie",
         "page_is_statement",
         "unit_ok"
       ]
@@ -84,6 +85,12 @@
     "run2: due_within_1_year: quote not found on page 177",
     "run2: due_within_1_year: fill from page 177 row 'Within 1 year 87 87 1' refused -- table 'Timing of revenue recognition, contract liabilities' is a non-debt subject table",
     "merge: majority, per-field: total_debt=run1 (majority: unanimous), due_within_1_year=run1 (majority: run1+run2), due_1_to_5_years=run1 (majority: unanimous), due_after_5_years=run1 (majority: unanimous)",
-    "published: seedv160-publish-kb run replayed with extract.py @ be8b2c4e"
-  ]
+    "published: seedv160-publish-kb run replayed with extract.py @ be8b2c4e",
+    "published: seedv166-publish-kb run replayed with extract.py @ a0dcac21"
+  ],
+  "timings": {
+    "model": 0.0,
+    "attempts": 1,
+    "validate": 0.44
+  }
 }

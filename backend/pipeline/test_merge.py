@@ -156,6 +156,18 @@ def test_union_conflict_null_rule():
     print("merge union conflict null rule ok")
 
 
+def test_union_conflict_balance_sheet_tie():
+    """v166: Net Insight's real same-state conflict becomes decidable when exactly one run ties to BS."""
+    from . import merge
+    r1 = _run({"total_debt": 81489}, check_passed=True)
+    r2 = _run({"total_debt": 39415}, check_passed=True)
+    r2["fields"][0]["evidence"].append("bs_tie")
+    merged, decisions = merge.merge_runs(r1, r2, None, "union")
+    assert _value(merged, "total_debt") == 39415
+    assert decisions["total_debt"] == "run2 (conflict: union: balance-sheet tie)"
+    print("merge balance-sheet tie conflict rule ok")
+
+
 def test_union_agree_band():
     """Values within +/-2 are one answer; the winner among agreeing runs still goes by check, then
     confidence, then the tie rule (agree -> run2)."""
@@ -683,6 +695,7 @@ if __name__ == "__main__":
     test_union_lone_value()
     test_union_conflict_check_then_agree_conf()
     test_union_conflict_null_rule()
+    test_union_conflict_balance_sheet_tie()
     test_union_agree_band()
     test_majority_votes()
     test_majority_three_way_splits_back_to_union()
