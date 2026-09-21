@@ -60,10 +60,9 @@ def _pick(a: dict, b: dict, ia, ib) -> tuple[dict, str, str, str | None]:
     synthesized null whose reason already carries the wording. The run whose identity check passed
     wins. With the same check state, agreeing values (+/-2) are one answer -- both sides carry the
     same verdict on every agreeing instance measured -- so the copy choice goes to confidence, a
-    confidence tie to run2. A conflict has no signal to side with: v145 measured the tie-conflicts
-    across the v129/v136/v141 datasets at run1 right 1 / run2 right 2 / both wrong 0, and v145-b
-    folded the higher-confidence branch in after it scored 0/4 on the same datasets' conflicts --
-    so any same-state conflict publishes null in extract()'s own dropped-field shape."""
+    confidence tie to run2. A same-state conflict is normally signal-free (v145's measured split),
+    except when exactly one total carries extract.py's independent `bs_tie` evidence; that field wins.
+    Otherwise v145-b's null rule keeps the conflict in extract()'s own dropped-field shape."""
     kind = "agree" if _same(a.get("value"), b.get("value")) else "conflict"
     if ia and not ib:
         return a, "run1", "check passed", kind
@@ -75,6 +74,9 @@ def _pick(a: dict, b: dict, ia, ib) -> tuple[dict, str, str, str | None]:
         if (b.get("confidence") or 0.0) > (a.get("confidence") or 0.0):
             return b, "run2", "higher conf", "agree"
         return b, "run2", "tie -> run2", "agree"
+    a_ties, b_ties = "bs_tie" in a.get("evidence", []), "bs_tie" in b.get("evidence", [])
+    if a_ties != b_ties:
+        return (a, "run1", "balance-sheet tie", "conflict") if a_ties else (b, "run2", "balance-sheet tie", "conflict")
     null = copy.deepcopy(a)
     null.update(value=None, unit=None, period=None, raw_label=None, source=None, confidence=0.0, evidence=[])
     return null, "null", "conflict, no signal -> null", None
