@@ -7,17 +7,19 @@ from . import extract, merge
 COMMON = ["entity", "consolidation", "period", "currency", "scale", "source", "restatement"]
 DEBT = ["debt_basis", "leases", "bucket_mapping"]
 CHOICES = {"consolidation": {"Group", "Parent"}, "scale": {"Units", "Thousands", "Millions", "Billions"}, "restatement": {"As reported", "Restated (explain in note)"}, "debt_basis": {"Carrying amounts", "Contractual undiscounted cash flows"}, "leases": {"Included", "Excluded"}}
+SUBSTITUTES = {"value_derived", "stated_zero", "printed_nil"}  # exactly one may stand in for value_in_quote (docs/CONFIDENCE.md)
 
 def required(section):
     return COMMON + (DEBT if section == "debt_maturity" else [])
 
 def _field_ok(f):
     """Same bar decorate() uses to close a field's queue issue: a human confirmed or corrected it, or
-    every automatic trust signal is present (quote on page, value in quote, label/period/unit checked,
-    right statement page, and a source at all)."""
+    every automatic trust signal is present -- quote on page, value in quote (or exactly one SUBSTITUTE
+    standing in for it), label/period/unit checked, right statement page, and a source at all."""
     review = f.get("human_review", {})
     evidence = set(f.get("evidence", []))
-    return review.get("decision") in ("confirmed", "corrected") or ({"quote_on_page", "value_in_quote", "label_known", "period_ok", "page_is_statement", "unit_ok"} <= evidence and bool(f.get("source")))
+    matched = "value_in_quote" in evidence or len(evidence & SUBSTITUTES) == 1
+    return review.get("decision") in ("confirmed", "corrected") or (matched and {"quote_on_page", "label_known", "period_ok", "page_is_statement", "unit_ok"} <= evidence and bool(f.get("source")))
 
 def _basis_confirmed(x):
     """Same bar compare() uses for a usable basis: a reviewer, and every required() field filled in,
@@ -27,6 +29,25 @@ def _basis_confirmed(x):
     if not basis.get("reviewer") or any(not values.get(k, "").strip() for k in required(x.get("section"))):
         return False
     return not values.get("period") or str(x.get("fiscal_year")) in values["period"]
+
+def _unit_basis(unit):
+    """'MSEK' -> ('SEK', 'Millions'), 'SEK thousand' -> ('SEK', 'Thousands'), 'kr' -> ('SEK', 'Units'); '' where unreadable."""
+    u = re.sub(r"[\s.'‘’]+", " ", str(unit or "").translate(extract._SYMBOLS)).strip()
+    s, ccy = u.casefold(), extract._ccy(u)
+    scale = ("Billions" if re.search(r"\bbn\b|billion|\bmdr?kr\b", s) else
+             "Millions" if re.search(r"\bmn?\b|million|miljoner|\bmn?kr\b|\bm[a-z]{3}\b|\b[a-z]{3}m\b", s) else
+             "Thousands" if re.search(r"\b[kt]\b|thousand|tusen|\b0{3}\b|\b[kt][a-z]{3}\b", s) else
+             "Units" if re.fullmatch(r"[a-z]{3}|kr", s) else "")
+    return (ccy if re.fullmatch(r"[A-Z]{3}", ccy) else ""), scale
+
+def suggested_basis(x):
+    """Prefill for the basis form, read off what the extraction already knows. Only a human saves a basis."""
+    ccy, scale = _unit_basis(x.get("currency"))
+    out = {"entity": x.get("company") or "", "consolidation": "Group", "period": str(x.get("fiscal_year") or ""), "currency": ccy, "scale": scale, "source": "Annual report", "restatement": "As reported"}
+    if x["section"] == "debt_maturity":
+        out.update(debt_basis={"carrying": "Carrying amounts", "undiscounted": "Contractual undiscounted cash flows"}.get(x.get("maturity_basis"), ""),
+                   leases="Included" if re.search(r"(?i)leas", x.get("debt_scope") or "") else "", bucket_mapping="")
+    return out
 
 def checks(x, schema):
     fields = {f["key"]: f for f in x["fields"]}
@@ -62,9 +83,12 @@ def decorate(x, schema, audit=None):
         x.setdefault("check_history", []).append(dict(audit, previous=old))
     basis = x.get("basis") or {}
     values = basis.get("values", {})
-    issues = [{"kind": "basis", "key": k, "detail": "Confirm " + k.replace("_", " ")} for k in required(x["section"]) if not basis.get("reviewer") or not values.get(k, "").strip()]
+    # Basis definitions are a form to confirm, not a review task: they live beside the queue and never block ready.
+    basis_issues = [{"kind": "basis", "key": k, "detail": "Confirm " + k.replace("_", " ")} for k in required(x["section"]) if not basis.get("reviewer") or not values.get(k, "").strip()]
     if values.get("period") and str(x.get("fiscal_year")) not in values["period"]:
-        issues.append({"kind": "basis", "key": "period", "detail": "Confirmed period must identify the saved fiscal year"})
+        basis_issues.append({"kind": "basis", "key": "period", "detail": "Confirmed period must identify the saved fiscal year"})
+    optional = {f["key"] for f in schema["fields"] if f.get("optional")}  # a line the report may simply not print
+    issues, not_reported = [], []
     for f in x["fields"]:
         review = f.get("human_review", {})
         evidence = set(f.get("evidence", []))
@@ -74,10 +98,12 @@ def decorate(x, schema, audit=None):
         if f.get("value") is None and "absent_in_table" in evidence and review.get("decision") != "unresolved":
             continue
         resolved = _field_ok(f)
-        if f.get("value") is None or not f.get("unit") or not f.get("period") or review.get("decision") == "unresolved" or not resolved or (values.get("period") and str(f.get("period")) != values["period"]):
+        if f.get("value") is None and f["key"] in optional and review.get("decision") != "unresolved":
+            not_reported.append(f["key"])
+        elif f.get("value") is None or not f.get("unit") or not f.get("period") or review.get("decision") == "unresolved" or not resolved or (values.get("period") and str(f.get("period")) != values["period"]):
             issues.append({"kind": "field", "key": f["key"], "detail": f.get("label", f["key"]) + (": missing value (not zero)" if f.get("value") is None else ": verify value, unit, period and source")})
-    issues += [{"kind": "check", "key": c["name"], "detail": c["name"] + ": " + c["detail"]} for c in x["checks"] if not c["passed"]]
-    x.update(issues=issues, ready=not issues)
+    issues += [{"kind": "check", "key": c["name"], "detail": c["name"] + ": " + c["detail"]} for c in x["checks"] if c["status"] == "failed"]  # "unavailable" is a missing operand, already a field issue or not reported
+    x.update(issues=issues, basis_issues=basis_issues, basis_suggested=suggested_basis(x), not_reported=not_reported, ready=not issues)
     return x
 
 def compare(current, previous):

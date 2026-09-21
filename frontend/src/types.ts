@@ -197,7 +197,10 @@ export type Extraction = {
   basis?: Basis;
   basis_history?: (Basis & { previous: Partial<Basis> })[];
   check_history?: unknown[];
-  issues?: ReviewIssue[];
+  issues?: ReviewIssue[];   // field + check tasks for a human; ready = no issues
+  basis_issues?: ReviewIssue[]; // basis definitions still to confirm; never block ready
+  basis_suggested?: Record<string, string>; // prefill for the basis form, read from the extraction; never saved by the backend
+  not_reported?: string[];  // schema-optional fields the report does not print (null, not zero, not a task)
   ready?: boolean;
   report_id: string;
   stem?: string;            // saved source, provided when opening the knowledge base

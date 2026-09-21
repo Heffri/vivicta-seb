@@ -17,9 +17,16 @@ test('verification reports evidence rather than a probability of truth', () => {
   expect(fieldVerification({ ...field, evidence: evidence.map(e => e === 'value_in_quote' ? 'value_derived' : e) }).label).toBe('Calculated from report')
   expect(fieldVerification({ ...field, evidence: evidence.filter(e => e !== 'period_ok') }).label).toBe('Needs review')
   expect(fieldVerification({ ...field, source: null }).label).toBe('Needs review')
+  // exactly one stand-in for value_in_quote resolves the row (docs/CONFIDENCE.md); two at once, or none, is a review
   for (const zero of ['printed_nil', 'stated_zero']) {
-    expect(fieldVerification({ ...field, value: 0, evidence: evidence.map(e => e === 'value_in_quote' ? zero : e) }).label).toBe('Needs review')
+    expect(fieldVerification({ ...field, value: 0, evidence: evidence.map(e => e === 'value_in_quote' ? zero : e) }).label).toBe('Reported as zero')
+    expect(fieldVerification({ ...field, value: 0, evidence: evidence.map(e => e === 'value_in_quote' ? zero : e).filter(e => e !== 'label_known') }).label).toBe('Needs review')
   }
+  expect(fieldVerification({ ...field, value: 0, evidence: [...evidence.filter(e => e !== 'value_in_quote'), 'value_derived', 'stated_zero'] }).label).toBe('Needs review')
+  expect(fieldVerification({ ...field, evidence: evidence.filter(e => e !== 'value_in_quote') }).label).toBe('Needs review')
+  // a schema-optional row the report does not print: not found is not a task, and not a zero
+  expect(fieldVerification({ ...field, value: null }, true).label).toBe('Not reported')
+  expect(fieldVerification({ ...field, value: null, human_review: { decision: 'unresolved', reviewer: 'A', note: 'The row exists', at: 'now' } }, true).label).toBe('Needs review')
 })
 
 for (const tone of ['dark', 'light']) {

@@ -19,6 +19,7 @@ type SourcePanelProps = {
   pdfAvailable?: boolean
   page: number | null // what the pane shows: askPage override or the selected field's page
   selected: Field | null
+  notReported?: boolean // the selected field is one the report does not print (Extraction.not_reported)
   askPage: number | null // citation chip override in effect
   viewer: Viewer
   onViewerChange: (v: Viewer) => void
@@ -43,6 +44,7 @@ export function SourcePanel({
   pdfAvailable = true,
   page,
   selected,
+  notReported = false,
   askPage,
   viewer,
   onViewerChange,
@@ -88,8 +90,8 @@ export function SourcePanel({
       <CardContent className="space-y-4">
         {selected && askPage === null && (
           <div className="text-sm" aria-live="polite">
-            <p className="font-medium">{selected.label}: {fieldVerification(selected).label}</p>
-            <p className="mt-1 text-muted-foreground">{fieldVerification(selected).detail}</p>
+            <p className="font-medium">{selected.label}: {fieldVerification(selected, notReported).label}</p>
+            <p className="mt-1 text-muted-foreground">{fieldVerification(selected, notReported).detail}</p>
             {/* v179: an OCR'd page's text is read, not photographed — a match here is not proof the OCR read it right. */}
             {selected.evidence?.includes('ocr_text') && <p className="mt-1 font-medium text-warning">From OCR — check the scanned image.</p>}
           </div>

@@ -3359,6 +3359,13 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
                         values[key] = None
                         continue
                 if value is None or (isinstance(current, (int, float)) and abs(current - value) <= 2):
+                    # the model's own answer, quoted from this very row, is identified by the same proof as a
+                    # column-read one -- the row closes (label_known via the identity marker, see the write below).
+                    # "Total 197 22 1,377 9 1,605" is a bare label no synonym list can own; its arithmetic can.
+                    src = by_key[key].get("source") or {}
+                    if value is not None and closes and src.get("page") == page and normalize_ws(str(src.get("quote") or "")) == normalize_ws(rows[idx]) \
+                            and "identity_all_columns" not in by_key[key]["evidence"]:
+                        by_key[key]["evidence"].append("identity_all_columns")
                     continue  # nothing to add, or agrees with the model's own answer -- its evidence already covers it
                 if key == total_key and current is not None and total_key not in filled and not closes:
                     warnings.append(f"{key}: kept the model's own {current} -- the column-order row {rows[idx]!r} "
@@ -3381,13 +3388,17 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
                         continue
                     warnings.append(f"{key}: {prefix}; {value} read from {rows[idx]!r} by its column order")
                 # score_field derives value_in_quote itself from quote_on_page; only value_derived (a sum with no
-                # literal quote, e.g. two finer bucket columns) needs to be pre-seeded, or it would double-count
+                # literal quote, e.g. two finer bucket columns) needs to be pre-seeded, or it would double-count.
+                # a row whose buckets sum to its own total is this table's identity holding in every column
+                # -- the same proof that earns an unknown year-column row label_known (identity_all_columns, weight
+                # 0, score_field turns it into label_known). Only when it closes: a Total/Summa/Borrowings row that
+                # does not add up is not identified by anything, and its check fails on top.
                 by_key[key].update(value=value, period=str(fiscal_year) if fiscal_year else by_key[key]["period"],
                                     raw_label=_row_label(rows[idx]), source={"page": page, "quote": rows[idx]},
                                     evidence=(["quote_on_page", "printed_nil"] if nil else
                                               ["quote_on_page", "value_derived"] if key in og_cover else
                                               ["quote_on_page"] if _value_in_quote(value, rows[idx]) else
-                                              ["quote_on_page", "value_derived"]))
+                                              ["quote_on_page", "value_derived"]) + (["identity_all_columns"] if closes else []))
                 values[key] = value
                 filled.add(key)
                 acted = True
