@@ -1,4 +1,4 @@
-import type { ChunkPage, Answer, Company, Extraction, IndexStatus, KbEntry, LibraryEntry, MaturityWall, Report, ReviewComponent, Schema } from './types'
+import type { ChunkPage, Answer, Company, Extraction, FieldFill, IndexStatus, KbEntry, LibraryEntry, MaturityWall, Report, ReviewComponent, Schema } from './types'
 import type { Collection } from './hooks/useCollection'
 
 export type ApiError = Error & { status: number; tried?: string[] }
@@ -131,6 +131,13 @@ export const getMaturityWall = (collection: Collection = 'wallenberg') =>
 
 export const reviewField = (reportId: string, body: { section: string; key: string; expected: import('./types').Field; decision: import('./types').HumanReview['decision']; reviewer: string; note: string; value?: number | string | null; unit?: string | null; period?: string | null; source_page?: number; source_quote?: string; components?: ReviewComponent[] }) =>
   request<Extraction>(`/api/reports/${encodeURIComponent(reportId)}/review`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+
+// A controlled single-field candidate: the response is never persisted or merged into the
+// extraction. Its caller must copy it into the normal stale-checked human review form.
+export const fillField = (reportId: string, section: string, field: string, pages: number[]) =>
+  request<FieldFill>(`/api/reports/${encodeURIComponent(reportId)}/fill?section=${encodeURIComponent(section)}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ field, pages }),
+  })
 
 export const getReviewQueue = (collection: Collection = 'wallenberg') => request<import('./types').QueueIssue[]>(`/api/review-queue?collection_name=${collection}`)
 export const saveBasis = (reportId: string, body: { section: string; expected: Partial<import('./types').Basis>; values: Record<string, string>; reviewer: string; note: string }) =>

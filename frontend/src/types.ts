@@ -91,6 +91,10 @@ export type Field = {
   evidence: string[];       // satisfied evidence codes, e.g. ["quote_on_page","value_in_quote","arith_ok"]; 1.0 <=> all seven present; "absent_in_table" = the maturity table prints no column for this window (v165: value stays null, source quotes the header row, the identity counts it as 0)
 };
 
+// An analyst-directed /fill response is deliberately not an Extraction: it contains only a
+// candidate for one currently-empty field, and must be accepted through the ordinary review form.
+export type FieldFill = { candidate: Field | null; warnings: string[] };
+
 export type Check = {
   status?: "passed" | "failed" | "unavailable";
   stale?: boolean;

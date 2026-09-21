@@ -4050,6 +4050,34 @@ def test_absent_in_table_bucket():
     print("absent-in-table bucket ok")
 
 
+def test_fixed_pages_skip_selection():
+    """v177: analyst-supplied pages are the complete model window, even when two-pass is enabled."""
+    import json
+    import os
+    import pathlib
+
+    schema = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
+    selected = ["not selected", "Analyst evidence page two", "Analyst evidence page three"]
+    old_select, old_call = x._select_pages, x.call_llm
+    old_two_pass = os.environ.get("EXTRACT_TWO_PASS")
+    calls = []
+    try:
+        os.environ["EXTRACT_TWO_PASS"] = "1"
+        x._select_pages = lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("fixed pages must not select pages"))
+        x.call_llm = lambda _system, user: calls.append(user) or {"fields": []}
+        out = x.extract(selected, [2, 3], schema, {"fiscal_year": 2025}, fixed_pages=True)
+        assert len(calls) == 1, calls
+        assert "=== PAGE 2 ===\nAnalyst evidence page two" in calls[0], calls[0]
+        assert "=== PAGE 3 ===\nAnalyst evidence page three" in calls[0], calls[0]
+        assert "not selected" not in calls[0] and not any(w.startswith("two_pass:") for w in out["warnings"]), out
+    finally:
+        x._select_pages, x.call_llm = old_select, old_call
+        if old_two_pass is None:
+            os.environ.pop("EXTRACT_TWO_PASS", None)
+        else:
+            os.environ["EXTRACT_TWO_PASS"] = old_two_pass
+
+
 if __name__ == "__main__":
     test_confidence_never_exceeds_one()
     test_torn_bucket_headers()
@@ -4058,5 +4086,6 @@ if __name__ == "__main__":
     test_gross_value_prior_year_citation_refusal()
     test_note_citation_preference()
     test_absent_in_table_bucket()
+    test_fixed_pages_skip_selection()
     test_balance_sheet_tie()
     demo()
