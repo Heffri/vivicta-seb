@@ -1,21 +1,49 @@
 # Annual Report Parser — SEB challenge, Vivicta Finance & Insurance AI Hackathon 2026
 
-PDF annual report in → structured, **source-linked** data out → JSON/CSV for downstream banking systems. Web UI on top.
+An annual report's debt note in → **analyst material with sources** out: total interest-bearing
+debt and when it falls due, every figure carrying the page it came from and the verbatim sentence
+it was read from, exportable as PPTX/CSV/JSON for downstream banking systems. Web UI and a
+double-click Windows app on top.
 
-Challenge owner: Kimberly Lejonö, Co-Head CIB Data & AI Hub, SEB. Full brief + meeting notes: [`docs/CHALLENGE.md`](docs/CHALLENGE.md).
+Scope decided with SEB's end user (Kristian, 15 Sept): the **debt maturity note** — one slide per
+company, Nasdaq Stockholm Mid Cap. Challenge owner: Kimberly Lejonö, Co-Head CIB Data & AI Hub,
+SEB. Full brief + meeting notes: [`docs/CHALLENGE.md`](docs/CHALLENGE.md).
 
-## Quick start
+| ① Open a saved report | ② Click a figure — buckets + page | ③ The source: quote on the page |
+|---|---|---|
+| ![Knowledge base: search karnell, Open](docs/acrylic/evidence/v167/step1-kb-open-karnell.png) | ![Results: four debt buckets with checks](docs/acrylic/evidence/v167/step2-buckets.png) | ![Source panel: page 106, quote highlighted](docs/acrylic/evidence/v167/step3-source-page-quote.png) |
 
-- **Windows** — double-click `run.bat` (or run it from a terminal).
-- **macOS/Linux** — `./run.sh`
+*The saved Karnell Group FY2025 debt record, captured on the fixture backend — no model configured
+(dark tone, 1440×900); the page image in ③ comes from the PDF fetched onto that machine.*
 
-First run sets up a Python venv, installs dependencies, builds the frontend, and opens the app in
-your browser on one port — about 2-4 minutes. Later runs take a few seconds. No model is configured
-by default, so it runs on fixture (demo) data; see "Run it" below to point it at a real one. Ctrl+C
-stops it and closes the backend it started (on Windows, `run.bat` may ask `Terminate batch job
-(Y/N)?` first — that is `cmd.exe`'s own prompt for any batch file, not specific to this script;
-answer `Y`). Prefer a double-click app with no terminal at all? Grab the packaged Windows build from
-Releases instead — [`desktop/README.md`](desktop/README.md).
+## Try it in one minute — no model, no download
+
+The repo ships 206 saved reports; 105 carry a stored `debt_maturity` extraction. Start the app by
+any entry point below, open **Knowledge base** → set **Collection: All** → search `karnell` →
+**Open** → click a figure: page number, verbatim quote, the sum check, review and PPTX/CSV export
+all work offline, zero model calls. (Only page *images* need the PDF on disk.) The full demo
+script — the two bundled samples, a three-minute line-by-line, and the demo-day checklist — is
+[`docs/DEMO.md`](docs/DEMO.md).
+
+## Install / run — three entry points
+
+1. **Windows installer** (double-click, no toolchain): grab the Setup exe from the
+   [`desktop-demo` release](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-demo) —
+   CI-built, checks for updates on startup and applies them on exit (the [`desktop-main`
+   feed](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-main) tracks `main`).
+   Unsigned, so SmartScreen asks: "More info" → "Run anyway". Starts on fixture (demo) data; pick
+   a real provider in Settings. Do not demo from the old portable `desktop-0.3.4` zip — it cannot
+   update itself. Details: [`desktop/README.md`](desktop/README.md).
+2. **`run.bat` (Windows) / `./run.sh` (macOS/Linux)** from a clone of this repo: first run sets up
+   a Python venv, installs dependencies, builds the frontend, and opens the app in your browser on
+   one port — about 2–4 minutes; later runs take seconds. Ctrl+C stops it (on Windows,
+   `Terminate batch job (Y/N)?` is `cmd.exe`'s own prompt for any batch file — answer `Y`).
+3. **From source, piece by piece** — backend venv + `uvicorn`, frontend dev server with `/api`
+   proxy: see "Run it" below.
+
+Docs: the API contract is [`docs/API.md`](docs/API.md); what the acrylic branch built and how to
+verify it is [`docs/acrylic/README.md`](docs/acrylic/README.md); backend state is
+[`docs/HANDOFF.md`](docs/HANDOFF.md).
 
 ## The one idea to keep
 
@@ -36,7 +64,7 @@ The handshake between frontend and backend is [`docs/API.md`](docs/API.md). Chan
 
 ## Run it
 
-`run.bat` / `run.sh` (see "Quick start" above) does all of this in one step and serves frontend +
+`run.bat` / `run.sh` (entry point 2 above) does all of this in one step and serves frontend +
 backend on a single port. To run each piece by hand instead (e.g. to use `--reload` while editing):
 
 Backend (terminal 1):
@@ -50,8 +78,10 @@ cp .env.example .env               # leave LLM_BASE_URL unset → returns the fi
 uvicorn app:app --reload --port 8000
 ```
 
-Reports (once): `python data/fetch.py` downloads the six bundled annual reports listed in `data/reports/index.json`
-(Atlas Copco, Investor, Saab en/sv, SEB, SKF — ~130 MB). They show up in `GET /api/library` and in the UI's library picker.
+Reports (once): `python data/fetch.py` downloads the annual reports listed in `data/reports/index.json`
+(114 curated entries — Atlas Copco, Investor, Saab en/sv, SEB, SKF and the rest; ~130 MB). They show
+up in `GET /api/library` and in the UI's library picker. None of this is needed for the saved-KB
+walkthrough above; PDFs are only required for page images and *new* live extractions.
 
 Frontend (terminal 2):
 
@@ -95,7 +125,49 @@ Extraction and Ask's answers then run on Codex/Claude — no base URL needed; wi
 falls back to keyword search (BM25), and an `LLM_BASE_URL` (Ollama/OpenAI-compatible) upgrades it to hybrid
 embeddings+BM25 — see `backend/README.md`.
 
-Accuracy:
+## Accuracy — the honest version
+
+**Stored-library scores and first-extraction scores are two different claims.** They are kept
+separate here, and the error *nature* is separate again.
+
+**1) The stored library (curated).** `data/kb/` holds 105 stored `debt_maturity` extractions,
+republished after every pipeline change under a "nothing loses on the hand-verified labels" gate.
+That gate is exactly why this number is *not* a first-pass rate:
+
+```bash
+python eval/run.py --stored-kb data/kb --no-fail   # zero model calls, offline, reproducible
+```
+
+- Values **327/367 (89.1%)** — 271 hand-verified `debt_maturity` rows across 105 companies
+  (the Mid Cap hardening universe plus the large-cap originals), plus 96 `income_statement` rows
+  (income alone: 96/96 values, 92/92 cited pages)
+- Cited pages **263/313 (84.0%)** (scored only where a value is cited)
+- Debt section alone: values **231/271 (85.2%)**, pages **171/221 (77.4%)** — the headline number
+  is pulled up by the income section; the debt number is the honest one for the scoped section
+
+**2) First extraction (no labels at run time).** Three measured batches where the pipeline ran
+without label access and was scored afterwards:
+
+- 24 companies the locator had just made reachable: **9 → 14** fully-labelled companies
+  ([v124](docs/acrylic/evidence/v124.md))
+- 18 newly-labelled stems: stored 16/40 → **19/40** label fields after that round's publish set —
+  the raw fresh runs scored 14/40 ([v136](docs/acrylic/evidence/v136.md))
+- 28 remaining value-miss stems: 23/69 → **31/69** fields, pages 17/62 → 23/62
+  ([v160](docs/acrylic/evidence/v160.md))
+
+**3) What the errors are.** Of the 40 debt value misses in the stored library: **34 are empty**
+(the field was not read, or was honestly declined) and **6 are non-empty but wrong**. An audit of
+the disputed label candidates found **0 label errors**, **2 report-internal disagreements** (the
+report itself prints two inconsistent totals — Green Landscaping, Volati) and **7 hard cases**
+where the label is right and a named, bounded mechanism gap blocked the read
+([v154](docs/acrylic/evidence/v154.md)). Scope calls that depend on Kristian's definitions
+(carrying vs undiscounted, leases in/out) are disclosed per company, not silently resolved.
+
+**4) The boundary.** The 105 labelled companies have been used repeatedly to debug and tune this
+pipeline — none of the numbers above is an out-of-the-box market-accuracy claim, and we do not
+present them as one.
+
+Other checks:
 
 ```bash
 python eval/run.py --dry-run       # scores the fixture, no backend needed
@@ -106,8 +178,9 @@ python scripts/random_check.py --n 10 --seed 1   # fetches 10 untuned Large Cap 
 ## Desktop app
 
 A double-click Windows app instead of a browser tab — same frontend, a packaged `backend.exe`, real
-OS acrylic material on Windows 11. Build and run it from `desktop/`:
-[`desktop/README.md`](desktop/README.md).
+OS acrylic material on Windows 11. Install it from the [`desktop-demo`
+release](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-demo) (auto-updating), or build
+it from `desktop/`: [`desktop/README.md`](desktop/README.md).
 
 ### Sharing saved reports with the hackathon team
 
@@ -158,4 +231,7 @@ extract.py  candidate pages + schema → LLM (JSON schema) → fields
             → arithmetic checks from schema
 ```
 
-Deferred until a demo breaks without it: ESEF/iXBRL cross-check, vision fallback for scanned tables, async jobs, DB, auth, multi-report compare.
+Deferred until a demo breaks without it: ESEF/iXBRL cross-check, full vision fallback for scanned
+tables (selective page OCR for text-less PDFs ships today — see `docs/PERFORMANCE.md`), async jobs,
+DB, auth. Multi-report compare is no longer deferred: the Compare tab compares saved extractions
+side by side, including the KB entries.
