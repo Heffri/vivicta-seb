@@ -25,6 +25,8 @@ type SourcePanelProps = {
   brokenPage: number | null
   onBrokenPage: (page: number) => void
   onUseSource?: (source: Source) => void
+  onFillField?: (page: number) => void
+  fillingField?: boolean
 }
 
 const VIEWER_OPTIONS: { value: Viewer; label: string }[] = [
@@ -47,6 +49,8 @@ export function SourcePanel({
   brokenPage,
   onBrokenPage,
   onUseSource,
+  onFillField,
+  fillingField = false,
 }: SourcePanelProps) {
   const [savedPage, setSavedPage] = useState<{page: number; stem: string; text: string} | null>(null)
   const [pageError, setPageError] = useState<{page: number; stem: string; message: string} | null>(null)
@@ -164,6 +168,11 @@ export function SourcePanel({
                   {onUseSource && !stem && page === selected.source.page && <Button type="button" variant="outline" size="xs" className="mt-2" onClick={() => onUseSource(selected.source!)}>Use this line as citation</Button>}
                 </div>
               )
+            )}
+            {onFillField && selected?.value === null && page !== null && (
+              <Button type="button" variant="outline" size="xs" disabled={fillingField} onClick={() => onFillField(page)}>
+                {fillingField ? 'Reading selected page…' : `Fill ${selected.label} from this page`}
+              </Button>
             )}
             {onUseSource && savedPage?.page === page && savedPage.stem === stem && <details open className="rounded-lg border p-3"><summary className="cursor-pointer text-xs font-medium">Choose a saved page line for the review citation</summary><div className="mt-2 max-h-44 space-y-1 overflow-y-auto">{savedPage.text.split(/\r?\n/).map((line, index) => line.trim() && <button key={index} type="button" aria-label="Use this line as citation" className="block w-full rounded px-2 py-1 text-left text-xs hover:bg-muted" onClick={() => onUseSource({ page, quote: line.trim() })}><span className="mr-2 font-medium text-primary">Use this line as citation</span>{line.trim()}</button>)}</div></details>}
           </>

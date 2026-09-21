@@ -66,6 +66,11 @@ class ExtractBody(BaseModel):
     section: str
 
 
+class FillBody(BaseModel):
+    field: str = Field(pattern=r"^[a-z0-9_]+$")
+    pages: list[int] = Field(min_length=1, max_length=2)
+
+
 class ReviewComponent(BaseModel):
     value: FiniteFloat
     page: int = Field(ge=1)
@@ -134,6 +139,23 @@ def report_texts(report_id: str) -> list[str]:
             pages = kb._pages(report["stem"])
             texts_cache[report_id] = [pages.get(n, "") for n in range(1, report["pages"] + 1)]
     return texts_cache[report_id]
+
+
+def fill_texts(report_id: str) -> list[str]:
+    """Read a fill window without registering or rewriting a report in the knowledge base."""
+    if report_id in texts_cache:
+        return texts_cache[report_id]
+    report = get_report(report_id)
+    saved_pages_path = kb.kb_dir() / report["stem"] / "pages.jsonl"
+    if saved_pages_path.is_file():
+        pages = kb._pages(report["stem"])
+        texts = [pages.get(n, "") for n in range(1, report["pages"] + 1)]
+    elif pdf_path(report_id).is_file():
+        texts = parse.page_texts(pdf_path(report_id))
+    else:
+        raise HTTPException(404, "No saved page text is available for this report")
+    texts_cache[report_id] = texts
+    return texts
 
 
 def library_index() -> list[dict]:
@@ -466,6 +488,51 @@ def _run_extract(report_id: str, body: ExtractBody):
             kb.save_extraction(report["stem"], body.section, result)  # fixture results never enter the KB
     extractions[report_id] = result
     return result
+
+
+@app.post("/api/reports/{report_id}/fill")
+def fill_field(report_id: str, body: FillBody, section: str = Query(pattern=r"^[a-z0-9_]+$")):
+    """Return one analyst-directed candidate without changing the stored extraction.
+
+    This is intentionally not a smaller `/extract`: the analyst chooses the complete one- or
+    two-page window, so locator ranking and pass-one page selection cannot substitute another
+    disclosure. Acceptance remains an ordinary, stale-checked human review.
+    """
+    report = get_report(report_id)
+    schema = load_schema(section)
+    current = saved_extraction(report_id, section)
+    if has_reviews(current):
+        raise HTTPException(409, "This section has human reviews. Keep the reviewed extraction instead of replacing it.")
+    schema_fields = {field["key"] for field in schema["fields"]}
+    if body.field not in schema_fields:
+        raise HTTPException(422, f"Unknown field {body.field!r} for section {section!r}")
+    current_field = next((field for field in current["fields"] if field.get("key") == body.field), None)
+    if current_field is None or current_field.get("value") is not None:
+        raise HTTPException(422, "Analyst-directed fill is only available for an empty field")
+    if len(set(body.pages)) != len(body.pages):
+        raise HTTPException(422, "Choose one or two distinct evidence pages")
+    if not _llm_configured():
+        raise HTTPException(422, "Demo mode does not support targeted field fill. Configure a model to read the selected page.")
+    texts = fill_texts(report_id)
+    if any(page < 1 or page > len(texts) for page in body.pages):
+        raise HTTPException(422, "An evidence page is outside this report")
+    result = extract_mod.extract(texts, body.pages, schema, report, fixed_pages=True)
+    warnings = list(result.get("warnings", []))
+    candidate = next((copy.deepcopy(field) for field in result.get("fields", [])
+                      if isinstance(field, dict) and field.get("key") == body.field), None)
+    source = candidate.get("source") if candidate else None
+    source_page = source.get("page") if isinstance(source, dict) else None
+    source_quote = source.get("quote") if isinstance(source, dict) else None
+    if candidate is None or candidate.get("value") is None:
+        candidate = None
+        warnings.append(f"{body.field}: no value read from the supplied pages")
+    elif not isinstance(source_page, int) or source_page not in body.pages:
+        candidate = None
+        warnings.append(f"{body.field}: candidate source is outside the supplied pages")
+    elif not isinstance(source_quote, str) or not source_quote or not parse.quote_on_page(source_quote, texts[source_page - 1]):
+        candidate = None
+        warnings.append(f"{body.field}: candidate quote is not on its supplied source page")
+    return {"candidate": candidate, "warnings": warnings}
 
 
 @app.post("/api/reports/{report_id}/index")
