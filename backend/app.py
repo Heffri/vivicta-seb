@@ -115,12 +115,21 @@ class AskBody(BaseModel):
     report_stems: list[str] | None = None
 
 
-class FetchBody(BaseModel):
-    download_pdf: bool = False
+class DiscoverBody(BaseModel):
     company: str
     year: int
     country: str | None = None  # v074: optional context for the model search when the directory has no hit ("Switzerland")
     hint: str | None = None     # v074: free-text hint for the model search ("FY ends 30 June", the report's exact title)
+
+
+class FetchBody(DiscoverBody):
+    download_pdf: bool = False
+    url: str | None = None      # a confirmed /discover candidate's PDF link: fetch_report tries it before its own sources
+
+
+def check_query(body: DiscoverBody):
+    if not (1990 <= body.year <= 2100) or len(body.company) > 100 or (body.country and len(body.country) > 60) or (body.hint and len(body.hint) > 300):
+        raise HTTPException(400, "bad company/year")
 
 
 def pdf_path(report_id: str) -> Path:
@@ -298,10 +307,19 @@ def list_companies(q: str = "", collection_name: Literal["all", "wallenberg", "m
     return [c | {"cached_years": sorted(set(cached.get(collection.identity(c["name"]), [])))} for c in hits[:50]]
 
 
+@app.post("/api/reports/discover")
+def discover_companies(body: DiscoverBody):
+    """Which legal entities the typed query could mean: saved reports first (no model call), then one
+    web-search ask. Nothing is downloaded; the user confirms a candidate and /fetch takes its url first."""
+    check_query(body)
+    return fetch.discover(body.company, body.year, body.country, body.hint, LIBRARY)
+
+
 @app.post("/api/reports/fetch")
 def fetch_report(body: FetchBody):
-    if not (1990 <= body.year <= 2100) or len(body.company) > 100 or (body.country and len(body.country) > 60) or (body.hint and len(body.hint) > 300):
-        raise HTTPException(400, "bad company/year")
+    check_query(body)
+    if body.url and (len(body.url) > 2000 or not body.url.startswith(("http://", "https://"))):
+        raise HTTPException(400, "bad url")
     slug = fetch.slugify(body.company)
     if not body.download_pdf:
         saved = [e for e in kb.entries() if e.get("fiscal_year") == body.year and collection.identity(e.get("company")) == collection.identity(body.company)]
@@ -314,8 +332,8 @@ def fetch_report(body: FetchBody):
             raise HTTPException(409, "No saved report text or local PDF for this company and year. Enable PDF download explicitly or upload your own report.")
         t0 = time.time()
         try:
-            # The connected model searches official sources first; feeds are fallback discovery.
-            entry = fetch.fetch_report(body.company, body.year, LIBRARY, body.country, body.hint)
+            # A confirmed candidate's url is tried first; then the connected model searches official sources; feeds are fallback discovery.
+            entry = fetch.fetch_report(body.company, body.year, LIBRARY, body.country, body.hint, url=body.url)
         except LookupError as e:
             detail = f"no annual report found for {body.company} {body.year}"
             if len(e.args) > 1 and e.args[1]:  # v074: a failed model search says so, with why
@@ -393,7 +411,7 @@ def report_candidates(report_id: str, section: str = Query(min_length=1)):
     texts = report_texts(report_id)
     stripped = locate.strip_boilerplate(texts)
     return [{"page": page, "heading": " ".join(stripped[page - 1].split())[:80]}
-            for page in locate.candidate_pages(texts, schema)]
+            for page in locate.candidate_pages(texts, schema, fiscal_year=report.get("fiscal_year"))]
 
 
 @app.post("/api/reports/{report_id}/extract")

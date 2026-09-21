@@ -49,3 +49,36 @@ for (const tone of TONES) {
     expect(errors).toEqual([])
   })
 }
+
+// Extraction runs three at a time (the backend's hosted-model semaphore is 3): with five queued files the
+// fourth /extract must wait for one of the first three to finish, and results keep the queue order.
+test('extract: five uploads run three at a time', async ({ page }) => {
+  let inFlight = 0, peak = 0
+  const started: string[] = []
+  await page.route('**/api/**', async route => {
+    const path = new URL(route.request().url()).pathname
+    if (path === '/api/reports' && route.request().method() === 'POST') {
+      const name = /filename="([^"]+)"/.exec(route.request().postDataBuffer()?.toString('latin1') ?? '')?.[1] ?? 'unknown.pdf'
+      return route.fulfill({ json: { report_id: `up-${name}`, filename: name, pages: 2, company: name.replace('.pdf', ''), fiscal_year: 2025 } })
+    }
+    if (path.endsWith('/extract')) {
+      const id = path.split('/')[3]
+      started.push(id); inFlight++; peak = Math.max(peak, inFlight)
+      await new Promise(r => setTimeout(r, 400))
+      inFlight--
+      return route.fulfill({ json: { report_id: id, company: id.replace('up-', '').replace('.pdf', ''), fiscal_year: 2025, section: 'income_statement', fields: [], checks: [], warnings: [] } })
+    }
+    return route.fulfill({ json: path === '/api/schemas' ? [{ name: 'income_statement', title: 'Income statement' }] : path === '/api/config' ? { provider: 'codex', model: 'test' } : [] })
+  })
+  await page.goto('/')
+  await page.setInputFiles('#pdf', [1, 2, 3, 4, 5].map(i => ({ name: `report-${i}.pdf`, mimeType: 'application/pdf', buffer: makePdf(i) })))
+  await page.getByRole('main').getByRole('button', { name: 'Extract 5 reports', exact: true }).click()
+  await expect.poll(() => started.length).toBe(3) // the first three start together…
+  expect(inFlight).toBe(3)
+  await expect.poll(() => started.length).toBe(5) // …the rest only as slots free up
+  await expect(page.getByText('5 of 5 reports extracted')).toBeVisible()
+  expect(peak).toBe(3)
+  await expect(page.locator('table thead th')).toHaveCount(6) // Field + 5 report columns, queue order
+  await expect(page.locator('table thead th').nth(1)).toHaveText(/report-1/)
+  await expect(page.locator('table thead th').nth(5)).toHaveText(/report-5/)
+})

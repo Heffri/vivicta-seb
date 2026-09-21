@@ -16,6 +16,23 @@ export type Company = {
   cached_years: number[];   // years already present in the report cache, e.g. [2025]
 };
 
+export type Candidate = {          // one entity POST /api/reports/discover proposes; identity fields are model-reported unless saved
+  legal_name: string;       // registered name, e.g. "Intel Corporation" — never the typed fragment
+  ticker: string | null;    // "INTC"
+  exchange: string | null;  // "NASDAQ"
+  country: string | null;   // ISO 3166-1 alpha-2, "US"
+  org_number_or_lei: string | null;
+  fiscal_year_end: string | null;  // month the fiscal year ends, "Dec"
+  document_title: string | null;   // the report's own title for that year
+  document_type: string | null;    // "annual report" | "10-K" | "20-F" | "annual and sustainability report" | other
+  url: string | null;       // official report PDF for that year when known; /fetch tries it first
+  reason: string;
+  saved: boolean;           // already in the report cache or knowledge base for that year: no download needed
+  stem: string | null;      // data/kb/<stem> when saved
+};
+
+export type Discovery = { candidates: Candidate[]; note: string | null };
+
 export type LibraryEntry = {
   file: string;             // basename in data/reports/, e.g. "atlas_copco_2025.pdf"; key for from-library
   company: string;          // display name, curated in data/reports/index.json

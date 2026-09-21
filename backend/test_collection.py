@@ -48,4 +48,16 @@ with tempfile.TemporaryDirectory() as tmp:
         with patch.object(app.fetch, 'fetch_report', return_value=entry) as download, patch.object(app, 'register_library', return_value={'report_id': 'new'}):
             assert client.post('/api/reports/fetch', json={'company': 'ABB', 'year': 2024, 'download_pdf': True}).status_code == 200
             download.assert_called_once()
-print('Wallenberg scope, saved-text reuse, review preservation and opt-in downloads passed')
+            # a confirmed /discover candidate: its url reaches fetch_report as the first thing to try
+            body = {'company': 'ABB Ltd', 'year': 2024, 'country': 'CH', 'download_pdf': True, 'url': 'https://example.com/abb-annual-report-2024.pdf'}
+            assert client.post('/api/reports/fetch', json=body).status_code == 200
+            assert download.call_args.args[0] == 'ABB Ltd' and download.call_args.kwargs == {'url': body['url']}
+            assert client.post('/api/reports/fetch', json=body | {'url': 'javascript:alert(1)'}).status_code == 400
+        # /discover never downloads: it hands the query to fetch.discover and returns its candidates + note as-is
+        with patch.object(app.fetch, 'fetch_report', side_effect=AssertionError('Unexpected PDF download')), \
+                patch.object(app.fetch, 'discover', return_value={'candidates': [], 'note': 'n'}) as discover:
+            response = client.post('/api/reports/discover', json={'company': 'intel', 'year': 2025, 'hint': 'chips'})
+            assert response.status_code == 200 and response.json() == {'candidates': [], 'note': 'n'}, response.text
+            assert discover.call_args.args == ('intel', 2025, None, 'chips', library)
+            assert client.post('/api/reports/discover', json={'company': 'intel', 'year': 1066}).status_code == 400
+print('Wallenberg scope, saved-text reuse, review preservation, discover and opt-in downloads passed')

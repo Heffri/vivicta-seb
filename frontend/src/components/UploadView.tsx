@@ -1,6 +1,6 @@
-import { BookOpenCheck, Globe, Info, Loader2 } from 'lucide-react'
+import { BookOpenCheck, Info, Loader2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { type ApiError, fetchReport, getCompanies, getConfig, getLibrary, getSchemas, openKbExtraction, registerLibraryReport, uploadReport } from '@/api'
+import { type ApiError, discoverCompanies, fetchReport, getCompanies, getConfig, getLibrary, getSchemas, openKbExtraction, registerLibraryReport, uploadReport } from '@/api'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ErrorBlock } from '@/components/ui/state'
@@ -12,7 +12,7 @@ import { useCollection } from '@/hooks/useCollection'
 import type { Batch, BatchSpec } from '@/hooks/useBatch'
 import { Dropzone } from '@/components/upload/Dropzone'
 import type { Tab } from '@/components/shell/tabs'
-import type { Company, LibraryEntry, Result, Schema } from '@/types'
+import type { Candidate, Company, Discovery, LibraryEntry, Result, Schema } from '@/types'
 
 type Props = {
   batch: Batch
@@ -41,22 +41,23 @@ export function UploadView({ batch, onSubmit, resultsCount, onViewResults, onDon
   const [selected, setSelected] = useState<Set<string>>(new Set()) // LibraryEntry.file
   const [query, setQuery] = useState('')
   const [year, setYear] = useState('2025')
-  const [downloadPdf, setDownloadPdf] = useState(false)
   const [companies, setCompanies] = useState<Company[]>([])
   const [dirError, setDirError] = useState<string | null>(null)
   const [provider, setProvider] = useState<string | null>(null) // backend /api/config provider; null = not loaded yet
+  const [discovery, setDiscovery] = useState<Discovery | null>(null) // /discover candidates for the current query+year
+  const [discovering, setDiscovering] = useState(false)
   const [picked, setPicked] = useState<Company[]>([]) // directory picks, deduped by name
   const [files, setFiles] = useState<File[]>([]) // uploads, in drop/pick order, deduped by name+size
   const [dragging, setDragging] = useState(false)
   const [error, setError] = useState<string | null>(null) // local validation only (bad file type, sample open failure) — batch failures render per-item in BatchProgress
 
   // Retrying a queued item re-invokes the exact same getReport() closure it was built with; reading
-  // these two off refs (not the state values captured when the queue was built) means checking
-  // "Allow PDF download" after a download-needed failure and clicking Retry actually picks it up.
-  const liveRef = useRef({ year, downloadPdf })
+  // year off a ref (not the state value captured when the queue was built) means a Retry after
+  // changing the year field picks up the new one, not a stale value from when the batch started.
+  const yearRef = useRef(year)
   useEffect(() => {
-    liveRef.current = { year, downloadPdf }
-  }, [year, downloadPdf])
+    yearRef.current = year
+  }, [year])
 
   // Debounced directory search; empty query = first 50. 404 = backend route not wired yet → muted one-liner.
   useEffect(() => {
@@ -142,8 +143,6 @@ export function UploadView({ batch, onSubmit, resultsCount, onViewResults, onDon
   const busy = batch.busy || anyRetrying
   const count = picked.length + selected.size + files.length
   const canExtract = count > 0 && !!section && !busy
-  const hasWebQuery = query.trim().length > 0
-  const webSearchAvailable = provider === 'codex' || provider === 'claude'
   // v164: the expected duration is the provider's to promise. codex/claude subscriptions answer in
   // ~30 s; the OpenAI-compatible endpoint of this setup is the local model, ~1 min; the fixture
   // backend answers instantly, so it promises nothing.
@@ -153,6 +152,17 @@ export function UploadView({ batch, onSubmit, resultsCount, onViewResults, onDon
       : provider === 'openai'
         ? ' about a minute on the local model.'
         : ''
+
+  // The PDF is always fetched when nothing is saved: saved text/PDF first (download_pdf:false keeps
+  // kb reuse), and the backend's 409 "nothing saved" answer retries with the download allowed.
+  const fetchWithDownload = async (company: string, opts: { country?: string | null; url?: string | null } = {}) => {
+    try {
+      return await fetchReport(company, Number(yearRef.current), { ...opts, download_pdf: false })
+    } catch (e) {
+      if ((e as ApiError).status !== 409) throw e
+      return fetchReport(company, Number(yearRef.current), { ...opts, download_pdf: true })
+    }
+  }
 
   // Stored extraction from the knowledge base (supervisor add-on): no model call, works without the
   // original PDF (v092). The result was extracted previously and still awaits its basis
@@ -178,8 +188,8 @@ export function UploadView({ batch, onSubmit, resultsCount, onViewResults, onDon
       ...extra,
       ...(onlyExtra ? [] : picked).map((c) => ({
         label: c.name,
-        prep: `Opening ${c.name} annual report ${liveRef.current.year}…`,
-        getReport: () => fetchReport(c.name, Number(liveRef.current.year), { download_pdf: liveRef.current.downloadPdf }),
+        prep: `Opening ${c.name} annual report ${yearRef.current}…`,
+        getReport: () => fetchWithDownload(c.name),
       })),
       ...(onlyExtra ? [] : library)
         .filter((e) => selected.has(e.file))
@@ -189,22 +199,28 @@ export function UploadView({ batch, onSubmit, resultsCount, onViewResults, onDon
     onSubmit(specs, section, sectionTitle, eta)
   }
 
-  // Any company name can use live discovery; other queued picks stay untouched.
-  const runWeb = (name: string) => {
-    runBatch([
-      {
-        label: name,
-        prep: `Finding ${name} annual report ${year}…`,
-        getReport: async () => {
-          try { return await fetchReport(name, Number(liveRef.current.year), { download_pdf: false }) }
-          catch (error) {
-            if ((error as ApiError).status !== 409) throw error
-            return fetchReport(name, Number(liveRef.current.year), { download_pdf: true })
-          }
-        },
-      },
-    ], true)
+  // Enter/search → which legal entities the typed text could mean; a confirmed card then fetches + extracts.
+  const discover = (hint?: string) => {
+    setDiscovering(true)
+    setError(null)
+    discoverCompanies(query.trim(), Number(year), hint ? { hint } : undefined)
+      .then(setDiscovery)
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setDiscovering(false))
   }
+
+  // A confirmed candidate runs immediately, independent of any directory picks still queued.
+  const useCandidate = (c: Candidate) =>
+    runBatch(
+      [
+        {
+          label: c.legal_name,
+          prep: `Opening ${c.legal_name} annual report ${yearRef.current}…`,
+          getReport: () => fetchWithDownload(c.legal_name, { country: c.country, url: c.url }),
+        },
+      ],
+      true,
+    )
 
   return (
     <div className="mx-auto w-full max-w-3xl min-[1280px]:max-w-none">
@@ -271,9 +287,13 @@ export function UploadView({ batch, onSubmit, resultsCount, onViewResults, onDon
             dirError={dirError}
             picked={picked}
             busy={busy}
-            onQueryChange={setQuery}
-            onYearChange={setYear}
+            discovery={discovery}
+            discovering={discovering}
+            onQueryChange={(q) => { setQuery(q); setDiscovery(null) }}
+            onYearChange={(y) => { setYear(y); setDiscovery(null) }}
             onTogglePick={togglePick}
+            onDiscover={discover}
+            onUseCandidate={useCandidate}
           />
           <CachedReports
             library={library}
@@ -295,22 +315,6 @@ export function UploadView({ batch, onSubmit, resultsCount, onViewResults, onDon
           />
         </div>
 
-        {/* Live discovery is independent of the local directory and collection. */}
-        {hasWebQuery && (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border bg-background/50 px-5 py-3">
-            <div className="min-w-0 flex-1"><p className="text-sm font-medium">Find “{query.trim()}” on the web</p><p className="text-xs text-muted-foreground">Reuses saved reports first. Otherwise AI finds the official report, downloads the PDF and extracts your selected section.</p></div>
-            {webSearchAvailable ? (
-              <Button variant="outline" size="sm" disabled={busy || !section} onClick={() => runWeb(query.trim())}>
-                <Globe className="size-3.5" />
-                AI search, download & extract · {year}
-              </Button>
-            ) : (
-              <span className="text-xs text-muted-foreground">Web search needs a model provider (Settings).</span>
-            )}
-          </div>
-        )}
-
-        <label className="flex items-start gap-2 border-t px-5 py-3 text-sm"><input type="checkbox" className="mt-1" checked={downloadPdf} disabled={busy} onChange={e => setDownloadPdf(e.target.checked)} /><span>Allow PDF download for this request<span className="block text-xs text-muted-foreground">Off by default. Saved text and figures work without the original PDF. Turn on only to fetch a missing report or its original PDF.</span></span></label>
         {/* Action bar: section choice, run button. Per-item progress now lives in BatchProgress
             below, not a single shared line — it keeps going after this section re-renders and
             after a tab switch away and back, since it reads App-level batch state. */}
@@ -347,7 +351,7 @@ export function UploadView({ batch, onSubmit, resultsCount, onViewResults, onDon
             disabled={!canExtract}
           >
             {busy && <Loader2 className="animate-spin" />}
-            {downloadPdf && picked.length ? 'Download PDF and extract' : count > 1 ? `Extract ${count} reports` : 'Extract'}
+            {count > 1 ? `Extract ${count} reports` : 'Extract'}
           </Button>
         </div>
 

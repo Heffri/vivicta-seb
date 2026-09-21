@@ -18,7 +18,8 @@ Backend runs on `http://localhost:8000`, frontend dev server proxies `/api` to i
 | `GET`  | `/api/reports/{report_id}/extraction.csv` | – | last extraction for this report as CSV (one row per field). 404 if none |
 | `GET`  | `/api/reports/{report_id}/pdf` | – | the PDF itself, `Content-Disposition: inline`, so `<iframe src=".../pdf#page=64">` opens the browser's own viewer on that page |
 | `GET`  | `/api/companies?q=<text>&collection_name=wallenberg\|midcap\|all` | – | `Company[]` — the listed-company directory (`data/companies.json`, Nasdaq Stockholm), filtered by collection then name/ticker substring; max 50. Empty `q` = first 50. `midcap` is the 132 companies whose `market` is `Mid Cap` |
-| `POST` | `/api/reports/fetch` | `{ "company": "<Company.name>", "year": 2025, "country"?, "hint"? }` | `Report` — finds the company's annual report for that year on the web, downloads it into the cache (`data/reports/`), registers it like an upload. 10–90 s. Any company name is accepted — not just directory entries; `country`/`hint` are optional context for the model search (v074). `404` with `{detail, tried: string[]}` when nothing usable was found (a failed model search says so in `detail`). Cached = instant |
+| `POST` | `/api/reports/discover` | `{ "company": "<typed query>", "year": 2025, "country"?, "hint"? }` | `{ candidates: Candidate[], note: string \| null }` — which legal entities the query could mean, for the user to confirm one **before** anything is downloaded. Saved reports for that year first (`saved: true`, no model call), then one model web-search ask for up to 5 distinct entities with their official report PDF `url` when known; capped at 5, deduped on the normalized legal name. Without a codex/claude provider only saved matches come back and `note` says why; a failed model call is a `note` too. Nothing is downloaded |
+| `POST` | `/api/reports/fetch` | `{ "company": "<Candidate.legal_name or Company.name>", "year": 2025, "country"?, "hint"?, "url"?, "download_pdf"? }` | `Report` — finds the company's annual report for that year on the web, downloads it into the cache (`data/reports/`), registers it like an upload. 10–90 s. Any company name is accepted — not just directory entries; `country`/`hint` are optional context for the model search (v074). `url` (a confirmed `/discover` candidate's link) is downloaded and validated **first**, before any source of the backend's own, and falls through to them when it fails. `404` with `{detail, tried: string[]}` when nothing usable was found (a failed model search says so in `detail`). Cached = instant |
 | `GET`  | `/api/library?collection_name=wallenberg\|midcap\|all` | – | `LibraryEntry[]` — the report **cache** in `data/reports/` (only files present on disk), filtered by the requested collection. Populated by `/fetch`; hand-curated entries also live in `index.json` |
 | `POST` | `/api/reports/{report_id}/index` | – | `IndexStatus` — chunk + embed the report into the knowledge base (idempotent, cached on disk). ~10–30 s per report locally |
 | `POST` | `/api/ask` | `{ "question": string, "report_ids"?: string[], "report_stems"?: string[] }` | `Answer` — omit both scopes to search all saved reports. Explicit scopes must be non-empty and mutually exclusive; unknown entries fail rather than widening the search. Global retrieval uses BM25 with bounded context, without embedding the entire library |
@@ -50,6 +51,21 @@ type Company = {
   sector: string | null;    // ICB sector text
   isin: string | null;
   cached_years: number[];   // years already present in the report cache, e.g. [2025]
+};
+
+type Candidate = {          // one entity POST /api/reports/discover proposes; identity fields are model-reported unless saved
+  legal_name: string;       // registered name, e.g. "Intel Corporation" — never the typed fragment
+  ticker: string | null;    // "INTC"
+  exchange: string | null;  // "NASDAQ"
+  country: string | null;   // ISO 3166-1 alpha-2, "US"
+  org_number_or_lei: string | null;
+  fiscal_year_end: string | null;  // month the fiscal year ends, "Dec"
+  document_title: string | null;   // the report's own title for that year
+  document_type: string | null;    // "annual report" | "10-K" | "20-F" | "annual and sustainability report" | other
+  url: string | null;       // official report PDF for that year when known; /fetch tries it first
+  reason: string;
+  saved: boolean;           // already in the report cache or knowledge base for that year: no download needed
+  stem: string | null;      // data/kb/<stem> when saved
 };
 
 type LibraryEntry = {
@@ -268,17 +284,28 @@ One row per field. UTF-8, comma-separated, quotes escaped per RFC 4180. JSON exp
 Reports are **not** bundled. `data/companies.json` supplies local directory suggestions;
 `POST /api/reports/fetch` accepts any company name, including companies outside that directory.
 
-**AI-first discovery.** Existing saved text is reused without downloading. For a missing report,
-an explicit PDF-download request first uses the connected Codex/Claude model's live web-search tool.
-It looks for official annual-report PDFs or investor-relations pages for the requested fiscal year.
-The UI exposes this action for every non-empty company query, independently of the local collection
-or whether directory matches exist. A web-search action runs only that query, not other queued picks.
+**Discover, then confirm.** Typing a query and pressing Enter (or the search button) calls
+`POST /api/reports/discover`, which resolves the query to concrete legal entities — a fragment like
+"intel" comes back as "Intel Corporation, INTC, NASDAQ, US, FY ends Dec" with the report's title and
+PDF `url` when known — saved reports first, then one model web-search call. The UI renders one card
+per candidate (`saved` badge when the report is already local) and the user confirms one ("Use this
+company") or refines with a free-text hint ("None of these" re-runs discover with `hint`). Nothing is
+downloaded until a candidate is confirmed. The confirmed card's `legal_name` becomes the `company`
+sent to `/fetch` (so the cache filename and index entry carry the legal name, not the typed text) and
+its `url` is tried first. A search runs only that query, not other queued picks.
+
+**AI-first fetch.** Existing saved text is reused without downloading. For a missing report,
+a PDF-download request first tries the confirmed `url`, then the connected Codex/Claude model's live
+web-search tool, looking for official annual-report PDFs or investor-relations pages for the
+requested fiscal year.
 
 A report search makes at most two model calls: official report links, then a targeted IR/archive
-follow-up if needed. Discovered IR pages may be followed to their PDF links. Every downloaded PDF
-still passes issuer, fiscal-year, report-type and text-layer checks, with complete reports preferred
- over summary volumes. Model results retain `note: "model search (<provider>)"` and the legacy
-`tags: ["fetched", "foreign"]`; IR-page results use `note: "IR page crawl"`.
+follow-up if needed. Discovered IR pages may be followed to their PDF links. Every downloaded PDF —
+the confirmed `url` included — still passes issuer, fiscal-year, report-type and text-layer checks,
+with complete reports preferred over summary volumes. Confirmed-url results carry
+`note: "confirmed url"` (`"; summary volume"` appended under 80 pages); model results retain
+`note: "model search (<provider>)"` and the legacy `tags: ["fetched", "foreign"]`; IR-page results
+use `note: "IR page crawl"`.
 
 MFN/Cision, Nasdaq and traditional web discovery are fallback sources if model search is unavailable
 or cannot retrieve a valid report. This is public-web discovery, not guaranteed access to every site.
@@ -369,9 +396,9 @@ Returns the updated Extraction. Requires a saved extraction. Stale fields return
 `POST /api/reports/{report_id}/fill?section=<schema name>` is a controlled retry for an analyst who has already found one or two evidence pages for an **empty** field. Its body is `{field, pages}`. It uses the normal section schema, configured model, provenance and scope guards, but its extraction window is exactly those supplied pages: it does not run locator ranking or the optional page-selection pass. It returns only the requested `candidate` plus warnings; `candidate` is `null` if the target remains empty, has no source, or cites a page outside the supplied set. It never writes `data/kb`, changes the stored extraction, or changes another field. A human must explicitly accept the candidate through the review endpoint, so the ordinary expected-snapshot and citation checks still apply. Sections with any prior human review return 409, matching re-extraction protection. Fixture/demo mode returns 422 (`Demo mode does not support targeted field fill`), rather than presenting synthetic evidence as a candidate.
 
 
-### Collections and opt-in PDFs
+### Collections, discovery, and always-on PDFs
 The desktop UI defaults to `collection_name=wallenberg` on GET `/api/companies`, `/api/library`, and `/api/kb`; `all` remains available. `midcap` is the SEB Mid Cap universe: every company in `data/companies.json` whose `market` is `Mid Cap` (132 at publication), normalized with the same identity matching as the Wallenberg roster. The Collection switch includes SEB Mid Cap and carries its choice through the directory, saved reports, Ask's explicit report stems, and whole-KB exports. GET `/api/review-queue` also accepts `collection_name=wallenberg|midcap|all` and defaults to Wallenberg. The Wallenberg roster is defined in `pipeline/collection.py`, sourced from Investor and FAM; it is a curated holdings collection, not an exhaustive ownership graph.
-POST `/api/reports/fetch` defaults `download_pdf` to false. It reuses saved text or an existing PDF and returns 409 if neither exists, without making a web request. Only `download_pdf: true` permits a download. POST `/api/reports/{id}/extract` accepts `reuse_saved: true` to return the saved extraction before calling a model, preserving human reviews. A new extraction can use saved page text without a PDF.
+POST `/api/reports/discover` resolves a typed query to concrete legal entities before anything downloads; the UI renders the candidates as cards and the user confirms one (or refines with a hint) rather than the typed fragment becoming the company identity. POST `/api/reports/fetch` defaults `download_pdf` to false and reuses saved text or an existing PDF, returning 409 if neither exists. **The UI always downloads when nothing is saved**: there is no download checkbox any more — every directory pick, saved-text reuse and confirmed candidate first sends `download_pdf: false`, and on that 409 retries the same request with `download_pdf: true` behind a one-line "Downloading PDF…" progress notice, so the API's saved-text-first order is kept while the user never has to opt in. A confirmed candidate's `url` is downloaded and validated before any source of the backend's own. POST `/api/reports/{id}/extract` accepts `reuse_saved: true` to return the saved extraction before calling a model, preserving human reviews. A new extraction can use saved page text without a PDF.
 
 
 ### Analyst workbench
