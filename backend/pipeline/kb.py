@@ -57,6 +57,7 @@ _pages_cache: dict[str, tuple[float, dict[int, str]]] = {}
 _locks = {}
 _locks_guard = threading.Lock()
 _status_cache = {}
+_entry_cache: dict[str, tuple[tuple, dict]] = {}  # stem -> ((embedding fingerprint, file fingerprints), entry)
 CHUNKER_VERSION = 3  # validated facts combined with BM25 and the current parser
 
 BM25_K1, BM25_B = 1.5, 0.75  # Okapi defaults
@@ -128,7 +129,10 @@ def save_run(stem: str, section: str, n: int, result: dict) -> Path:
 def _section_files(stem: str) -> list[Path]:
     """extractions/<section>.json only -- never <section>.run<n>.json (v133's per-run merge
     records, audit-only): section names are [a-z0-9_]+, the run records carry a dot."""
-    d = kb_dir() / stem / "extractions"
+    return _section_files_in(kb_dir() / stem / "extractions")
+
+
+def _section_files_in(d: Path) -> list[Path]:
     return [p for p in sorted(d.glob("*.json")) if re.fullmatch(r"[a-z0-9_]+", p.stem)] if d.is_dir() else []
 
 
@@ -517,22 +521,61 @@ def _has_saved_figures(path: str, mtime_ns: int, size: int) -> bool:
         return False
 
 
-def entries() -> list[dict]:
-    """KbEntry[] minus report_id (app.py fills it from its registry)."""
+def _stat_fingerprint(paths: list[Path]) -> tuple:
+    """(path, mtime_ns, size) per file -- os.stat only, never a content read; missing files marked."""
     out = []
-    for d in sorted(p for p in kb_dir().glob("*") if re.fullmatch(r"[a-z0-9_-]+", p.name)
+    for p in paths:
+        try:
+            st = p.stat()
+        except OSError:
+            out.append((str(p), None, None))
+        else:
+            out.append((str(p), st.st_mtime_ns, st.st_size))
+    return tuple(out)
+
+
+def _index_in_progress(key: str) -> bool:
+    """True when the stem's index-operation lock is held -- the same lock index_status reports
+    'building' on, so a rebuild keeps showing through the entry cache exactly as before."""
+    lock = _locks.get((key, "index"))
+    if lock is None:
+        return False
+    if lock.acquire(blocking=False):
+        lock.release()
+        return False
+    return True
+
+
+def entries() -> list[dict]:
+    """KbEntry[] minus report_id (app.py fills it from its registry). The derived entry per stem is
+    cached by a file fingerprint -- (path, mtime_ns, size) of meta.json, pages.jsonl, embeddings.jsonl,
+    index.json and every extractions/<section>.json, plus the embedding identity -- so a warm listing
+    stats a few files per stem and reads none; writers (save_report/save_extraction/save_run, index
+    rebuilds) invalidate by changing those files, no manual eviction (v173)."""
+    embedding_fp = fingerprint(embedding_identity())
+    base = kb_dir()  # one resolve per request: ~5 kb_dir() calls x 206 stems was the warm cost
+    out = []
+    for d in sorted(p for p in base.glob("*") if re.fullmatch(r"[a-z0-9_-]+", p.name)
                     and (p / "meta.json").is_file() and (p / "pages.jsonl").is_file()):
+        sections = _section_files_in(d / "extractions")
+        signature = (embedding_fp, _stat_fingerprint(
+            [d / "meta.json", d / "pages.jsonl", d / "embeddings.jsonl", d / "index.json", *sections]))
+        cached = _entry_cache.get(d.name)
+        if cached is not None and cached[0] == signature and not _index_in_progress(str(d)):
+            out.append(dict(cached[1], sections=list(cached[1]["sections"])))
+            continue
         m = _meta(d.name)
         status = index_status(d.name)
         page_file = d / 'pages.jsonl'
         page_stat = page_file.stat()
-        sections = _section_files(d.name)
         figures = any(_has_saved_figures(str(p), (stat := p.stat()).st_mtime_ns, stat.st_size) for p in sections)
-        out.append({"stem": d.name, "report_id": None, "company": m.get("company"), "fiscal_year": m.get("fiscal_year"),
-                    "text_available": _has_saved_text(str(page_file), page_stat.st_mtime_ns, page_stat.st_size),
-                    "figures_available": figures,
-                    "pages": m.get("pages", 0), "sections": sorted(p.stem for p in sections),
-                    "indexed": status["status"] == "ready", **status})
+        entry = {"stem": d.name, "report_id": None, "company": m.get("company"), "fiscal_year": m.get("fiscal_year"),
+                 "text_available": _has_saved_text(str(page_file), page_stat.st_mtime_ns, page_stat.st_size),
+                 "figures_available": figures,
+                 "pages": m.get("pages", 0), "sections": sorted(p.stem for p in sections),
+                 "indexed": status["status"] == "ready", **status}
+        _entry_cache[d.name] = (signature, entry)
+        out.append(entry)
     return out
 
 

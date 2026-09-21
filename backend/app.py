@@ -222,10 +222,11 @@ async def upload_report(file: UploadFile = File(...)):
 
 
 @app.get("/api/library")
-def list_library(collection_name: Literal["all", "wallenberg"] = "all"):
+def list_library(collection_name: Literal["all", "wallenberg", "midcap"] = "all"):
+    in_scope = collection.scope(collection_name)
     out = []
     for e in library_index():
-        if collection_name == "wallenberg" and not collection.member(e.get("company")):
+        if not in_scope(e.get("company")):
             continue
         if e["file"] not in library_pages:
             with pymupdf.open(LIBRARY / e["file"]) as doc:
@@ -260,12 +261,12 @@ def report_from_library(body: LibraryBody):
 
 
 @app.get("/api/companies")
-def list_companies(q: str = "", collection_name: Literal["all", "wallenberg"] = "all"):
+def list_companies(q: str = "", collection_name: Literal["all", "wallenberg", "midcap"] = "all"):
     cached: dict[str, list[int]] = {}
     for e in library_index():
         cached.setdefault(collection.identity(e["company"]), []).append(e["fiscal_year"])
     q = q.strip().lower()
-    directory = collection.directory(COMPANIES) if collection_name == "wallenberg" else COMPANIES
+    directory = collection.directory(COMPANIES, collection_name)
     hits = [c for c in directory if q in c["name"].lower() or q in c["ticker"].lower()]
     hits.sort(key=lambda c: (not c["name"].lower().startswith(q), c["name"]))  # prefix matches first
     return [c | {"cached_years": sorted(set(cached.get(collection.identity(c["name"]), [])))} for c in hits[:50]]
@@ -319,6 +320,20 @@ def page_png(report_id: str, n: int):
     return Response(png, media_type="image/png")
 
 
+@app.get("/api/reports/{report_id}/candidates")
+def report_candidates(report_id: str, section: str = Query(min_length=1)):
+    """Ranked candidate pages for a section (v164): the same deterministic locator the extractor
+    runs (locate.candidate_pages), served before the model so the waiting UI can name the pages
+    being read. No model call -- fixture mode computes them from the real page text like any other.
+    heading = the page's de-boilerplated opening, whitespace-normalized (a peeks-at-the-page line)."""
+    report = get_report(report_id)
+    schema = load_schema(section)
+    texts = report_texts(report_id)
+    stripped = locate.strip_boilerplate(texts)
+    return [{"page": page, "heading": " ".join(stripped[page - 1].split())[:80]}
+            for page in locate.candidate_pages(texts, schema)]
+
+
 @app.post("/api/reports/{report_id}/extract")
 def run_extract(report_id: str, body: ExtractBody):
     report = get_report(report_id)
@@ -344,7 +359,10 @@ def _run_extract(report_id: str, body: ExtractBody):
     if saved.exists() and has_reviews(saved_extraction(report_id, body.section)):
         raise HTTPException(409, "This section has human reviews. Keep the reviewed extraction instead of replacing it.")
     if not _llm_configured():  # frontend dev mode: no model configured
-        result = json.loads(FIXTURE.read_text(encoding="utf-8")) | {"report_id": report_id}
+        # v164: the requested section overrides the fixture payload's own (an income-statement
+        # sample) -- the UI reads extraction.section to re-locate the report (the not-found banner's
+        # candidates call), and that must name the section the user actually ran.
+        result = json.loads(FIXTURE.read_text(encoding="utf-8")) | {"report_id": report_id, "section": body.section}
     else:
         texts = report_texts(report_id)
         pages = locate.candidate_pages(texts, schema)
@@ -464,12 +482,13 @@ def ask(body: AskBody):
 
 
 @app.get("/api/kb")
-def list_kb(collection_name: Literal["all", "wallenberg"] = "all"):
+def list_kb(collection_name: Literal["all", "wallenberg", "midcap"] = "all"):
     normalize = lambda name: re.sub(r"[\W_]+", " ", name.casefold()).strip()
     sectors = {normalize(c["name"]): c.get("sector") for c in COMPANIES}
+    in_scope = collection.scope(collection_name)
     out = []
     for e in kb.entries():
-        if collection_name == "wallenberg" and not collection.member(e.get("company")):
+        if not in_scope(e.get("company")):
             continue
         report_id = saved_report_id(e["stem"])
         get_report(report_id)
@@ -478,13 +497,14 @@ def list_kb(collection_name: Literal["all", "wallenberg"] = "all"):
     return out
 
 
-def kb_export_extractions(section: str, collection_name: Literal["all", "wallenberg"], q: str = "") -> list[dict]:
+def kb_export_extractions(section: str, collection_name: Literal["all", "wallenberg", "midcap"], q: str = "") -> list[dict]:
     """Load saved extracts directly: whole-universe exports never need a PDF or a model call."""
     schema = load_schema(section)
     query = q.strip().casefold()
+    in_scope = collection.scope(collection_name)
     out = []
     for entry in kb.entries():
-        if collection_name == "wallenberg" and not collection.member(entry.get("company")):
+        if not in_scope(entry.get("company")):
             continue
         if query and query not in (entry.get("company") or "").casefold() and query not in entry["stem"].casefold():
             continue
@@ -543,7 +563,7 @@ def kb_export_filename(section: str, collection_name: str, q: str, extension: st
 
 
 @app.get("/api/kb/export.csv")
-def kb_export_csv(section: str = "debt_maturity", collection_name: Literal["all", "wallenberg"] = Query("all", alias="collection"), q: str = ""):
+def kb_export_csv(section: str = "debt_maturity", collection_name: Literal["all", "wallenberg", "midcap"] = Query("all", alias="collection"), q: str = ""):
     rows = kb_export_extractions(section, collection_name, q)
     if not rows:
         raise HTTPException(404, f"No saved {section!r} extractions match this collection and filter")
@@ -556,7 +576,7 @@ def kb_export_csv(section: str = "debt_maturity", collection_name: Literal["all"
 
 
 @app.get("/api/kb/export.pptx")
-def kb_export_pptx(section: str = "debt_maturity", collection_name: Literal["all", "wallenberg"] = Query("all", alias="collection"), q: str = ""):
+def kb_export_pptx(section: str = "debt_maturity", collection_name: Literal["all", "wallenberg", "midcap"] = Query("all", alias="collection"), q: str = ""):
     extractions = kb_export_extractions(section, collection_name, q)
     if not extractions:
         raise HTTPException(404, f"No saved {section!r} extractions match this collection and filter")
@@ -700,9 +720,9 @@ def review_basis(report_id: str, body: BasisBody):
 
 
 @app.get("/api/review-queue")
-def review_queue():
+def review_queue(collection_name: Literal["all", "wallenberg", "midcap"] = "wallenberg"):
     out = []
-    for report in list_kb("wallenberg"):
+    for report in list_kb(collection_name):
         for section in report["sections"]:
             x = kb_extraction(report["stem"], section)
             out.extend({"report": report, "section": section, **issue} for issue in x["issues"])

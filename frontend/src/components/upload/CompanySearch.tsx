@@ -3,11 +3,12 @@ import { Badge } from '@/components/ui/badge'
 import { ErrorBlock } from '@/components/ui/state'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import type { Collection } from '@/hooks/useCollection'
 import type { Company } from '@/types'
 import { Face } from './Face'
 
 type CompanySearchProps = {
-  collection: 'wallenberg' | 'all'
+  collection: Collection
   query: string
   year: string
   companies: Company[]
@@ -33,7 +34,7 @@ export function CompanySearch({
   onTogglePick,
 }: CompanySearchProps) {
   return (
-    <Face label="Find a company" hint={collection === 'all' ? 'Local matches below · AI search works worldwide' : 'Wallenberg matches below · AI search works worldwide'}>
+    <Face label="Find a company" hint={collection === 'all' ? 'Local matches below · AI search works worldwide' : collection === 'midcap' ? 'SEB Mid Cap matches below · AI search works worldwide' : 'Wallenberg matches below · AI search works worldwide'}>
       <div className="flex gap-2">
         <Input
           id="company-q"

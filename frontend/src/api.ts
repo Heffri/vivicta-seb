@@ -1,4 +1,5 @@
 import type { ChunkPage, Answer, Company, Extraction, IndexStatus, KbEntry, LibraryEntry, Report, ReviewComponent, Schema } from './types'
+import type { Collection } from './hooks/useCollection'
 
 export type ApiError = Error & { status: number; tried?: string[] }
 
@@ -23,7 +24,7 @@ export function uploadReport(file: File) {
   return request<Report>('/api/reports', { method: 'POST', body })
 }
 
-export const getLibrary = (collection: 'wallenberg' | 'all' = 'wallenberg') => request<LibraryEntry[]>(`/api/library?collection_name=${collection}`)
+export const getLibrary = (collection: Collection = 'wallenberg') => request<LibraryEntry[]>(`/api/library?collection_name=${collection}`)
 
 export const registerLibraryReport = (file: string) =>
   request<Report>('/api/reports/from-library', {
@@ -32,7 +33,7 @@ export const registerLibraryReport = (file: string) =>
     body: JSON.stringify({ file }),
   })
 
-export const getCompanies = (q: string, collection: 'wallenberg' | 'all' = 'wallenberg') => request<Company[]>(`/api/companies?q=${encodeURIComponent(q)}&collection_name=${collection}`)
+export const getCompanies = (q: string, collection: Collection = 'wallenberg') => request<Company[]>(`/api/companies?q=${encodeURIComponent(q)}&collection_name=${collection}`)
 
 // country/hint provide optional context for AI-first report discovery.
 export const fetchReport = (company: string, year: number, opts?: { country?: string; hint?: string; download_pdf?: boolean }) =>
@@ -48,6 +49,27 @@ export const extractSection = (reportId: string, section: string, force = false)
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ section, reuse_saved: !force, force }),
   })
+
+// v164: the deterministic page locator (the same one the extractor runs) served before the model
+// call, so the waiting line can name the pages being read. Zero-model; advisory for the UI only —
+// an older backend's 404 just means the wait stays on the generic wording.
+export type CandidatePage = { page: number; heading: string }
+export const getCandidates = (reportId: string, section: string) =>
+  request<CandidatePage[]>(`/api/reports/${encodeURIComponent(reportId)}/candidates?section=${encodeURIComponent(section)}`)
+
+// [30, 31, 32, 35] → "30–32, 35" (en dash), for the extraction wait line and the not-found banner.
+export function formatPageRanges(pages: number[]): string {
+  const sorted = [...new Set(pages)].sort((a, b) => a - b)
+  const out: string[] = []
+  let i = 0
+  while (i < sorted.length) {
+    let j = i
+    while (j + 1 < sorted.length && sorted[j + 1] === sorted[j] + 1) j++
+    out.push(i === j ? `${sorted[i]}` : `${sorted[i]}–${sorted[j]}`)
+    i = j + 1
+  }
+  return out.join(', ')
+}
 
 export const indexReport = (reportId: string) =>
   request<IndexStatus>(`/api/reports/${reportId}/index`, { method: 'POST' })
@@ -84,17 +106,17 @@ export type Config = {
   merge_runs?: 'off' | 'union' | 'majority' // v140: the backend's live EXTRACT_MERGE_RUNS; absent on older backends
 }
 export const getConfig = () => request<Config>('/api/config')
-// v112: the KB page's collection switch. 'wallenberg' is the curated roster (the page's default,
-// issue #4); 'all' lists every saved extraction in data/kb. The backend default is 'all' — pass one explicitly.
-export const getKb = (collection: 'wallenberg' | 'all' = 'wallenberg') =>
+// The KB page's collection switch. Wallenberg remains the UI default; midcap is the 132-company
+// SEB universe from data/companies.json. The backend default is 'all' — pass one explicitly.
+export const getKb = (collection: Collection = 'wallenberg') =>
   request<KbEntry[]>(`/api/kb?collection_name=${collection}`)
 // Whole-universe exports stay browser downloads, matching the existing per-report CSV/PPTX links.
 // `q` follows KbView's visible company/stem filter; no client-side data reconstruction is needed.
-const kbExportParams = (section: string, collection: 'wallenberg' | 'all', q = '') =>
+const kbExportParams = (section: string, collection: Collection, q = '') =>
   new URLSearchParams({ section, collection, ...(q.trim() ? { q: q.trim() } : {}) })
-export const kbExportCsvUrl = (section: string, collection: 'wallenberg' | 'all', q = '') =>
+export const kbExportCsvUrl = (section: string, collection: Collection, q = '') =>
   `/api/kb/export.csv?${kbExportParams(section, collection, q)}`
-export const kbExportPptxUrl = (section: string, collection: 'wallenberg' | 'all', q = '') =>
+export const kbExportPptxUrl = (section: string, collection: Collection, q = '') =>
   `/api/kb/export.pptx?${kbExportParams(section, collection, q)}`
 // Stored extraction, no model call; the backend re-registers the PDF so pageUrl/csvUrl work.
 export const openKbExtraction = (stem: string, section: string) =>
@@ -106,7 +128,7 @@ export const getKbPage = (stem: string, page: number) =>
 export const reviewField = (reportId: string, body: { section: string; key: string; expected: import('./types').Field; decision: import('./types').HumanReview['decision']; reviewer: string; note: string; value?: number | string | null; unit?: string | null; period?: string | null; source_page?: number; source_quote?: string; components?: ReviewComponent[] }) =>
   request<Extraction>(`/api/reports/${encodeURIComponent(reportId)}/review`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 
-export const getReviewQueue = () => request<import('./types').QueueIssue[]>('/api/review-queue')
+export const getReviewQueue = (collection: Collection = 'wallenberg') => request<import('./types').QueueIssue[]>(`/api/review-queue?collection_name=${collection}`)
 export const saveBasis = (reportId: string, body: { section: string; expected: Partial<import('./types').Basis>; values: Record<string, string>; reviewer: string; note: string }) =>
   request<Extraction>(`/api/reports/${encodeURIComponent(reportId)}/basis`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 export const getComparison = (stem: string, section: string, previous?: string) =>

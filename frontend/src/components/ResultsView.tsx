@@ -6,6 +6,7 @@ import { AskPanel } from '@/components/AskPanel'
 import { HumanReviewForm } from '@/components/results/HumanReviewForm'
 import { FieldsTable } from '@/components/results/FieldsTable'
 import { MaturityChart } from '@/components/results/MaturityChart'
+import { NotFoundBanner } from '@/components/results/NotFoundBanner'
 import { SourcePanel, type Viewer } from '@/components/results/SourcePanel'
 import { StatusCards } from '@/components/results/StatusCards'
 import { Badge } from '@/components/ui/badge'
@@ -98,6 +99,10 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
 
   return (
     <div className="space-y-6">
+      {/* v164: when the model answered nothing (or the identity cannot close for missing values),
+          one secondary banner above everything says which pages were searched and hands over to the
+          manual review form — insertion point only; the banner lives in results/NotFoundBanner.tsx. */}
+      <NotFoundBanner extraction={extraction} onSelectField={selectField} />
       {runError && <p role="alert" className="text-sm text-destructive">{runError}</p>}
       {extraction.stale && <p role="status" className="text-sm text-amber-700">This saved result predates the current source, model or extraction settings. Human-reviewed results are preserved.</p>}
       {extraction.timings && <p className="text-sm text-muted-foreground">{extraction.cached ? 'Saved result' : 'Fresh extraction'} · {extraction.timings.total ?? 0} s · {extraction.timings.attempts ?? 0} model calls</p>}
