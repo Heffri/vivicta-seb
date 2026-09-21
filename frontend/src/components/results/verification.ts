@@ -1,7 +1,7 @@
 import type { Field } from '@/types'
 
 type Verification = {
-  label: 'Human confirmed' | 'Human corrected' | 'Not found' | 'Not checked' | 'Needs review' | 'Calculated from report' | 'Checks passed'
+  label: 'Human confirmed' | 'Human corrected' | 'Not found' | 'Not printed in this report' | 'Not checked' | 'Needs review' | 'Calculated from report' | 'Checks passed'
   variant: 'secondary' | 'warning' | 'success'
   detail: string
 }
@@ -11,6 +11,10 @@ export function fieldVerification(field: Field): Verification {
     const r = field.human_review
     return { label: r.decision === 'unresolved' ? 'Needs review' : r.decision === 'corrected' ? 'Human corrected' : 'Human confirmed', variant: r.decision === 'unresolved' ? 'warning' : 'success', detail: `${r.reviewer} · ${r.at}: ${r.note || 'Confirmed against the source.'} Human review is separate from automated checks.` }
   }
+  // v165: the report's maturity table prints no column for this window — the header row quoted in
+  // the source is the proof. An explicit absence, not a missed figure and not zero.
+  if (field.value === null && (field.evidence ?? []).includes('absent_in_table'))
+    return { label: 'Not printed in this report', variant: 'secondary', detail: `The maturity table on ${field.source ? `page ${field.source.page}` : 'this report'} prints no column for this window — its own header row is the source quoted here. This is an explicit absence, not a missed figure and not zero.` }
   if (field.value === null) return { label: 'Not found', variant: 'secondary', detail: 'No figure was extracted. This does not mean zero.' }
   const evidence = field.evidence ?? []
   if (!evidence.length) return { label: 'Not checked', variant: 'secondary', detail: `No automated checks were recorded. Check ${field.value} against the report row, its ${field.period || 'year'} column and ${field.unit || 'currency/unit'}, then compare the related totals.` }

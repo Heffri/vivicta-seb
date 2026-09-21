@@ -3915,6 +3915,72 @@ def test_note_citation_preference():
     print("note citation preference ok")
 
 
+def test_absent_in_table_bucket():
+    """v165: a bucket the maturity table prints no column for is the report's own explicit absence, not the
+    model's silence. Ependion's contracted-terms table (real p.155 shape): columns Within 12 months / Between
+    1 and 2 years / Between 2 and 3 years / Total -- no after-five-years column exists, so due_after_5_years
+    stays null but carries evidence ["absent_in_table"] with the header row as its source, and the identity
+    counts it as 0 (167,546 + 415,984 + 0 == 583,531 within the check's own rounding). A bucket the table
+    DOES print a column for (here as a dash) keeps v078's honest rules: no dash-to-0 without the row's own
+    arithmetic, and no absent_in_table either -- its null is a different, printed kind."""
+    import json
+    import pathlib
+
+    dm = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
+    ependion = ("Contracted terms\n"
+                "SEK 000 Within 12 months\n"
+                "Between 1 and 2 years\n"
+                "Between 2 and 3 years Total\n"
+                "Borrowing 167,546 35,636 380,348 583,531\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": f["key"], "value": None, "unit": None, "period": None, "raw_label": None, "source": None}
+        for f in dm["fields"]]}
+    out = x.extract([ependion], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f for f in out["fields"]}
+    assert got["due_within_1_year"]["value"] == 167546 and got["due_1_to_5_years"]["value"] == 415984 \
+        and got["total_debt"]["value"] == 583531, (got, out["warnings"])  # the column read itself is unchanged
+    absent = got["due_after_5_years"]
+    assert absent["value"] is None, absent
+    assert absent["evidence"] == ["absent_in_table"], (absent, out["warnings"])
+    assert absent["source"] == {"page": 1, "quote": "Between 2 and 3 years Total"}, (absent, out["warnings"])
+    assert any(w.startswith("due_after_5_years: the maturity table on page 1 prints no column for this window")
+               and "'Between 2 and 3 years Total'" in w for w in out["warnings"]), out["warnings"]
+    check = out["checks"][0]
+    assert check["passed"] is True, (check, out["warnings"])
+    assert "missing" not in check["detail"] and "due_after_5_years" in check["detail"], check
+
+    # A column the table DOES print but whose cell is a dash is not "absent": the header names it, so the
+    # bucket has its own printed column and keeps the v078 rules -- no 0 without the row's own arithmetic,
+    # no absent_in_table. And with another operand still an unanswered null, the identity's verdict stays
+    # "missing: <that field>" instead of silently passing on the one proven absence.
+    dashed = ("Contracted terms\n"
+              "SEK 000 Within 12 months\n"
+              "Between 1 and 2 years Total\n"
+              "Borrowing 167,546 - 583,531\n")
+    out = x.extract([dashed], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f for f in out["fields"]}
+    assert got["due_within_1_year"]["value"] == 167546, (got, out["warnings"])
+    assert got["due_1_to_5_years"]["value"] is None and got["due_1_to_5_years"]["evidence"] == [], (got, out["warnings"])
+    assert got["due_after_5_years"]["value"] is None and got["due_after_5_years"]["evidence"] == ["absent_in_table"], (got, out["warnings"])
+    check = out["checks"][0]
+    assert check["passed"] is False and check["detail"].startswith("missing: due_1_to_5_years"), (check, out["warnings"])
+
+    # The marking is bucket-column only: a row-per-bucket note has no column header to prove an absence
+    # with, so a null bucket there stays exactly what it was -- plain null, empty evidence, missing check.
+    rows = ("Maturity of borrowings\n"
+            "Within 1 year 100\n"
+            "1-5 years 200\n"
+            "Total 300\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": f["key"], "value": None, "unit": None, "period": None, "raw_label": None, "source": None}
+        for f in dm["fields"]]}
+    out = x.extract([rows], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f for f in out["fields"]}
+    assert got["due_after_5_years"]["value"] is None and got["due_after_5_years"]["evidence"] == [], (got, out["warnings"])
+    assert out["checks"][0]["detail"].startswith("missing:"), out["checks"]
+    print("absent-in-table bucket ok")
+
+
 if __name__ == "__main__":
     test_confidence_never_exceeds_one()
     test_torn_bucket_headers()
@@ -3922,4 +3988,5 @@ if __name__ == "__main__":
     test_cash_flow_citation_refusal()
     test_gross_value_prior_year_citation_refusal()
     test_note_citation_preference()
+    test_absent_in_table_bucket()
     demo()

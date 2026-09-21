@@ -498,6 +498,20 @@ def _check(check: dict, values: dict, texts: list[str] | None = None, pages: lis
     listed = [] if check.get("require_explicit_values") else check.get("null_as_zero", [])
     naz = [k for k in listed if values.get(k) is None]
     zero = set(naz)
+    # v165: under require_explicit_values a bucket the maturity table prints no column for (evidence
+    # "absent_in_table", the table's own header row its source) is the report's explicit absence, not the
+    # model's silence -- it joins the identity as the 0 the table cannot print. But only when no other
+    # operand is still an unanswered null: that one keeps its honest "missing: <field>" verdict, and the
+    # proven absence must not tip a check that is missing something else into a pass or a TypeError.
+    absent = set()
+    if check.get("require_explicit_values") and fields:
+        f_by_key = {f["key"]: f for f in fields}
+        operands = [k for k in re.findall(r"\b[A-Za-z_]\w*\b", check["expr"]) if k not in _SAFE_BUILTINS]
+        absent = {k for k in operands if values.get(k) is None
+                  and "absent_in_table" in (f_by_key.get(k, {}).get("evidence") or [])}
+        if absent and any(values.get(k) is None for k in operands if k not in absent):
+            absent = set()
+        zero |= absent
     # v050: all listed operands null, but the identity's remaining operand(s) are themselves stated zeros --
     # the report said in words there is no interest-bearing debt (Creades), so the buckets ARE zeros and
     # 0+0+0 == 0 is a real pass, not the "pass on nothing" the guard above exists for (nothing read at all).
@@ -546,7 +560,7 @@ def _check(check: dict, values: dict, texts: list[str] | None = None, pages: lis
             # v058: no printable operand row / no provable table header -> v044's whole-page search, unweakened
             zero, out["passed"], out["detail"] = _evaluate(page_rows)
         return out
-    ns = {**values, **{k: 0 for k in zero}} if naz and (len(naz) < len(listed) or all_stated) else values
+    ns = {**values, **{k: 0 for k in zero}} if absent or (naz and (len(naz) < len(listed) or all_stated)) else values
     try:
         result = eval(check["expr"], {"__builtins__": {}, **_SAFE_BUILTINS}, ns)  # ponytail: our own schema files, not user input
     except NameError as e:
@@ -555,7 +569,7 @@ def _check(check: dict, values: dict, texts: list[str] | None = None, pages: lis
     except Exception as e:
         out["detail"] = f"{type(e).__name__}: {e}"
         return out
-    substituted = re.sub(r"\b[A-Za-z_]\w*\b", lambda m: f"0 ({m.group()} null)" if m.group() in zero else str(ns.get(m.group(), m.group())), check["expr"])
+    substituted = re.sub(r"\b[A-Za-z_]\w*\b", lambda m: f"0 ({m.group()} {'absent' if m.group() in absent else 'null'})" if m.group() in zero else str(ns.get(m.group(), m.group())), check["expr"])
     out.update(passed=bool(result), detail=f"{check.get('detail', '')} | {substituted}".strip(" |"))
     return out
 
@@ -2982,6 +2996,35 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
                     # fallback), one label per year column -- recorded for buckets_by_year; a
                     # named-bucket or carrying-column header leaves year_labels empty and records nothing
                     selected["year_labels"] = list(year_labels)
+                # v165: buckets this header maps no column to -- the header was parsed, and fewer than
+                # all of its windows are printed -- are the report's explicit absence, not the model's
+                # silence: the value stays null, the header row becomes the field's source, and _check
+                # counts the operand as 0 under require_explicit_values. A bucket with a column of its
+                # own (even an all-dash one -- v078's question, and only the row's own arithmetic turns
+                # that dash into a 0) or one an off-grid column spans whole (v095's question) is a
+                # different, printed kind of null and stays unmarked; a bucket the model answered keeps
+                # its own evidence. Bucket-column shape only: recorded on this pick, which no row-shaped
+                # or prose reading ever produces.
+                off_spans = []
+                for k in col_keys:
+                    if k.startswith("offgrid:"):
+                        span, _phrase = k[len("offgrid:"):].split("|", 1)
+                        lo_s, hi_s = span.split("-")
+                        off_spans.append((int(lo_s), int(hi_s) if hi_s else None))
+                hdr = next((r for r in reversed(rows[max(0, idx - 25):idx])
+                            if any(k.split(":")[0] not in ("total", "_ignore")
+                                   for _, _, k in _bucket_synonym_hits(r, bucket_sfs, total_sf, ignore_syns, basis))
+                            or len({k for _, k in _bucket_year_hits(r, fiscal_year)}) >= 2), None)
+                for key in part_keys:
+                    w = _BUCKET_WINDOW.get(key)
+                    if key in col_keys or (w is not None and any(lo <= w[0] and (w[1] is None or (hi is not None and hi >= w[1]))
+                                                                 for lo, hi in off_spans)):
+                        continue  # this window is printed, off-grid coverage included
+                    if hdr is None or by_key[key]["value"] is not None:
+                        continue  # no header row to cite, or the model read this window elsewhere
+                    by_key[key].update(source={"page": page, "quote": hdr}, evidence=["absent_in_table"])
+                    warnings.append(f"{key}: the maturity table on page {page} prints no column for this "
+                                    f"window ({hdr!r}); not printed in this report")
             # v078: a bucket whose every column on this row prints a dash is not unprinted -- the report is
             # saying "no debt is due in this window" (v036's own nil convention, one level down), which is a
             # 0, not the null this path carried until now. Two gates before a dash says 0: the row must print
