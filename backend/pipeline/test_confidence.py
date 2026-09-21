@@ -1611,6 +1611,19 @@ def demo():
     out = x.extract([decoy1, decoy2, real, decoy4], [1, 2, 3], dm, {"fiscal_year": 2025})
     assert calls == [("extraction", True, False)], calls  # off: exactly the old single call, over pages[:2]; page 3 never shown
     assert not any(w.startswith("two_pass") for w in out["warnings"]), out["warnings"]
+    # v157: ONE hole in the identity (this answer's due_after_5_years -- the ordinary report with no
+    # >5-year row) keeps that single call. TWO holes is the shape of a wrong table read confidently
+    # (BTS p.93's non-current-only note: a total and one bucket, nothing closed) and buys one widened
+    # call over pages[:4], which is where the real maturity note sat
+    two_holes = {"fields": [f if f["key"] != "due_within_1_year" else
+                            {"key": "due_within_1_year", "value": None, "unit": None, "period": None,
+                             "raw_label": None, "source": None} for f in full_answer["fields"]]}
+    x.call_llm = lambda system, user, schema=x.RESPONSE_SCHEMA, name="extraction": (
+        calls.append((name, "=== PAGE 1 ===" in user, "=== PAGE 3 ===" in user)), two_holes)[1]
+    calls.clear()
+    x.extract([decoy1, decoy2, real, decoy4], [1, 2, 3], dm, {"fiscal_year": 2025})
+    assert calls == [("extraction", True, False), ("extraction", True, True)], calls
+    x.call_llm = fake_llm
 
     os.environ["EXTRACT_TWO_PASS"] = "1"
     try:
@@ -3295,6 +3308,36 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
           for k in ("due_within_1_year", "due_1_to_5_years", "due_after_5_years")]]}
     out = x.extract([abb89 + "Total borrowings 7,905\n"], [1], dm, {"fiscal_year": 2025})
     assert {f["key"]: f["value"] for f in out["fields"]}["total_debt"] == 7905, out["warnings"]
+    # the real ABB re-run's shape: the model reads the ends of the ladder and leaves the middle null,
+    # because four printed years are one bucket. The middle is completed; answers that AGREE row for row
+    # are left as the model wrote them
+    half = lambda within, after: (lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 7905, "unit": "USD millions", "period": "2025", "raw_label": "Total",
+         "source": {"page": 1, "quote": "Total $ 7,905 $ 6,644"}},
+        {"key": "due_within_1_year", "value": within, "unit": "USD millions", "period": "2025", "raw_label": "2026",
+         "source": {"page": 1, "quote": "($ in millions) 2026 442 2027 1,143 2028 591 2029 837 2030 1,221"}},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": after, "unit": "USD millions", "period": "2025", "raw_label": "Thereafter",
+         "source": {"page": 1, "quote": "Thereafter 4,013"}}]})
+    x.call_llm = half(442, 4013)
+    out = x.extract([abb89], [1], dm, {"fiscal_year": 2025})
+    vals = {f["key"]: f["value"] for f in out["fields"]}
+    assert (vals["due_1_to_5_years"], vals["total_debt"]) == (3792, 8247), (vals, out["warnings"])
+    assert out["checks"][0]["passed"], out["checks"]
+    # but a model answer that does NOT match the ladder's own rows means two different tables are in
+    # play: nothing is filled and nothing is re-cited. Tested on the fill itself -- end to end, the
+    # column repairs upstream of it quietly correct a wrong bucket that sits on the cited page
+    flds = [{"key": "total_debt", "value": 7905, "source": {"page": 1, "quote": "Total $ 7,905 $ 6,644"}},
+            {"key": "due_within_1_year", "value": 442, "source": {"page": 1, "quote": "2026 442"}},
+            {"key": "due_1_to_5_years", "value": None, "source": None},
+            {"key": "due_after_5_years", "value": 3500, "source": {"page": 1, "quote": "Thereafter 3,500"}}]
+    vals, warns = {f["key"]: f["value"] for f in flds}, []
+    x._year_ladder_fill(flds, dm["fields"], dm, [abb89], [1], 2025, {}, warns, vals, set())
+    assert [f["value"] for f in flds] == [7905, 442, None, 3500] and not warns, (flds, warns)
+    flds[3]["value"] = 4013  # the same call with the ladder agreed to, as the check above proves end to end
+    vals["due_after_5_years"] = 4013
+    x._year_ladder_fill(flds, dm["fields"], dm, [abb89], [1], 2025, {}, warns, vals, set())
+    assert [f["value"] for f in flds] == [8247, 442, 3792, 4013], flds
     # a two-figure Total row below the years is a stacked table's own row (BTS p.92's liabilities
     # table prints exactly that shape): no one-column total, no proof, no key
     stacked = "Maturity analyses\nSEK thousands 12-31-25 2026 100 2027 50\nTotal 150 140\n"

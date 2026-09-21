@@ -3837,8 +3837,8 @@ def _year_ladder_fill(fields: list[dict], sfs: list[dict], schema: dict, texts: 
                       fiscal_year, bucket_pick: dict, warnings: list[str], values: dict, filled: set) -> None:
     """The calendar-year ladder as ANSWERS. _buckets_by_year_fill reads the same table but writes only
     `buckets_by_year` metadata -- its docstring says so outright -- so a US-GAAP issuer whose note is a
-    bare year ladder (ABB p.89: "2026 442 ... Thereafter 4,013 / Total 8,247") returned three nulls no
-    matter how well the shape parsed. Fills only buckets the model left null, and only when:
+    bare year ladder (ABB p.89: "2026 442 ... Thereafter 4,013 / Total 8,247") left nulls no matter how
+    well the shape parsed. Fills only buckets the model left null, and only when:
       - the years close on the table's OWN printed total (_year_ladder's hard gate), and
       - that total is not smaller than total_debt and within 10% of it.
     Both gates together are what refuse Ericsson p.97, whose operating-lease ladder closes on its own
@@ -3853,8 +3853,8 @@ def _year_ladder_fill(fields: list[dict], sfs: list[dict], schema: dict, texts: 
     if not ident or set(ident[1]) != _DATE_BUCKET_KEYS:
         return
     by_key = {sf["key"]: f for sf, f in zip(sfs, fields)}
-    if any(by_key[k].get("value") is not None for k in ident[1]):
-        return  # a bucket is already answered: this is the all-null US-GAAP shape's fallback, not a repair
+    if all(by_key[k].get("value") is not None for k in ident[1]):
+        return  # nothing to fill
     total = values.get(ident[0])
     if not isinstance(total, (int, float)) or isinstance(total, bool) or total <= 0:
         return
@@ -3874,18 +3874,38 @@ def _year_ladder_fill(fields: list[dict], sfs: list[dict], schema: dict, texts: 
                    else "due_1_to_5_years" if year and year <= int(fiscal_year) + 5
                    else "due_after_5_years")
             buckets[key].append((v, row))
+        # The model usually reads PART of a ladder: ABB's own re-run answered 442 and 4,013 and left the
+        # middle null, because "2027 1,143 2028 591 2029 837 2030 1,221" is four printed rows and one
+        # bucket. Complete it -- but only where the model's own answers agree with the same ladder row
+        # for row. A disagreement anywhere means the two of us are reading different tables, and mixing
+        # them is how a plausible wrong number gets made: leave the whole page alone and let it flag.
+        sf_of = {sf["key"]: sf for sf in sfs}
+        if any((mine := by_key[k].get("value")) is not None
+               and (not buckets[k] or abs(round(sum(x for x, _ in buckets[k]), 2) - mine) > 2) for k in ident[1]):
+            return
+        wrote = []
         for key, got_rows in buckets.items():
             if not got_rows:
                 continue  # no tail row: due_after_5_years stays null, never a fabricated 0
-            v = round(sum(x for x, _ in got_rows), 2)
+            mine, v = by_key[key].get("value"), round(sum(x for x, _ in got_rows), 2)
+            # An agreed answer keeps its value and takes the ladder's citation, because the model cites a
+            # year row the way the report prints it: "2026" is a label no schema can name and "2026 442"
+            # is a quote with no word in it, so ABB's own correct 442 arrived with neither label_known nor
+            # quote_on_page and asked for a human anyway. Only where the model's own label is unnameable:
+            # a row it could name is its own evidence and is left alone.
+            if mine is not None and _label_known(by_key[key].get("raw_label"), sf_of[key]):
+                continue
+            wrote.append(key if mine is None else f"{key} (re-cited)")
             quote = got_rows[0][1]
             by_key[key].update(value=v, period=str(fiscal_year), raw_label=key.replace("_", " "),
                                source={"page": page, "quote": quote},
                                evidence=["quote_on_page"] if _value_in_quote(v, quote) else ["quote_on_page", "value_derived"])
             values[key] = v
             filled.add(key)
-        warnings.append(f"buckets read from the calendar-year ladder on page {page}, closing on its own "
-                        f"printed total {printed:g}")
+        if not wrote:
+            return  # every bucket the ladder prints was already answered: nothing read, nothing to re-cite
+        warnings.append(f"{', '.join(wrote)} read from the calendar-year ladder on page {page}, closing on "
+                        f"its own printed total {printed:g}")
         # The ladder restates the total on its own basis (ABB: principal 8,247 on p.89 against the p.90
         # instrument table's carrying 7,905) and the model cited the other one. Left alone, three honest
         # nulls become three right numbers plus a FAILING identity -- strictly more review, not less. Move
@@ -3980,8 +4000,19 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
         model_seconds += time.perf_counter() - call_started
         if nonnull(got) > nonnull(raw):
             raw = got
-        if 2 * nonnull(raw) < len(schema["fields"]) and len(attempt) == 2 and len(pages) > 2:
-            windows = [tuple(pages[:4])]  # most fields came back empty: widen once
+        # v157: and for debt, widen when the identity comes back with two or more holes in it. Two
+        # answered fields of four passes the test above, and it is exactly the shape of a confidently
+        # read wrong table: BTS p.93's NOTE 21 is non-current borrowings only, so the model answered a
+        # total and one bucket off it, closed nothing, and never saw the real maturity note two pages
+        # earlier (p.92, rank 3 -- outside the first window, inside the widened one). ONE hole is the
+        # ordinary case of a report that prints no >5-year row, and widening on it would buy a second
+        # model call for most debt extractions and find nothing.
+        holes = 0
+        if schema.get("name") == "debt_maturity" and (ident := _identity_parts(schema)):
+            got_by_key = {g.get("key"): g for g in raw if isinstance(g, dict)}
+            holes = sum(got_by_key.get(k, {}).get("value") is None for k in (ident[0], *ident[1]))
+        if (2 * nonnull(raw) < len(schema["fields"]) or holes >= 2) and len(attempt) == 2 and len(pages) > 2:
+            windows = [tuple(pages[:4])]  # the first window did not settle it: widen once
     by_key = {f.get("key"): f for f in raw if isinstance(f, dict)}
     by_key = _quote_retry(by_key, system, schema, texts, pages, fiscal_year, warnings)
     scope_words = schema.get("table_scope_words")  # v103/v111: the wrong-table guard's marker vocabulary
