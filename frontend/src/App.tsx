@@ -12,6 +12,7 @@ import type { Tab } from './components/shell/tabs'
 import { Titlebar } from './components/shell/Titlebar'
 import { useHeadingFocus } from './components/shell/useHeadingFocus'
 import { useTone } from './components/shell/useTone'
+import { useBatch } from './hooks/useBatch'
 import { ResultsView } from './components/ResultsView'
 import { SettingsView } from './components/SettingsView'
 import { UploadView } from './components/UploadView'
@@ -50,6 +51,29 @@ export default function App() {
     setTab('extract')
   }
 
+  // v171 (consult item 6): batch state lives here, one level above the conditionally-mounted
+  // UploadView, so switching away from Extract and back doesn't lose progress — the queue keeps
+  // running against this hook regardless of which tab is on screen. Ending a batch never forces a
+  // tab switch, even if the user never left Extract: a first cut auto-advanced whenever the user
+  // was still watching, but that fires just as eagerly after "Stop after current" or a failure —
+  // yanking the screen to Results the instant the last item settles, before there's any chance to
+  // read a failed item's next step or click Retry. Results are already visible incrementally via
+  // onSettle; "View results" (BatchProgress) is the only way there, unconditionally.
+  const batch = useBatch({
+    onSettle: (rs) => setResults(rs),
+  })
+  const submitBatch: typeof batch.start = (specs, section, sectionTitle, eta) => {
+    setSavedReport(null)
+    setResults([])
+    setDetail(null)
+    setDetailPage(null)
+    batch.start(specs, section, sectionTitle, eta)
+  }
+  const viewResults = () => {
+    setSavedReport(null)
+    setTab(results.length > 1 ? 'compare' : 'results')
+  }
+
   const shown = results[detail ?? 0]
   const enabled: Record<Tab, boolean> = {
     extract: true,
@@ -70,7 +94,9 @@ export default function App() {
         <Rail active={tab} enabled={enabled} compareCount={results.length} onSelect={(next) => { setAskCompany(undefined); setTab(next) }} tone={tone} onToneChange={setTone} />
         <main id="content" tabIndex={-1} className="min-w-0 flex-1 overflow-y-auto">
           <div className="mx-auto max-w-6xl px-6 py-10">
-            {tab === 'extract' && <UploadView onDone={done} onNavigate={setTab} />}
+            {tab === 'extract' && (
+              <UploadView batch={batch} onSubmit={submitBatch} resultsCount={results.filter((r) => r.extraction).length} onViewResults={viewResults} onDone={done} onNavigate={setTab} />
+            )}
             {tab === 'results' && savedReport && <SavedReportView initialSection={reportOrigin === 'review' ? reviewTarget.section : undefined} initialField={reportOrigin === 'review' ? reviewTarget.key : undefined} key={`${savedReport.stem}:${reviewTarget.section}:${reviewTarget.key}`} report={savedReport} onBack={() => setTab(reportOrigin)} onReset={reset} />}
             {tab === 'results' && !savedReport && shown?.extraction && (
               <ResultsView
@@ -107,7 +133,7 @@ export default function App() {
           </div>
         </main>
       </div>
-      <StatusBar config={config} />
+      <StatusBar config={config} batch={batch} onOpenBatch={() => setTab('extract')} />
     </div>
   )
 }

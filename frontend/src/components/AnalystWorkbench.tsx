@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getComparison, getReviewQueue, saveBasis } from '@/api'
+import { CollectionPicker } from '@/components/CollectionPicker'
+import { useCollection } from '@/hooks/useCollection'
 import type { Comparison, Extraction, KbEntry, QueueIssue } from '@/types'
 import { Button } from '@/components/ui/button'
 
@@ -52,10 +54,11 @@ export function YearComparison({ extraction: x, onChange }: { extraction: Extrac
 }
 
 export function ReviewQueue({ onOpen }: { onOpen: (report: KbEntry, section: string, key?: string) => void }) {
+  const [collection, setCollection] = useCollection()
   const [issues, setIssues] = useState<QueueIssue[] | null>(null)
   const [error, setError] = useState('')
   const [filters, setFilters] = useState({ company: '', year: '', section: '', kind: '' })
-  useEffect(() => { let stale = false; getReviewQueue().then(r => { if (!stale) setIssues(r) }).catch(e => { if (!stale) setError(e.message) }); return () => { stale = true } }, [])
+  useEffect(() => { let stale = false; getReviewQueue(collection).then(r => { if (!stale) setIssues(r) }).catch(e => { if (!stale) setError(e.message) }); return () => { stale = true } }, [collection])
   const value = (i: QueueIssue, k: string) => k === 'company' ? i.report.company ?? i.report.stem : k === 'year' ? String(i.report.fiscal_year ?? '') : k === 'section' ? i.section : i.kind
   const visible = issues?.filter(i => Object.entries(filters).every(([k, v]) => !v || value(i, k) === v))
   const groups = new Map<string, { report: KbEntry; section: string; issues: QueueIssue[] }>()
@@ -65,10 +68,11 @@ export function ReviewQueue({ onOpen }: { onOpen: (report: KbEntry, section: str
     groups.get(key)!.issues.push(issue)
   }
   const target = (issue: QueueIssue) => issue.kind === 'field' ? issue.key : issue.kind === 'basis' ? '@basis' : '@checks'
-  return <section className="space-y-5"><h1 className="text-2xl font-semibold">Review</h1><p className="text-muted-foreground">Outstanding checks in the saved Wallenberg collection, grouped by statement. Open a statement to review its figures and sources.</p>
+  const collectionLabel = collection === 'midcap' ? 'SEB Mid Cap universe' : collection === 'all' ? 'All saved reports' : 'Wallenberg collection'
+  return <section className="space-y-5"><header className="flex flex-wrap items-start justify-between gap-3"><div><h1 className="text-2xl font-semibold">Review</h1><p className="mt-2 text-muted-foreground">Outstanding checks in {collectionLabel}, grouped by statement. Open a statement to review its figures and sources.</p></div><CollectionPicker value={collection} onChange={value => { if (value !== collection) { setIssues(null); setError(''); setCollection(value) } }} /></header>
     <div className="grid gap-3 sm:grid-cols-4">{Object.entries(filters).map(([k, v]) => <label key={k} className="text-sm capitalize">{k}<select aria-label={k} className={input} value={v} onChange={e => setFilters({ ...filters, [k]: e.target.value })}><option value="">All</option>{[...new Set(issues?.map(i => value(i, k)))].sort().map(v => <option key={v} value={v}>{v.replaceAll('_', ' ')}</option>)}</select></label>)}</div>
     {error && <p role="alert">{error}</p>}{!issues && !error && <p>Loading review queue…</p>}
-    {issues && <p role="status">{groups.size} {groups.size === 1 ? 'statement' : 'statements'} · {visible?.length} outstanding {visible?.length === 1 ? 'check' : 'checks'}</p>}
+    {issues && <p role="status">{collectionLabel} · {groups.size} {groups.size === 1 ? 'statement' : 'statements'} · {visible?.length} outstanding {visible?.length === 1 ? 'check' : 'checks'}</p>}
     {issues && !visible?.length && <p className="text-sm text-muted-foreground">{issues.length ? 'No checks match these filters.' : 'No outstanding checks in this collection.'}</p>}
     <div className="space-y-3">{[...groups].map(([key, group]) => <article key={key} aria-label={`${group.report.company ?? group.report.stem} ${group.report.fiscal_year ?? ''} ${group.section.replaceAll('_', ' ')}`} className="rounded-xl border bg-card p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">

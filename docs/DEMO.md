@@ -8,7 +8,7 @@ zero model calls to set up, and the main show is **stored real results**, not a 
 
 | What | Value |
 |---|---|
-| Branch / commit demoed | `acrylic` at delivery: commit `6f43cd2` (re-run `git rev-parse --short=7 origin/acrylic` after a final fetch and update this row if it moved) |
+| Branch / commit demoed | `acrylic` at delivery: commit `fba373d` (re-run `git rev-parse --short=7 origin/acrylic` after a final fetch and update this row if it moved) |
 | Windows installer feed | [`desktop-demo`](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-demo) (auto-updating, CI-built from the team `demo` branch) — install the Setup exe once; it updates itself. [`desktop-main`](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-main) is the equivalent feed for `main` |
 | Not the installer? | Clone the repo and run `run.bat` (Windows) or `./run.sh` (macOS/Linux) — first run ~2–4 min, later runs seconds |
 | The old portable exe | `desktop-0.3.4` (portable/Setup zip) **cannot update itself** — do not demo from it; use the auto-updating installer above or a fresh `run.bat` checkout |
@@ -51,9 +51,10 @@ after everything below has already succeeded.
 
 - **0:00–0:20 — the goal.** "This is not a chatbot over PDFs. It turns a borrowings note into
   reviewable, deliverable analyst material: every number carries the page it came from and the
-  sentence it was read from." Open **Knowledge base → Collection: All → search "karnell" → Open**,
-  and say so up front: *this extraction is saved from an earlier run — pre-extracted, not happening
-  live.*
+  sentence it was read from." On the first **Extract** screen, click **Open a real debt sample**;
+  it opens the saved Karnell record directly. Say so up front: *this extraction is saved from an
+  earlier run — pre-extracted, not happening live.* The equivalent manual route is **Knowledge
+  base → Collection: All → search "karnell" → Open**.
 - **0:20–1:00 — the evidence chain.** In Results, click the **Due 1–5 years** row: the source panel
   shows **page 106** and the verbatim quote `Liabilities to credit institutions 43.5 353.7 - 397.2`
   with the value highlighted. Point at the maturity chart, then at the check: 43.5 + 353.7 + 0 =
@@ -108,6 +109,28 @@ after everything below has already succeeded.
 - **Package sanity, if demoing the installer.** Launch the packaged exe once the morning of,
   hit `GET /api/kb` / open a KB record, confirm the window survives (a fresh single-instance lock
   conflict closes the second copy silently).
+
+## Measured rehearsal (2026-09-21 · package build `25ed26b` / acrylic `fba373d` · shared Windows test machine)
+
+This is a fixture-mode rehearsal of the unpacked shared test package, on a newly created
+`--user-data-dir`. It makes no model calls. The package was refreshed from the listed build; the
+last warm refresh took **41 s** and replaced frontend, backend, data and shell resources.
+
+| Step | Time | Result | Note |
+|---|---:|---|---|
+| First start → `/api/kb` | 18.4 s | 206 saved reports | First sync copied 206 KB entries and 4 other files into the clean userData. |
+| Extract landing page → **Open a real debt sample** | 0.28 s | Karnell Group results | Opens the stored real debt record; no `/extract` call or model call. |
+| Select **Due 1–5 years** → source | 0.07 s | Page 106 + highlighted Karnell quote | The bundled package has saved page text but no PDF image, as documented above. |
+| KB → Ependion | 1.48 s | **Not printed in this report** | The `Due after 5 years` absence is visibly distinct from zero. |
+| Confirm one figure | 0.71 s | Ependion total-borrowings review saved | The confirmation persisted after the close/reopen cycle. |
+| KB **Export all** CSV | 1.24 s | 105 data rows, 26,511 bytes | Debt-maturity export over the All collection. |
+| KB **Export all** PPTX deck | 5.75 s | 106 slides, 494,804 bytes | One summary slide plus 105 report slides. |
+| Compare two selected records → upcoming-maturities list fully loaded | 1.23 s | All-collection wall rendered | The wall showed 0/105 comparable, 105 basis-unconfirmed, 13 missing totals and 49 missing `<1y`; it does not imply a credit judgment. |
+| Close → reopen → `/api/kb` | close 0.27 s; reopen 4.9 s | 206 saved reports; review retained | Sync reported `+0 kb entries, +0 files` and kept the one user-modified reviewed extraction unchanged. |
+
+The refresh target's background updater also logs a non-blocking `ENOENT` for its absent
+`app-update.yml`. It did not affect package startup, saved data, review persistence, exports or the
+closed loop above; this unpacked refresh target is not an installer/update-feed test.
 
 ## What we cannot promise (say none of these on stage)
 

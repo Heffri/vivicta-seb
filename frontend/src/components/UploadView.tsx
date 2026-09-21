@@ -1,20 +1,27 @@
 import { BookOpenCheck, Globe, Info, Loader2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { type ApiError, type CandidatePage, extractSection, fetchReport, formatPageRanges, getCandidates, getCompanies, getConfig, getLibrary, getSchemas, openKbExtraction, registerLibraryReport, uploadReport } from '@/api'
+import { useEffect, useRef, useState } from 'react'
+import { type ApiError, fetchReport, getCompanies, getConfig, getLibrary, getSchemas, openKbExtraction, registerLibraryReport, uploadReport } from '@/api'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ErrorBlock, LoadingLine } from '@/components/ui/state'
+import { ErrorBlock } from '@/components/ui/state'
+import { BatchProgress } from '@/components/upload/BatchProgress'
 import { CachedReports } from '@/components/upload/CachedReports'
 import { CompanySearch } from '@/components/upload/CompanySearch'
 import { CollectionPicker } from '@/components/CollectionPicker'
 import { useCollection } from '@/hooks/useCollection'
+import type { Batch, BatchSpec } from '@/hooks/useBatch'
 import { Dropzone } from '@/components/upload/Dropzone'
 import type { Tab } from '@/components/shell/tabs'
-import type { Company, LibraryEntry, Report, Result, Schema } from '@/types'
+import type { Company, LibraryEntry, Result, Schema } from '@/types'
 
-type Props = { onDone: (results: Result[]) => void; onNavigate?: (tab: Tab) => void }
-
-type QueueItem = { label: string; prep?: string; getReport: () => Promise<Report>; fromUpload?: boolean; web?: boolean }
+type Props = {
+  batch: Batch
+  onSubmit: (specs: BatchSpec[], section: string, sectionTitle: string, eta: string) => void
+  resultsCount: number
+  onViewResults: () => void
+  onDone: (results: Result[]) => void // openSample only — a single, instant, zero-model result
+  onNavigate?: (tab: Tab) => void
+}
 
 // The saved real-debt sample the first screen opens directly (supervisor add-on to v164): a stored
 // KB extraction, opened with zero model calls, that still awaits its basis confirmation — a demo
@@ -24,7 +31,7 @@ const SAMPLE_SECTION = 'debt_maturity'
 
 const isPdf = (f: File) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
 
-export function UploadView({ onDone, onNavigate }: Props) {
+export function UploadView({ batch, onSubmit, resultsCount, onViewResults, onDone, onNavigate }: Props) {
   const [collection, setCollection] = useCollection()
   const [schemas, setSchemas] = useState<Schema[]>([])
   const [schemasError, setSchemasError] = useState<string | null>(null)
@@ -41,12 +48,15 @@ export function UploadView({ onDone, onNavigate }: Props) {
   const [picked, setPicked] = useState<Company[]>([]) // directory picks, deduped by name
   const [files, setFiles] = useState<File[]>([]) // uploads, in drop/pick order, deduped by name+size
   const [dragging, setDragging] = useState(false)
-  const [progress, setProgress] = useState<string | null>(null) // non-null = busy
-  // v164: while the model works, the line names the candidate pages being read with a stopwatch.
-  const [wait, setWait] = useState<{ pages: string; total: number; heading: string } | null>(null)
-  const [waitSeconds, setWaitSeconds] = useState('0') // written by the tick below, never read off the clock during render
-  const [error, setError] = useState<string | null>(null)
-  const [tried, setTried] = useState<Record<string, string[]>>({}) // label → URLs /fetch tried, for the all-failed block
+  const [error, setError] = useState<string | null>(null) // local validation only (bad file type, sample open failure) — batch failures render per-item in BatchProgress
+
+  // Retrying a queued item re-invokes the exact same getReport() closure it was built with; reading
+  // these two off refs (not the state values captured when the queue was built) means checking
+  // "Allow PDF download" after a download-needed failure and clicking Retry actually picks it up.
+  const liveRef = useRef({ year, downloadPdf })
+  useEffect(() => {
+    liveRef.current = { year, downloadPdf }
+  }, [year, downloadPdf])
 
   // Debounced directory search; empty query = first 50. 404 = backend route not wired yet → muted one-liner.
   useEffect(() => {
@@ -86,16 +96,6 @@ export function UploadView({ onDone, onNavigate }: Props) {
       .catch((e: Error) => { if (alive) setLibraryError(e.message) })
     return () => { alive = false }
   }, [collection])
-
-  // The wait line's stopwatch: the seconds string is computed inside the interval (where reading
-  // the clock is allowed) and lands in state, so render stays pure. Keyed on the wait itself —
-  // one wait per queued report, cleared with it (v164).
-  useEffect(() => {
-    if (!wait) return
-    const started = performance.now()
-    const t = setInterval(() => setWaitSeconds(String(Math.max(1, Math.round((performance.now() - started) / 1000)))), 400)
-    return () => clearInterval(t)
-  }, [wait])
 
   // Reject non-PDFs individually (named in the error) and keep the rest; re-picking/re-dropping appends.
   const pickFiles = (incoming: File[]) => {
@@ -138,10 +138,10 @@ export function UploadView({ onDone, onNavigate }: Props) {
   const togglePick = (c: Company) =>
     setPicked((prev) => (prev.some((p) => p.name === c.name) ? prev.filter((p) => p.name !== c.name) : [...prev, c]))
 
-  const busy = progress !== null
+  const anyRetrying = batch.items.some((it) => it.retrying)
+  const busy = batch.busy || anyRetrying
   const count = picked.length + selected.size + files.length
   const canExtract = count > 0 && !!section && !busy
-  const sectionLabel = schemas.find((s) => s.name === section)?.title ?? section ?? '' // for the wait line when a page has no heading of its own
   const hasWebQuery = query.trim().length > 0
   const webSearchAvailable = provider === 'codex' || provider === 'claude'
   // v164: the expected duration is the provider's to promise. codex/claude subscriptions answer in
@@ -156,7 +156,8 @@ export function UploadView({ onDone, onNavigate }: Props) {
 
   // Stored extraction from the knowledge base (supervisor add-on): no model call, works without the
   // original PDF (v092). The result was extracted previously and still awaits its basis
-  // confirmation — which is exactly what the Results view's basis form is for.
+  // confirmation — which is exactly what the Results view's basis form is for. Bypasses the batch
+  // entirely (single, instant, zero-model), so it still lands on Results immediately.
   const openSample = async () => {
     setError(null)
     try {
@@ -167,81 +168,40 @@ export function UploadView({ onDone, onNavigate }: Props) {
     }
   }
 
-  const run = async (extra: QueueItem[] = [], onlyExtra = false) => {
+  // Builds the queue and hands it to the App-level batch (v171/consult item 6): submission no
+  // longer runs the loop itself, so its progress survives switching away from this tab and back,
+  // and the batch doesn't force a tab switch when it ends — see BatchProgress's "View results".
+  const runBatch = (extra: BatchSpec[] = [], onlyExtra = false) => {
     if (!section) return
-    setError(null)
-    setTried({})
     const sectionTitle = schemas.find((s) => s.name === section)?.title ?? section
-    // Queue = web-search jobs (v074, run immediately on click) + directory picks (fetched on demand)
-    // + selected cached entries (library order) + the uploaded files, in drop order. Sequential on
-    // purpose: the local LLM is one GPU, parallel requests would only queue there and we'd lose the
-    // per-report progress line.
-    const queue: QueueItem[] = [
+    const specs: BatchSpec[] = [
       ...extra,
       ...(onlyExtra ? [] : picked).map((c) => ({
         label: c.name,
-        prep: `Opening ${c.name} annual report ${year}…`,
-        getReport: () => fetchReport(c.name, Number(year), { download_pdf: downloadPdf }),
+        prep: `Opening ${c.name} annual report ${liveRef.current.year}…`,
+        getReport: () => fetchReport(c.name, Number(liveRef.current.year), { download_pdf: liveRef.current.downloadPdf }),
       })),
       ...(onlyExtra ? [] : library)
         .filter((e) => selected.has(e.file))
         .map((e) => ({ label: e.company, getReport: () => registerLibraryReport(e.file) })),
       ...(onlyExtra ? [] : files).map((f) => ({ label: f.name, getReport: () => uploadReport(f), fromUpload: true })),
     ]
-    const results: Result[] = []
-    for (const [i, item] of queue.entries()) {
-      const n = `(${i + 1}/${queue.length}${item.web ? ', checking saved reports and official sources' : item.prep ? ', can take a minute' : ''})`
-      try {
-        setProgress(`${item.prep ?? `Preparing ${item.label}`} ${n}`)
-        setWait(null)
-        const report = await item.getReport()
-        setProgress(`Extracting ${item.label} ${n}…${eta}`)
-        // v164: the locator runs first (zero-model endpoint) and the wait names the pages being
-        // read; the two extraction passes may read slightly different pages, so the wording says
-        // "candidates". Failure is advisory — the generic line stays and extraction proceeds.
-        let pages: CandidatePage[] | null = null
-        try {
-          pages = await getCandidates(report.report_id, section)
-        } catch {
-          pages = null
-        }
-        if (pages && pages.length > 0) {
-          setWaitSeconds('0')
-          setWait({ pages: formatPageRanges(pages.map((c) => c.page)), total: report.pages, heading: pages[0].heading })
-        }
-        const extraction = await extractSection(report.report_id, section)
-        setWait(null)
-        // Library entries keep the curated name; each upload gets whatever the backend/LLM guessed.
-        const label = item.fromUpload ? (extraction.company ?? report.company ?? item.label) : item.label
-        results.push({ label, sectionTitle, extraction })
-      } catch (e) {
-        setWait(null)
-        results.push({ label: item.label, sectionTitle, error: (e as Error).message })
-        // ponytail: Result has no `tried` slot (types.ts is off-limits); kept here for the all-failed block only.
-        const t = (e as ApiError).tried
-        if (t?.length) setTried((prev) => ({ ...prev, [item.label]: t }))
-      }
-    }
-    setProgress(null)
-    setWait(null)
-    if (results.every((r) => r.error)) setError(results.map((r) => `${r.label}: ${r.error}`).join('\n'))
-    else onDone(results)
+    onSubmit(specs, section, sectionTitle, eta)
   }
 
   // Any company name can use live discovery; other queued picks stay untouched.
   const runWeb = (name: string) => {
-    void run([
+    runBatch([
       {
         label: name,
         prep: `Finding ${name} annual report ${year}…`,
         getReport: async () => {
-          try { return await fetchReport(name, Number(year), { download_pdf: false }) }
+          try { return await fetchReport(name, Number(liveRef.current.year), { download_pdf: false }) }
           catch (error) {
             if ((error as ApiError).status !== 409) throw error
-            return fetchReport(name, Number(year), { download_pdf: true })
+            return fetchReport(name, Number(liveRef.current.year), { download_pdf: true })
           }
         },
-        web: true,
       },
     ], true)
   }
@@ -351,7 +311,9 @@ export function UploadView({ onDone, onNavigate }: Props) {
         )}
 
         <label className="flex items-start gap-2 border-t px-5 py-3 text-sm"><input type="checkbox" className="mt-1" checked={downloadPdf} disabled={busy} onChange={e => setDownloadPdf(e.target.checked)} /><span>Allow PDF download for this request<span className="block text-xs text-muted-foreground">Off by default. Saved text and figures work without the original PDF. Turn on only to fetch a missing report or its original PDF.</span></span></label>
-        {/* Action bar: section choice, run button, progress line. */}
+        {/* Action bar: section choice, run button. Per-item progress now lives in BatchProgress
+            below, not a single shared line — it keeps going after this section re-renders and
+            after a tab switch away and back, since it reads App-level batch state. */}
         <div className="flex flex-wrap items-end gap-x-4 gap-y-3 border-t border-border bg-background/50 px-5 py-4">
           <div className="w-full max-w-80 space-y-1 min-[1280px]:flex-1">
             <label htmlFor="section" className="text-xs text-muted-foreground">
@@ -381,51 +343,31 @@ export function UploadView({ onDone, onNavigate }: Props) {
             )}
           </div>
           <Button
-            onClick={() => {
-              void run()
-            }}
+            onClick={() => runBatch()}
             disabled={!canExtract}
           >
             {busy && <Loader2 className="animate-spin" />}
             {downloadPdf && picked.length ? 'Download PDF and extract' : count > 1 ? `Extract ${count} reports` : 'Extract'}
           </Button>
-          {/* v164: once the locator has answered, the wait line reads the pages (best heading first)
-              and ticks a stopwatch; `tabular-nums` keeps the seconds from wiggling. */}
-          {progress && (
-            <LoadingLine className="w-full">
-              {wait ? (
-                <>
-                  Reading pages {wait.pages} of {wait.total} · {wait.heading || sectionLabel} ·{' '}
-                  <span className="tabular-nums">{waitSeconds}</span> s
-                </>
-              ) : (
-                progress
-              )}
-            </LoadingLine>
-          )}
         </div>
 
-        {/* All-failed block. The shared danger block (v010); the tried URL list stays inside
-            it as collapsible details for the /fetch 404 case, where the backend reports
-            what it attempted. */}
+        <BatchProgress
+          items={batch.items}
+          busy={busy}
+          stopRequested={batch.stopRequested}
+          resultsCount={resultsCount}
+          onStopAfterCurrent={batch.stopAfterCurrent}
+          onRetry={(id) => void batch.retry(id)}
+          onViewResults={onViewResults}
+          onNavigate={onNavigate}
+        />
+
+        {/* Local validation only — bad file type on drop/pick, or the sample failing to open.
+            Batch failures (fetch/candidates/extract) render per-item in BatchProgress above,
+            with their own next-step copy, not here. */}
         {error && (
           <div className="border-t border-border px-5 py-4">
-            <ErrorBlock
-              details={Object.entries(tried).map(([label, urls]) => (
-                <details key={label} className="mt-1 text-xs">
-                  <summary className="cursor-pointer">
-                    {label}: tried {urls.length} URL{urls.length === 1 ? '' : 's'}
-                  </summary>
-                  <ul className="mt-1 list-inside list-disc break-all">
-                    {urls.map((u) => (
-                      <li key={u}>{u}</li>
-                    ))}
-                  </ul>
-                </details>
-              ))}
-            >
-              {error}
-            </ErrorBlock>
+            <ErrorBlock>{error}</ErrorBlock>
           </div>
         )}
       </section>
