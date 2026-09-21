@@ -59,6 +59,126 @@ for section in ('income_statement', 'debt_maturity'):
     previous.pop('basis')
     assert workbench.compare(current, previous)['rows'][0]['delta'] is None
 
+# v174: maturity_wall -- deterministic upcoming-maturities list (consult-gpt6 #8, consult-fable #2).
+# Pure function, no disk. statement('debt_maturity') is fully confirmed by default: total_debt=100,
+# due_within_1_year=20 (both MSEK) -> share 0.2 is the baseline every case below tweaks one thing in.
+x = statement('debt_maturity')
+wall = workbench.maturity_wall([x])
+row = wall['rows'][0]
+assert row['comparable'] and row['share'] == 0.2 and row['reason'] == ''
+assert wall['coverage'] == {'total': 1, 'comparable': 1, 'missing_total': 0, 'missing_w1y': 0, 'basis_unconfirmed': 0}
+
+# Basis not confirmed: the ratio is still arithmetic on printed numbers, so share stays visible for the
+# analyst -- only "comparable" and the coverage count flip. (This is today's real state for all 105
+# saved debt_maturity extractions -- gpt6: honestly show incomparable, don't skip confirmation for a chart.)
+x = statement('debt_maturity')
+x.pop('basis')
+wall = workbench.maturity_wall([x])
+row = wall['rows'][0]
+assert row['share'] == 0.2 and not row['comparable'] and 'Basis not confirmed' in row['reason']
+assert wall['coverage']['basis_unconfirmed'] == 1 and wall['coverage']['comparable'] == 0
+
+# Missing total_debt: N/A share, counted, not comparable.
+x = statement('debt_maturity')
+next(f for f in x['fields'] if f['key'] == 'total_debt')['value'] = None
+wall = workbench.maturity_wall([x])
+row = wall['rows'][0]
+assert row['share'] is None and not row['comparable'] and 'Missing total debt' in row['reason']
+assert wall['coverage']['missing_total'] == 1
+
+# Missing due_within_1_year: same shape, the other required field.
+x = statement('debt_maturity')
+next(f for f in x['fields'] if f['key'] == 'due_within_1_year')['value'] = None
+wall = workbench.maturity_wall([x])
+row = wall['rows'][0]
+assert row['share'] is None and not row['comparable']
+assert wall['coverage']['missing_w1y'] == 1
+
+# Zero debt: a real, clean state -- share N/A (zero denominator) but not an error and not "missing".
+x = statement('debt_maturity')
+for key in ('total_debt', 'due_within_1_year', 'due_1_to_5_years', 'due_after_5_years'):
+    next(f for f in x['fields'] if f['key'] == key)['value'] = 0
+wall = workbench.maturity_wall([x])
+row = wall['rows'][0]
+assert row['share'] is None and row['comparable'] and row['reason'] == 'No debt outstanding.'
+assert wall['coverage']['missing_total'] == 0 and wall['coverage']['comparable'] == 1
+
+# Unverified evidence (human review removed, no evidence codes): share still shown, comparable flips.
+x = statement('debt_maturity')
+next(f for f in x['fields'] if f['key'] == 'total_debt').pop('human_review')
+row = workbench.maturity_wall([x])['rows'][0]
+assert row['share'] == 0.2 and not row['comparable'] and 'not yet verified' in row['reason']
+
+# MSEK vs TSEK: same currency, different printed scale -- share correct, display harmonised to MSEK.
+x = statement('debt_maturity')
+next(f for f in x['fields'] if f['key'] == 'due_within_1_year').update(value=50000, unit='TSEK')
+row = workbench.maturity_wall([x])['rows'][0]
+assert row['share'] == 0.5
+assert row['total'] == {'value': 100.0, 'unit': 'MSEK'} and row['due_within_1_year'] == {'value': 50.0, 'unit': 'MSEK'}
+
+# EUR vs SEK: no FX conversion -- not comparable, share withheld, original units never relabelled.
+x = statement('debt_maturity')
+next(f for f in x['fields'] if f['key'] == 'due_within_1_year')['unit'] = 'MEUR'
+row = workbench.maturity_wall([x])['rows'][0]
+assert row['share'] is None and not row['comparable'] and 'currency' in row['reason']
+assert row['due_within_1_year']['unit'] == 'MEUR'
+
+# Unrecognised unit text: treated the same as a currency mismatch, never guessed.
+x = statement('debt_maturity')
+next(f for f in x['fields'] if f['key'] == 'total_debt')['unit'] = 'doubloons'
+row = workbench.maturity_wall([x])['rows'][0]
+assert row['share'] is None and not row['comparable']
+
+# Parent company: a confirmed non-Group entity level is not itself a reason to block comparability.
+x = statement('debt_maturity')
+x['basis']['values']['consolidation'] = 'Parent'
+row = workbench.maturity_wall([x])['rows'][0]
+assert row['comparable'] and row['consolidation'] == 'Parent'
+
+# Leases excluded: same -- a confirmed choice is exposed, not penalised.
+x = statement('debt_maturity')
+x['basis']['values']['leases'] = 'Excluded'
+row = workbench.maturity_wall([x])['rows'][0]
+assert row['comparable'] and row['leases'] == 'Excluded'
+
+# Incomplete bucket breakdown (the long buckets absent) does not block total/<1y -- "partially
+# computable": the full 3-bucket identity check may go unavailable elsewhere, but this metric needs
+# only two fields.
+x = statement('debt_maturity')
+for key in ('due_1_to_5_years', 'due_after_5_years'):
+    next(f for f in x['fields'] if f['key'] == key)['value'] = None
+row = workbench.maturity_wall([x])['rows'][0]
+assert row['comparable'] and row['share'] == 0.2
+
+# Sort: comparable rows by share descending, then non-comparable rows last regardless of their own share.
+a, b, c = statement('debt_maturity'), statement('debt_maturity'), statement('debt_maturity')
+a['company'], b['company'], c['company'] = 'A', 'B', 'C'
+next(f for f in a['fields'] if f['key'] == 'due_within_1_year')['value'] = 50  # share 0.5
+next(f for f in c['fields'] if f['key'] == 'due_within_1_year')['value'] = 90  # share 0.9, but...
+c.pop('basis')                                                                 # ...not comparable
+wall = workbench.maturity_wall([a, b, c])
+assert [r['company'] for r in wall['rows']] == ['A', 'B', 'C']
+
+# Coverage aggregates across a mixed set without double-counting missing vs. unconfirmed.
+ok = statement('debt_maturity')
+no_basis = statement('debt_maturity')
+no_basis.pop('basis')
+no_total = statement('debt_maturity')
+next(f for f in no_total['fields'] if f['key'] == 'total_debt')['value'] = None
+no_w1y = statement('debt_maturity')
+next(f for f in no_w1y['fields'] if f['key'] == 'due_within_1_year')['value'] = None
+zero = statement('debt_maturity')
+for key in ('total_debt', 'due_within_1_year'):
+    next(f for f in zero['fields'] if f['key'] == key)['value'] = 0
+wall = workbench.maturity_wall([ok, no_basis, no_total, no_w1y, zero])
+assert wall['coverage'] == {'total': 5, 'comparable': 2, 'missing_total': 1, 'missing_w1y': 1, 'basis_unconfirmed': 1}
+
+# Non-debt_maturity rows are ignored, never crashed on (income_statement fields have no total_debt key).
+wall = workbench.maturity_wall([statement('income_statement')])
+assert wall['rows'] == [] and wall['coverage']['total'] == 0
+
+print('maturity_wall: baseline share, basis/evidence gates, zero debt, unit scale and currency, entity/lease transparency, partial buckets, sort order, coverage')
+
 with tempfile.TemporaryDirectory() as tmp, patch('pipeline.fetch.fetch_report', side_effect=AssertionError('PDF download forbidden')):
     os.environ['KB_DIR'] = tmp
     for year in (2025, 2024, 2023):
@@ -135,6 +255,15 @@ with tempfile.TemporaryDirectory() as tmp:
             unicode_filter = client.get('/api/kb/export.csv', params={'section': 'debt_maturity', 'collection': 'all', 'q': 'Å'})
         assert unicode_filter.status_code == 200
         assert unicode_filter.headers['content-disposition'] == 'attachment; filename="kb_debt_maturity_all.csv"'
+        # v174: GET /api/kb/maturity-wall -- same decorated extracts as the exports above, so the
+        # collection filter and the reviewed/unreviewed split already set up here double as its test.
+        wall = client.get('/api/kb/maturity-wall?collection=wallenberg').json()
+        assert wall['coverage'] == {'total': 2, 'comparable': 1, 'missing_total': 0, 'missing_w1y': 0, 'basis_unconfirmed': 0}
+        assert {r['stem'] for r in wall['rows']} == {'abb_2025', 'ericsson_2025'}
+        assert next(r for r in wall['rows'] if r['stem'] == 'abb_2025')['comparable']
+        assert not next(r for r in wall['rows'] if r['stem'] == 'ericsson_2025')['comparable']
+        wall_all = client.get('/api/kb/maturity-wall?collection=all').json()
+        assert wall_all['coverage']['total'] == 3 and {r['stem'] for r in wall_all['rows']} == {'abb_2025', 'ericsson_2025', 'outside_2025'}
 
 # v164: candidate pages -- the deterministic locator behind GET /candidates, served before the
 # model runs. Isolated KB folder; the model entrypoint is rigged to fail so the endpoint's

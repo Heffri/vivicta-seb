@@ -8,9 +8,11 @@ async function mockLibrary(page: Page) {
   await page.route('**/api/**', async route => {
     const url = new URL(route.request().url())
     const all = url.searchParams.get('collection_name') === 'all'
+    const midcap = url.searchParams.get('collection_name') === 'midcap'
+    const entries = midcap ? [acast] : all ? [abb, acast] : [abb]
     const json = url.pathname === '/api/config' ? { provider: 'codex', model: 'test', retrieval: 'bm25' }
-      : url.pathname === '/api/companies' ? (all ? [abb, acast] : [abb]).map(entry => ({ name: entry.company, ticker: entry.company.toUpperCase(), sector: 'Industrials', cached_years: [] }))
-      : url.pathname === '/api/kb' ? all ? [abb, acast] : [abb]
+      : url.pathname === '/api/companies' ? entries.map(entry => ({ name: entry.company, ticker: entry.company.toUpperCase(), sector: 'Industrials', cached_years: [] }))
+      : url.pathname === '/api/kb' ? entries
       : url.pathname === '/api/schemas' ? [{ name: 'income_statement', title: 'Income statement' }]
       : url.pathname.endsWith('/pages/1') ? { page: 1, text: 'Revenue 100. Saved page evidence.' }
       : []
@@ -40,9 +42,27 @@ test('Extract and Ask can use all companies, and the choice follows navigation',
   await expect(page.getByRole('heading', { name: '2 reports · all saved reports' })).toBeVisible()
 })
 
+test('SEB Mid Cap keeps the KB list within its collection', async ({ page }) => {
+  await mockLibrary(page)
+  const kbScopes: string[] = []
+  page.on('request', request => {
+    const url = new URL(request.url())
+    if (url.pathname === '/api/kb') kbScopes.push(url.searchParams.get('collection_name')!)
+  })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'SEB Mid Cap (132)', exact: true }).click()
+  await expect(page.getByRole('button', { name: /Acast ACAST/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /ABB ABB/ })).toHaveCount(0)
+  await page.getByRole('tab', { name: 'Knowledge base', exact: true }).click()
+  await expect(page.getByRole('heading', { name: '1 reports · SEB Mid Cap universe' })).toBeVisible()
+  await expect(page.getByRole('row', { name: /Acast.*acast_2025/ })).toBeVisible()
+  await expect(page.getByRole('row', { name: /ABB/ })).toHaveCount(0)
+  expect(kbScopes).toContain('midcap')
+})
+
 test('Review groups checks by exact report and statement, retaining filters and details', async ({ page }) => {
   await mockLibrary(page)
-  await page.route('**/api/review-queue', route => route.fulfill({ json: [
+  await page.route('**/api/review-queue*', route => route.fulfill({ json: [
     ...['entity', 'period', 'currency'].map(key => ({ report: abb, section: 'income_statement', kind: 'basis', key, detail: `Confirm ${key}` })),
     { report: abb, section: 'debt_maturity', kind: 'check', key: 'maturity', detail: 'Check debt maturity sum' },
     { report: acast, section: 'income_statement', kind: 'field', key: 'revenue', detail: 'Review revenue' },

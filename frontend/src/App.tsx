@@ -23,7 +23,7 @@ export default function App() {
   const [tone, setTone] = useTone()
   const [tab, setTab] = useState<Tab>('extract')
   const [savedReport, setSavedReport] = useState<KbEntry | null>(null)
-  const [reportOrigin, setReportOrigin] = useState<'kb' | 'map' | 'review'>('kb')
+  const [reportOrigin, setReportOrigin] = useState<'kb' | 'map' | 'review' | 'compare'>('kb')
   const [reviewTarget, setReviewTarget] = useState<{ section?: string; key?: string }>({})
   const [results, setResults] = useState<Result[]>([])
   const [detail, setDetail] = useState<number | null>(null) // index into results shown on the Results tab
@@ -119,6 +119,7 @@ export default function App() {
                   setTab('results')
                 }}
                 onReset={reset}
+                onOpenReport={(report, section, key) => { setReviewTarget({ section, key }); setSavedReport(report); setReportOrigin('compare'); setTab('results') }}
               />
             )}
             {tab === 'ask' && <AskView key={askCompany ?? 'global'} initialCompany={askCompany} />}
