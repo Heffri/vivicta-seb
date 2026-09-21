@@ -9,21 +9,31 @@
     {
       "key": "total_debt",
       "label": "Total borrowings",
-      "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
-      "source": null,
-      "confidence": 0.0,
-      "evidence": []
+      "value": 395,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "Interest-bearing financial liabilities to credit institutions",
+      "source": {
+        "page": 116,
+        "quote": "Interest-bearing financial liabilities to credit institutions 395 431 14 417 –"
+      },
+      "confidence": 0.9,
+      "evidence": [
+        "quote_on_page",
+        "value_in_quote",
+        "arith_ok",
+        "period_ok",
+        "page_is_statement",
+        "unit_ok"
+      ]
     },
     {
       "key": "due_within_1_year",
       "label": "Due within 1 year",
       "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -32,9 +42,9 @@
       "key": "due_1_to_5_years",
       "label": "Due 1–5 years",
       "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -43,9 +53,9 @@
       "key": "due_after_5_years",
       "label": "Due after 5 years",
       "value": null,
-      "unit": null,
-      "period": null,
-      "raw_label": null,
+      "unit": "MSEK",
+      "period": "2025",
+      "raw_label": "",
       "source": null,
       "confidence": 0.0,
       "evidence": []
@@ -59,10 +69,7 @@
     }
   ],
   "warnings": [
-    "two_pass: page [111, 112] selected from candidates [111, 112, 116]",
-    "due_within_1_year: model returned null, fill from page 111 row 'Within 1 year 2 2' refused -- the Parent Company section 'Parent Company' holds this table",
-    "due_1_to_5_years: model returned null, fill from page 111 row 'Between 1 and 5 years 2 1' refused -- the Parent Company section 'Parent Company' holds this table",
-    "due_after_5_years: model returned null, fill from page 111 row 'Later than 5 years – –' refused -- the Parent Company section 'Parent Company' holds this table",
-    "published: seedseed-rerun-v114-kb run replayed with extract.py @ d3eb5fc8"
+    "two_pass: page [115, 116] selected from candidates [116, 117, 111, 94, 98, 119, 131, 96, 100, 115]",
+    "published: seedv162-publish-kb run replayed with extract.py @ b5fb0a1a"
   ]
 }
