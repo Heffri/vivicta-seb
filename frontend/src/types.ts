@@ -80,13 +80,13 @@ export type Field = {
   review_history?: (HumanReview & { previous: Omit<Field, 'review_history'> })[];
   key: string;              // canonical key from the schema, e.g. "revenue"
   label: string;            // human label from the schema
-  value: number | string | null;  // null = not found
+  value: number | string | null;  // null = not found, or (with "absent_in_table" evidence) not printed in this report
   unit: string | null;      // "MSEK", "SEK", "%", ...
   period: string | null;    // "2025", "2024", "2025-Q4"
   raw_label: string | null; // the label as printed in the report, e.g. "Intäkter"
   source: Source | null;
   confidence: number;       // 0..1, computed from evidence by the backend — see docs/CONFIDENCE.md. Never the model's opinion.
-  evidence: string[];       // satisfied evidence codes, e.g. ["quote_on_page","value_in_quote","arith_ok"]; 1.0 <=> all seven present
+  evidence: string[];       // satisfied evidence codes, e.g. ["quote_on_page","value_in_quote","arith_ok"]; 1.0 <=> all seven present; "absent_in_table" = the maturity table prints no column for this window (v165: value stays null, source quotes the header row, the identity counts it as 0)
 };
 
 export type Check = {

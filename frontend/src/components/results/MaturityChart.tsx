@@ -324,6 +324,9 @@ export function MaturityChart({ extraction, selectedKey, onSelect, onPriorChange
             const cx = M.left + band * i + band / 2
             const v = numeric(f)
             const lit = f && (key === selectedKey || key === hoveredKey)
+            // v165: the report's own maturity table prints no column for this window (the header row
+            // quoted in the field's source is the proof) — an explicit absence, labelled as such.
+            const notPrinted = !!f && f.value === null && (f.evidence ?? []).includes('absent_in_table')
             const pv = dual ? priorValue(key) : null
             // grouped columns while both years show: current left, prior right; single-centred
             // otherwise — the exact pre-v091 geometry, unchanged when the switch is off
@@ -334,7 +337,7 @@ export function MaturityChart({ extraction, selectedKey, onSelect, onPriorChange
                 key={key}
                 role="button"
                 tabIndex={0}
-                aria-label={f ? (f.value === null ? `${f.label} — no value` : f.label) : key}
+                aria-label={f ? (f.value === null ? `${f.label} — ${notPrinted ? 'not printed in this report' : 'no value'}` : f.label) : key}
                 aria-pressed={key === selectedKey}
                 onClick={() => onSelect(key)}
                 onKeyDown={(e) => {
@@ -347,14 +350,14 @@ export function MaturityChart({ extraction, selectedKey, onSelect, onPriorChange
                 onMouseLeave={() => setHoveredKey(null)}
                 className="cursor-pointer rounded-md outline-none focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
               >
-                {f && <title>{`${f.label}: ${f.value === null ? 'no value' : fmtValue(f.value)}${unit ? ` ${unit}` : ''}`}</title>}
+                {f && <title>{`${f.label}: ${f.value === null ? (notPrinted ? 'not printed in this report' : 'no value') : fmtValue(f.value)}${unit ? ` ${unit}` : ''}`}</title>}
 
                 {/* null bucket: an empty column on the baseline, never a zero bar */}
                 {f && v === null && (
                   <>
                     <rect x={curCx - BAR_W / 2} y={BASELINE - 12} width={BAR_W} height={12} rx={2} fill="none" stroke="var(--line-2)" strokeDasharray="3 3" />
                     <text x={curCx} y={BASELINE - 19} fontSize={12} textAnchor="middle" fill="var(--fg-3)">
-                      {fmtValue(null)}
+                      {notPrinted ? 'not printed' : fmtValue(null)}
                     </text>
                   </>
                 )}
@@ -368,7 +371,7 @@ export function MaturityChart({ extraction, selectedKey, onSelect, onPriorChange
                   textAnchor="middle"
                   fill={f && f.value === null ? 'var(--fg-3)' : 'var(--fg-1)'}
                 >
-                  {fmtValue(f && f.value !== null ? f.value : null)}
+                  {fmtValue(f && f.value !== null ? f.value : notPrinted ? '' : null)}
                 </text>
                 {pv !== null && pv > 0 && (
                   <path d={barPath(priCx, y(pv), BAR_W, BASELINE)} fill={BAR_FILL_PRIOR}>

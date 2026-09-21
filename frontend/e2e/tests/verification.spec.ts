@@ -10,6 +10,9 @@ test('verification reports evidence rather than a probability of truth', () => {
   const field: Field = { ...fixture.fields[0], confidence: 1, evidence }
   expect(fieldVerification({ ...field, evidence: [] }).label).toBe('Not checked')
   expect(fieldVerification({ ...field, value: null }).label).toBe('Not found')
+  // v165: a bucket the maturity table prints no column for — the header row in the source proves it.
+  expect(fieldVerification({ ...field, value: null, evidence: ['absent_in_table'] }).label).toBe('Not printed in this report')
+  expect(fieldVerification({ ...field, value: null, evidence: ['absent_in_table'] }).variant).toBe('secondary')
   expect(fieldVerification({ ...field, confidence: 0 }).label).toBe('Checks passed')
   expect(fieldVerification({ ...field, evidence: evidence.map(e => e === 'value_in_quote' ? 'value_derived' : e) }).label).toBe('Calculated from report')
   expect(fieldVerification({ ...field, evidence: evidence.filter(e => e !== 'period_ok') }).label).toBe('Needs review')

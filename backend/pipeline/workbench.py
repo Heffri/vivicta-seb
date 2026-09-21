@@ -16,8 +16,15 @@ def checks(x, schema):
     out = []
     for rule in schema.get("checks", []):
         keys = [f["key"] for f in schema["fields"] if re.search(r"\b" + re.escape(f["key"]) + r"\b", rule["expr"])]
-        operands = [fields.get(k, {}) for k in keys]
-        missing = [k for k in keys if not isinstance(fields.get(k, {}).get("value"), (float, int)) or not math.isfinite(fields[k]["value"])]
+        # v165: a bucket the maturity table prints no column for (evidence "absent_in_table", the header
+        # row its source) is the report's explicit absence: it joins the reconciliation as 0 -- the same
+        # participation extract._check gives it under require_explicit_values -- instead of holding the
+        # check "unavailable" on a value the report never prints. Its missing unit/period are implied by
+        # the table it was not printed in, not an unresolved question about a read figure.
+        absent = {k for k in keys if rule.get("require_explicit_values") and fields.get(k, {}).get("value") is None
+                  and "absent_in_table" in (fields.get(k, {}).get("evidence") or [])}
+        operands = [fields.get(k, {}) for k in keys if k not in absent]
+        missing = [k for k in keys if k not in absent and (not isinstance(fields.get(k, {}).get("value"), (float, int)) or not math.isfinite(fields[k]["value"]))]
         units = {str(f.get("unit") or "").strip().casefold() for f in operands}
         periods = {str(f.get("period") or "").strip().casefold() for f in operands}
         reason = "Missing explicit values: " + ", ".join(missing) if missing else ""
@@ -26,7 +33,8 @@ def checks(x, schema):
         if reason:
             out.append({"name": rule["name"], "passed": False, "status": "unavailable", "detail": reason})
         else:
-            result = extract._check(dict(rule, null_as_zero=[]), {k: fields[k]["value"] for k in keys})
+            values = {k: fields[k]["value"] for k in keys if k not in absent}
+            result = extract._check(dict(rule, null_as_zero=[]), {**values, **{k: 0 for k in absent}})
             out.append(dict(result, status="passed" if result["passed"] else "failed"))
     return out
 
@@ -43,6 +51,11 @@ def decorate(x, schema, audit=None):
     for f in x["fields"]:
         review = f.get("human_review", {})
         evidence = set(f.get("evidence", []))
+        # v165: a null bucket the report's own maturity table prints no column for is not an open
+        # question -- the header row in its source is the proof it is not printed; nothing to review.
+        # A reviewer actively marking it unresolved re-opens it below like any other field.
+        if f.get("value") is None and "absent_in_table" in evidence and review.get("decision") != "unresolved":
+            continue
         resolved = review.get("decision") in ("confirmed", "corrected") or ({"quote_on_page", "value_in_quote", "label_known", "period_ok", "page_is_statement", "unit_ok"} <= evidence and bool(f.get("source")))
         if f.get("value") is None or not f.get("unit") or not f.get("period") or review.get("decision") == "unresolved" or not resolved or (values.get("period") and str(f.get("period")) != values["period"]):
             issues.append({"kind": "field", "key": f["key"], "detail": f.get("label", f["key"]) + (": missing value (not zero)" if f.get("value") is None else ": verify value, unit, period and source")})
