@@ -62,6 +62,10 @@ verify — locator, parser, label matching. `main` hasn't moved; nothing here ha
     stored 16/40 → **19/40** fields on the 18 newly-labelled stems — raw fresh runs 14/40
     ([v136](evidence/v136.md)); stored 23/69 → **31/69** fields (pages 17/62 → 23/62) on the 28
     remaining value-miss stems ([v160](evidence/v160.md)).
+  - **Held-out Small Cap first extraction**: blind labels for 10 FY2025 reports were committed
+    before outputs were opened; shipped-default `off` scored **26/40 (65.0%)** values and
+    **8/17 (47.1%)** cited pages (5 empty, 9 non-empty-wrong), while non-default `majority`
+    comparison scored 27/40 and 8/17. Small n, no market extrapolation ([v178](evidence/v178.md)).
   - **Error nature** (stored debt misses, each named): of 40 value misses, **34 empty** (not read /
     declined) vs **6 non-empty wrong**; the label audit found **0 label errors**, **2
     report-internal disagreements** (Green Landscaping, Volati — the report itself prints two

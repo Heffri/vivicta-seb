@@ -157,3 +157,34 @@ Live verification after integration returned Ericsson FY2025 revenue of SEK 236,
 million with a verified page-33 quote and no warnings. The browser showed the ready
 bge-m3 index (1024 dimensions), passage/fact counts, Inspect and Rebuild. Eight desktop
 update/data-sync tests also passed.
+
+
+## Held-out first extraction (Small Cap, blind labels)
+
+This is a deliberately small, out-of-sample measurement, not a market-accuracy estimate. The
+fixed sample is ten FY2025 Small Cap reports drawn with `seed=1`; none had appeared in the seed
+sets or `eval/labels.csv`. PDFs, registration, pages and extractions lived in an isolated data
+directory; the repository KB and label set were neither read as few-shot context nor changed.
+The only copied bootstrap files were the public company catalogue and report index. `FEWSHOT=0`,
+Codex `gpt-5.6-terra` at its normal low reasoning, and all other pipeline switches were left
+unset.
+
+The human labels were committed before the sealed first-extraction results were opened. The
+shipped configuration is **`EXTRACT_MERGE_RUNS=off`**, so its raw output is the primary result:
+
+| configuration | model extraction calls | value accuracy | cited-page hit rate | empty misses | non-empty wrong values |
+| --- | ---: | --- | --- | ---: | ---: |
+| default `off` (primary) | 10 | **26/40 (65.0%)** | **8/17 (47.1%)** | 5 | 9 |
+| `majority` (non-default comparison, same frozen labels) | 14 | 27/40 (67.5%) | 8/17 (47.1%) | 5 | 8 |
+
+The two measurements used **24 extraction calls total**, below the 40-call budget. Majority's
+only value change was to withhold Sedana Medical's false-positive total (lease/acquisition
+liabilities), making that null label correct; it did not improve a cited page. No result caused a
+label, schema, prompt, or pipeline change.
+
+Seven catalogued candidates were skipped while filling the fixed ten: four could not register
+without unavailable OCR language data (SinterCast, Malmbergs Elektriska, BE Group, Wise), Nyorda
+returned 404 without a report, and HAKI Safety plus Cinclus returned plaintext HTTP 500 errors.
+The plaintext handling is a recorded skip rule, not a successful extraction. See
+[v178](acrylic/evidence/v178.md) for the fixed sample, per-company score vectors, configuration,
+and blind-label chronology.
