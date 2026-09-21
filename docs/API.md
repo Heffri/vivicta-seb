@@ -243,11 +243,20 @@ data/kb/<stem>/
   wins; when the checks agree, values within ±2 count as the same answer and higher confidence picks whose copy to keep
   (a confidence tie keeps the second run), while a conflicting pair publishes null — with neither check nor a
   corroborating vote on either side, no signal says which run is right (v129's rules with the v145/v145-b conflict rule,
-  measured on the v129/v136/v141 rerun data). Both raw
+  measured on the v129/v136/v141 rerun data). Agreement is a same-financial-question comparison (v168): the unit counts
+  too, by magnitude and currency — `MSEK`, `SEK m`, `SEKm` and `SEK million` are one unit, `KSEK`/`TSEK`/`SEK '000` are
+  another, so 100 MSEK and 100 TSEK are a conflict, not a corroborating pair — and so does the period when both sides
+  carry one; a unit or period printed on one side only is not proof of sameness. Both raw
   answers are saved as `extractions/<section>.run1.json` / `.run2.json` beside the merged `<section>.json`, and the merged
   result carries a top-level `"merge"` block (`mode`, `runs`, per-field `decisions`) plus a `merge:` summary warning.
-  `majority` counts the stored answer as a third vote when it is pipeline-generated (a reviewed extraction never votes);
-  when run 1 already matches it field by field the second run is skipped (`"runs": 1`).
+  `majority` counts the stored answer as a third vote when it is pipeline-generated (a reviewed extraction never votes)
+  and it answers the same financial question: same report, section, fiscal_year and maturity_basis — a stored answer read
+  on the other debt basis, another year, or one missing that metadata sits out, and the merge block then says
+  `"stored_vote": "not eligible: <reason>"`. When run 1 already matches an eligible stored answer field by field the
+  second run is skipped (`"runs": 1`). Run 1's `prior_year`/`buckets_by_year` attachments are deterministic reads of
+  run 1's own rows, so they ride along only while every field they cover still carries run 1's answer — a conflict-null,
+  another run's different value or unit scale drops the attachment, with a `merge: … dropped` warning saying which field
+  no longer supports it.
 - `/index` chunks `pages.jsonl` (~800 chars, page-aware) **and** turns each extracted field into a fact chunk
   (`"Atlas Copco FY2025 · Consolidated income statement · Revenue = 176 771 MSEK (p.106)"`), embeds both with `EMBED_MODEL`.
 - `/ask` retrieves top-k chunks — hybrid cosine+BM25 when `LLM_BASE_URL` provides embeddings, pure BM25 otherwise
