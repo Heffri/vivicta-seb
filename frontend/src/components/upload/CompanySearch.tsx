@@ -7,6 +7,7 @@ import type { Company } from '@/types'
 import { Face } from './Face'
 
 type CompanySearchProps = {
+  collection: 'wallenberg' | 'all'
   query: string
   year: string
   companies: Company[]
@@ -20,6 +21,7 @@ type CompanySearchProps = {
 
 // Path 1: pick listed companies; /fetch pulls the PDF on demand.
 export function CompanySearch({
+  collection,
   query,
   year,
   companies,
@@ -31,7 +33,7 @@ export function CompanySearch({
   onTogglePick,
 }: CompanySearchProps) {
   return (
-    <Face label="Wallenberg companies" hint="uses saved reports first; downloading is optional">
+    <Face label={collection === 'all' ? 'All listed companies' : 'Wallenberg companies'} hint="uses saved reports first; downloading is optional">
       <div className="flex gap-2">
         <Input
           id="company-q"

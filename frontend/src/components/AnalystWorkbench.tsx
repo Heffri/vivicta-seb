@@ -58,9 +58,26 @@ export function ReviewQueue({ onOpen }: { onOpen: (report: KbEntry, section: str
   useEffect(() => { let stale = false; getReviewQueue().then(r => { if (!stale) setIssues(r) }).catch(e => { if (!stale) setError(e.message) }); return () => { stale = true } }, [])
   const value = (i: QueueIssue, k: string) => k === 'company' ? i.report.company ?? i.report.stem : k === 'year' ? String(i.report.fiscal_year ?? '') : k === 'section' ? i.section : i.kind
   const visible = issues?.filter(i => Object.entries(filters).every(([k, v]) => !v || value(i, k) === v))
-  return <section className="space-y-5"><h1 className="text-2xl font-semibold">Review</h1><p className="text-muted-foreground">Unresolved figures, definitions and calculations in the saved Wallenberg collection. Open an item to review its statement and source.</p>
+  const groups = new Map<string, { report: KbEntry; section: string; issues: QueueIssue[] }>()
+  for (const issue of visible ?? []) {
+    const key = `${issue.report.stem}:${issue.section}`
+    if (!groups.has(key)) groups.set(key, { report: issue.report, section: issue.section, issues: [] })
+    groups.get(key)!.issues.push(issue)
+  }
+  const target = (issue: QueueIssue) => issue.kind === 'field' ? issue.key : issue.kind === 'basis' ? '@basis' : '@checks'
+  return <section className="space-y-5"><h1 className="text-2xl font-semibold">Review</h1><p className="text-muted-foreground">Outstanding checks in the saved Wallenberg collection, grouped by statement. Open a statement to review its figures and sources.</p>
     <div className="grid gap-3 sm:grid-cols-4">{Object.entries(filters).map(([k, v]) => <label key={k} className="text-sm capitalize">{k}<select aria-label={k} className={input} value={v} onChange={e => setFilters({ ...filters, [k]: e.target.value })}><option value="">All</option>{[...new Set(issues?.map(i => value(i, k)))].sort().map(v => <option key={v} value={v}>{v.replaceAll('_', ' ')}</option>)}</select></label>)}</div>
-    {error && <p role="alert">{error}</p>}{!issues && !error && <p>Loading review queue…</p>}{issues && <p>{visible?.length} unresolved items</p>}
-    <div className="space-y-2">{visible?.map((i, n) => <div key={`${i.report.stem}:${i.section}:${i.kind}:${i.key}:${n}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4"><div><p className="font-medium">{i.report.company} · {i.report.fiscal_year} · {i.section.replaceAll('_', ' ')}</p><p className="text-sm text-muted-foreground">{i.detail}</p></div><Button variant="outline" onClick={() => onOpen(i.report, i.section, i.kind === 'field' ? i.key : i.kind === 'basis' ? '@basis' : '@checks')}>Review item</Button></div>)}</div>
+    {error && <p role="alert">{error}</p>}{!issues && !error && <p>Loading review queue…</p>}
+    {issues && <p role="status">{groups.size} {groups.size === 1 ? 'statement' : 'statements'} · {visible?.length} outstanding {visible?.length === 1 ? 'check' : 'checks'}</p>}
+    {issues && !visible?.length && <p className="text-sm text-muted-foreground">{issues.length ? 'No checks match these filters.' : 'No outstanding checks in this collection.'}</p>}
+    <div className="space-y-3">{[...groups].map(([key, group]) => <article key={key} aria-label={`${group.report.company ?? group.report.stem} ${group.report.fiscal_year ?? ''} ${group.section.replaceAll('_', ' ')}`} className="rounded-xl border bg-card p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div><h2 className="font-medium">{group.report.company ?? group.report.stem} · {group.report.fiscal_year ?? 'Year unknown'}</h2><p className="mt-1 text-sm text-muted-foreground">{group.section.replaceAll('_', ' ')} · {group.issues.length} outstanding {group.issues.length === 1 ? 'check' : 'checks'}</p></div>
+        <Button variant="outline" onClick={() => onOpen(group.report, group.section, target(group.issues[0]))}>Review statement</Button>
+      </div>
+      <details className="mt-3 border-t pt-3"><summary className="cursor-pointer text-sm text-muted-foreground">Show outstanding checks</summary>
+        <ul className="mt-2 divide-y">{group.issues.map((issue, n) => <li key={`${issue.kind}:${issue.key}:${n}`} className="flex items-start justify-between gap-3 py-2 text-sm"><span>{issue.detail}</span><button type="button" className="shrink-0 rounded px-2 text-primary underline underline-offset-4 focus-visible:outline-2" aria-label={`Review ${issue.detail}`} onClick={() => onOpen(group.report, group.section, target(issue))}>Review</button></li>)}</ul>
+      </details>
+    </article>)}</div>
   </section>
 }

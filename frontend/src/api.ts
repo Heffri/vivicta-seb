@@ -23,7 +23,7 @@ export function uploadReport(file: File) {
   return request<Report>('/api/reports', { method: 'POST', body })
 }
 
-export const getLibrary = () => request<LibraryEntry[]>('/api/library?collection_name=wallenberg')
+export const getLibrary = (collection: 'wallenberg' | 'all' = 'wallenberg') => request<LibraryEntry[]>(`/api/library?collection_name=${collection}`)
 
 export const registerLibraryReport = (file: string) =>
   request<Report>('/api/reports/from-library', {
@@ -32,7 +32,7 @@ export const registerLibraryReport = (file: string) =>
     body: JSON.stringify({ file }),
   })
 
-export const getCompanies = (q: string) => request<Company[]>(`/api/companies?q=${encodeURIComponent(q)}&collection_name=wallenberg`)
+export const getCompanies = (q: string, collection: 'wallenberg' | 'all' = 'wallenberg') => request<Company[]>(`/api/companies?q=${encodeURIComponent(q)}&collection_name=${collection}`)
 
 // v074: country/hint are optional context for the backend's model search (its fourth fetch source,
 // used when the directory has no hit); they are ignored by the feed levels.
@@ -53,8 +53,9 @@ export const extractSection = (reportId: string, section: string, force = false)
 export const indexReport = (reportId: string) =>
   request<IndexStatus>(`/api/reports/${reportId}/index`, { method: 'POST' })
 
-export const ask = (question: string, reportIds?: string[], reportStems?: string[]) =>
+export const ask = (question: string, reportIds?: string[], reportStems?: string[], signal?: AbortSignal) =>
   request<Answer>('/api/ask', {
+    signal,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ question, ...(reportIds === undefined ? {} : { report_ids: reportIds }), ...(reportStems === undefined ? {} : { report_stems: reportStems }) }),

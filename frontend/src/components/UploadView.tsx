@@ -6,6 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ErrorBlock, LoadingLine } from '@/components/ui/state'
 import { CachedReports } from '@/components/upload/CachedReports'
 import { CompanySearch } from '@/components/upload/CompanySearch'
+import { CollectionPicker } from '@/components/CollectionPicker'
+import { useCollection } from '@/hooks/useCollection'
 import { Dropzone } from '@/components/upload/Dropzone'
 import type { Company, LibraryEntry, Report, Result, Schema } from '@/types'
 
@@ -16,6 +18,7 @@ type QueueItem = { label: string; prep?: string; getReport: () => Promise<Report
 const isPdf = (f: File) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
 
 export function UploadView({ onDone }: Props) {
+  const [collection, setCollection] = useCollection()
   const [schemas, setSchemas] = useState<Schema[]>([])
   const [schemasError, setSchemasError] = useState<string | null>(null)
   const [section, setSection] = useState<string | null>(null)
@@ -39,7 +42,7 @@ export function UploadView({ onDone }: Props) {
   useEffect(() => {
     let stale = false
     const t = setTimeout(() => {
-      getCompanies(query)
+      getCompanies(query, collection)
         .then((list) => {
           if (stale) return
           setCompanies(list)
@@ -51,7 +54,7 @@ export function UploadView({ onDone }: Props) {
       stale = true
       clearTimeout(t)
     }
-  }, [query])
+  }, [query, collection])
 
   useEffect(() => {
     getSchemas()
@@ -60,15 +63,19 @@ export function UploadView({ onDone }: Props) {
         setSection(list[0]?.name ?? null)
       })
       .catch((e: Error) => setSchemasError(e.message))
-    getLibrary()
-      .then(setLibrary)
-      .catch((e: Error) => setLibraryError(e.message))
     // v074: the web-search action is only offerable when the backend runs on a provider that has a
     // web-search tool (codex/claude); fixture/openai get the "needs a model provider" hint instead.
     getConfig()
       .then((c) => setProvider(c.provider))
       .catch(() => setProvider(null))
   }, [])
+
+  useEffect(() => {
+    let alive = true
+    getLibrary(collection).then(rows => { if (alive) { setLibrary(rows); setLibraryError(null) } })
+      .catch((e: Error) => { if (alive) setLibraryError(e.message) })
+    return () => { alive = false }
+  }, [collection])
 
   // Reject non-PDFs individually (named in the error) and keep the rest; re-picking/re-dropping appends.
   const pickFiles = (incoming: File[]) => {
@@ -181,8 +188,12 @@ export function UploadView({ onDone }: Props) {
         <p className="text-xs text-muted-foreground uppercase tracking-wide">Extract</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight">Pick reports, get source-linked numbers</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Wallenberg collection: reuse saved figures and page text, choose a local report or upload your own. PDFs are never downloaded automatically.
+          Reuse saved figures and page text, choose a local report or upload your own. PDFs are never downloaded automatically.
         </p>
+        <div className="mt-4"><CollectionPicker companies value={collection} disabled={busy} onChange={value => {
+          if (value === collection) return
+          setCollection(value); setPicked([]); setSelected(new Set()); setCompanies([]); setLibrary([]); setError(null)
+        }} /></div>
       </header>
 
       {/* One material: the whole screen is a single flat translucent step over the shell glass —
@@ -199,6 +210,7 @@ export function UploadView({ onDone }: Props) {
           }`}
         >
           <CompanySearch
+            collection={collection}
             query={query}
             year={year}
             companies={companies}

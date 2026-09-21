@@ -109,6 +109,31 @@ A double-click Windows app instead of a browser tab — same frontend, a package
 OS acrylic material on Windows 11. Build and run it from `desktop/`:
 [`desktop/README.md`](desktop/README.md).
 
+### Sharing saved reports with the hackathon team
+
+`data/kb/` is the team's shared cache: report metadata, source page text, saved
+extractions and reviews. The app opens these without re-extracting them. In
+**Knowledge base**, choose **Collection → All** to see the full library. Extract
+and Ask share this collection choice; Extract also offers **All companies**.
+
+For the installed desktop app, close it and run from your checkout (Node required):
+
+```powershell
+node scripts/sync-team-data.js --dry-run
+node scripts/sync-team-data.js
+```
+
+This copies new results between the installation and `data/kb/`. Review and commit
+the changed files on a branch, then share through the usual PR. Teammates pull the
+merged changes and run the same command. Reopen the app to load them. Merged data
+also ships in the next automatic desktop update. This is Git sharing, not live sync.
+
+Conflicting edits or different source PDFs are reported and left unchanged. Keep
+the app closed while syncing; do not pull while extracting or reviewing. PDFs,
+private uploads (`up-*`), credentials, logs, raw runs and derived embeddings stay
+local. This repository is public: commit only reports and review notes intended
+for it. A custom installation can use `--app-data <path-to-its-data-folder>`.
+
 ## How a section works
 
 One JSON file per report section in `backend/schemas/` — fields, sv+en locator keywords, arithmetic checks.
