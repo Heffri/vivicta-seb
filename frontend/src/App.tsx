@@ -70,7 +70,7 @@ export default function App() {
         <Rail active={tab} enabled={enabled} compareCount={results.length} onSelect={(next) => { setAskCompany(undefined); setTab(next) }} tone={tone} onToneChange={setTone} />
         <main id="content" tabIndex={-1} className="min-w-0 flex-1 overflow-y-auto">
           <div className="mx-auto max-w-6xl px-6 py-10">
-            {tab === 'extract' && <UploadView onDone={done} />}
+            {tab === 'extract' && <UploadView onDone={done} onNavigate={setTab} />}
             {tab === 'results' && savedReport && <SavedReportView initialSection={reportOrigin === 'review' ? reviewTarget.section : undefined} initialField={reportOrigin === 'review' ? reviewTarget.key : undefined} key={`${savedReport.stem}:${reviewTarget.section}:${reviewTarget.key}`} report={savedReport} onBack={() => setTab(reportOrigin)} onReset={reset} />}
             {tab === 'results' && !savedReport && shown?.extraction && (
               <ResultsView
