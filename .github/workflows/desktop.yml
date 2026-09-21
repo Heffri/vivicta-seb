@@ -50,6 +50,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m pipeline.test_kb
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m pipeline.test_fetch
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python test_human_review.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python test_collection.py
@@ -57,6 +59,10 @@ jobs:
           python test_workbench.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m pipeline.test_runtime
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m pipeline.test_debt_selection
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m pipeline.test_parse
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m pipeline.test_maturity_ocr
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

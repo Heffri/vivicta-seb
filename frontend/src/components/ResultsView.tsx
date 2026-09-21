@@ -9,6 +9,7 @@ import { MaturityChart } from '@/components/results/MaturityChart'
 import { SourcePanel, type Viewer } from '@/components/results/SourcePanel'
 import { StatusCards } from '@/components/results/StatusCards'
 import { Badge } from '@/components/ui/badge'
+import { scrollContent } from '@/components/shell/scrollContent'
 import { fieldVerification } from '@/components/results/verification'
 import { Button, buttonVariants } from '@/components/ui/button'
 import type { Comparison, Extraction, Field } from '@/types'
@@ -71,8 +72,8 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
   useEffect(() => {
     if (initialField === '@basis') {
       const basis = document.getElementById('basis-review') as HTMLDetailsElement | null
-      if (basis) { basis.open = true; basis.scrollIntoView({ block: 'start' }) }
-    } else if (initialField === '@checks') document.getElementById('calculation-checks')?.scrollIntoView({ block: 'start' })
+      if (basis) { basis.open = true; scrollContent(basis) }
+    } else if (initialField === '@checks') scrollContent(document.getElementById('calculation-checks'))
   }, [initialField])
   const selected = fields.find((f) => f.key === selectedKey) ?? null
   const page = askPage ?? selected?.source?.page ?? null // what the provenance pane shows
@@ -178,7 +179,7 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
           selectField(key)
           const source = document.getElementById('report-source')
           source?.focus({ preventScroll: true })
-          source?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          scrollContent(source, 'smooth')
         }} /></div>
 
         <AskPanel reports={[{ report_id, label: company ?? 'This report' }]} onCitation={(_id, p) => setAskPage(p)} />

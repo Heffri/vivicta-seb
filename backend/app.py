@@ -276,8 +276,7 @@ def fetch_report(body: FetchBody):
             raise HTTPException(409, "No saved report text or local PDF for this company and year. Enable PDF download explicitly or upload your own report.")
         t0 = time.time()
         try:
-            # 10-90 s: MFN -> Nasdaq -> DuckDuckGo, then -- only with a codex/claude provider -- the
-            # model's own web search (fetch.py's fourth source, what the Swedish feeds never carry).
+            # The connected model searches official sources first; feeds are fallback discovery.
             entry = fetch.fetch_report(body.company, body.year, LIBRARY, body.country, body.hint)
         except LookupError as e:
             detail = f"no annual report found for {body.company} {body.year}"

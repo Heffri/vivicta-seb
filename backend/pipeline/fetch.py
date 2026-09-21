@@ -1,15 +1,11 @@
-"""Find + download a company's annual report PDF into data/reports/ (the cache) and register it in index.json.
-Sources, cheapest first: MFN feed (aggregates Cision too) and Nasdaq notices, then the web (DuckDuckGo html) when the
-feeds only carried press releases or ESEF zips (AstraZeneca, Lundin Gold, SkiStar). Fourth (v074), only after all of
-those fail and a CLI model provider is configured: the model's own web search, asked for official annual-report PDF
-links for foreign companies the Swedish feeds never carry (Nestlé, Siemens, Shell ...). Fifth (v080), only after all
-of those fail too: crawl any page-shaped leftover from the earlier attempts -- a model reply that names the issuer's
-IR page instead of a direct PDF, a DDG hit that served a page, or the guessed investor-relations path for the domain
-of a direct link that 404d (Shell's stale asset-store URL) -- one hop deep, for the report PDF itself. If that still
-finds nothing, one more model call (v081) asks only for the IR/annual-report-archive page itself (never a PDF link),
-fed into the same crawl -- at most two model calls total. The fourth source also downloads every one of its own
-candidates rather than stopping at the first that validates, and keeps the most complete one, since the model is
-now asked to prefer the full report over a summary/highlights volume.
+"""Find and validate a company's annual report PDF, then cache it locally.
+
+A cached PDF is reused first. With a Codex/Claude provider, the connected model's
+live web search finds official report links or IR pages before any feed scraping.
+A targeted IR-page follow-up is allowed (at most two model searches). Every PDF
+must pass issuer, fiscal-year and report-type checks; complete reports are preferred.
+MFN/Nasdaq and traditional web discovery remain fallback sources when AI search
+is unavailable or cannot retrieve a valid report.
 CLI: python -m pipeline.fetch "Boliden" 2025"""
 import datetime as dt
 import io
@@ -634,7 +630,11 @@ def _write_index(dest_dir, index):
 
 
 def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, country: "str | None" = None, hint: "str | None" = None) -> dict:
-    """country/hint (v074) only feed the fourth source's prompt; levels 1-3 are name-driven already."""
+    """Reuse cached PDFs, then ask the connected model to search official sources.
+
+    Model-directed PDF/IR discovery runs before legacy feeds and web scraping.
+    Every candidate still passes issuer, fiscal-year and report-type validation.
+    """
     dest_dir = Path(dest_dir) if dest_dir is not None else paths.reports_dir()
     fname = f"{slugify(company)}_{year}.pdf"
     index = _load_index(dest_dir)
@@ -642,41 +642,6 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
         if e["file"] == fname and (dest_dir / fname).exists():
             return {**e, "tried": []}
     tried, toks, stub_pages, page_seeds = [], _toks(company), [], []
-    candidates = list(_candidates(company, year))
-    i = 0
-    while i < len(candidates):
-        url = candidates[i]
-        i += 1
-        tried.append(url)
-        t0 = time.time()
-        try:
-            data = _unzip(_get(url))
-            doc, text = _validate(data, company, year)
-        except Exception as e:
-            print(f"{url} -> {e}")
-            page_seeds += [u for u in _host_guesses(url, toks) if u not in page_seeds]  # a dead link: guess its own IR page (v080)
-            continue
-        if not doc:
-            print(f"{url} -> {text}")
-            if TITLE_YEAR_MARK in text:  # v122: a cover naming an older year is a finding, not just a miss
-                tried.append(text)
-            if data.startswith(b"%PDF"):  # not a download error: a page an RNS-style notice may name its own site on
-                stub_pages += [u for u in _stub_pages(data, toks) if u not in stub_pages]
-            elif url not in page_seeds:  # a page, not a PDF (a DDG hit that served an IR page): crawl it (v080)
-                page_seeds.append(url)
-            if i == len(candidates) and stub_pages:  # every direct candidate failed: try the issuer's own site (AstraZeneca)
-                candidates += [u for u in _harvest(stub_pages, year) if u not in candidates]
-                stub_pages = []
-            continue
-        print(f"{url} -> ok ({doc.page_count} pages, {time.time() - t0:.0f}s)")
-        dest_dir.mkdir(parents=True, exist_ok=True)
-        (dest_dir / fname).write_bytes(data)
-        entry = _entry(fname, company, year, url, text)
-        index = [e for e in index if e["file"] != fname] + [entry]
-        _write_index(dest_dir, index)
-        return {**entry, "tried": tried}
-    # fourth source: only now, with every feed and web candidate exhausted, and only when the
-    # configured provider actually has a web-search tool (websearch_provider's codex/claude gate).
     model_note = None
     if p := websearch_provider():
         urls, model_note = _model_candidates(company, year, country, hint)
@@ -713,9 +678,7 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
             index = [e for e in index if e["file"] != fname] + [entry]
             _write_index(dest_dir, index)
             return {**entry, "tried": tried}
-    # fifth source (v080): only now, with feeds/web/model all exhausted, crawl whatever page-shaped
-    # leftovers those attempts produced (an IR page the model named directly, a DDG hit that served a
-    # page instead of a PDF, or the guessed IR path for a direct link's own domain after it 404d).
+    # Follow the official IR pages returned by the model before broad fallback discovery.
     if page_seeds and (found := _ir_page_report(page_seeds, company, year, tried)):
         url, data, text = found
         dest_dir.mkdir(parents=True, exist_ok=True)
@@ -724,9 +687,8 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
         index = [e for e in index if e["file"] != fname] + [entry]
         _write_index(dest_dir, index)
         return {**entry, "tried": tried}
-    # second ask (v081): only now, with the fourth source's direct links AND the fifth source's own
-    # generic IR-path guesses both exhausted, ask the model once more -- this time only for the IR/
-    # annual-report-archive page itself -- and crawl it the same way (at most 2 model calls total).
+    # One targeted follow-up can find the official archive when direct links fail.
+    # At most two model searches per uncached report.
     if p:
         ir_urls, ir_note = _ir_page_candidates(company, year, country, hint)
         new_seeds = [u for u in ir_urls if u not in page_seeds]
@@ -740,6 +702,51 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
             return {**entry, "tried": tried}
         if ir_note:
             model_note = f"{model_note}; {ir_note}" if model_note else ir_note
+    # Traditional sources are a fallback, not a prerequisite for model search.
+    # Start a fresh set of page seeds so failed AI pages are not crawled twice.
+    page_seeds = []
+    candidates = list(_candidates(company, year))
+    i = 0
+    while i < len(candidates):
+        url = candidates[i]
+        i += 1
+        if url in tried:
+            continue
+        tried.append(url)
+        t0 = time.time()
+        try:
+            data = _unzip(_get(url))
+            doc, text = _validate(data, company, year)
+        except Exception as e:
+            print(f"{url} -> {e}")
+            page_seeds += [u for u in _host_guesses(url, toks) if u not in page_seeds]  # a dead link: guess its own IR page (v080)
+            continue
+        if not doc:
+            print(f"{url} -> {text}")
+            if TITLE_YEAR_MARK in text:  # v122: a cover naming an older year is a finding, not just a miss
+                tried.append(text)
+            if data.startswith(b"%PDF"):  # not a download error: a page an RNS-style notice may name its own site on
+                stub_pages += [u for u in _stub_pages(data, toks) if u not in stub_pages]
+            elif url not in page_seeds:  # a page, not a PDF (a DDG hit that served an IR page): crawl it (v080)
+                page_seeds.append(url)
+            if i == len(candidates) and stub_pages:  # every direct candidate failed: try the issuer's own site (AstraZeneca)
+                candidates += [u for u in _harvest(stub_pages, year) if u not in candidates]
+                stub_pages = []
+            continue
+        print(f"{url} -> ok ({doc.page_count} pages, {time.time() - t0:.0f}s)")
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        (dest_dir / fname).write_bytes(data)
+        entry = _entry(fname, company, year, url, text)
+        index = [e for e in index if e["file"] != fname] + [entry]
+        _write_index(dest_dir, index)
+        return {**entry, "tried": tried}
+    if page_seeds and (found := _ir_page_report(page_seeds, company, year, tried)):
+        url, data, text = found
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        (dest_dir / fname).write_bytes(data)
+        entry = _entry(fname, company, year, url, text, note="IR page crawl")
+        _write_index(dest_dir, [e for e in index if e["file"] != fname] + [entry])
+        return {**entry, "tried": tried}
     raise LookupError(tried, model_note)
 
 
