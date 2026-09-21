@@ -1,0 +1,41 @@
+report_file,section,key,expected_value,expected_page,notes
+annehem_fastigheter_2025.pdf,debt_maturity,total_debt,2464.5,85,"held-out: not for tuning; Group interest-bearing debt, printed total in Mkr; bank loans less acquisition costs."
+annehem_fastigheter_2025.pdf,debt_maturity,due_within_1_year,498.1,85,held-out: not for tuning; Group current interest-bearing debt in Mkr.
+annehem_fastigheter_2025.pdf,debt_maturity,due_1_to_5_years,null,,held-out: not for tuning; not printed as a carrying-amount maturity bucket; do not derive it from the liquidity table.
+annehem_fastigheter_2025.pdf,debt_maturity,due_after_5_years,null,,held-out: not for tuning; not printed as a carrying-amount maturity bucket.
+balco_2025.pdf,debt_maturity,total_debt,540153,90,"held-out: not for tuning; Group total borrowings in KSEK, including lease liabilities."
+balco_2025.pdf,debt_maturity,due_within_1_year,21295,90,"held-out: not for tuning; Group total current borrowings in KSEK, including lease liabilities."
+balco_2025.pdf,debt_maturity,due_1_to_5_years,null,,"held-out: not for tuning; only the contractual-undiscounted maturity table prints this range, so it is not a carrying-amount label."
+balco_2025.pdf,debt_maturity,due_after_5_years,null,,"held-out: not for tuning; only the contractual-undiscounted maturity table prints this range, so it is not a carrying-amount label."
+g5_entertainment_2025.pdf,debt_maturity,total_debt,0,94,held-out: not for tuning; Group states it has no loan financing.
+g5_entertainment_2025.pdf,debt_maturity,due_within_1_year,null,,held-out: not for tuning; no debt-maturity bucket is printed.
+g5_entertainment_2025.pdf,debt_maturity,due_1_to_5_years,null,,held-out: not for tuning; no debt-maturity bucket is printed.
+g5_entertainment_2025.pdf,debt_maturity,due_after_5_years,null,,held-out: not for tuning; no debt-maturity bucket is printed.
+havsfrun_investment_2025.pdf,debt_maturity,total_debt,0,33,held-out: not for tuning; Group states it has no interest-bearing debt at the balance-sheet date.
+havsfrun_investment_2025.pdf,debt_maturity,due_within_1_year,null,,held-out: not for tuning; no debt-maturity bucket is printed.
+havsfrun_investment_2025.pdf,debt_maturity,due_1_to_5_years,null,,held-out: not for tuning; no debt-maturity bucket is printed.
+havsfrun_investment_2025.pdf,debt_maturity,due_after_5_years,null,,held-out: not for tuning; no debt-maturity bucket is printed.
+infant_bacterial_therapeuticsb_2025.pdf,debt_maturity,total_debt,null,,"held-out: not for tuning; no total borrowing is printed. The financial-risk note says only short-duration financial liabilities, but does not print a debt total."
+infant_bacterial_therapeuticsb_2025.pdf,debt_maturity,due_within_1_year,null,,held-out: not for tuning; debt bucket not printed; do not treat operating liabilities as borrowings.
+infant_bacterial_therapeuticsb_2025.pdf,debt_maturity,due_1_to_5_years,null,,held-out: not for tuning; debt bucket not printed.
+infant_bacterial_therapeuticsb_2025.pdf,debt_maturity,due_after_5_years,null,,held-out: not for tuning; debt bucket not printed.
+inq_2025.pdf,debt_maturity,total_debt,27889,41,"held-out: not for tuning; Group total interest-bearing liabilities, book value in KSEK."
+inq_2025.pdf,debt_maturity,due_within_1_year,2357,42,held-out: not for tuning; Group short-term borrowings in KSEK.
+inq_2025.pdf,debt_maturity,due_1_to_5_years,25532,42,held-out: not for tuning; Group long-term borrowings in KSEK; the loan matures in 2027.
+inq_2025.pdf,debt_maturity,due_after_5_years,null,,held-out: not for tuning; no >5-year bucket is printed.
+keo_capital_2025.pdf,debt_maturity,total_debt,15596,82,held-out: not for tuning; Group loan payable to co-investors in TUSD.
+keo_capital_2025.pdf,debt_maturity,due_within_1_year,0,86,held-out: not for tuning; loan-payable maturity table explicitly prints a dash within one year.
+keo_capital_2025.pdf,debt_maturity,due_1_to_5_years,15596,86,held-out: not for tuning; loan-payable maturity table prints the full TUSD amount in 2-5 years.
+keo_capital_2025.pdf,debt_maturity,due_after_5_years,null,,held-out: not for tuning; no >5-year bucket is printed.
+orexo_2025.pdf,debt_maturity,total_debt,483.1,74,"held-out: not for tuning; Group interest-bearing liabilities, carrying amount in SEK million."
+orexo_2025.pdf,debt_maturity,due_within_1_year,null,,held-out: not for tuning; the only printed maturity figures are contractual undiscounted cash flows.
+orexo_2025.pdf,debt_maturity,due_1_to_5_years,null,,held-out: not for tuning; the only printed maturity figures are contractual undiscounted cash flows.
+orexo_2025.pdf,debt_maturity,due_after_5_years,null,,held-out: not for tuning; no carrying-amount maturity bucket is printed.
+sedana_medical_2025.pdf,debt_maturity,total_debt,null,,"held-out: not for tuning; only lease and acquisition liabilities are printed separately, not a Group total interest-bearing debt."
+sedana_medical_2025.pdf,debt_maturity,due_within_1_year,null,,held-out: not for tuning; lease maturity table is not a total-debt carrying-amount table.
+sedana_medical_2025.pdf,debt_maturity,due_1_to_5_years,null,,held-out: not for tuning; lease maturity table is not a total-debt carrying-amount table.
+sedana_medical_2025.pdf,debt_maturity,due_after_5_years,null,,held-out: not for tuning; no total-debt carrying-amount bucket is printed.
+studsvik_2025.pdf,debt_maturity,total_debt,115005,74,held-out: not for tuning; Group total borrowing in KSEK.
+studsvik_2025.pdf,debt_maturity,due_within_1_year,39525,74,"held-out: not for tuning; Group carrying-amount maturity table, less than one year."
+studsvik_2025.pdf,debt_maturity,due_1_to_5_years,39980,74,"held-out: not for tuning; Group carrying-amount maturity table, 1-2 years is dash and 2-5 years is 39,980 KSEK."
+studsvik_2025.pdf,debt_maturity,due_after_5_years,35500,74,"held-out: not for tuning; Group carrying-amount maturity table, more than five years."

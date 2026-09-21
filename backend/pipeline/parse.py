@@ -110,7 +110,8 @@ def _navigation_columns(page) -> str | None:
     """
     width, height = page.rect.width, page.rect.height
     links = [link for link in page.get_links()
-             if link.get('kind') in (pymupdf.LINK_GOTO, pymupdf.LINK_NAMED) and link.get('page', -1) >= 0
+             if link.get('kind') in (pymupdf.LINK_GOTO, pymupdf.LINK_NAMED)
+             and isinstance(link.get('page'), int) and link['page'] >= 0
              and link['from'].x1 <= width * .2]
     if len({link['page'] for link in links}) < 5:
         return None

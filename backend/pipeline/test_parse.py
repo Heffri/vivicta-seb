@@ -1,5 +1,6 @@
 """Self-check for page_text table-row reconstruction. Run: python -m pipeline.test_parse"""
 import re
+from types import SimpleNamespace
 
 import pymupdf
 
@@ -218,6 +219,20 @@ def headers(mod=p):
     print("parse header self-check ok")
 
 
+def named_navigation_link():
+    # PyMuPDF reports named/external destinations with a non-integer ``page``. They are not
+    # internal page links, so the navigation-column detector must ignore them rather than crash.
+    class Page:
+        rect = SimpleNamespace(width=100, height=100)
+
+        @staticmethod
+        def get_links():
+            return [{"kind": pymupdf.LINK_NAMED, "page": "named"}]
+
+    assert p._navigation_columns(Page()) is None
+    print("Named navigation link self-check ok")
+
+
 def navigation():
     doc = pymupdf.open()
     for _ in range(6):
@@ -250,3 +265,4 @@ if __name__ == "__main__":
     columns()
     stacking()
     headers()
+    named_navigation_link()
