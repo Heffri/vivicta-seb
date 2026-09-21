@@ -71,7 +71,23 @@ export type KbEntry = {
 
 export type Source = {
   page: number;             // 1-based page in the uploaded PDF
-  quote: string;            // verbatim text from that page that supports the value
+  quote: string;            // verbatim text from that page that supports the value, or a proven reason why a null cannot be mapped
+};
+
+export type MissingReasonDisclosed = {
+  span: string;             // original report interval, never a standard bucket label invented by the parser
+  amount: number | null;    // amount printed for that interval; null only when the row has no safely-readable amount
+  unit: string | null;      // printed/inherited table unit when known
+  page: number;
+  quote: string;            // verbatim row carrying the disclosed amount
+};
+
+export type MissingReason = {
+  code: 'absent_in_table' | 'offgrid_span' | 'noncurrent_only' | 'lease_table_only' | 'parent_only' | 'straddle' | 'not_found';
+  detail: string;           // human-readable fact established by the existing extraction guard; never model-generated prose
+  page?: number;
+  quote?: string;
+  disclosed?: MissingReasonDisclosed[]; // original off-grid intervals/amounts, never substituted into a standard bucket
 };
 
 export type ReviewComponent = { value: number; page: number; quote: string; label: string };
@@ -86,6 +102,7 @@ export type Field = {
   period: string | null;    // "2025", "2024", "2025-Q4"
   raw_label: string | null; // the label as printed in the report, e.g. "Intäkter"
   source: Source | null;
+  missing_reason?: MissingReason; // debt_maturity only; present only while this field's value is null. It explains a known absence/refusal without changing the field, check, or standard-bucket semantics.
   components?: ReviewComponent[]; // individually cited human-review inputs whose exact sum is this value
   confidence: number;       // 0..1, computed from evidence by the backend — see docs/CONFIDENCE.md. Never the model's opinion.
   evidence: string[];       // satisfied evidence codes, e.g. ["quote_on_page","value_in_quote","arith_ok"]; 1.0 <=> all seven present; "absent_in_table" = the maturity table prints no column for this window (v165: value stays null, source quotes the header row, the identity counts it as 0)

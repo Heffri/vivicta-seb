@@ -1,0 +1,26 @@
+{
+  "replayed_stems": 104,
+  "fields_by_code": {
+    "absent_in_table": 1,
+    "offgrid_span": 0,
+    "noncurrent_only": 6,
+    "lease_table_only": 0,
+    "parent_only": 0,
+    "straddle": 0,
+    "not_found": 219
+  },
+  "stems_by_code": {
+    "absent_in_table": 1,
+    "offgrid_span": 0,
+    "noncurrent_only": 3,
+    "lease_table_only": 0,
+    "parent_only": 0,
+    "straddle": 0,
+    "not_found": 87
+  },
+  "sample_stem_by_code": {
+    "absent_in_table": "ependion_2025",
+    "noncurrent_only": "bico_2025",
+    "not_found": "academedia_2025"
+  }
+}
