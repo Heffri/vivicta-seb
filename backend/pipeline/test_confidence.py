@@ -4012,6 +4012,12 @@ def test_absent_in_table_bucket():
     assert absent["value"] is None, absent
     assert absent["evidence"] == ["absent_in_table"], (absent, out["warnings"])
     assert absent["source"] == {"page": 1, "quote": "Between 2 and 3 years Total"}, (absent, out["warnings"])
+    assert absent["missing_reason"] == {
+        "code": "absent_in_table",
+        "detail": "The maturity table does not print a column for this window.",
+        "page": 1,
+        "quote": "Between 2 and 3 years Total",
+    }, absent
     assert any(w.startswith("due_after_5_years: the maturity table on page 1 prints no column for this window")
                and "'Between 2 and 3 years Total'" in w for w in out["warnings"]), out["warnings"]
     check = out["checks"][0]
@@ -4078,6 +4084,95 @@ def test_fixed_pages_skip_selection():
             os.environ["EXTRACT_TWO_PASS"] = old_two_pass
 
 
+def test_missing_reasons_for_honest_debt_nulls():
+    """v181: known mapping gaps explain a null without changing any debt value."""
+    import json
+    import pathlib
+
+    dm = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
+    empty = lambda: [{"key": f["key"], "value": None, "unit": None, "period": None,
+                      "raw_label": None, "source": None} for f in dm["fields"]]
+
+    # A valued off-grid column crosses the five-year boundary. It remains unassigned, but the
+    # original span and amount must be visible alongside the still-null standard buckets.
+    offgrid = ("NOTE 47 - FINANCIAL LIABILITIES\n"
+               "Maturity analysis liabilities, 2025 <1 year 1-3 years >3 years Total\n"
+               "Liabilities to credit institutions 43.5 353.7 173.0 570.2\n")
+    x.call_llm = lambda *a, **k: {"fields": empty()}
+    out = x.extract([offgrid], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f for f in out["fields"]}
+    assert all(f["value"] is None for f in got.values()), (got, out["warnings"])
+    assert out["checks"][0]["detail"].startswith("missing:"), out["checks"]
+    reason = got["due_1_to_5_years"].get("missing_reason")
+    assert reason and reason["code"] == "offgrid_span", (got, out["warnings"])
+    assert reason["disclosed"] == [{"span": ">3 years", "amount": 173.0, "unit": None,
+                                      "page": 1, "quote": "Liabilities to credit institutions 43.5 353.7 173.0 570.2"}], reason
+    assert got["due_after_5_years"].get("missing_reason", {}).get("code") == "offgrid_span", got
+
+    # Row-shaped intervals use the same honest boundary rule. The standard buckets remain null and
+    # carry the report's original 3–7 years row rather than allocating its 500 to either side of 5 years.
+    straddle = ("Maturity analysis\nMSEK 2025 2024\n0–6 months 100 90\n"
+                "7–12 months 50 40\n3–7 years 500 400\nTotal 650 640\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 650, "unit": "MSEK", "period": "2025", "raw_label": "Total", "source": {"page": 1, "quote": "Total 650 640"}},
+        *[{"key": key, "value": None, "unit": None, "period": None, "raw_label": None, "source": None}
+          for key in ("due_within_1_year", "due_1_to_5_years", "due_after_5_years")],
+    ]}
+    out = x.extract([straddle], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f for f in out["fields"]}
+    assert got["due_1_to_5_years"]["value"] is None and got["due_after_5_years"]["value"] is None, got
+    reason = got["due_1_to_5_years"].get("missing_reason")
+    assert reason and reason["code"] == "straddle" and reason["disclosed"][0]["span"] == "3–7 years", (got, out["warnings"])
+    import io
+    from pptx import Presentation
+    from pipeline import ppt
+    slide = Presentation(io.BytesIO(ppt.build_pptx(out))).slides[0]
+    slide_text = '\n'.join(
+        [shape.text for shape in slide.shapes if hasattr(shape, "text")] +
+        [cell.text for shape in slide.shapes if shape.has_table for row in shape.table.rows for cell in row.cells]
+    )
+    assert f"Why empty: {reason['detail']}" in slide_text, slide_text
+
+    # No candidate reading or deterministic repair found a figure: leave every value null and say
+    # only that the supplied candidate page was searched, rather than inventing a number or zero.
+    x.call_llm = lambda *a, **k: {"fields": empty()}
+    out = x.extract(["Management report\nNo borrowing schedule appears here."], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f for f in out["fields"]}
+    assert all(f["value"] is None for f in got.values()), (got, out["warnings"])
+    assert got["due_within_1_year"].get("missing_reason", {}).get("code") == "not_found", got
+    assert "page 1" in got["due_within_1_year"]["missing_reason"]["detail"], got
+
+    # Scope gates retain their existing refusal. Parent-company and lease-only tables respectively
+    # explain the empty standard buckets; neither table is repurposed as a Group borrowing schedule.
+    parent = ("Parent Company\nInterest-bearing liabilities 622 486\n"
+              "Within 1 year 2 2\n1-5 years 620 484\nTotal 622 486\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 622, "unit": "MSEK", "period": "2025", "raw_label": "Interest-bearing liabilities", "source": {"page": 1, "quote": "Interest-bearing liabilities 622 486"}},
+        {"key": "due_within_1_year", "value": 2, "unit": "MSEK", "period": "2025", "raw_label": "Within 1 year", "source": {"page": 1, "quote": "Within 1 year 2 2"}},
+        {"key": "due_1_to_5_years", "value": 620, "unit": "MSEK", "period": "2025", "raw_label": "1-5 years", "source": {"page": 1, "quote": "1-5 years 620 484"}},
+        {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+    ]}
+    out = x.extract([parent], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f for f in out["fields"]}
+    assert all(f["value"] is None for f in got.values()), (got, out["warnings"])
+    assert any(f.get("missing_reason", {}).get("code") == "parent_only" for f in got.values()), (got, out["warnings"])
+
+    lease = ("Maturity analysis of lease liabilities\nGroup\n"
+             "Within one year 12 213\nLater than one but within five years 8 109\n"
+             "Later than within five years 2 978\nTotal 23 300\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 23300, "unit": "MSEK", "period": "2025", "raw_label": "Total", "source": {"page": 1, "quote": "Total 23 300"}},
+        {"key": "due_within_1_year", "value": 12213, "unit": "MSEK", "period": "2025", "raw_label": "Within one year", "source": {"page": 1, "quote": "Within one year 12 213"}},
+        {"key": "due_1_to_5_years", "value": 8109, "unit": "MSEK", "period": "2025", "raw_label": "Later than one but within five years", "source": {"page": 1, "quote": "Later than one but within five years 8 109"}},
+        {"key": "due_after_5_years", "value": 2978, "unit": "MSEK", "period": "2025", "raw_label": "Later than within five years", "source": {"page": 1, "quote": "Later than within five years 2 978"}},
+    ]}
+    out = x.extract([lease], [1], dm, {"fiscal_year": 2025})
+    got = {f["key"]: f for f in out["fields"]}
+    assert all(f["value"] is None for f in got.values()), (got, out["warnings"])
+    assert any(f.get("missing_reason", {}).get("code") == "lease_table_only" for f in got.values()), (got, out["warnings"])
+    print("missing debt reasons red/green cases ok")
+
+
 if __name__ == "__main__":
     test_confidence_never_exceeds_one()
     test_torn_bucket_headers()
@@ -4087,5 +4182,6 @@ if __name__ == "__main__":
     test_note_citation_preference()
     test_absent_in_table_bucket()
     test_fixed_pages_skip_selection()
+    test_missing_reasons_for_honest_debt_nulls()
     test_balance_sheet_tie()
     demo()

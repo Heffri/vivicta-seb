@@ -1,0 +1,215 @@
+replay_check: baseline 072c578, sections ['debt_maturity'], worktree extract.py; stored fields fed back as the model answer, zero model calls
+  kb: <worktree>\data\kb
+  kb/academedia_2025                           debt_maturity    same
+  kb/acast_2025                                debt_maturity    same
+  kb/alligo_2025                               debt_maturity    same
+  kb/ambea_2025                                debt_maturity    same
+  kb/apotea_2025                               debt_maturity    same
+  kb/arctic_paper_2025                         debt_maturity    same
+  kb/arjo_2025                                 debt_maturity    same
+  kb/attendo_2025                              debt_maturity    same
+  kb/avarda_bank_2025                          debt_maturity    same
+  kb/bergman_beving_2025                       debt_maturity    same
+  kb/better_collective_2025                    debt_maturity    same
+  kb/bhg_2025                                  debt_maturity    same
+  kb/bico_2025                                 debt_maturity    same
+  kb/biogaia_2025                              debt_maturity    same
+  kb/bioinvent_international_2025              debt_maturity    same
+  kb/bonava_2025                               debt_maturity    same
+  kb/boozt_2025                                debt_maturity    same
+  kb/bts_2025                                  debt_maturity    same
+  kb/byggmastare_a_j_ahlstrom_h_2025           debt_maturity    same
+  kb/byggmax_2025                              debt_maturity    same
+  kb/catella_2025                              debt_maturity    same
+  kb/cavotec_2025                              debt_maturity    same
+  kb/cellavision_2025                          debt_maturity    same
+  kb/cloetta_2025                              debt_maturity    same
+  kb/coor_service_management_hold_2025         debt_maturity    same
+  kb/creades_2025                              debt_maturity    same
+  kb/ctt_systems_2025                          debt_maturity    same
+  kb/duni_2025                                 debt_maturity    same
+  kb/dustin_2025                               debt_maturity    same
+  kb/dynavox_2025                              debt_maturity    same
+  kb/egetis_therapeutics_2025                  debt_maturity    same
+  kb/elanders_2025                             debt_maturity    same
+  kb/enea_2025                                 debt_maturity    same
+  kb/enity_holding_2025                        debt_maturity    same
+  kb/ependion_2025                             debt_maturity    same
+  kb/ericsson_2025                             debt_maturity    same
+  kb/ework_2025                                debt_maturity    same
+  kb/fagerhult_2025                            debt_maturity    same
+  kb/fasadgruppen_2025                         debt_maturity    same
+  kb/flat_capital_2025                         debt_maturity    same
+  kb/flerie_2025                               debt_maturity    same
+  kb/fm_mattsson_2025                          debt_maturity    same
+  kb/gentoo_media_2025                         debt_maturity    same
+  kb/green_landscaping_2025                    debt_maturity    same
+  kb/gruvaktiebolaget_viscaria_2025            debt_maturity    same
+  kb/hansa_biopharma_2025                      debt_maturity    same
+  kb/hanza_2025                                debt_maturity    same
+  kb/hexatronic_2025                           debt_maturity    same
+  kb/hoist_finance_2025                        debt_maturity    same
+  kb/humana_2025                               debt_maturity    same
+  kb/humble_2025                               debt_maturity    same
+  kb/instalco_2025                             debt_maturity    same
+  kb/intrum_2025                               debt_maturity    same
+  kb/inwido_2025                               debt_maturity    same
+  kb/itab_2025                                 debt_maturity    same
+  kb/kabe_2025                                 debt_maturity    same
+  kb/karnell_2025                              debt_maturity    same
+  kb/karnov_2025                               debt_maturity    same
+  kb/knowit_2025                               debt_maturity    same
+  kb/lime_technologies_2025                    debt_maturity    same
+  kb/linc_2025                                 debt_maturity    same
+  kb/medcap_2025                               debt_maturity    same
+  kb/meko_2025                                 debt_maturity    same
+  kb/meren_energy_2025                         debt_maturity    same
+  kb/mildef_2025                               debt_maturity    same
+  kb/modern_times_2025                         debt_maturity    same
+  kb/momentum_2025                             debt_maturity    same
+  kb/morrow_bank_2025                          debt_maturity    same
+  kb/ncab_2025                                 debt_maturity    same
+  kb/nederman_holding_2025                     debt_maturity    same
+  kb/nelly_2025                                debt_maturity    same
+  kb/net_insight_2025                          debt_maturity    same
+  kb/nobia_2025                                debt_maturity    same
+  kb/norion_bank_2025                          debt_maturity    same
+  kb/note_2025                                 debt_maturity    same
+  kb/orron_energy_2025                         debt_maturity    same
+  kb/ovzon_2025                                debt_maturity    same
+  kb/powercell_sweden_2025                     debt_maturity    same
+  kb/proact_it_2025                            debt_maturity    same
+  kb/ratos_2025                                debt_maturity    same
+  kb/raysearch_laboratories_2025               debt_maturity    same
+  kb/rejlers_2025                              debt_maturity    same
+  kb/rusta_2025                                debt_maturity    same
+  kb/rvrc_holding_2025                         debt_maturity    same
+  kb/salix_2025                                debt_maturity    same
+  kb/scandi_standard_2025                      debt_maturity    same
+  kb/sdiptech_2025                             debt_maturity    same
+  kb/smartcraft_2025                           debt_maturity    same
+  kb/stillfront_2025                           debt_maturity    same
+  kb/storytel_2025                             debt_maturity    same
+  kb/svedbergs_2025                            debt_maturity    same
+  kb/svolder_2025                              debt_maturity    same
+  kb/synsam_2025                               debt_maturity    same
+  kb/tangen_industrikapital_2025               debt_maturity    same
+  kb/traction_2025                             debt_maturity    same
+  kb/vbg_2025                                  debt_maturity    same
+  kb/vef_2025                                  debt_maturity    same
+  kb/viaplay_2025                              debt_maturity    same
+  kb/vicore_pharma_holding_2025                debt_maturity    same
+  kb/viva_wine_2025                            debt_maturity    same
+  kb/vnv_global_2025                           debt_maturity    same
+  kb/volati_2025                               debt_maturity    same
+  kb/xano_industri_2025                        debt_maturity    same
+  kb/xvivo_perfusion_2025                      debt_maturity    same
+
+totals: companies=104 same=104 changed=0 not_replayable=107
+  not replayable: kb/4c_2025: no debt_maturity
+  not replayable: kb/aak_2025: no debt_maturity
+  not replayable: kb/abb_2025: no debt_maturity
+  not replayable: kb/acroud_2025: no debt_maturity
+  not replayable: kb/addnode_2025: no debt_maturity
+  not replayable: kb/addtech_2025: no debt_maturity
+  not replayable: kb/afry_2025: no debt_maturity
+  not replayable: kb/alfa_laval_2025: no debt_maturity
+  not replayable: kb/alvotech_2025: no debt_maturity
+  not replayable: kb/aq_2025: no debt_maturity
+  not replayable: kb/arion_banki_2025: no debt_maturity
+  not replayable: kb/asker_healthcare_2025: no debt_maturity
+  not replayable: kb/asmodee_2025: no debt_maturity
+  not replayable: kb/atlas_copco_2025: no debt_maturity
+  not replayable: kb/atrium_ljungberg_2025: no debt_maturity
+  not replayable: kb/avanza_bank_holding_2025: no debt_maturity
+  not replayable: kb/axfood_2025: no debt_maturity
+  not replayable: kb/beijer_alma_2025: no debt_maturity
+  not replayable: kb/beijer_ref_2025: no debt_maturity
+  not replayable: kb/betsson_2025: no debt_maturity
+  not replayable: kb/bilia_2025: no debt_maturity
+  not replayable: kb/billerud_2025: no debt_maturity
+  not replayable: kb/bioarctic_2025: no debt_maturity
+  not replayable: kb/boliden_2025: no debt_maturity
+  not replayable: kb/bonesupport_holding_2025: no debt_maturity
+  not replayable: kb/bravida_holding_2025: no debt_maturity
+  not replayable: kb/bufab_2025: no debt_maturity
+  not replayable: kb/bure_equity_2025: no debt_maturity
+  not replayable: kb/camurus_2025: no debt_maturity
+  not replayable: kb/castellum_2025: no debt_maturity
+  not replayable: kb/catena_2025: no debt_maturity
+  not replayable: kb/clas_ohlson_2025: no debt_maturity
+  not replayable: kb/corem_property_2025: no debt_maturity
+  not replayable: kb/dometic_2025: no debt_maturity
+  not replayable: kb/electrolux_professional_2025: no debt_maturity
+  not replayable: kb/elekta_2025: no debt_maturity
+  not replayable: kb/engcon_2025: no debt_maturity
+  not replayable: kb/essity_2025: no debt_maturity
+  not replayable: kb/evolution_2025: no debt_maturity
+  not replayable: kb/fenix_outdoor_international_2025: no debt_maturity
+  not replayable: kb/getinge_2025: no debt_maturity
+  not replayable: kb/hacksaw_2025: no debt_maturity
+  not replayable: kb/hexagon_2025: no debt_maturity
+  not replayable: kb/hexpol_2025: no debt_maturity
+  not replayable: kb/hms_networks_2025: no debt_maturity
+  not replayable: kb/holmen_2025: no debt_maturity
+  not replayable: kb/hufvudstaden_2025: no debt_maturity
+  not replayable: kb/husqvarna_2025: no debt_maturity
+  not replayable: kb/international_petroleum_corp_2025: no debt_maturity
+  not replayable: kb/investor_2025: no debt_maturity
+  not replayable: kb/lagercrantz_2025: no debt_maturity
+  not replayable: kb/lifco_2025: no debt_maturity
+  not replayable: kb/lindab_international_2025: no debt_maturity
+  not replayable: kb/loomis_2025: no debt_maturity
+  not replayable: kb/lundbergforetagen_2025: no debt_maturity
+  not replayable: kb/lundin_mining_corporation_2025: no debt_maturity
+  not replayable: kb/medicover_2025: no debt_maturity
+  not replayable: kb/mips_2025: no debt_maturity
+  not replayable: kb/mycronic_2025: no debt_maturity
+  not replayable: kb/ncc_2025: no debt_maturity
+  not replayable: kb/new_wave_2025: no debt_maturity
+  not replayable: kb/noba_bank_2025: no debt_maturity
+  not replayable: kb/nolato_2025: no debt_maturity
+  not replayable: kb/nordea_bank_abp_2025: no debt_maturity
+  not replayable: kb/nordnet_2025: no debt_maturity
+  not replayable: kb/oem_international_2025: no debt_maturity
+  not replayable: kb/oresund_2025: no candidate pages derivable
+  not replayable: kb/pandox_2025: no debt_maturity
+  not replayable: kb/paradox_interactive_2025: no debt_maturity
+  not replayable: kb/peab_2025: no debt_maturity
+  not replayable: kb/roko_2025: no debt_maturity
+  not replayable: kb/saab_2025: no debt_maturity
+  not replayable: kb/saab_2025_sv: no debt_maturity
+  not replayable: kb/sagax_2025: no debt_maturity
+  not replayable: kb/sandvik_2025: no debt_maturity
+  not replayable: kb/sca_2025: no debt_maturity
+  not replayable: kb/scandic_hotels_2025: no debt_maturity
+  not replayable: kb/seb_2025: no debt_maturity
+  not replayable: kb/sectra_2025: no debt_maturity
+  not replayable: kb/securitas_2025: no debt_maturity
+  not replayable: kb/skanska_2025: no debt_maturity
+  not replayable: kb/skf_2025: no debt_maturity
+  not replayable: kb/ssab_2025: no debt_maturity
+  not replayable: kb/stora_enso_2025: no debt_maturity
+  not replayable: kb/storskogen_2025: no debt_maturity
+  not replayable: kb/sv_handelsbanken_2025: no debt_maturity
+  not replayable: kb/sweco_2025: no debt_maturity
+  not replayable: kb/swedbank_2025: no debt_maturity
+  not replayable: kb/systemair_2025: no debt_maturity
+  not replayable: kb/tele2_2025: no debt_maturity
+  not replayable: kb/telia_2025: no debt_maturity
+  not replayable: kb/thule_2025: no debt_maturity
+  not replayable: kb/traton_2025: no debt_maturity
+  not replayable: kb/trelleborg_2025: no debt_maturity
+  not replayable: kb/truecaller_2025: no debt_maturity
+  not replayable: kb/up-1c7475957fa6: no debt_maturity
+  not replayable: kb/up-796bed91838b: no debt_maturity
+  not replayable: kb/up-7d81079b4cf2: no debt_maturity
+  not replayable: kb/up-d6a30c34b48c: no debt_maturity
+  not replayable: kb/up-e8ae0f92da52: no debt_maturity
+  not replayable: kb/verisure_2025: no debt_maturity
+  not replayable: kb/vitec_software_2025: no debt_maturity
+  not replayable: kb/vitrolife_2025: no debt_maturity
+  not replayable: kb/volvo_2025: no debt_maturity
+  not replayable: kb/volvo_car_2025: no debt_maturity
+  not replayable: kb/wihlborgs_fastigheter_2025: no debt_maturity
+  not replayable: kb/yubico_2025: no debt_maturity

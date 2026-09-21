@@ -333,22 +333,25 @@ def _debt_chart(slide, by_key, buckets, prior=None, by_year=None, offset=0):
 
 def _table(slide, fields, offset=0):
     rows = fields
-    shape = slide.shapes.add_table(len(rows) + 1, 3, Inches(1.2), Inches(2.2 + offset), Inches(10.9), Inches(4.45 - offset))
+    shape = slide.shapes.add_table(len(rows) + 1, 4, Inches(0.6), Inches(2.2 + offset), Inches(12.1), Inches(4.45 - offset))
     table = shape.table
-    for c, h in enumerate(["Field", "Value", "Unit"]):
+    for c, h in enumerate(["Field", "Value", "Unit", "Why empty"]):
         table.cell(0, c).text = h
     for r, f in enumerate(rows, start=1):
         v = f["value"]
         table.cell(r, 0).text = f["label"]
         table.cell(r, 1).text = f"{v:,.6f}".rstrip("0").rstrip(".").replace(",", " ") if isinstance(v, (int, float)) else str(v) if v is not None else "Not available"
         table.cell(r, 2).text = f["unit"] or "Unknown"
+        reason = f.get("missing_reason") or {}
+        table.cell(r, 3).text = f"Why empty: {reason.get('detail')}" if v is None and reason.get("detail") else ""
     for row in table.rows:
         for cell in row.cells:
             for paragraph in cell.text_frame.paragraphs:
-                paragraph.font.size = Pt(14)
-    table.columns[0].width = Inches(6.1)
-    table.columns[1].width = Inches(2.4)
-    table.columns[2].width = Inches(2.4)
+                paragraph.font.size = Pt(10)
+    table.columns[0].width = Inches(3.4)
+    table.columns[1].width = Inches(1.7)
+    table.columns[2].width = Inches(1.2)
+    table.columns[3].width = Inches(5.8)
 
 
 def _textbox(slide, text, size, bold=False, top=Inches(0.4), color=None):

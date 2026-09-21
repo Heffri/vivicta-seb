@@ -1309,7 +1309,7 @@ def _derived_value(field: dict, texts: list[str], fiscal_year, check: dict | Non
 
 def _between_rows(sf: dict, fields: list[dict], sfs: list[dict], defaults: dict, texts: list[str], fiscal_year, check: dict, page: int,
                   scope_words: dict | None = None, basis: str = "carrying", warnings: list[str] | None = None,
-                  debt_words: list[str] | None = None):
+                  debt_words: list[str] | None = None, missing_events: list[tuple[tuple[str, ...], dict]] | None = None):
     """A missing operand of an identity when the model answered nothing: the full rows printed strictly between the other
     operands' rows, when their sums close the identity in every column (Addnode: "Profit after financial items 514 536",
     "Current tax -157 -154", "Deferred tax 27 20", "Profit for the year 384 402"; no total tax row exists), the one row among them
@@ -1331,6 +1331,8 @@ def _between_rows(sf: dict, fields: list[dict], sfs: list[dict], defaults: dict,
         if warnings is not None:
             warnings.append(f"{sf['key']}: no between-rows derivation -- {_scope_reason(rows, None, top, scope_words, scope)}; "
                             f"not read under the {basis} basis")
+        if (reason := _scope_missing_reason(rows, None, top, scope_words, scope)) is not None:
+            _record_missing_reason(missing_events, [sf["key"]], page=page, **reason)
         return None
     header = _row_year_column(rows, top, fiscal_year)  # row-anchored at the uppermost operand row: the rows this derivation reads sit at or directly above it
     if not header or header[1] < 2:
@@ -1427,7 +1429,8 @@ def _balance_sheet_date(window: list[str], fiscal_year) -> date:
 
 
 def _date_bucket_derive(schema: dict, fields: list[dict], texts: list[str], fiscal_year,
-                        basis: str = "carrying", warnings: list[str] | None = None) -> dict[str, tuple] | None:
+                        basis: str = "carrying", warnings: list[str] | None = None,
+                        missing_events: list[tuple[tuple[str, ...], dict]] | None = None) -> dict[str, tuple] | None:
     """{key: (value, quote, page, raw_label)} for however many of debt_maturity's three buckets a date-
     per-instrument note proves, when the model answered null on some or all of them: Proact prints one row
     per loan/lease -- label, then its own due date/year/year-range, then its carrying amount -- instead of
@@ -1471,6 +1474,8 @@ def _date_bucket_derive(schema: dict, fields: list[dict], texts: list[str], fisc
         if warnings is not None:
             warnings.append(f"{total_key}: no date-bucket derivation -- {_scope_reason(rows, None, ti, schema['table_scope_words'], scope)}; "
                             f"not read under the {basis} basis")
+        if (reason := _scope_missing_reason(rows, None, ti, schema["table_scope_words"], scope)) is not None:
+            _record_missing_reason(missing_events, part_keys, page=page, **reason)
         return None
     window = rows[max(0, ti - _DATE_BUCKET_WINDOW):ti]
     fye = _balance_sheet_date(window, fiscal_year)
@@ -1479,6 +1484,20 @@ def _date_bucket_derive(schema: dict, fields: list[dict], texts: list[str], fisc
     for i, r in enumerate(window):
         bucket = _maturity_bucket(r, fye)
         if bucket == "straddle":
+            span = _MATURITY_RANGE.search(r)
+            amounts = _row_amounts(r)
+            disclosed = [{
+                "span": span.group(0) if span else _row_label(r),
+                "amount": amounts[-1] if amounts else None,
+                "unit": total.get("unit"),
+                "page": page,
+                "quote": r,
+            }]
+            _record_missing_reason(
+                missing_events, part_keys, "straddle",
+                f"The report's {disclosed[0]['span']} interval crosses a standard maturity-bucket boundary, so it cannot be assigned without guessing.",
+                page=page, quote=r, disclosed=disclosed,
+            )
             return None  # a year range this table prints straddles a bucket boundary -- no safe read of ANY row here
         if bucket is None:
             continue
@@ -1566,7 +1585,8 @@ _TORN_GROUP = re.compile(r"(?<![\d,.])\d{1,3}[ ]\d{3}(?![.'\d]|,\d{3})")  # ONE 
 
 
 def _finer_split_rows(fields: list[dict], schema: dict, texts: list[str], fiscal_year,
-                      warnings: list[str], values: dict, filled: set, basis: str = "carrying") -> None:
+                      warnings: list[str], values: dict, filled: set, basis: str = "carrying",
+                      missing_events: list[tuple[tuple[str, ...], dict]] | None = None) -> None:
     """A maturity note that prints one row per FINER interval (Rusta Note 11: "0–6 months 523 /
     7–12 months 516 / 1–2 years 969 / 2–5 years 2,184 / >5 years 2,431 / Total 6,624") splits a
     bucket over several sibling rows no existing repair sums: _statement_row deliberately declines
@@ -1617,6 +1637,8 @@ def _finer_split_rows(fields: list[dict], schema: dict, texts: list[str], fiscal
         # own verified row, the row whose table the sibling rows above it belong to
         warnings.append(f"{total_key}: no finer-split derivation -- {_scope_reason(rows, None, ti, schema['table_scope_words'], scope)}; "
                         f"not read under the {basis} basis")
+        if (reason := _scope_missing_reason(rows, None, ti, schema["table_scope_words"], scope)) is not None:
+            _record_missing_reason(missing_events, part_keys, page=page, **reason)
         return
     header = _row_year_column(rows, ti, fiscal_year) or _year_column(text, fiscal_year)
     if not header:
@@ -1663,6 +1685,19 @@ def _finer_split_rows(fields: list[dict], schema: dict, texts: list[str], fiscal
             break  # the first row that names no interval ends this table's data rows
         bucket = _span_bucket(span)
         if bucket is None:
+            amounts = row_amounts(rows[i], label)
+            disclosed = [{
+                "span": label,
+                "amount": amounts[col] if len(amounts) == ncols else None,
+                "unit": total.get("unit"),
+                "page": page,
+                "quote": rows[i],
+            }]
+            _record_missing_reason(
+                missing_events, part_keys, "straddle",
+                f"The report's {label} interval crosses a standard maturity-bucket boundary, so it cannot be assigned without guessing.",
+                page=page, quote=rows[i], disclosed=disclosed,
+            )
             return  # a span crossing a bucket boundary ("3-7 years"): no safe split of ANY row here
         amounts = row_amounts(rows[i], label)
         if len(amounts) != ncols:
@@ -1763,7 +1798,7 @@ def _close(a, b) -> bool:
 
 def _window_row_sum(field: dict, fields: list[dict], schema: dict, texts: list[str], fiscal_year,
                     pages: list[int], scope_words: dict | None, basis: str,
-                    warnings: list[str]) -> tuple[str, str, int, str, str, int] | None:
+                    warnings: list[str], missing_events: list[tuple[tuple[str, ...], dict]] | None = None) -> tuple[str, str, int, str, str, int] | None:
     """v126 (Stillfront Note 21, p.109): a bucket value the model computed by summing the note's own
     repayment-timing rows -- 710 = the current-classified rows (675 + 35), 5152 = the five "Repayment
     within 2–5 yr." component rows (620 + 2,835 + 649 + 984 + 64) -- printed as ONE number nowhere,
@@ -1797,6 +1832,8 @@ def _window_row_sum(field: dict, fields: list[dict], schema: dict, texts: list[s
             # v103/v111: no derivation out of a table the guard refuses -- anchored at total_debt's own row
             warnings.append(f"{key}: no window-rows derivation -- {_scope_reason(rows, None, ti, scope_words, scope)}; "
                             f"not read under the {basis} basis")
+            if (reason := _scope_missing_reason(rows, None, ti, scope_words, scope)) is not None:
+                _record_missing_reason(missing_events, [key], page=p, **reason)
             return None
         header = _row_year_column(rows, ti, fiscal_year) or _year_column(text, fiscal_year)
         if not header:
@@ -1949,7 +1986,8 @@ _PAIR_TAIL_WINDOW = 6  # rows after the second Summa that may still print the bl
 
 
 def _subtotal_pair_fill(fields: list[dict], sfs: list[dict], schema: dict, texts: list[str], pages: list[int],
-                        fiscal_year, warnings: list[str], values: dict, filled: set, basis: str = "carrying") -> None:
+                        fiscal_year, warnings: list[str], values: dict, filled: set, basis: str = "carrying",
+                        missing_events: list[tuple[tuple[str, ...], dict]] | None = None) -> None:
     """v110: a borrowings note split into a non-current and a current section, each closed by its own
     Summa/Total row, with NO third grand-total row anywhere in the block (NOTE Not 19, p.107:
     "Långfristiga skulder ... Summa 228 861 250 023 / Kortfristiga skulder ... Summa 595 420 380 108").
@@ -2154,6 +2192,11 @@ def _subtotal_pair_fill(fields: list[dict], sfs: list[dict], schema: dict, texts
                        source={"page": page, "quote": rows[sumB]}, evidence=["quote_on_page"])
             values["due_within_1_year"] = amB[col]
             filled.add("due_within_1_year")
+        _record_missing_reason(
+            missing_events, ["due_1_to_5_years", "due_after_5_years"], "noncurrent_only",
+            "The report separates current and non-current debt only; it does not split non-current debt into the 1–5 years and >5 years standard buckets.",
+            page=page, quote=span,
+        )
         return  # one adoption per extraction: the note that validated is the borrowings note
 
 
@@ -2603,6 +2646,108 @@ def _scope_reason(rows: list[str], i_header: int | None, i_total: int, scope_wor
     return f"table {frag!r} is an all-liabilities table ({word!r} among its rows)"
 
 
+_MISSING_REASON_PRIORITY = {
+    "absent_in_table": 100,
+    "offgrid_span": 90,
+    "straddle": 80,
+    "noncurrent_only": 70,
+    "lease_table_only": 60,
+    "parent_only": 60,
+    "not_found": 0,
+}
+
+
+def _record_missing_reason(events: list[tuple[tuple[str, ...], dict]] | None, keys, code: str, detail: str,
+                           page: int | None = None, quote: str | None = None, disclosed: list[dict] | None = None) -> None:
+    """Keep a known refusal/mapping gap separate from warnings until the final null fields are known.
+
+    Repairs later in extract() may still turn the same field into a proven value, so this records only
+    facts already established at the existing decision point. _attach_missing_reasons() writes the
+    attachment only if the final standard debt field is still null.
+    """
+    if events is None or code not in _MISSING_REASON_PRIORITY:
+        return
+    reason = {"code": code, "detail": detail}
+    if page is not None:
+        reason["page"] = page
+    if quote:
+        reason["quote"] = quote
+    if disclosed:
+        reason["disclosed"] = disclosed
+    events.append((tuple(keys), reason))
+
+
+def _scope_missing_reason(rows: list[str], i_header: int | None, i_total: int, scope_words: dict | None,
+                          scope: str) -> dict | None:
+    """The two named wrong-scope mechanisms which the debt API can safely describe.
+
+    The wider scope guard also rejects cash-flow, all-liabilities and non-debt tables. Those remain
+    correctly rejected, but are not relabelled as either a parent or lease table just to fill a code.
+    """
+    title, body = _scope_zone(rows, i_header, i_total)
+    if scope == "parent":
+        words = [w.lower() for w in (scope_words or {}).get("parent_company", [])]
+        quote = next((r for r in reversed(rows[max(0, i_total - 25):i_total])
+                      if _section_heading(r, words) == "parent"), None)
+        return {
+            "code": "parent_only",
+            "detail": "Only the Parent Company section was found; it is not the Group borrowing schedule.",
+            "quote": quote,
+        }
+    if scope == "undiscounted":
+        quote = next((r for r in (*title, *body) if _BS_LEASE.search(r)), None)
+        if quote:
+            return {
+                "code": "lease_table_only",
+                "detail": "Only a lease-liabilities maturity table was found; it is not the Group borrowing schedule.",
+                "quote": quote,
+            }
+    return None
+
+
+def _attach_missing_reasons(fields: list[dict], schema: dict, pages: list[int], events: list[tuple[tuple[str, ...], dict]]) -> None:
+    """Attach one structured reason to each final null standard debt field, never changing a value."""
+    if schema.get("name") != "debt_maturity":
+        return
+    keys = {"total_debt", "due_within_1_year", "due_1_to_5_years", "due_after_5_years"}
+    by_key = {f.get("key"): f for f in fields}
+    gathered: dict[str, list[dict]] = {key: [] for key in keys}
+    for event_keys, reason in events:
+        for key in event_keys:
+            if key in gathered:
+                gathered[key].append(reason)
+    page_list = ", ".join(str(page) for page in dict.fromkeys(pages) if isinstance(page, int) and page > 0)
+    searched = f"candidate page{'s' if ',' in page_list else ''} {page_list}" if page_list else "the candidate pages"
+    for key in keys:
+        field = by_key.get(key)
+        if not field:
+            continue
+        if field.get("value") is not None:
+            field.pop("missing_reason", None)
+            continue
+        if "absent_in_table" in (field.get("evidence") or []):
+            source = field.get("source") or {}
+            reason = {
+                "code": "absent_in_table",
+                "detail": "The maturity table does not print a column for this window.",
+            }
+            if source.get("page") is not None:
+                reason["page"] = source["page"]
+            if source.get("quote"):
+                reason["quote"] = source["quote"]
+        else:
+            candidates = gathered[key]
+            reason = max(candidates, key=lambda item: _MISSING_REASON_PRIORITY[item["code"]]) if candidates else {
+                "code": "not_found",
+                "detail": f"No valid figure was read from {searched}.",
+            }
+        field["missing_reason"] = reason
+        if not field.get("source") and reason.get("page") and reason.get("quote"):
+            # A null already has this precedent for absent_in_table: the source proves the absence or
+            # refusal, not a value, and lets the ordinary page pane open the cited report page.
+            field["source"] = {"page": reason["page"], "quote": reason["quote"]}
+
+
 def _scope_header(rows: list[str], i_total: int, bucket_sfs: dict, max_back: int = 25) -> int | None:
     """Index of the nearest row above i_total that names a bucket of its own (_bucket_synonym_hits over
     the schema's bucket fields): the fill gate's known header row for _table_scope -- in a row-per-bucket
@@ -2948,7 +3093,8 @@ def _model_own_printed(current, sf: dict, texts: list[str], walk: list[int], buc
 
 def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, texts: list[str], pages: list[int],
                           fiscal_year, warnings: list[str], values: dict, filled: set, basis: str = "carrying",
-                          selected: dict | None = None) -> None:
+                          selected: dict | None = None,
+                          missing_events: list[tuple[tuple[str, ...], dict]] | None = None) -> None:
     """A maturity-bucket note that prints on one row, columns = buckets, instead of one row per bucket (Cloetta's
     borrowings note: "Total 197 22 1,377 9 1,605" under a header of "< 1 year / 1-2 years / 2-5 years / > 5 years
     / Total") -- a shape none of this file's other repairs cover, since _year_column finds no year in a bucket
@@ -3048,6 +3194,8 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
                 if scope in _REFUSED_SCOPES:
                     warnings.append(f"{total_key}: column reading of {rows[idx]!r} declined -- "
                                     f"{_scope_reason(rows, hdr_i, idx, scope_words, scope)}; refused under the {basis} basis")
+                    if (reason := _scope_missing_reason(rows, hdr_i, idx, scope_words, scope)) is not None:
+                        _record_missing_reason(missing_events, [total_key, *part_keys], page=page, **reason)
                     continue
             # v095: the off-grid columns this header printed (">3 years") -- counted for the alignment above,
             # never assigned. A value in one is an honest decline: where its window crosses the 1/5-year
@@ -3071,6 +3219,25 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
                              if straddled else "is not on the 1/5-year bucket boundaries")
                     named.append(f"'{phrase}' {amt} {where}")
                 warnings.append(f"{total_key}: column reading of {rows[idx]!r} declined -- {', '.join(named)}")
+                for lo, hi, phrase, amount in valued:
+                    boundaries = [b for b in _BUCKET_GRID if lo < b < (hi if hi is not None else 1 << 30)]
+                    affected = [key for key in part_keys if any(
+                        _BUCKET_WINDOW[key][0] <= boundary and
+                        (_BUCKET_WINDOW[key][1] is None or boundary <= _BUCKET_WINDOW[key][1])
+                        for boundary in boundaries
+                    )]
+                    disclosed = [{
+                        "span": phrase,
+                        "amount": amount,
+                        "unit": by_key[total_key].get("unit"),
+                        "page": page,
+                        "quote": rows[idx],
+                    }]
+                    _record_missing_reason(
+                        missing_events, affected, "offgrid_span",
+                        f"The report discloses {phrase}, which crosses a standard maturity-bucket boundary and cannot be mapped without guessing.",
+                        page=page, quote=rows[idx], disclosed=disclosed,
+                    )
                 continue
             derived = _bucket_assign(amounts, [total_key if k == "total" else k for k in col_keys])
             og_cover = {}  # v095: key -> the nil off-grid column whose window covers the bucket whole
@@ -3697,7 +3864,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
         tsf = next((sf for sf in schema["fields"] if sf["key"] == ident_sf[0]), None)
         total_voc = {"synonyms": (tsf or {}).get("synonyms", []) + (tsf or {}).get("row_synonyms", [])}
 
-    fields, filled, sfs, stated_zeros, gated_fills = [], set(), [], set(), set()
+    fields, filled, sfs, stated_zeros, gated_fills, missing_events = [], set(), [], set(), set(), []
     for sf in schema["fields"]:
         if sf.get("fallback_synonyms") and pages and not any(_label_known(_row_label(r), sf) for r in _page_rows(texts[pages[0] - 1])):
             # a bank prints no "profit before tax" row: its "Operating profit" is the line before tax (NOBA); its top line is "Total operating income"
@@ -3986,6 +4153,8 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
                     f"gross-value maturity block is headed {gross_prior_year}, not {fiscal_year}"
                 warnings.append(f"{sf['key']}: {f['value']} from {src['quote'][:70]!r} refused -- "
                                 f"{reason}; not read under the {basis} basis")
+                if (missing_reason := _scope_missing_reason(qrows, None, qi, scope_words, scope)) is not None:
+                    _record_missing_reason(missing_events, [sf["key"]], page=page, **missing_reason)
                 f.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
     values = {f["key"]: f["value"] for f in fields if isinstance(f["value"], (int, float))}
     units = Counter(f["unit"] for f in fields if f["unit"])
@@ -4021,7 +4190,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
             key = missing  # Addnode after two LLM timeouts: no tax answer, and the statement prints no total tax row
             sf, f = next(((s, g) for s, g in zip(sfs, fields) if g["key"] == key), (None, None))
             fix = f and f["value"] is None and _between_rows(sf, fields, sfs, defaults, texts, fiscal_year, sc, pages[0],
-                                                              scope_words, basis, warnings, debt_voc)
+                                                               scope_words, basis, warnings, debt_voc, missing_events)
             if fix:
                 warnings.append(f"{key}: model returned null; {fix[1]!r} sits between the other rows of {c['name']} and closes it in every column")
                 f.update(value=fix[0], period=str(fiscal_year), raw_label=fix[2], source={"page": pages[0], "quote": fix[1]},
@@ -4029,7 +4198,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
                 values[key] = fix[0]
                 filled.add(key)
                 c.update(_check(sc, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema, stated_zeros=stated_zeros))
-            elif (dated := _date_bucket_derive(schema, fields, texts, fiscal_year, basis, warnings)):
+            elif (dated := _date_bucket_derive(schema, fields, texts, fiscal_year, basis, warnings, missing_events)):
                 # a date-per-instrument note (Proact, v073): _between_rows just found fewer than two other real
                 # operands to sit between, but a date-shaped note can prove every null bucket at once, so this
                 # is tried independently rather than only for the one key `missing` happened to name
@@ -4090,7 +4259,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
                 for sc in schema.get("checks", []):
                     if sc.get("identity") and re.search(rf"\b{re.escape(f['key'])}\b", sc["expr"]):
                         fix = _between_rows(sf, others_fields, sfs, defaults, texts, fiscal_year, sc, pages[0],
-                                            scope_words, basis, warnings, debt_voc)
+                                             scope_words, basis, warnings, debt_voc, missing_events)
                         if fix:
                             break
             if fix:
@@ -4104,7 +4273,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
             # (the five "Repayment within 2–5 yr." component rows, the current-classified rows) -- the
             # page proves it in the total-tying column even though no row prints it. Anything else
             # computed or invented still drops below.
-            win = _window_row_sum(f, fields, schema, texts, fiscal_year, pages, scope_words, basis, warnings) \
+            win = _window_row_sum(f, fields, schema, texts, fiscal_year, pages, scope_words, basis, warnings, missing_events) \
                 if pages and fiscal_year else None
             if win:
                 quote, raw, n, first, last, p = win
@@ -4134,9 +4303,9 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
             f.update(value=None, unit=None, period=None, raw_label=None, source=None, evidence=[])
             values.pop(sf["key"], None)
     bucket_pick: dict = {}  # v091: the bucket-column table's own selected row, recorded by _fill_bucket_columns
-    _fill_bucket_columns(fields, sfs, schema, texts, pages, fiscal_year, warnings, values, filled, basis, bucket_pick)
-    _finer_split_rows(fields, schema, texts, fiscal_year, warnings, values, filled, basis)  # the bucket-ROW finer split (Rusta), beside the bucket-column reader above
-    _subtotal_pair_fill(fields, sfs, schema, texts, pages, fiscal_year, warnings, values, filled, basis)  # v110: non-current + current section subtotals, no printed grand total (NOTE Not 19)
+    _fill_bucket_columns(fields, sfs, schema, texts, pages, fiscal_year, warnings, values, filled, basis, bucket_pick, missing_events)
+    _finer_split_rows(fields, schema, texts, fiscal_year, warnings, values, filled, basis, missing_events)  # the bucket-ROW finer split (Rusta), beside the bucket-column reader above
+    _subtotal_pair_fill(fields, sfs, schema, texts, pages, fiscal_year, warnings, values, filled, basis, missing_events)  # v110: non-current + current section subtotals, no printed grand total (NOTE Not 19)
     _window_rows_derive(fields, schema, texts, fiscal_year, pages, scope_words, basis, warnings, values, filled)  # v156: a null bucket derived from its window's printed rows when they close on the total (v126's family, on null)
     _normalize_sign(fields, sfs, schema, texts, warnings, values)  # v101: liabilities-negative printed totals/buckets record their magnitude; the identity below closes on carrying positives
     if schema.get("name") == "debt_maturity" and fiscal_year:
@@ -4201,6 +4370,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
     for sf, field in zip(sfs, fields):
         if field["value"] is not None:
             score_field(field, sf, checks, schema, currency, fiscal_year, statement_pages, texts)
+    _attach_missing_reasons(fields, schema, pages, missing_events)
 
     out = {
         "report_id": report_meta.get("report_id"),
