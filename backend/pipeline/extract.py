@@ -3645,16 +3645,18 @@ def _buckets_by_year_fill(schema: dict, texts: list[str], fiscal_year, bucket_pi
 
 
 def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
-            page_select_hints: bool | None = None) -> dict:
+            page_select_hints: bool | None = None, fixed_pages: bool = False) -> dict:
     extraction_started = time.perf_counter()
     model_seconds, attempts = 0.0, 0
     fiscal_year = report_meta.get("fiscal_year")
     basis = debt_basis()  # v089: which maturity table total_debt and the buckets are read from
     system, warnings, raw = system_prompt(schema, report_meta.get("stem")), [], []
     nonnull = lambda fs: sum(isinstance(f, dict) and f.get("value") is not None for f in fs)
-    windows = [tuple(pages[:2])]  # the statement spread first: a quick call (four pages timed out on NOBA / Nordnet)
+    # An analyst-directed fill supplies its complete evidence window. It must not be replaced by
+    # locator ranking, pass-one selection or a timeout fallback to a different window.
+    windows = [tuple(pages if fixed_pages else pages[:2])]  # the ordinary statement spread starts quick (four pages timed out on NOBA / Nordnet)
     two_pass_pages = None  # pass 1's own pick, if EXTRACT_TWO_PASS is on and it succeeded -- also stands in for
-    if os.getenv("EXTRACT_TWO_PASS") == "1" and len(pages) >= 2:  # pages[:2] below wherever that means "the statement", not "cast a wider net"
+    if not fixed_pages and os.getenv("EXTRACT_TWO_PASS") == "1" and len(pages) >= 2:  # pages[:2] below wherever that means "the statement", not "cast a wider net"
         selected = _select_pages(schema, pages, texts, page_select_hints)
         if selected:
             warnings.append(f"two_pass: page {selected} selected from candidates {pages}")
@@ -3678,7 +3680,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
         except Exception as e:  # ponytail: teammates feed the error back to the model
             model_seconds += time.perf_counter() - call_started
             warnings.append(f"llm: {type(e).__name__}: {e} (pages {list(attempt)})")
-            if "timeout" in type(e).__name__.lower() and len(attempt) > 1 and pages:
+            if not fixed_pages and "timeout" in type(e).__name__.lower() and len(attempt) > 1 and pages:
                 windows = [tuple(pages[:1])]  # IPC: pages 10-11 never answer, page 10 alone does in a minute; a hung single page ends it
             continue
         model_seconds += time.perf_counter() - call_started
