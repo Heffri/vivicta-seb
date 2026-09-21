@@ -160,7 +160,10 @@ def fill_texts(report_id: str) -> list[str]:
 
 def library_index() -> list[dict]:
     """index.json entries whose PDF is actually on disk."""
-    entries = json.loads((LIBRARY / "index.json").read_text(encoding="utf-8"))
+    index = LIBRARY / "index.json"
+    if not index.is_file():
+        return []  # an isolated ARP_DATA_DIR starts with an empty report cache
+    entries = json.loads(index.read_text(encoding="utf-8"))
     return [e for e in entries if (LIBRARY / e["file"]).exists()]
 
 
