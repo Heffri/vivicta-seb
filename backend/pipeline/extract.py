@@ -575,6 +575,8 @@ def _check(check: dict, values: dict, texts: list[str] | None = None, pages: lis
     return out
 
 
+EXTRACT_VERSION = "2026-09-21"  # bump when a pipeline change should invalidate saved extractions; the cache key used to hash 7 source files, so every commit re-ran every section (27 s each)
+
 WEIGHTS = {"quote_on_page": 0.35, "value_in_quote": 0.20, "arith_ok": 0.20, "label_known": 0.10,
            "period_ok": 0.05, "page_is_statement": 0.05, "unit_ok": 0.05,  # docs/CONFIDENCE.md; sums to 1.0
            "value_derived": 0.20, "bs_tie": 0.0,  # a BS tie is a recorded independent fact, not a second confidence weight
@@ -3186,17 +3188,32 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
                 warnings.append(f"{total_key}: column reading of {rows[idx]!r} declined -- gross-value maturity "
                                 f"block is headed {gross_prior_year}, not {fiscal_year}")
                 continue
+            # the row names the borrowing scope itself ("Total interest-bearing liabilities", "Borrowings") --
+            # or, for a bare Total/Summa row, the table's own title/body does and no all-liabilities row
+            # (trade payables, earn-outs) sits in it. Only such a row may earn the identity marker below:
+            # Karnell's markerless all-liabilities "Total 72.2 454.4 - 526.6" closes on its own arithmetic
+            # too, and closing alone is a self-referential proof, not identification (v088/v095).
+            debt_row = _label_known(_row_label(rows[idx]), debt_vocab)
             if scope_words:  # v103/v111: the wrong-table guard -- a table the guard refuses is not filled from,
                 hdr_i = _scope_header(rows, idx, bucket_sfs)  # whatever row of it happens to align
-                scope = _table_scope(rows, hdr_i, idx, basis, scope_words,
-                                     debt_scoped=_label_known(_row_label(rows[idx]), debt_vocab),
-                                     debt_words=debt_subj)
+                scope = _table_scope(rows, hdr_i, idx, basis, scope_words, debt_scoped=debt_row, debt_words=debt_subj)
                 if scope in _REFUSED_SCOPES:
                     warnings.append(f"{total_key}: column reading of {rows[idx]!r} declined -- "
                                     f"{_scope_reason(rows, hdr_i, idx, scope_words, scope)}; refused under the {basis} basis")
                     if (reason := _scope_missing_reason(rows, hdr_i, idx, scope_words, scope)) is not None:
                         _record_missing_reason(missing_events, [total_key, *part_keys], page=page, **reason)
                     continue
+                if not debt_row:
+                    # _scope_zone's title walk stops at the first digit-bearing row, and a column header
+                    # ("< 1 year", "31 Dec 2025") is one -- so climb the short rows above the header
+                    # ourselves: title, unit and date furniture are all short; the first long row is prose.
+                    # ponytail: a debt table stacked right above lends its title; bounded by 25 rows.
+                    top = hdr_i if hdr_i is not None else idx
+                    k = top - 1
+                    while k >= max(0, idx - 25) and len(rows[k]) <= _SCOPE_TITLE_MAX:
+                        k -= 1
+                    zone = " ".join(r.translate(_DASHES).lower() for r in rows[k + 1:idx])
+                    debt_row = any(w in zone for w in (debt_subj or ())) and not any(w in zone for w in (x.lower() for x in scope_words.get("all_liabilities", [])))
             # v095: the off-grid columns this header printed (">3 years") -- counted for the alignment above,
             # never assigned. A value in one is an honest decline: where its window crosses the 1/5-year
             # boundaries the split is a guess no check can verify (a counterfactual Karnell printing 173 under
@@ -3357,6 +3374,13 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
                         values[key] = None
                         continue
                 if value is None or (isinstance(current, (int, float)) and abs(current - value) <= 2):
+                    # the model's own answer, quoted from this very row, is identified by the same proof as a
+                    # column-read one -- the row closes (label_known via the identity marker, see the write below).
+                    # "Total 197 22 1,377 9 1,605" is a bare label no synonym list can own; its arithmetic can.
+                    src = by_key[key].get("source") or {}
+                    if value is not None and closes and debt_row and src.get("page") == page and normalize_ws(str(src.get("quote") or "")) == normalize_ws(rows[idx]) \
+                            and "identity_all_columns" not in by_key[key]["evidence"]:
+                        by_key[key]["evidence"].append("identity_all_columns")
                     continue  # nothing to add, or agrees with the model's own answer -- its evidence already covers it
                 if key == total_key and current is not None and total_key not in filled and not closes:
                     warnings.append(f"{key}: kept the model's own {current} -- the column-order row {rows[idx]!r} "
@@ -3379,13 +3403,18 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
                         continue
                     warnings.append(f"{key}: {prefix}; {value} read from {rows[idx]!r} by its column order")
                 # score_field derives value_in_quote itself from quote_on_page; only value_derived (a sum with no
-                # literal quote, e.g. two finer bucket columns) needs to be pre-seeded, or it would double-count
+                # literal quote, e.g. two finer bucket columns) needs to be pre-seeded, or it would double-count.
+                # a row whose buckets sum to its own total is this table's identity holding in every column
+                # -- the same proof that earns an unknown year-column row label_known (identity_all_columns, weight
+                # 0, score_field turns it into label_known). Only when it closes AND the row or its table names the
+                # borrowing scope (debt_row above): a row that does not add up is not identified by anything, and
+                # its check fails on top; a bare Total of an unnamed table is not identified by adding up either.
                 by_key[key].update(value=value, period=str(fiscal_year) if fiscal_year else by_key[key]["period"],
                                     raw_label=_row_label(rows[idx]), source={"page": page, "quote": rows[idx]},
                                     evidence=(["quote_on_page", "printed_nil"] if nil else
                                               ["quote_on_page", "value_derived"] if key in og_cover else
                                               ["quote_on_page"] if _value_in_quote(value, rows[idx]) else
-                                              ["quote_on_page", "value_derived"]))
+                                              ["quote_on_page", "value_derived"]) + (["identity_all_columns"] if closes and debt_row else []))
                 values[key] = value
                 filled.add(key)
                 acted = True
@@ -3478,7 +3507,11 @@ def score_field(field: dict, sf: dict, checks: list[dict], schema: dict, currenc
     failed = [c for c in mine if not c["passed"] and not c["detail"].startswith("missing:")]  # a check with a missing operand is n/a, not failed
     if not failed:
         ev.append("arith_ok")  # vacuously true for fields no check references (eps)
-    if _label_known(field.get("raw_label"), sf) or "value_derived" in ev or "identity_all_columns" in ev:
+    # scoring-only vocabulary: the field's synonyms, its row wording (debt_maturity's row_synonyms -- "Borrowings",
+    # "Lease liabilities" are known total rows even though selection keeps them apart) and its own label; never
+    # header_synonyms, whose "Total" would identify any row
+    vocab = {**sf, "synonyms": sf.get("synonyms", []) + sf.get("row_synonyms", []) + [sf.get("label", "")]}
+    if _label_known(field.get("raw_label"), vocab) or "value_derived" in ev or "identity_all_columns" in ev:
         ev.append("label_known")  # a derived sum, or an unknown row, is identified by the check holding in every column, not by a printed label
     if fiscal_year and str(field.get("period")) == str(fiscal_year):
         ev.append("period_ok")
@@ -3766,8 +3799,10 @@ def _year_rows_read(schema: dict, texts: list[str], fiscal_year, bucket_pick: di
             printed = _after_label_figure(trow, tlabel) if tlabel else None
             if not tlabel or not _BARE_TOTAL.search(tlabel) or printed is None:
                 continue  # the table prints no clean one-figure total row of its own: nothing proves the years are its whole story
-            if scope_words and _table_scope(rows, None, j, basis, scope_words) in ("undiscounted", "all_liabilities"):
-                continue  # v103: the wrong-table refusal, silently -- a metadata key, not a fill
+            if scope_words and _table_scope(rows, None, j, basis, scope_words,
+                                            debt_words=_debt_subject_words(schema)) in _REFUSED_SCOPES:
+                continue  # v103's wrong-table refusal, silently -- a metadata key, not a fill. v157: the whole
+                # refusal list, not the two v103 knew: essity_2025 p.151's non_debt ladder passes the pair form
             vals = [v for _, v, _ in items]
             if total > 0 and any(v < 0 for v in vals) and all(v <= 0 for v in vals):
                 vals = [-v for v in vals]  # v101's liabilities-negative display convention, the row shape's own form
@@ -3777,6 +3812,151 @@ def _year_rows_read(schema: dict, texts: list[str], fiscal_year, bucket_pick: di
                     "years": [{"label": lab, "value": vals[k], "source": {"page": page, "quote": q}}
                               for k, (lab, _, q) in enumerate(items)]}
     return None
+
+
+def _year_ladder(text: str, fiscal_year, schema: dict) -> tuple[list[tuple[str, float, str]], float, str] | None:
+    """The page's own calendar-year debt maturity ladder: ([(label, value, row)], its printed total,
+    that total's row), or None. _year_rows_read's valve chain without the one gate that needs a
+    total_debt -- pairs chaining from fiscal_year+1, at most one open-end tail row, a mandatory
+    bare-Total row printing exactly one figure that the years close on, and a table scope that is not
+    refused. The loose version of this test (">=3 years plus any total token") fires on 94 pages in 52
+    reports because _BARE_TOTAL matches "total|totalt|summa" on nearly any table; the full chain fires
+    on 2 pages in the whole corpus (ABB p.89, BTS p.92), which is what makes it safe to score and read
+    from. ponytail: no negatives -- both corpus ladders print positives, and v101's liabilities-negative
+    convention is _normalize_sign's job, downstream of the only caller that fills. A printed dash year
+    is 0 and rides along (v078)."""
+    if not fiscal_year:
+        return None
+    scope_words, debt_words = schema.get("table_scope_words"), _debt_subject_words(schema)
+    rows = _page_rows(text)
+    for i, row in enumerate(rows):
+        pairs = _inline_year_pairs(row, fiscal_year)
+        if not pairs:
+            continue
+        items = [(label, v, row) for label, v in pairs]
+        j = i + 1
+        if j < len(rows) and (label := _row_label(rows[j])) and _YEAR_TAIL.search(label):
+            tail = _after_label_figure(rows[j], label)
+            if tail is None:
+                continue
+            items.append((label, tail, rows[j]))
+            j += 1
+        if j >= len(rows):
+            continue
+        tlabel = _row_label(rows[j])
+        printed = _after_label_figure(rows[j], tlabel) if tlabel else None
+        if not tlabel or not _BARE_TOTAL.search(tlabel) or printed is None:
+            continue
+        if any(v < 0 for _, v, _ in items) or abs(round(sum(v for _, v, _ in items), 2) - printed) > 2:
+            continue  # the years must be the whole of the table's own printed total, the identity's own tolerance
+        if scope_words and _table_scope(rows, None, j, "carrying", scope_words, debt_words=debt_words) in _REFUSED_SCOPES:
+            continue  # ABB's own p.88 intangible-amortization ladder is this shape and must not score
+        return items, printed, rows[j]
+    return None
+
+
+def year_row_table(text: str, fiscal_year, schema: dict) -> bool:
+    """Does this page print a calendar-year debt ladder? locate.scored_pages' shape evidence: such a
+    ladder names its buckets with bare years, so the page matches no bucket synonym ("within 1 year",
+    "1-5 years") and scores no shape at all without this -- ABB's p.89 lost to the instrument table on
+    p.90 for exactly that reason."""
+    return _year_ladder(text, fiscal_year, schema) is not None
+
+
+_LADDER_SUBSET_GAP = 0.10  # the ladder may restate the total (ABB: principal 8,247 vs carrying 7,905, 4.3%)
+
+
+def _year_ladder_fill(fields: list[dict], sfs: list[dict], schema: dict, texts: list[str], pages: list[int],
+                      fiscal_year, bucket_pick: dict, warnings: list[str], values: dict, filled: set) -> None:
+    """The calendar-year ladder as ANSWERS. _buckets_by_year_fill reads the same table but writes only
+    `buckets_by_year` metadata -- its docstring says so outright -- so a US-GAAP issuer whose note is a
+    bare year ladder (ABB p.89: "2026 442 ... Thereafter 4,013 / Total 8,247") left nulls no matter how
+    well the shape parsed. Fills only buckets the model left null, and only when:
+      - the years close on the table's OWN printed total (_year_ladder's hard gate), and
+      - that total is not smaller than total_debt and within 10% of it.
+    Both gates together are what refuse Ericsson p.97, whose operating-lease ladder closes on its own
+    printed 1,838 against a total_debt of 32,703: a lease subset is strictly smaller and nowhere near.
+    No scope word can do that job -- _table_scope reads "unknown" on it either way and "lease
+    liabilities" is one of total_debt's own row synonyms.
+
+    The summed bucket quotes the whole glued ladder row, which carries alphabetic tokens and so passes
+    quote_on_page where a bare "2026 442" cannot, and is tagged value_derived -- _window_rows_derive's
+    convention. A ladder with no tail row leaves due_after_5_years null, never 0."""
+    ident = _identity_parts(schema)
+    if not ident or set(ident[1]) != _DATE_BUCKET_KEYS:
+        return
+    by_key = {sf["key"]: f for sf, f in zip(sfs, fields)}
+    if all(by_key[k].get("value") is not None for k in ident[1]):
+        return  # nothing to fill
+    total = values.get(ident[0])
+    if not isinstance(total, (int, float)) or isinstance(total, bool) or total <= 0:
+        return
+    for page in bucket_pick.get("scan_pages") or pages[:2]:
+        if not 0 < page <= len(texts):
+            continue
+        got = _year_ladder(texts[page - 1], fiscal_year, schema)
+        if not got:
+            continue
+        items, printed, trow = got
+        if printed < total or abs(printed - total) > _LADDER_SUBSET_GAP * total:
+            continue  # a subset ladder (Ericsson's leases) or a different table entirely
+        buckets: dict[str, list[tuple[float, str]]] = {k: [] for k in ident[1]}
+        for label, v, row in items:
+            year = int(label) if re.fullmatch(r"20\d\d", label) else None
+            key = ("due_within_1_year" if year == int(fiscal_year) + 1
+                   else "due_1_to_5_years" if year and year <= int(fiscal_year) + 5
+                   else "due_after_5_years")
+            buckets[key].append((v, row))
+        # The model usually reads PART of a ladder: ABB's own re-run answered 442 and 4,013 and left the
+        # middle null, because "2027 1,143 2028 591 2029 837 2030 1,221" is four printed rows and one
+        # bucket. Complete it -- but only where the model's own answers agree with the same ladder row
+        # for row. A disagreement anywhere means the two of us are reading different tables, and mixing
+        # them is how a plausible wrong number gets made: leave the whole page alone and let it flag.
+        sf_of = {sf["key"]: sf for sf in sfs}
+        if any((mine := by_key[k].get("value")) is not None
+               and (not buckets[k] or abs(round(sum(x for x, _ in buckets[k]), 2) - mine) > 2) for k in ident[1]):
+            return
+        wrote = []
+        for key, got_rows in buckets.items():
+            if not got_rows:
+                continue  # no tail row: due_after_5_years stays null, never a fabricated 0
+            mine, v = by_key[key].get("value"), round(sum(x for x, _ in got_rows), 2)
+            # An agreed answer keeps its value and takes the ladder's citation, because the model cites a
+            # year row the way the report prints it: "2026" is a label no schema can name and "2026 442"
+            # is a quote with no word in it, so ABB's own correct 442 arrived with neither label_known nor
+            # quote_on_page and asked for a human anyway. Only where the model's own label is unnameable:
+            # a row it could name is its own evidence and is left alone.
+            if mine is not None and _label_known(by_key[key].get("raw_label"), sf_of[key]):
+                continue
+            wrote.append(key if mine is None else f"{key} (re-cited)")
+            quote = got_rows[0][1]
+            by_key[key].update(value=v, period=str(fiscal_year), raw_label=key.replace("_", " "),
+                               source={"page": page, "quote": quote},
+                               evidence=["quote_on_page"] if _value_in_quote(v, quote) else ["quote_on_page", "value_derived"])
+            values[key] = v
+            filled.add(key)
+        if not wrote:
+            return  # every bucket the ladder prints was already answered: nothing read, nothing to re-cite
+        warnings.append(f"{', '.join(wrote)} read from the calendar-year ladder on page {page}, closing on "
+                        f"its own printed total {printed:g}")
+        # The ladder restates the total on its own basis (ABB: principal 8,247 on p.89 against the p.90
+        # instrument table's carrying 7,905) and the model cited the other one. Left alone, three honest
+        # nulls become three right numbers plus a FAILING identity -- strictly more review, not less. Move
+        # total_debt to the row the buckets actually sum to, but only when the model's own citation is a
+        # bare "Total" whose label the schema cannot name (_label_known): a row the model COULD name
+        # ("Total interest-bearing liabilities") is a deliberate choice and outranks this one. Tested on
+        # the evidence list instead, this gate reads as always-true -- label_known lands downstream.
+        tf = by_key.get(ident[0])
+        total_sf = next((sf for sf in sfs if sf["key"] == ident[0]), None)
+        cited = _row_label(((tf or {}).get("source") or {}).get("quote") or "")
+        if tf and abs(printed - total) > 2 and not (total_sf and _label_known(cited, total_sf)):
+            warnings.append(f"{ident[0]}: {total:g} re-cited to the maturity table's own total {printed:g} on "
+                            f"page {page} -- the buckets sum to it, and {total:g} was read off a bare Total row")
+            tf.update(value=printed, period=str(fiscal_year), raw_label=_row_label(trow),
+                      source={"page": page, "quote": trow}, evidence=["quote_on_page"])
+            values[ident[0]] = printed
+            filled.add(ident[0])
+        return
 
 
 def _buckets_by_year_fill(schema: dict, texts: list[str], fiscal_year, bucket_pick: dict, values: dict,
@@ -3853,8 +4033,19 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
         model_seconds += time.perf_counter() - call_started
         if nonnull(got) > nonnull(raw):
             raw = got
-        if 2 * nonnull(raw) < len(schema["fields"]) and len(attempt) == 2 and len(pages) > 2:
-            windows = [tuple(pages[:4])]  # most fields came back empty: widen once
+        # v157: and for debt, widen when the identity comes back with two or more holes in it. Two
+        # answered fields of four passes the test above, and it is exactly the shape of a confidently
+        # read wrong table: BTS p.93's NOTE 21 is non-current borrowings only, so the model answered a
+        # total and one bucket off it, closed nothing, and never saw the real maturity note two pages
+        # earlier (p.92, rank 3 -- outside the first window, inside the widened one). ONE hole is the
+        # ordinary case of a report that prints no >5-year row, and widening on it would buy a second
+        # model call for most debt extractions and find nothing.
+        holes = 0
+        if schema.get("name") == "debt_maturity" and (ident := _identity_parts(schema)):
+            got_by_key = {g.get("key"): g for g in raw if isinstance(g, dict)}
+            holes = sum(got_by_key.get(k, {}).get("value") is None for k in (ident[0], *ident[1]))
+        if (2 * nonnull(raw) < len(schema["fields"]) or holes >= 2) and len(attempt) == 2 and len(pages) > 2:
+            windows = [tuple(pages[:4])]  # the first window did not settle it: widen once
     by_key = {f.get("key"): f for f in raw if isinstance(f, dict)}
     by_key = _quote_retry(by_key, system, schema, texts, pages, fiscal_year, warnings)
     scope_words = schema.get("table_scope_words")  # v103/v111: the wrong-table guard's marker vocabulary
@@ -4307,6 +4498,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
     _finer_split_rows(fields, schema, texts, fiscal_year, warnings, values, filled, basis, missing_events)  # the bucket-ROW finer split (Rusta), beside the bucket-column reader above
     _subtotal_pair_fill(fields, sfs, schema, texts, pages, fiscal_year, warnings, values, filled, basis, missing_events)  # v110: non-current + current section subtotals, no printed grand total (NOTE Not 19)
     _window_rows_derive(fields, schema, texts, fiscal_year, pages, scope_words, basis, warnings, values, filled)  # v156: a null bucket derived from its window's printed rows when they close on the total (v126's family, on null)
+    _year_ladder_fill(fields, sfs, schema, texts, pages, fiscal_year, bucket_pick, warnings, values, filled)  # v157: all three buckets null and the note is a bare calendar-year ladder (ABB p.89)
     _normalize_sign(fields, sfs, schema, texts, warnings, values)  # v101: liabilities-negative printed totals/buckets record their magnitude; the identity below closes on carrying positives
     if schema.get("name") == "debt_maturity" and fiscal_year:
         total = next((field for field in fields if field["key"] == "total_debt"), None)

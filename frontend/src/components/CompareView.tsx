@@ -5,7 +5,7 @@ import { MaturityBar } from '@/components/compare/MaturityBar'
 import { MaturityWall } from '@/components/compare/MaturityWall'
 import { fmtValue } from '@/components/ResultsView'
 import { isMaturitySection } from '@/components/results/MaturityChart'
-import { fieldVerification } from '@/components/results/verification'
+import { fieldVerification, NEEDS_HUMAN } from '@/components/results/verification'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -62,7 +62,9 @@ export function CompareView({ results, onSelect, onReset, onOpenReport }: Props)
               <TableHead className="sticky left-0 z-10 bg-card">Field</TableHead>
               {results.map((r, i) => {
                 const x = r.extraction
-                const reviewCount = x?.fields.filter((f) => ['Needs review', 'Not checked', 'Not found'].includes(fieldVerification(f).label)).length ?? 0
+                const notReported = x?.not_reported ?? []
+                const reviewCount = x?.issues?.length ?? x?.fields.filter((f) => NEEDS_HUMAN.includes(fieldVerification(f, notReported.includes(f.key)).label)).length ?? 0
+                const calculatedCount = x?.fields.filter((f) => fieldVerification(f).label === 'Calculated from report').length ?? 0
                 return (
                   <TableHead key={i} className="min-w-48 p-1.5 align-top">
                     <Card size="sm" className="gap-1">
@@ -75,9 +77,12 @@ export function CompareView({ results, onSelect, onReset, onOpenReport }: Props)
                         <span className="font-medium text-foreground">{r.label}</span>
                         <span className="text-xs font-normal text-muted-foreground">FY {x?.fiscal_year ?? '—'}</span>
                         {x ? (
-                          <Badge variant={reviewCount ? 'warning' : 'secondary'}>
-                            {reviewCount ? `${reviewCount} figures to review` : 'Source checks recorded'}
-                          </Badge>
+                          <>
+                            <Badge variant={reviewCount ? 'warning' : 'secondary'}>
+                              {reviewCount ? `${reviewCount} need a human` : 'Nothing needs a human'}
+                            </Badge>
+                            {(notReported.length > 0 || calculatedCount > 0) && <span className="text-xs font-normal text-muted-foreground">{[notReported.length > 0 && `${notReported.length} not reported`, calculatedCount > 0 && `${calculatedCount} calculated from report`].filter(Boolean).join(' · ')}</span>}
+                          </>
                         ) : (
                           <Badge variant="danger">failed</Badge>
                         )}
@@ -112,7 +117,7 @@ export function CompareView({ results, onSelect, onReset, onOpenReport }: Props)
                     return ri === 0 && !showMaturityRow ? errorCell(r, i, rows.length) : null
                   }
                   const f = r.extraction.fields.find((x) => x.key === row.key)
-                  const verification = f ? fieldVerification(f) : null
+                  const verification = f ? fieldVerification(f, (r.extraction.not_reported ?? []).includes(f.key)) : null
                   return (
                     <TableCell key={i} className={`tabular-nums ${f?.value == null ? 'text-muted-foreground' : ''}`}>
                       {fmtValue(f?.value ?? null)}
@@ -122,7 +127,7 @@ export function CompareView({ results, onSelect, onReset, onOpenReport }: Props)
                           {verification.label}
                         </Badge>
                       )}
-                      {verification && ['Needs review', 'Not checked', 'Not found'].includes(verification.label) && <details className="mt-2 max-w-sm whitespace-normal text-xs text-muted-foreground"><summary className="cursor-pointer">What to review</summary><p className="mt-2 leading-relaxed">{verification.detail}</p></details>}
+                      {verification && NEEDS_HUMAN.includes(verification.label) && <details className="mt-2 max-w-sm whitespace-normal text-xs text-muted-foreground"><summary className="cursor-pointer">What to review</summary><p className="mt-2 leading-relaxed">{verification.detail}</p></details>}
                     </TableCell>
                   )
                 })}

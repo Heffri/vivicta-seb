@@ -161,7 +161,7 @@ def _summary_heading(head: str, raw_head: str) -> bool:
     return any(len(set(y)) >= 4 or len(y) >= 5 for y in years) or QUARTER.search(head)
 
 
-def scored_pages(texts: list[str], schema: dict) -> list[tuple[float, int]]:
+def scored_pages(texts: list[str], schema: dict, fiscal_year=None) -> list[tuple[float, int]]:
     """Every page matching at least one keyword, (score, 1-based pdf page), best first -- the full ranking
     candidate_pages cuts its window from. Exposed for measurement (scripts/locate_reach.py: where a label
     page sits in the ranking when it is not a candidate); candidate_pages itself is the only production
@@ -170,6 +170,8 @@ def scored_pages(texts: list[str], schema: dict) -> list[tuple[float, int]]:
     excluded = [k.lower() for k in schema.get("exclude_keywords", [])]  # "parent company", "five-year summary"
     synonyms = sorted({s.lower() for f in schema.get("fields", []) for s in f.get("synonyms", [])})
     toc = toc_targets(texts, schema)
+    from . import extract  # deferred: extract imports this module. Only for year_row_table's valve chain
+    shape_ok = bool(fiscal_year) and schema.get("name") == "debt_maturity"  # the only section with a year ladder
     scored = []
     for i, text in enumerate(strip_boilerplate(texts)):
         low = " ".join(text.lower().split())  # ABB breaks "Income / Statements" across lines; it must still match "income statement"
@@ -185,7 +187,12 @@ def scored_pages(texts: list[str], schema: dict) -> list[tuple[float, int]]:
         group_at = (GROUP.search(head) or re.compile(r"$").search(head)).start()
         parent = any(k in head and (head.index(k) < group_at or not ENTITY.search(k)) for k in excluded)  # Pandox: "KONCERNEN 2024 Rörelsesegment" is a segment note whatever precedes it. Saab SV: parent-company statement outranked the group one;
         penalty = 0.1 if summary or parent else 1  # Vitrolife prints "Group | Parent Company" columns on one page: group first, so not a parent page
-        scored.append(((distinct + 5 * heading + fields + 5 * (i + 1 in toc)) * (1 + 5 * density) * penalty, i + 1))
+        # A calendar-year ladder ("2026 442 ... Thereafter 4,013 / Total 8,247") names its buckets with bare
+        # years, so `fields` scores 0 and the page carries no shape evidence at all -- ABB's p.89 lost to the
+        # instrument table on p.90 for exactly that reason. Worth 2: enough to pass a same-keyword neighbour,
+        # not enough to beat a heading (+5). Measured: one labelled page moves, bts_2025 p.92, rank 10 -> 2.
+        shape = 2 if shape_ok and extract.year_row_table(texts[i], fiscal_year, schema) else 0
+        scored.append(((distinct + 5 * heading + fields + shape + 5 * (i + 1 in toc)) * (1 + 5 * density) * penalty, i + 1))
     scored.sort(key=lambda s: (-s[0], s[1]))
     return scored
 
@@ -233,7 +240,7 @@ def balance_sheet_page(texts: list[str]) -> int | None:
     return plain
 
 
-def candidate_pages(texts: list[str], schema: dict, top_n: int = 10) -> list[int]:
+def candidate_pages(texts: list[str], schema: dict, top_n: int = 10, fiscal_year=None) -> list[int]:
     """1-based page numbers, best first. The page after the best one is always second (statements span two
     pages: EPS sits on the second). PROMPT_BUDGET bounds only the list's first WINDOW_PAGES pages -- the
     deepest full-text read extract() ever makes of it (the widen window pages[:4]); pages beyond that are
@@ -244,7 +251,7 @@ def candidate_pages(texts: list[str], schema: dict, top_n: int = 10) -> list[int
     either section; the cost is pass-1 snippets for up to two more pages. The report's balance-sheet page
     (balance_sheet_page, v139) joins as the last entry when it scored nothing of its own: the debt note's
     carrying total ties to it, and the four remaining debt-label BS pages carry no debt keyword to score."""
-    pages = [page for _, page in scored_pages(texts, schema)[:top_n]]
+    pages = [page for _, page in scored_pages(texts, schema, fiscal_year)[:top_n]]
     if pages and pages[0] < len(texts):
         pages = [pages[0], pages[0] + 1] + [p for p in pages[1:] if p != pages[0] + 1]
     bs = balance_sheet_page(texts)

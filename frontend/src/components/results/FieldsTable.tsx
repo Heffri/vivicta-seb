@@ -1,5 +1,5 @@
 import { fmtValue } from '@/components/ResultsView'
-import { fieldVerification } from './verification'
+import { fieldVerification, NEEDS_HUMAN } from './verification'
 import { Fragment } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -8,6 +8,7 @@ import type { Field } from '@/types'
 
 type FieldsTableProps = {
   fields: Field[]
+  notReported?: string[] // Extraction.not_reported: optional rows the report does not print
   selectedKey: string | null
   onSelect: (key: string) => void
   onOpenPage?: (key: string, page: number) => void // v179: a component's own citation may sit on a page the field's own source doesn't
@@ -16,7 +17,7 @@ type FieldsTableProps = {
 /** The product's argument, one row per number: the number, its unit and period, how much
  *  the backend could verify. Selecting a row (click or Enter/Space) aims the Source panel;
  *  the selected row carries an accent left edge and a faint accent wash. */
-export function FieldsTable({ fields, selectedKey, onSelect, onOpenPage }: FieldsTableProps) {
+export function FieldsTable({ fields, notReported = [], selectedKey, onSelect, onOpenPage }: FieldsTableProps) {
   const openPage = onOpenPage ?? ((key: string) => onSelect(key))
   return (
     <Card className="py-0">
@@ -34,7 +35,8 @@ export function FieldsTable({ fields, selectedKey, onSelect, onOpenPage }: Field
         <TableBody>
           {fields.map((f) => {
             const isSelected = f.key === selectedKey
-            const verification = fieldVerification(f)
+            const unreported = notReported.includes(f.key)
+            const verification = fieldVerification(f, unreported)
             const reason = f.value === null ? f.missing_reason : undefined
             const showReason = reason && reason.code !== 'absent_in_table'
             return (
@@ -62,7 +64,7 @@ export function FieldsTable({ fields, selectedKey, onSelect, onOpenPage }: Field
                     <Badge variant={verification.variant} title={verification.detail}>
                       {verification.label}
                     </Badge>
-                    {f.human_review && <p className="mt-2 text-xs text-muted-foreground" title={fieldVerification({ ...f, human_review: undefined }).detail}>Automated evidence: {fieldVerification({ ...f, human_review: undefined }).label.toLowerCase()}</p>}
+                    {f.human_review && <p className="mt-2 text-xs text-muted-foreground" title={fieldVerification({ ...f, human_review: undefined }, unreported).detail}>Automated evidence: {fieldVerification({ ...f, human_review: undefined }, unreported).label.toLowerCase()}</p>}
                     {f.human_review?.source_verified && f.source && <button type="button" className="mt-2 block text-left text-xs text-primary underline-offset-2 hover:underline" title={f.source.quote} onClick={(e) => { e.stopPropagation(); onSelect(f.key) }}>
                       Reviewed source · p.{f.source.page} · “{f.source.quote.length > 96 ? `${f.source.quote.slice(0, 93).trimEnd()}…` : f.source.quote}”{f.components?.length ? ` · ${f.components.length} components` : ''}
                     </button>}
@@ -78,7 +80,7 @@ export function FieldsTable({ fields, selectedKey, onSelect, onOpenPage }: Field
                     )}
                     {/* v179: an OCR'd page is read text, not a photograph — flag it beside the check result, not only inside Source. */}
                     {f.evidence?.includes('ocr_text') && <p className="mt-2 text-xs font-medium text-warning">From OCR — check the scanned image</p>}
-                    {['Needs review', 'Not checked', 'Not found'].includes(verification.label) && !reason && (
+                    {NEEDS_HUMAN.includes(verification.label) && !reason && (
                       <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{verification.detail}</p>
                     )}
                   </TableCell>

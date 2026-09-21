@@ -11,7 +11,7 @@ import { SourcePanel, type Viewer } from '@/components/results/SourcePanel'
 import { StatusCards } from '@/components/results/StatusCards'
 import { Badge } from '@/components/ui/badge'
 import { scrollContent } from '@/components/shell/scrollContent'
-import { fieldVerification } from '@/components/results/verification'
+import { fieldVerification, NEEDS_HUMAN } from '@/components/results/verification'
 import { Button, buttonVariants } from '@/components/ui/button'
 import type { Comparison, Extraction, Field, FieldFill, Source } from '@/types'
 
@@ -113,7 +113,11 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
     setReviewCitation({ page: '', quote: '' })
     setAskPage(page)
   }
-  const reviewCount = fields.filter((f) => ['Needs review', 'Not checked', 'Not found'].includes(fieldVerification(f).label)).length
+  // The backend's field + check issues are the human's list (an unconfirmed basis is not on it); an undecorated
+  // extraction (older backend, fixtures) falls back to counting the rows the table itself flags.
+  const notReported = extraction.not_reported ?? []
+  const reviewCount = extraction.issues?.length ?? fields.filter((f) => NEEDS_HUMAN.includes(fieldVerification(f, notReported.includes(f.key)).label)).length
+  const calculatedCount = fields.filter((f) => fieldVerification(f).label === 'Calculated from report').length
 
   const exportJson = () => {
     // ponytail: Blob URL + synthetic click, fine for a single JSON. Upgrade: File System Access API if size ever matters.
@@ -162,8 +166,10 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
               </>
             )}
             <Badge variant={reviewCount ? 'warning' : 'secondary'}>
-              {reviewCount ? `${reviewCount} figures to review` : 'Source checks recorded'}
+              {reviewCount ? `${reviewCount} need a human` : 'Nothing needs a human'}
             </Badge>
+            {notReported.length > 0 && <span className="text-xs">{notReported.length} not reported</span>}
+            {calculatedCount > 0 && <span className="text-xs">{calculatedCount} calculated from report</span>}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -194,7 +200,7 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
         <MaturityChart extraction={extraction} selectedKey={selectedKey} onSelect={selectField} onPriorChange={setPriorYear} onPerYearChange={setPerYear} />
 
         <div className="space-y-4">
-          <FieldsTable fields={fields} selectedKey={selectedKey} onSelect={selectField} onOpenPage={openComponentPage} />
+          <FieldsTable fields={fields} notReported={notReported} selectedKey={selectedKey} onSelect={selectField} onOpenPage={openComponentPage} />
           {selected && <HumanReviewForm key={`${selected.key}:${selected.human_review?.at ?? ''}`} extraction={extraction} field={selected} citation={reviewCitation} candidate={fillResult?.fieldKey === selected.key ? fillResult.candidate : null} candidateWarnings={fillResult?.fieldKey === selected.key ? fillResult.warnings : []} onDiscardCandidate={() => setFillResult(null)} onCitationChange={setReviewCitation} onSaved={(result) => { setReviewCitation({ page: '', quote: '' }); setFillResult(null); onUpdated(result) }} />}
           {selected && fillResult?.fieldKey === selected.key && !fillResult.candidate && <section aria-live="polite" className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm"><p className="font-medium">No candidate for {selected.label}</p><ul className="list-disc space-y-1 pl-4 text-xs text-muted-foreground">{fillResult.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul><Button type="button" variant="ghost" size="xs" onClick={() => setFillResult(null)}>Discard</Button></section>}
         </div>
@@ -206,6 +212,7 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
           pdfAvailable={extraction.pdf_available}
           page={page}
           selected={selected}
+          notReported={!!selected && notReported.includes(selected.key)}
           askPage={askPage}
           viewer={viewer}
           onViewerChange={setViewer}

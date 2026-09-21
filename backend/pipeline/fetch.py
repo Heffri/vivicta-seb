@@ -6,12 +6,17 @@ A targeted IR-page follow-up is allowed (at most two model searches). Every PDF
 must pass issuer, fiscal-year and report-type checks; complete reports are preferred.
 MFN/Nasdaq and traditional web discovery remain fallback sources when AI search
 is unavailable or cannot retrieve a valid report.
+discover() runs before all of that: it resolves the typed query to concrete legal
+entities (saved reports first, then one model ask) so the user confirms which
+company/document is meant; fetch_report(url=...) then tries that link first.
 CLI: python -m pipeline.fetch "Boliden" 2025"""
 import datetime as dt
 import io
 import json
+import os
 import re
 import sys
+import threading
 import time
 import unicodedata
 import urllib.parse
@@ -21,7 +26,7 @@ from pathlib import Path
 
 import pymupdf as fitz
 
-from . import llm, paths
+from . import collection, llm, paths
 
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36"}
 MAX_TRIES = 6
@@ -64,6 +69,42 @@ IR_PAGE_SYSTEM = (
 # highlights/at-a-glance/short/in-brief excerpt is accepted only when nothing among the candidates clears it
 FULL_REPORT_MIN_PAGES = 80
 SUMMARY_WORDS = re.compile(r"\bsummary\b|highlights|at[-_ ]a[-_ ]glance|\bshort\b|in[-_ ]brief", re.I)
+
+# ---- discover: resolve a typed fragment to concrete legal entities *before* anything is downloaded ----
+# The typed text used to be the identity end to end (cache filename, index.json company, Results header) and
+# the model's title/reason were dropped in _model_candidates. discover() keeps them: saved reports first (no
+# model call), then one web-search ask; the user confirms one card and fetch_report(url=...) takes its link first.
+
+MAX_DISCOVER_CANDIDATES = 5
+DISCOVER_SCHEMA = {  # codex/claude ignore the schema (llm.py); it states the reply shape the prompt asks for
+    "type": "object",
+    "properties": {"candidates": {"type": "array", "items": {"type": "object", "properties": {
+        "legal_name": {"type": "string"}, "ticker": {"type": ["string", "null"]}, "exchange": {"type": ["string", "null"]},
+        "country": {"type": ["string", "null"]}, "org_number_or_lei": {"type": ["string", "null"]},
+        "fiscal_year_end": {"type": ["string", "null"]}, "document_title": {"type": ["string", "null"]},
+        "document_type": {"type": ["string", "null"]}, "url": {"type": ["string", "null"]}, "reason": {"type": "string"}},
+        "required": ["legal_name", "ticker", "exchange", "country", "org_number_or_lei", "fiscal_year_end",
+                     "document_title", "document_type", "url", "reason"]}}},
+    "required": ["candidates"],
+}
+DISCOVER_SYSTEM = (
+    "You are resolving a company query to concrete legal entities and locating each one's official annual report "
+    "PDF using web search. Reply with JSON only, no prose: "
+    '{"candidates": [{"legal_name": "...", "ticker": "...", "exchange": "...", "country": "...", '
+    '"org_number_or_lei": "...", "fiscal_year_end": "...", "document_title": "...", "document_type": "...", '
+    '"url": "https://...", "reason": "..."}]}. '
+    "Rules: at most 5 distinct legal entities matching the query, most likely first. A query like 'intel' is a "
+    "fragment -- resolve it to legal entities (Intel Corporation), never echo the fragment as a company. "
+    "legal_name is the registered name; ticker and exchange as listed (INTC, NASDAQ); country as an ISO 3166-1 "
+    "alpha-2 code; org_number_or_lei the registration number or LEI; fiscal_year_end the month the fiscal year "
+    "ends (Dec); document_title the report's own title for the stated fiscal year; document_type one of "
+    '"annual report", "10-K", "20-F", "annual and sustainability report". url is a direct link to that '
+    "document's PDF, hosted on the company's own investor-relations site or an official regulatory filing "
+    "repository, or null when not known; exclude ESEF/xBRL zip packages, interim or quarterly reports, "
+    "sustainability, remuneration, governance or capital-markets reports, and press releases. Prefer the complete "
+    "annual report, not a summary, highlights, at-a-glance, or annual review excerpt. Unknown fields are null, "
+    "never guessed."
+)
 
 
 def websearch_provider() -> "str | None":
@@ -144,6 +185,95 @@ def _ir_page_candidates(company, year, country=None, hint=None):
             continue
         urls.append(u)
     return urls, None
+
+
+def _candidate(legal_name, **kw):
+    """One discover candidate in the docs/API.md shape; identity fields are model-reported unless `saved`."""
+    c = {"legal_name": str(legal_name).strip(), "ticker": None, "exchange": None, "country": None, "org_number_or_lei": None,
+         "fiscal_year_end": None, "document_title": None, "document_type": None, "url": None, "reason": "", "saved": False, "stem": None}
+    c.update(kw)
+    return c
+
+
+def _str(v):
+    return (str(v).strip() or None) if v is not None else None
+
+
+def _local_candidates(query, year, dest_dir):
+    """Saved reports for `year` whose company matches the query -- collection.identity on both sides (casefolded,
+    legal suffixes off, roster aliases resolved: "seb" finds Skandinaviska Enskilda Banken) -- the report cache
+    first, then data/kb text-only stems. No model call; saved: true + stem is what lets the UI reuse them."""
+    q = collection.identity(query)
+    if not q:
+        return []
+    rows = [(Path(e["file"]).stem, e.get("company"), e.get("fiscal_year"), e.get("source_url"), "saved PDF in the report cache")
+            for e in _load_index(dest_dir) if (dest_dir / e["file"]).exists()]
+    for p in sorted(paths.kb_dir().glob("*/meta.json")):
+        try:
+            m = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        rows.append((p.parent.name, m.get("company"), m.get("fiscal_year"), m.get("source_url"), "saved page text in the knowledge base"))
+    out, seen = [], set()
+    for stem, company, fy, url, reason in rows:
+        key = collection.identity(company or "")
+        if fy != year or not key or key in seen or not (q == key or (len(q) >= 3 and any(t.startswith(q) for t in key.split()))):  # "sca" must not surface Scandic
+            continue
+        seen.add(key)
+        out.append(_candidate(company, document_type="annual report", url=url, reason=reason, saved=True, stem=stem))
+    return out
+
+
+def _model_discover(query, year, country=None, hint=None):
+    """The one discover model call: (candidates, note) like _model_candidates, but every candidate is a legal
+    entity with its identity fields kept. A link that is not http(s) or is interim/risk/AGM-named (BAD_URL) is
+    nulled, not the whole candidate -- fetch_report searches for that entity itself when url is null."""
+    user = f"Query: {query}\nFiscal year: {year}"
+    if country:
+        user += f"\nCountry: {country}"
+    if hint:
+        user += f"\nHint: {hint}"
+    try:
+        data = json.loads(llm.web_lookup(DISCOVER_SYSTEM, user, DISCOVER_SCHEMA))
+    except Exception as e:  # the CLI's RuntimeError, a timeout, or bad JSON -- one clear note either way
+        print(f"model discover failed: {e}")
+        return [], f"model search ({llm.provider()}) failed: {str(e)[:200]}"
+    out = []
+    for c in (data.get("candidates") or []):
+        if not isinstance(c, dict) or not _str(c.get("legal_name")):
+            continue
+        u = _str(c.get("url"))
+        if u and (not u.startswith(("http://", "https://")) or not _filename_clear(u, BAD_URL)):
+            print(f"model candidate link dropped: {u!r}")
+            u = None
+        out.append(_candidate(c["legal_name"], ticker=_str(c.get("ticker")), exchange=_str(c.get("exchange")),
+                              country=_str(c.get("country")), org_number_or_lei=_str(c.get("org_number_or_lei")),
+                              fiscal_year_end=_str(c.get("fiscal_year_end")), document_title=_str(c.get("document_title")),
+                              document_type=_str(c.get("document_type")) or None, url=u, reason=_str(c.get("reason")) or ""))
+    return out, None
+
+
+def discover(company: str, year: int, country: "str | None" = None, hint: "str | None" = None, dest_dir: "Path | None" = None) -> dict:
+    """{"candidates": [...], "note": str | None}: which legal entities a typed query could mean, for the user to
+    confirm one before any download. Saved reports first (no model call), then one web-search ask for up to
+    MAX_DISCOVER_CANDIDATES distinct entities with their official report PDF URL for the year when known; an
+    openai/fixture backend has no search tool and gets the saved matches plus a note saying so. Dedupe is
+    collection.identity, not a bare casefold, so a saved "ABB" and the model's "ABB Ltd" are one card."""
+    dest_dir = Path(dest_dir) if dest_dir is not None else paths.reports_dir()
+    local = _local_candidates(company, year, dest_dir)
+    found, note = [], None
+    if websearch_provider():
+        found, note = _model_discover(company, year, country, hint)
+    else:
+        note = "web search needs a codex or claude provider (Settings); only saved reports are listed"
+    out, seen = [], set()
+    for c in local + found:
+        key = collection.identity(c["legal_name"])
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(c)
+    return {"candidates": out[:MAX_DISCOVER_CANDIDATES], "note": note}
 
 
 def _label_clean(url):
@@ -626,14 +756,29 @@ def _entry(fname, company, year, url, text, note=None, tags=("fetched",)):
 def _write_index(dest_dir, index):
     s = json.dumps(index, ensure_ascii=False, indent=2)
     s = re.sub(r'\[\s+("[^\]]*?")\s+\]', lambda m: "[" + re.sub(r",\s+", ", ", m.group(1)) + "]", s)  # tags on one line
-    (dest_dir / "index.json").write_text(s + "\n", encoding="utf-8")
+    tmp = dest_dir / "index.json.tmp"
+    tmp.write_text(s + "\n", encoding="utf-8")
+    os.replace(tmp, dest_dir / "index.json")  # a concurrent GET /api/library never reads a half-written file
 
 
-def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, country: "str | None" = None, hint: "str | None" = None) -> dict:
+_INDEX_LOCK = threading.Lock()
+
+
+def _upsert_index(dest_dir, entry):
+    """Re-read under the lock, then replace the row with the same file: three parallel fetches (the UI's
+    pool of 3) each add their own row instead of the last writer dropping the others'."""
+    with _INDEX_LOCK:
+        _write_index(dest_dir, [e for e in _load_index(dest_dir) if e["file"] != entry["file"]] + [entry])
+
+
+def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, country: "str | None" = None, hint: "str | None" = None,
+                 url: "str | None" = None) -> dict:
     """Reuse cached PDFs, then ask the connected model to search official sources.
 
     Model-directed PDF/IR discovery runs before legacy feeds and web scraping.
     Every candidate still passes issuer, fiscal-year and report-type validation.
+    `url` (a discover candidate the user confirmed) is tried before any source of our own;
+    `company` is then the confirmed legal name, and the cache filename follows it as always.
     """
     dest_dir = Path(dest_dir) if dest_dir is not None else paths.reports_dir()
     fname = f"{slugify(company)}_{year}.pdf"
@@ -643,6 +788,29 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
             return {**e, "tried": []}
     tried, toks, stub_pages, page_seeds = [], _toks(company), [], []
     model_note = None
+    if url:  # the confirmed link first: same download + validation as every other source, then fall through
+        tried.append(url)
+        t0 = time.time()
+        try:
+            data = _unzip(_get(url))
+            doc, text = _validate(data, company, year)
+        except Exception as e:
+            print(f"{url} -> {e}")
+            data, doc, text = b"", None, ""
+        if doc:
+            print(f"{url} -> ok ({doc.page_count} pages, {time.time() - t0:.0f}s, confirmed url)")
+            note = "confirmed url" if _is_full_report(url, doc.page_count) else "confirmed url; summary volume"
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            (dest_dir / fname).write_bytes(data)
+            entry = _entry(fname, company, year, url, text, note=note)
+            _upsert_index(dest_dir, entry)
+            return {**entry, "tried": tried}
+        if text:
+            print(f"{url} -> {text}")
+            if TITLE_YEAR_MARK in text:  # v122: a cover naming an older year is a finding, not just a miss
+                tried.append(text)
+            if not data.startswith(b"%PDF"):  # the confirmed link was a page, not a PDF: crawl it (v080)
+                page_seeds.append(url)
     if p := websearch_provider():
         urls, model_note = _model_candidates(company, year, country, hint)
         hits = []  # (url, data, text, pages) for every candidate that downloads + validates (v081: rank, don't stop at the first)
@@ -675,8 +843,7 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
             dest_dir.mkdir(parents=True, exist_ok=True)
             (dest_dir / fname).write_bytes(data)
             entry = _entry(fname, company, year, url, text, note=note, tags=["fetched", "foreign"])
-            index = [e for e in index if e["file"] != fname] + [entry]
-            _write_index(dest_dir, index)
+            _upsert_index(dest_dir, entry)
             return {**entry, "tried": tried}
     # Follow the official IR pages returned by the model before broad fallback discovery.
     if page_seeds and (found := _ir_page_report(page_seeds, company, year, tried)):
@@ -684,8 +851,7 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
         dest_dir.mkdir(parents=True, exist_ok=True)
         (dest_dir / fname).write_bytes(data)
         entry = _entry(fname, company, year, url, text, note="IR page crawl", tags=["fetched", "foreign"])
-        index = [e for e in index if e["file"] != fname] + [entry]
-        _write_index(dest_dir, index)
+        _upsert_index(dest_dir, entry)
         return {**entry, "tried": tried}
     # One targeted follow-up can find the official archive when direct links fail.
     # At most two model searches per uncached report.
@@ -697,8 +863,7 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
             dest_dir.mkdir(parents=True, exist_ok=True)
             (dest_dir / fname).write_bytes(data)
             entry = _entry(fname, company, year, url, text, note="IR page crawl", tags=["fetched", "foreign"])
-            index = [e for e in index if e["file"] != fname] + [entry]
-            _write_index(dest_dir, index)
+            _upsert_index(dest_dir, entry)
             return {**entry, "tried": tried}
         if ir_note:
             model_note = f"{model_note}; {ir_note}" if model_note else ir_note
@@ -737,15 +902,14 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
         dest_dir.mkdir(parents=True, exist_ok=True)
         (dest_dir / fname).write_bytes(data)
         entry = _entry(fname, company, year, url, text)
-        index = [e for e in index if e["file"] != fname] + [entry]
-        _write_index(dest_dir, index)
+        _upsert_index(dest_dir, entry)
         return {**entry, "tried": tried}
     if page_seeds and (found := _ir_page_report(page_seeds, company, year, tried)):
         url, data, text = found
         dest_dir.mkdir(parents=True, exist_ok=True)
         (dest_dir / fname).write_bytes(data)
         entry = _entry(fname, company, year, url, text, note="IR page crawl")
-        _write_index(dest_dir, [e for e in index if e["file"] != fname] + [entry])
+        _upsert_index(dest_dir, entry)
         return {**entry, "tried": tried}
     raise LookupError(tried, model_note)
 

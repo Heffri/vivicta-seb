@@ -103,6 +103,7 @@
     },
     {
       "key": "cost_of_sales",
+      "optional": true,
       "label": "Cost of sales",
       "description": "The row 'Cost of sales' / 'Cost of goods sold' / 'Kostnad för sålda varor', as printed (negative). Only in a by-function statement; null when the statement is by nature of expense (raw materials, goods and services purchased, personnel costs, other external expenses).",
       "unit_hint": "currency_millions",
@@ -129,6 +130,7 @@
     },
     {
       "key": "gross_profit",
+      "optional": true,
       "label": "Gross profit",
       "description": "The printed row 'Gross profit' / 'Gross income' / 'Gross earnings' / 'Bruttoresultat'. null if the statement has no such row; never EBITDA, never computed.",
       "unit_hint": "currency_millions",
@@ -252,6 +254,7 @@
     },
     {
       "key": "profit_discontinued",
+      "optional": true,
       "label": "Profit from discontinued operations",
       "unit_hint": "currency_millions",
       "default": 0,

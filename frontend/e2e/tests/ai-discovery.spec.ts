@@ -1,31 +1,71 @@
 import { expect, test } from '@playwright/test'
 
-for (const cached of [false, true]) test(`AI discovery works beyond directory matches and reuses saved text [cached=${cached}]`, async ({ page }) => {
-  const fetched: any[] = [], extracted: string[] = []
+const intel = { legal_name: 'Intel Corporation', ticker: 'INTC', exchange: 'NASDAQ', country: 'US', org_number_or_lei: null, fiscal_year_end: 'Dec', document_title: 'Intel 2025 Annual Report on Form 10-K', document_type: '10-K', url: 'https://www.intc.com/2025-10k.pdf', reason: 'US chipmaker; the fragment "intel" resolves to it', saved: false, stem: null }
+const altera = { ...intel, legal_name: 'Altera Corporation', ticker: null, exchange: null, country: 'US', document_title: null, document_type: 'annual report', url: null, reason: 'former Intel subsidiary', saved: true, stem: 'altera_2025' }
+const card = (page: any, name: string) => page.locator('[data-slot="card"]', { hasText: name })
+
+// A typed fragment resolves to concrete legal entities the user confirms; only the confirmed one is fetched
+// (its PDF link tried first, download_pdf always true) and extracted.
+test('AI discovery proposes companies to confirm before fetching', async ({ page }) => {
+  const discovered: any[] = [], fetched: any[] = [], extracted: string[] = []
   await page.route('**/api/**', async route => {
     const path = new URL(route.request().url()).pathname
+    if (path === '/api/reports/discover') {
+      const body = route.request().postDataJSON(); discovered.push(body)
+      return route.fulfill({ json: { candidates: body.hint ? [altera] : [intel, altera], note: null } })
+    }
     if (path === '/api/reports/fetch') {
-      const body = route.request().postDataJSON(); fetched.push(body)
-      if (!cached && !body.download_pdf) return route.fulfill({ status: 409, json: { detail: 'No saved report' } })
-      return route.fulfill({ json: { report_id: 'lib-siemens_2025', company: 'Siemens', fiscal_year: 2025, pages: 335 } })
+      fetched.push(route.request().postDataJSON())
+      return route.fulfill({ json: { report_id: 'lib-intel_2025', company: 'Intel Corporation', fiscal_year: 2025, pages: 120 } })
     }
     if (path.endsWith('/extract')) {
       extracted.push(path)
-      return route.fulfill({ json: { report_id: 'lib-siemens_2025', company: 'Siemens', fiscal_year: 2025, section: 'income_statement', fields: [], checks: [], warnings: [] } })
+      return route.fulfill({ json: { report_id: 'lib-intel_2025', company: 'Intel Corporation', fiscal_year: 2025, section: 'income_statement', fields: [], checks: [], warnings: [] } })
     }
     return route.fulfill({ json: path === '/api/config' ? { provider: 'codex', model: 'test' }
       : path === '/api/schemas' ? [{ name: 'income_statement', title: 'Income statement' }]
       : path === '/api/companies' ? [{ name: 'ABB', ticker: 'ABB', sector: 'Industrials', cached_years: [] }] : [] })
   })
   await page.goto('/')
+  await expect(page.getByRole('checkbox', { name: /Allow PDF download/ })).toHaveCount(0) // no opt-in: the PDF is fetched whenever it is needed
   await page.getByRole('button', { name: /ABB ABB/ }).click()
-  await page.getByRole('searchbox', { name: 'Search companies', exact: true }).fill('Siemens')
-  await expect(page.getByRole('checkbox', { name: /Allow PDF download/ })).not.toBeChecked()
-  // Nonempty directory results and an unrelated pick must neither hide nor join this search.
-  await page.getByRole('button', { name: 'AI search, download & extract · 2025', exact: true }).click()
+  await page.getByRole('searchbox', { name: 'Search companies', exact: true }).fill('intel')
+  await page.getByRole('searchbox', { name: 'Search companies', exact: true }).press('Enter')
+  await expect.poll(() => discovered.length).toBe(1)
+  expect(discovered[0]).toEqual({ company: 'intel', year: 2025 })
+  // Cards name the legal entity, never the fragment; identity fields are shown so the user can tell them apart.
+  await expect(card(page, 'Intel Corporation').getByText('NASDAQ: INTC · US · FY ends Dec', { exact: true })).toBeVisible()
+  await expect(card(page, 'Intel Corporation').getByText('Intel 2025 Annual Report on Form 10-K · 10-K', { exact: true })).toBeVisible()
+  await expect(card(page, 'Altera Corporation').getByText('saved', { exact: true })).toBeVisible()
+  expect(fetched).toEqual([]) // nothing downloads until a card is confirmed
+  await card(page, 'Intel Corporation').getByRole('button', { name: 'Use this company', exact: true }).click()
   await expect.poll(() => extracted.length).toBe(1)
-  expect(fetched.map(request => request.company)).toEqual(cached ? ['Siemens'] : ['Siemens', 'Siemens'])
-  expect(fetched.map(request => request.download_pdf)).toEqual(cached ? [false] : [false, true])
+  // The confirmed legal name and its PDF link go to /fetch once; the unrelated directory pick stays out of this run.
+  expect(fetched.map(request => [request.company, request.url, request.download_pdf])).toEqual([['Intel Corporation', intel.url, true]])
+})
+
+test('"None of these" re-runs discovery with a hint', async ({ page }) => {
+  const discovered: any[] = []
+  await page.route('**/api/**', route => {
+    const path = new URL(route.request().url()).pathname
+    if (path === '/api/reports/discover') {
+      const body = route.request().postDataJSON(); discovered.push(body)
+      return route.fulfill({ json: { candidates: body.hint ? [altera] : [intel], note: body.hint ? null : 'model search (codex) failed: timeout' } })
+    }
+    return route.fulfill({ json: path === '/api/config' ? { provider: 'codex', model: 'test' } : path === '/api/schemas' ? [{ name: 'income_statement', title: 'Income statement' }] : [] })
+  })
+  await page.goto('/')
+  await page.getByRole('searchbox', { name: 'Search companies', exact: true }).fill('intel')
+  await page.getByRole('button', { name: 'Search', exact: true }).click()
+  await expect(card(page, 'Intel Corporation')).toBeVisible()
+  await expect(page.getByText('model search (codex) failed: timeout', { exact: true })).toBeVisible() // the backend note rides along
+  await page.getByRole('button', { name: 'None of these', exact: true }).click()
+  await page.getByRole('textbox', { name: 'Hint', exact: true }).fill('programmable logic, San Jose')
+  await page.getByRole('button', { name: 'Search again', exact: true }).click()
+  await expect.poll(() => discovered.length).toBe(2)
+  expect(discovered[1]).toEqual({ company: 'intel', year: 2025, hint: 'programmable logic, San Jose' })
+  await expect(card(page, 'Altera Corporation')).toBeVisible()
+  await expect(card(page, 'Intel Corporation')).toHaveCount(0)
 })
 
 test('Ask counts actual text, figures and PDFs, excluding empty entries from retrieval', async ({ page }) => {

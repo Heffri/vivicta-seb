@@ -48,7 +48,9 @@ from pathlib import Path
 
 from openai import OpenAI
 
-_MODEL_LOCK = threading.Lock()  # ponytail: serialize local inference; add a queue if throughput requires it
+# Hosted CLIs (codex/claude) take LLM_CONCURRENCY calls at once; a local Ollama is one GPU, so it stays at 1.
+_MODEL_LOCK = threading.BoundedSemaphore(1 if (os.getenv("LLM_PROVIDER") or "openai") == "openai" else max(1, int(os.getenv("LLM_CONCURRENCY", "3"))))
+DEFAULT_TIMEOUT = "300"  # v120 measured no accuracy change at 600; 120 caused spurious timeout-then-retry (v045/v051/v097/v136/v148)
 
 _FENCE = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$")
 
@@ -117,7 +119,7 @@ def web_lookup(system: str, user: str, schema: dict, name: str = "web_lookup") -
 # ---- openai_compatible: Ollama native /api/chat, or any OpenAI-compatible /v1 --------------------
 
 def _openai_chat(system: str, user: str, schema: dict, name: str) -> str:
-    base, timeout = os.environ["LLM_BASE_URL"], float(os.getenv("LLM_TIMEOUT", "120"))  # a local 8b model that answers in 30-40 s and is still going after two minutes is stuck
+    base, timeout = os.environ["LLM_BASE_URL"], float(os.getenv("LLM_TIMEOUT", DEFAULT_TIMEOUT))  # a local 8b model that answers in 30-40 s and is still going after two minutes is stuck
     messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
     if re.search(r":11434/v1/?$", base):
         # Ollama's native API: think=false makes qwen3 answer in ~35 s instead of ~100 s. Its OpenAI-compatible /v1 ignores
@@ -164,7 +166,7 @@ def _codex_executable() -> str:
 
 def _codex_chat(system: str, user: str, search: bool = False, schema: dict | None = None) -> str:
     exe = _codex_executable()
-    model, timeout = os.getenv("LLM_MODEL", "gpt-5.6-terra"), float(os.getenv("LLM_TIMEOUT", "120"))
+    model, timeout = os.getenv("LLM_MODEL", "gpt-5.6-terra"), float(os.getenv("LLM_TIMEOUT", DEFAULT_TIMEOUT))
     prompt = f"{system}\n\n{user}"
     with tempfile.TemporaryDirectory(prefix="vivicta-codex-") as cwd:
         out = Path(cwd) / "last-message.txt"  # -o: codex's own answer to "which part of the output is the reply", no event-stream parsing needed
@@ -247,7 +249,7 @@ def _claude_managed_candidate() -> str | None:
 
 def _claude_chat(system: str, user: str, tools: str = "", schema: dict | None = None) -> str:
     exe = _claude_executable()
-    model, timeout = os.getenv("LLM_MODEL", "claude-sonnet-5"), float(os.getenv("LLM_TIMEOUT", "120"))
+    model, timeout = os.getenv("LLM_MODEL", "claude-sonnet-5"), float(os.getenv("LLM_TIMEOUT", DEFAULT_TIMEOUT))
     prompt = f"{system}\n\n{user}"
     with tempfile.TemporaryDirectory(prefix="vivicta-claude-") as cwd:
         # --tools "" (--help: 'Use "" to disable all tools') leaves the model nothing to call at all -- stronger

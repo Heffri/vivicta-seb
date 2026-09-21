@@ -426,7 +426,8 @@ def demo():
         {"key": "due_after_5_years", "value": 9, "unit": "SEKm", "period": "2025", "raw_label": "Total", "source": {"page": 1, "quote": "Total 197 22 1,377 9 1,605"}}]}
     out = x.extract([cloetta], [1], dm, {"fiscal_year": 2025})
     got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
-    assert got == {"total_debt": (1605, 0.9), "due_within_1_year": (197, 0.9), "due_1_to_5_years": (1399, 1.0), "due_after_5_years": (9, 0.9)}, (got, out["warnings"])
+    assert got == {"total_debt": (1605, 1.0), "due_within_1_year": (197, 1.0), "due_1_to_5_years": (1399, 1.0), "due_after_5_years": (9, 1.0)}, (got, out["warnings"])  # the bare "Total" row closes: label_known for all four (identity_all_columns), no longer 0.9
+    assert all("identity_all_columns" in f["evidence"] and "label_known" in f["evidence"] for f in out["fields"]), [f["evidence"] for f in out["fields"]]
     assert out["checks"][0]["passed"], out["checks"]  # null-filling the one bucket the model couldn't quote closes the identity, lifting the other three off their failed-check 0.5 cap too
     d15 = next(f for f in out["fields"] if f["key"] == "due_1_to_5_years")
     assert d15["source"]["quote"] == "Total 197 22 1,377 9 1,605" and "value_derived" in d15["evidence"] and "value_in_quote" not in d15["evidence"]  # a sum of two columns has no literal quote of its own
@@ -544,13 +545,13 @@ def demo():
     got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
     a5 = next(f for f in out["fields"] if f["key"] == "due_after_5_years")
     # v078: the dash column is the report's explicit 0 (printed_nil @0.5), not a null the check must guess around
-    assert got == {"total_debt": (1596, 0.9), "due_within_1_year": (197, 0.9), "due_1_to_5_years": (1399, 1.0), "due_after_5_years": (0, 0.5)}, (got, out["warnings"])
-    assert a5["evidence"] == ["quote_on_page", "printed_nil", "arith_ok", "period_ok", "page_is_statement", "unit_ok"] \
+    assert got == {"total_debt": (1596, 1.0), "due_within_1_year": (197, 1.0), "due_1_to_5_years": (1399, 1.0), "due_after_5_years": (0, 0.5)}, (got, out["warnings"])  # the closing row identifies its bare "Total" label (identity_all_columns)
+    assert a5["evidence"] == ["quote_on_page", "printed_nil", "identity_all_columns", "arith_ok", "label_known", "period_ok", "page_is_statement", "unit_ok"] \
         and a5["source"]["quote"] == "Total 197 22 1,377 - 1,596", a5
     assert out["checks"][0]["passed"], out["checks"]
     out = x.extract([header + "Total 197 - 1,377 9 1,583\n"], [1], dm, {"fiscal_year": 2025})  # mid-row dash: no 1-2y bucket, 2-5y and >5y still line up
     got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
-    assert got == {"total_debt": (1583, 0.9), "due_within_1_year": (197, 0.9), "due_1_to_5_years": (1377, 0.9), "due_after_5_years": (9, 0.9)}, (got, out["warnings"])
+    assert got == {"total_debt": (1583, 1.0), "due_within_1_year": (197, 1.0), "due_1_to_5_years": (1377, 1.0), "due_after_5_years": (9, 1.0)}, (got, out["warnings"])
     assert out["checks"][0]["passed"], out["checks"]
     # v134: a model-answered 0 whose citation is a row the report prints as dashes is the report's own printed
     # nil (v078's convention, one reading further: the model, not the bucket-column reader, did the reading).
@@ -571,8 +572,8 @@ def demo():
     out = x.extract([linc], [1], dm, {"fiscal_year": 2025})
     total = next(f for f in out["fields"] if f["key"] == "total_debt")
     assert (total["value"], total["confidence"]) == (0, 0.5) \
-        and total["evidence"] == ["quote_on_page", "printed_nil", "arith_ok", "period_ok", "page_is_statement", "unit_ok"] \
-        and total["source"] == {"page": 1, "quote": "Räntebärande skulder – –"}, (total, out["warnings"])
+        and total["evidence"] == ["quote_on_page", "printed_nil", "arith_ok", "label_known", "period_ok", "page_is_statement", "unit_ok"] \
+        and total["source"] == {"page": 1, "quote": "Räntebärande skulder – –"}, (total, out["warnings"])  # label_known: the row synonym scores; the nil keeps the cap
     assert any("total_debt: 0 kept -- 'Räntebärande skulder – –' prints a dash in the fiscal-year column under a known label (printed nil)" in w
                for w in out["warnings"]), out["warnings"]
     # ... the bare row-synonym label ("räntebärande skulder", no summa/totalt prefix) is what the total field is
@@ -704,8 +705,8 @@ def demo():
         {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
     out = x.extract([ependion_real], [1], dm, {"fiscal_year": 2025})
     got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
-    assert got == {"total_debt": (583531, 0.85), "due_within_1_year": (167546, 0.85), "due_1_to_5_years": (415984, 0.95),
-                    "due_after_5_years": (None, 0.0)}, (got, out["warnings"])
+    assert got == {"total_debt": (583531, 0.95), "due_within_1_year": (167546, 0.95), "due_1_to_5_years": (415984, 0.95),
+                    "due_after_5_years": (None, 0.0)}, (got, out["warnings"])  # "Borrowing" closes on its own total: label_known
     assert out["checks"][0]["passed"], out["checks"]  # due_after_5_years null_as_zero: this table prints no such bucket
     total = next(f for f in out["fields"] if f["key"] == "total_debt")
     assert total["raw_label"] == "Borrowing" and total["source"]["quote"] == "Borrowing 167,546 35,636 380,348 583,531", total  # not the "- Borrowing" row, not Accounts payable-trade
@@ -755,7 +756,10 @@ def demo():
     # limit fixed) -- and, closing the loop, maturity_sums_to_total now passes (104+273+63-441 = -1, within the
     # check's own +-2), which lifts total_debt/due_1_to_5_years/due_after_5_years off the 0.50 "contradicts its
     # neighbours" cap they were pinned to while due_within_1_year was null (score_field, untouched by this lane).
-    assert got == {"total_debt": (441, 0.9), "due_within_1_year": (104, 1.0), "due_1_to_5_years": (273, 0.9), "due_after_5_years": (63, 0.9)}, (got, out["warnings"])
+    # The model's own three answers quote that same closing row: they earn label_known by its arithmetic too
+    # (identity_all_columns), not only the column-read one -- "Lease liabilities" is no synonym of total debt.
+    assert got == {"total_debt": (441, 1.0), "due_within_1_year": (104, 1.0), "due_1_to_5_years": (273, 1.0), "due_after_5_years": (63, 1.0)}, (got, out["warnings"])
+    assert all("identity_all_columns" in f["evidence"] for f in out["fields"]), [f["evidence"] for f in out["fields"]]
     assert out["warnings"] == ["due_within_1_year: model returned null; 104 read from 'Lease liabilities 441 26 78 273 63 -' by its column order"], out["warnings"]
     # v083: the debt-row fallback word list moved from a private extract.py constant (_DEBT_ROW_SYNONYMS) to
     # schema's total_debt.row_synonyms -- dmf["total_debt"] below is read straight from backend/schemas/
@@ -1034,7 +1038,7 @@ def demo():
         assert (f["confidence"], f["raw_label"], f["source"]["quote"]) == \
             (0.5, "Short-term interest-bearing liabilities* –",
              "Short-term interest-bearing liabilities* – 153,761 971 1,677 – – 156,410 156,410"), f
-        assert f["evidence"] == ["quote_on_page", "printed_nil", "arith_ok", "period_ok", "page_is_statement", "unit_ok"], f
+        assert f["evidence"] == ["quote_on_page", "printed_nil", "identity_all_columns", "arith_ok", "label_known", "period_ok", "page_is_statement", "unit_ok"], f  # the closing row identifies the label; the printed nil keeps the 0.5 cap
     assert any("a dash is printed in the row's own column for it" in w for w in out["warnings"]), out["warnings"]
     # end to end with the model's own answer restored (docs/acrylic/evidence/v051/ework_2025.partB.debt_maturity.json,
     # the real pass's stored shape): total_debt already reads 156,410 (the Carrying amount column's own figure, so
@@ -1611,6 +1615,19 @@ def demo():
     out = x.extract([decoy1, decoy2, real, decoy4], [1, 2, 3], dm, {"fiscal_year": 2025})
     assert calls == [("extraction", True, False)], calls  # off: exactly the old single call, over pages[:2]; page 3 never shown
     assert not any(w.startswith("two_pass") for w in out["warnings"]), out["warnings"]
+    # v157: ONE hole in the identity (this answer's due_after_5_years -- the ordinary report with no
+    # >5-year row) keeps that single call. TWO holes is the shape of a wrong table read confidently
+    # (BTS p.93's non-current-only note: a total and one bucket, nothing closed) and buys one widened
+    # call over pages[:4], which is where the real maturity note sat
+    two_holes = {"fields": [f if f["key"] != "due_within_1_year" else
+                            {"key": "due_within_1_year", "value": None, "unit": None, "period": None,
+                             "raw_label": None, "source": None} for f in full_answer["fields"]]}
+    x.call_llm = lambda system, user, schema=x.RESPONSE_SCHEMA, name="extraction": (
+        calls.append((name, "=== PAGE 1 ===" in user, "=== PAGE 3 ===" in user)), two_holes)[1]
+    calls.clear()
+    x.extract([decoy1, decoy2, real, decoy4], [1, 2, 3], dm, {"fiscal_year": 2025})
+    assert calls == [("extraction", True, False), ("extraction", True, True)], calls
+    x.call_llm = fake_llm
 
     os.environ["EXTRACT_TWO_PASS"] = "1"
     try:
@@ -3020,8 +3037,8 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
         {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
     out = x.extract([momentum111, momentum117], [1, 2], dm_ship, {"fiscal_year": 2025})
     got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
-    assert got == {"total_debt": (622, 0.9), "due_within_1_year": (None, 0.0), "due_1_to_5_years": (None, 0.0),
-                   "due_after_5_years": (None, 0.0)}, (got, out["warnings"])
+    assert got == {"total_debt": (622, 1.0), "due_within_1_year": (None, 0.0), "due_1_to_5_years": (None, 0.0),
+                   "due_after_5_years": (None, 0.0)}, (got, out["warnings"])  # 1.0: "Interest-bearing liabilities" is a row synonym, known for scoring
     assert any("the Parent Company section 'Parent Company' holds this table" in w for w in out["warnings"]), out["warnings"]
     assert not any("filled from page 1 row" in w and "Within 1 year 2 2" in w for w in out["warnings"]), out["warnings"]
     # and the stored-seed11 shape (the model itself cited the parent rows): every bucket citation refused
@@ -3223,6 +3240,10 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
         ("2026", 77141), ("2027", 39), ("2028", 300039), ("2029", 202539), ("2030", 39)], by
     assert all(y["source"] == {"page": 1, "quote": "SEK thousands 12-31-25 2026 77,141 2027 39 2028 300,039 2029 202,539 2030 39"}
                for y in by["years"]), by
+    # v157: the same ladder as ANSWERS, not just metadata -- 2026 -> within 1 year, 2027-2030 summed
+    # into 1-5 years. No tail row is printed, so due_after_5_years stays null; never a fabricated 0
+    vals = {f["key"]: f["value"] for f in out["fields"]}
+    assert (vals["due_within_1_year"], vals["due_1_to_5_years"], vals["due_after_5_years"]) == (77141, 502656, None), vals
     # the tail-year path the BTS page cannot reach (Ericsson p.97's real shape carries it, and its own
     # printed total -- but a LEASE table: below it declines on total_debt, the gate doing its work)
     ericsson97 = ("Total interest-bearing liabilities 32,703 38,041\n"
@@ -3236,8 +3257,12 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
         *[{"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None}
           for k in ("due_within_1_year", "due_1_to_5_years", "due_after_5_years")]]}
     out = x.extract([ericsson97], [1], dm, {"fiscal_year": 2025})
-    assert {f["key"]: f["value"] for f in out["fields"]}["total_debt"] == 32703, out["warnings"]
+    vals = {f["key"]: f["value"] for f in out["fields"]}
+    assert vals["total_debt"] == 32703, out["warnings"]
     assert "buckets_by_year" not in out, out.get("buckets_by_year")  # 530+386+308+252+193+169 = 1,838 != 32,703
+    # v157: and the year ladder must not ANSWER the buckets off it either -- a lease subset is strictly
+    # smaller than total_debt, which is the fill's first gate (1,838 < 32,703, and 94% away from it)
+    assert all(vals[k] is None for k in ("due_within_1_year", "due_1_to_5_years", "due_after_5_years")), vals
     # the same machinery with years that DO close on total_debt: the open-end tail row rides along as
     # the last bucket, its label as printed, its quote its own row
     yr_tail = "Note 20 Borrowings\nMSEK\n2026 120 2027 80 2028 – 2029 40\nSenare 60\nTotal 300\n"
@@ -3251,6 +3276,72 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     assert [(y["label"], y["value"]) for y in by["years"]] == [
         ("2026", 120), ("2027", 80), ("2028", 0), ("2029", 40), ("Senare", 60)], by  # the dash is the report's explicit 0 (v078)
     assert by["years"][-1]["source"]["quote"] == "Senare 60", by
+    vals = {f["key"]: f["value"] for f in out["fields"]}  # v157: the tail row is the after-5-years bucket
+    assert (vals["due_within_1_year"], vals["due_1_to_5_years"], vals["due_after_5_years"]) == (120, 120, 60), vals
+    # ABB p.89 (real text, trimmed): a US-GAAP borrowings note whose maturity table is a bare year
+    # ladder -- no bucket synonym anywhere on it, so every bucket came back null however well the page
+    # parsed. The ladder restates the total on its own basis (principal 8,247) while the model cited
+    # the instrument table's carrying 7,905 on the facing page: filling the buckets alone would turn
+    # three honest nulls into three right numbers plus a FAILING identity, so the bare-Total citation
+    # moves to the row the buckets actually sum to.
+    abb89 = ("Note 13 Debt\n"
+             "Long-term debt\n"
+             "Bonds and notes 6,180 5,006\n"
+             "Total $ 7,905 $ 6,644\n"
+             "Maturities of long-term debt outstanding\n"
+             "($ in millions) 2026 442 2027 1,143 2028 591 2029 837 2030 1,221\n"
+             "Thereafter 4,013\n"
+             "Total 8,247\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 7905, "unit": "USD millions", "period": "2025", "raw_label": "Total",
+         "source": {"page": 1, "quote": "Total $ 7,905 $ 6,644"}},
+        *[{"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None}
+          for k in ("due_within_1_year", "due_1_to_5_years", "due_after_5_years")]]}
+    out = x.extract([abb89], [1], dm, {"fiscal_year": 2025})
+    vals = {f["key"]: f["value"] for f in out["fields"]}
+    assert (vals["due_within_1_year"], vals["due_1_to_5_years"], vals["due_after_5_years"]) == (442, 3792, 4013), vals
+    assert vals["total_debt"] == 8247, (vals, out["warnings"])
+    assert out["checks"][0]["passed"], out["checks"]
+    assert any("re-cited" in w for w in out["warnings"]), out["warnings"]
+    # the same page with a total the model could NAME: a recognised debt row outranks the ladder's own
+    # Total and is left alone, buckets or not (the identity then fails loudly, which is the honest state)
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 7905, "unit": "USD millions", "period": "2025",
+         "raw_label": "Total borrowings", "source": {"page": 1, "quote": "Total borrowings 7,905"}},
+        *[{"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None}
+          for k in ("due_within_1_year", "due_1_to_5_years", "due_after_5_years")]]}
+    out = x.extract([abb89 + "Total borrowings 7,905\n"], [1], dm, {"fiscal_year": 2025})
+    assert {f["key"]: f["value"] for f in out["fields"]}["total_debt"] == 7905, out["warnings"]
+    # the real ABB re-run's shape: the model reads the ends of the ladder and leaves the middle null,
+    # because four printed years are one bucket. The middle is completed; answers that AGREE row for row
+    # are left as the model wrote them
+    half = lambda within, after: (lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 7905, "unit": "USD millions", "period": "2025", "raw_label": "Total",
+         "source": {"page": 1, "quote": "Total $ 7,905 $ 6,644"}},
+        {"key": "due_within_1_year", "value": within, "unit": "USD millions", "period": "2025", "raw_label": "2026",
+         "source": {"page": 1, "quote": "($ in millions) 2026 442 2027 1,143 2028 591 2029 837 2030 1,221"}},
+        {"key": "due_1_to_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
+        {"key": "due_after_5_years", "value": after, "unit": "USD millions", "period": "2025", "raw_label": "Thereafter",
+         "source": {"page": 1, "quote": "Thereafter 4,013"}}]})
+    x.call_llm = half(442, 4013)
+    out = x.extract([abb89], [1], dm, {"fiscal_year": 2025})
+    vals = {f["key"]: f["value"] for f in out["fields"]}
+    assert (vals["due_1_to_5_years"], vals["total_debt"]) == (3792, 8247), (vals, out["warnings"])
+    assert out["checks"][0]["passed"], out["checks"]
+    # but a model answer that does NOT match the ladder's own rows means two different tables are in
+    # play: nothing is filled and nothing is re-cited. Tested on the fill itself -- end to end, the
+    # column repairs upstream of it quietly correct a wrong bucket that sits on the cited page
+    flds = [{"key": "total_debt", "value": 7905, "source": {"page": 1, "quote": "Total $ 7,905 $ 6,644"}},
+            {"key": "due_within_1_year", "value": 442, "source": {"page": 1, "quote": "2026 442"}},
+            {"key": "due_1_to_5_years", "value": None, "source": None},
+            {"key": "due_after_5_years", "value": 3500, "source": {"page": 1, "quote": "Thereafter 3,500"}}]
+    vals, warns = {f["key"]: f["value"] for f in flds}, []
+    x._year_ladder_fill(flds, dm["fields"], dm, [abb89], [1], 2025, {}, warns, vals, set())
+    assert [f["value"] for f in flds] == [7905, 442, None, 3500] and not warns, (flds, warns)
+    flds[3]["value"] = 4013  # the same call with the ladder agreed to, as the check above proves end to end
+    vals["due_after_5_years"] = 4013
+    x._year_ladder_fill(flds, dm["fields"], dm, [abb89], [1], 2025, {}, warns, vals, set())
+    assert [f["value"] for f in flds] == [8247, 442, 3792, 4013], flds
     # a two-figure Total row below the years is a stacked table's own row (BTS p.92's liabilities
     # table prints exactly that shape): no one-column total, no proof, no key
     stacked = "Maturity analyses\nSEK thousands 12-31-25 2026 100 2027 50\nTotal 150 140\n"
@@ -3915,6 +4006,41 @@ def test_note_citation_preference():
     print("note citation preference ok")
 
 
+def test_bucket_row_label_known():
+    """A buckets-as-columns row earns label_known only by closing on its own total (identity_all_columns): a bare
+    "Total" is no synonym of any field, and the same row that does not add up proves nothing -- never unconditional."""
+    import json
+    import pathlib
+
+    dm = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
+    header = "Note 21 Borrowings\n31 Dec 2025\nSEKm\n< 1 year\n1–5 years\n> 5 years Total\n"
+    nulls = {"fields": [{"key": sf["key"], "value": None, "unit": None, "period": None, "raw_label": None, "source": None} for sf in dm["fields"]]}
+    x.call_llm = lambda *a, **k: nulls
+    out = x.extract([header + "Total 197 1,399 9 1,605\n"], [1], dm, {"fiscal_year": 2025})
+    for f in out["fields"]:
+        assert f["raw_label"] == "Total" and not x._label_known(f["raw_label"], next(sf for sf in dm["fields"] if sf["key"] == f["key"]))
+        assert "identity_all_columns" in f["evidence"] and "label_known" in f["evidence"] and f["confidence"] == 1.0, f
+    assert out["checks"][0]["passed"], out["checks"]
+    out = x.extract([header + "Total 197 1,399 9 1,700\n"], [1], dm, {"fiscal_year": 2025})  # 1,605 != 1,700: the row proves nothing
+    assert all("identity_all_columns" not in f["evidence"] and "label_known" not in f["evidence"] for f in out["fields"] if f["value"] is not None), [f["evidence"] for f in out["fields"]]
+    assert not out["checks"][0]["passed"], out["checks"]
+    # the model's own answer quoting that closing row earns the same proof; quoting another row does not
+    own = lambda quote: {"fields": [{"key": "total_debt", "value": 1605, "unit": "SEKm", "period": "2025", "raw_label": "Total", "source": {"page": 1, "quote": quote}}] + nulls["fields"][1:]}
+    x.call_llm = lambda *a, **k: own("Total 197 1,399 9 1,605")
+    out = x.extract([header + "Total 197 1,399 9 1,605\n"], [1], dm, {"fiscal_year": 2025})
+    assert "label_known" in out["fields"][0]["evidence"] and out["fields"][0]["confidence"] == 1.0, out["fields"][0]
+    x.call_llm = lambda *a, **k: own("Interest-bearing liabilities 1,605")
+    out = x.extract(["Interest-bearing liabilities 1,605\n" + header + "Total 197 1,399 9 1,605\n"], [1], dm, {"fiscal_year": 2025})
+    assert "identity_all_columns" not in out["fields"][0]["evidence"], out["fields"][0]  # its own quote is another row; label_known, if any, comes from the synonym list alone
+    # a markerless all-liabilities table (Karnell's payables and earn-outs) closes on its own arithmetic too --
+    # no borrowing word in title or rows, so closing identifies nothing: no marker, no label_known
+    x.call_llm = lambda *a, **k: nulls
+    karnell = "Maturity of financial liabilities\nSEKm\n< 1 year\n1–5 years\n> 5 years Total\nAccounts payable 20.0 - - 20.0\nEarn-outs 9.4 - - 9.4\nTotal 72.2 454.4 - 526.6\n"
+    out = x.extract([karnell], [1], dm, {"fiscal_year": 2025})
+    assert all("identity_all_columns" not in f["evidence"] and "label_known" not in f["evidence"] for f in out["fields"] if f["value"] is not None), [f["evidence"] for f in out["fields"]]
+    print("bucket-row label_known self-check ok")
+
+
 def test_balance_sheet_tie():
     """v166: balance-sheet rows are independent zero-weight evidence for a debt total.
 
@@ -4174,6 +4300,7 @@ def test_missing_reasons_for_honest_debt_nulls():
 
 
 if __name__ == "__main__":
+    test_bucket_row_label_known()
     test_confidence_never_exceeds_one()
     test_torn_bucket_headers()
     test_financial_liabilities_rollforward_total()

@@ -369,3 +369,8 @@ viva_wine_2025.pdf,debt_maturity,total_debt,1203,105,"Note 16 'Interest-bearing 
 viva_wine_2025.pdf,debt_maturity,due_within_1_year,310,79,"BS 'Current interest-bearing liabilities 16,22 310 56'; p.113 maturity analysis is contractual undiscounted, declined for buckets"
 volati_2025.pdf,debt_maturity,total_debt,3245,177,"Note 17 section subtotals: non-current '3,053' (leases 375 + credit institutions 2,678) + current '192' = 3,245; no printed grand total; leases included per the note's own scope; note 18 roll-forward prints 3,246, 1 off (report-internal)"
 volati_2025.pdf,debt_maturity,due_within_1_year,192,177,"same note, current section's own subtotal '192 191' (overdraft dash 0 + credit institutions 12 + leases 180); p.182 liquidity table is undiscounted incl. future interest, declined"
+abb_2025.pdf,debt_maturity,total_debt,8247,89,the ladder's own printed Total; the only candidate that closes maturity_sums_to_total (8304/8278/7905/7829 all fail). Principal amounts excl. finance leases -- p.88's 8304 is the carrying total
+abb_2025.pdf,debt_maturity,due_within_1_year,442,89,2026 row of the p.89 repayment ladder
+abb_2025.pdf,debt_maturity,due_1_to_5_years,3792,89,2027-2030 of the p.89 ladder: 1143+591+837+1221
+abb_2025.pdf,debt_maturity,due_after_5_years,4013,89,the ladder's Thereafter row
+bts_2025.pdf,debt_maturity,due_after_5_years,null,92,ladder ends at 2030 and sums to the printed Total 579797; no >5y line is printed
