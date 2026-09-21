@@ -35,7 +35,7 @@ test('an analyst-directed page candidate only populates the ordinary correction 
   // Write evidence only after the candidate and request assertions have passed; this avoids a
   // superficially plausible screenshot from a failed state becoming the delivery artifact.
   await candidate.scrollIntoViewIfNeeded()
-  await page.screenshot({ path: '../docs/acrylic/evidence/v177/targeted-fill-candidate.png', fullPage: true })
+  await page.screenshot({ path: 'e2e/test-results/targeted-fill-candidate.png', fullPage: true })
   await form.getByRole('button', { name: 'Accept as correction', exact: true }).click()
   await expect(form.getByLabel('Decision')).toHaveValue('corrected')
   await expect(form.getByLabel('Value', { exact: true })).toHaveValue('125')
