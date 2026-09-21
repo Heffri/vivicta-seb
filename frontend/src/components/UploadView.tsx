@@ -1,6 +1,6 @@
-import { Globe, Loader2 } from 'lucide-react'
+import { BookOpenCheck, Globe, Info, Loader2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { type ApiError, extractSection, fetchReport, getCompanies, getConfig, getLibrary, getSchemas, registerLibraryReport, uploadReport } from '@/api'
+import { type ApiError, type CandidatePage, extractSection, fetchReport, formatPageRanges, getCandidates, getCompanies, getConfig, getLibrary, getSchemas, openKbExtraction, registerLibraryReport, uploadReport } from '@/api'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ErrorBlock, LoadingLine } from '@/components/ui/state'
@@ -9,15 +9,22 @@ import { CompanySearch } from '@/components/upload/CompanySearch'
 import { CollectionPicker } from '@/components/CollectionPicker'
 import { useCollection } from '@/hooks/useCollection'
 import { Dropzone } from '@/components/upload/Dropzone'
+import type { Tab } from '@/components/shell/tabs'
 import type { Company, LibraryEntry, Report, Result, Schema } from '@/types'
 
-type Props = { onDone: (results: Result[]) => void }
+type Props = { onDone: (results: Result[]) => void; onNavigate?: (tab: Tab) => void }
 
 type QueueItem = { label: string; prep?: string; getReport: () => Promise<Report>; fromUpload?: boolean; web?: boolean }
 
+// The saved real-debt sample the first screen opens directly (supervisor add-on to v164): a stored
+// KB extraction, opened with zero model calls, that still awaits its basis confirmation — a demo
+// can show real output before any model is configured.
+const SAMPLE_STEM = 'karnell_2025'
+const SAMPLE_SECTION = 'debt_maturity'
+
 const isPdf = (f: File) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
 
-export function UploadView({ onDone }: Props) {
+export function UploadView({ onDone, onNavigate }: Props) {
   const [collection, setCollection] = useCollection()
   const [schemas, setSchemas] = useState<Schema[]>([])
   const [schemasError, setSchemasError] = useState<string | null>(null)
@@ -35,6 +42,9 @@ export function UploadView({ onDone }: Props) {
   const [files, setFiles] = useState<File[]>([]) // uploads, in drop/pick order, deduped by name+size
   const [dragging, setDragging] = useState(false)
   const [progress, setProgress] = useState<string | null>(null) // non-null = busy
+  // v164: while the model works, the line names the candidate pages being read with a stopwatch.
+  const [wait, setWait] = useState<{ pages: string; total: number; heading: string } | null>(null)
+  const [waitSeconds, setWaitSeconds] = useState('0') // written by the tick below, never read off the clock during render
   const [error, setError] = useState<string | null>(null)
   const [tried, setTried] = useState<Record<string, string[]>>({}) // label → URLs /fetch tried, for the all-failed block
 
@@ -76,6 +86,16 @@ export function UploadView({ onDone }: Props) {
       .catch((e: Error) => { if (alive) setLibraryError(e.message) })
     return () => { alive = false }
   }, [collection])
+
+  // The wait line's stopwatch: the seconds string is computed inside the interval (where reading
+  // the clock is allowed) and lands in state, so render stays pure. Keyed on the wait itself —
+  // one wait per queued report, cleared with it (v164).
+  useEffect(() => {
+    if (!wait) return
+    const started = performance.now()
+    const t = setInterval(() => setWaitSeconds(String(Math.max(1, Math.round((performance.now() - started) / 1000)))), 400)
+    return () => clearInterval(t)
+  }, [wait])
 
   // Reject non-PDFs individually (named in the error) and keep the rest; re-picking/re-dropping appends.
   const pickFiles = (incoming: File[]) => {
@@ -121,8 +141,31 @@ export function UploadView({ onDone }: Props) {
   const busy = progress !== null
   const count = picked.length + selected.size + files.length
   const canExtract = count > 0 && !!section && !busy
+  const sectionLabel = schemas.find((s) => s.name === section)?.title ?? section ?? '' // for the wait line when a page has no heading of its own
   const hasWebQuery = query.trim().length > 0
   const webSearchAvailable = provider === 'codex' || provider === 'claude'
+  // v164: the expected duration is the provider's to promise. codex/claude subscriptions answer in
+  // ~30 s; the OpenAI-compatible endpoint of this setup is the local model, ~1 min; the fixture
+  // backend answers instantly, so it promises nothing.
+  const eta =
+    provider === 'codex' || provider === 'claude'
+      ? ' about 30 s with the connected model.'
+      : provider === 'openai'
+        ? ' about a minute on the local model.'
+        : ''
+
+  // Stored extraction from the knowledge base (supervisor add-on): no model call, works without the
+  // original PDF (v092). The result was extracted previously and still awaits its basis
+  // confirmation — which is exactly what the Results view's basis form is for.
+  const openSample = async () => {
+    setError(null)
+    try {
+      const extraction = await openKbExtraction(SAMPLE_STEM, SAMPLE_SECTION)
+      onDone([{ label: extraction.company ?? 'Karnell Group', sectionTitle: schemas.find((s) => s.name === SAMPLE_SECTION)?.title ?? SAMPLE_SECTION, extraction }])
+    } catch (e) {
+      setError((e as Error).message)
+    }
+  }
 
   const run = async (extra: QueueItem[] = [], onlyExtra = false) => {
     if (!section) return
@@ -150,13 +193,29 @@ export function UploadView({ onDone }: Props) {
       const n = `(${i + 1}/${queue.length}${item.web ? ', checking saved reports and official sources' : item.prep ? ', can take a minute' : ''})`
       try {
         setProgress(`${item.prep ?? `Preparing ${item.label}`} ${n}`)
+        setWait(null)
         const report = await item.getReport()
-        setProgress(`Extracting ${item.label} ${n}… preparing source-linked figures.`)
+        setProgress(`Extracting ${item.label} ${n}…${eta}`)
+        // v164: the locator runs first (zero-model endpoint) and the wait names the pages being
+        // read; the two extraction passes may read slightly different pages, so the wording says
+        // "candidates". Failure is advisory — the generic line stays and extraction proceeds.
+        let pages: CandidatePage[] | null = null
+        try {
+          pages = await getCandidates(report.report_id, section)
+        } catch {
+          pages = null
+        }
+        if (pages && pages.length > 0) {
+          setWaitSeconds('0')
+          setWait({ pages: formatPageRanges(pages.map((c) => c.page)), total: report.pages, heading: pages[0].heading })
+        }
         const extraction = await extractSection(report.report_id, section)
+        setWait(null)
         // Library entries keep the curated name; each upload gets whatever the backend/LLM guessed.
         const label = item.fromUpload ? (extraction.company ?? report.company ?? item.label) : item.label
         results.push({ label, sectionTitle, extraction })
       } catch (e) {
+        setWait(null)
         results.push({ label: item.label, sectionTitle, error: (e as Error).message })
         // ponytail: Result has no `tried` slot (types.ts is off-limits); kept here for the all-failed block only.
         const t = (e as ApiError).tried
@@ -164,6 +223,7 @@ export function UploadView({ onDone }: Props) {
       }
     }
     setProgress(null)
+    setWait(null)
     if (results.every((r) => r.error)) setError(results.map((r) => `${r.label}: ${r.error}`).join('\n'))
     else onDone(results)
   }
@@ -198,7 +258,37 @@ export function UploadView({ onDone }: Props) {
           if (value === collection) return
           setCollection(value); setPicked([]); setSelected(new Set()); setCompanies([]); setLibrary([]); setError(null)
         }} /></div>
+        {/* Direct line to a real result (supervisor add-on to v164): a stored KB extraction opens
+            with zero model calls — and its title says plainly that the basis is still unconfirmed. */}
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <Button variant="outline" size="sm" disabled={busy} onClick={() => void openSample()}>
+            <BookOpenCheck className="size-3.5" />
+            Open a real debt sample · saved result, zero model calls
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            Karnell Group FY2025 debt note — extracted previously; its reading basis is still awaiting confirmation.
+          </span>
+        </div>
       </header>
+
+      {/* Fixture mode says so before any upload (supervisor add-on): the figures a run returns are
+          the built-in sample, not this report's. Prominent but secondary-styled — it is a mode
+          explanation, not an error (DESIGN.md keeps danger for data-status failures). */}
+      {provider === 'fixture' && (
+        <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border border-border bg-primary/5 px-5 py-4 shadow-[inset_0_1px_0_var(--glass-hi)]">
+          <Info className="size-5 shrink-0 text-primary" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">Demo mode — no model is configured, so extraction returns a built-in sample result.</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Uploads still parse for real (pages, candidate pages, sources); only the figures are fictional.</p>
+          </div>
+          <Button variant="outline" size="sm" disabled={busy} onClick={() => void openSample()}>
+            View a real sample
+          </Button>
+          <Button variant="ghost" size="sm" disabled={busy} onClick={() => onNavigate?.('settings')}>
+            Set up a real model in Settings
+          </Button>
+        </div>
+      )}
 
       {/* One material: the whole screen is a single flat translucent step over the shell glass —
           a --bg-1..2 gradient, hairline border, specular top edge, no backdrop-filter of its own
@@ -299,7 +389,20 @@ export function UploadView({ onDone }: Props) {
             {busy && <Loader2 className="animate-spin" />}
             {downloadPdf && picked.length ? 'Download PDF and extract' : count > 1 ? `Extract ${count} reports` : 'Extract'}
           </Button>
-          {progress && <LoadingLine className="w-full">{progress}</LoadingLine>}
+          {/* v164: once the locator has answered, the wait line reads the pages (best heading first)
+              and ticks a stopwatch; `tabular-nums` keeps the seconds from wiggling. */}
+          {progress && (
+            <LoadingLine className="w-full">
+              {wait ? (
+                <>
+                  Reading pages {wait.pages} of {wait.total} · {wait.heading || sectionLabel} ·{' '}
+                  <span className="tabular-nums">{waitSeconds}</span> s
+                </>
+              ) : (
+                progress
+              )}
+            </LoadingLine>
+          )}
         </div>
 
         {/* All-failed block. The shared danger block (v010); the tried URL list stays inside

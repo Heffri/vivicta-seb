@@ -36,29 +36,21 @@ for (const tone of TONES) {
     expect(errors).toEqual([])
   })
 
-  test(`results: a banner names the searched pages when nothing was found [${tone}]`, async ({ page }) => {
+  test(`upload: the saved real-debt sample opens with no model call [${tone}]`, async ({ page }) => {
     const errors = trackPageErrors(page)
+    const extractCalls: string[] = []
+    await page.route(/\/api\/reports\/.+\/extract$/, async (route) => {
+      extractCalls.push(route.request().url())
+      await route.continue()
+    })
     await gotoWithTone(page, tone)
 
-    await page.setInputFiles('#pdf', [{ name: 'not-found-report.pdf', mimeType: 'application/pdf', buffer: makePdf(70, DEBT_PAGES) }])
-    await expect(page.getByText('1 file selected')).toBeVisible()
-
-    // Same bytes, same locator — but the model "finds nothing": every field comes back null.
-    await page.route(/\/api\/reports\/.+\/extract$/, async (route) => {
-      const response = await route.fetch()
-      const json = await response.json()
-      json.fields = json.fields.map((f: { value: unknown }) => ({ ...f, value: null, source: null }))
-      await route.fulfill({ response, json })
-    })
-    await page.getByRole('main').getByRole('button', { name: /^Extract/ }).click()
-
-    const banner = page.getByRole('region', { name: 'Figures the model did not find' })
-    await expect(banner).toBeVisible({ timeout: 20000 })
-    await expect(banner.getByText(/Candidates were pages 30–32 of this report/)).toBeVisible()
-
-    // The banner's entry lands on the manual review form of the first not-found figure.
-    await banner.getByRole('button', { name: 'Fill in below' }).click()
-    await expect(page.getByRole('form', { name: /^Review / })).toBeVisible()
+    // The first-screen shortcut opens the stored karnell_2025 debt extraction straight from the
+    // knowledge base — real figures on Results without a single /extract, fixture mode or not.
+    await page.getByRole('button', { name: /Open a real debt sample/ }).click()
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Karnell/, { timeout: 15000 })
+    await expect(page.getByRole('button', { name: 'Export JSON' })).toBeVisible()
+    expect(extractCalls).toEqual([])
     expect(errors).toEqual([])
   })
 }

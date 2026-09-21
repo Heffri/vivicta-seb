@@ -308,6 +308,20 @@ def page_png(report_id: str, n: int):
     return Response(png, media_type="image/png")
 
 
+@app.get("/api/reports/{report_id}/candidates")
+def report_candidates(report_id: str, section: str = Query(min_length=1)):
+    """Ranked candidate pages for a section (v164): the same deterministic locator the extractor
+    runs (locate.candidate_pages), served before the model so the waiting UI can name the pages
+    being read. No model call -- fixture mode computes them from the real page text like any other.
+    heading = the page's de-boilerplated opening, whitespace-normalized (a peeks-at-the-page line)."""
+    report = get_report(report_id)
+    schema = load_schema(section)
+    texts = report_texts(report_id)
+    stripped = locate.strip_boilerplate(texts)
+    return [{"page": page, "heading": " ".join(stripped[page - 1].split())[:80]}
+            for page in locate.candidate_pages(texts, schema)]
+
+
 @app.post("/api/reports/{report_id}/extract")
 def run_extract(report_id: str, body: ExtractBody):
     report = get_report(report_id)
@@ -333,7 +347,10 @@ def _run_extract(report_id: str, body: ExtractBody):
     if saved.exists() and has_reviews(saved_extraction(report_id, body.section)):
         raise HTTPException(409, "This section has human reviews. Keep the reviewed extraction instead of replacing it.")
     if not _llm_configured():  # frontend dev mode: no model configured
-        result = json.loads(FIXTURE.read_text(encoding="utf-8")) | {"report_id": report_id}
+        # v164: the requested section overrides the fixture payload's own (an income-statement
+        # sample) -- the UI reads extraction.section to re-locate the report (the not-found banner's
+        # candidates call), and that must name the section the user actually ran.
+        result = json.loads(FIXTURE.read_text(encoding="utf-8")) | {"report_id": report_id, "section": body.section}
     else:
         texts = report_texts(report_id)
         pages = locate.candidate_pages(texts, schema)

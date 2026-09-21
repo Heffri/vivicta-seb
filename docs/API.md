@@ -11,6 +11,7 @@ Backend runs on `http://localhost:8000`, frontend dev server proxies `/api` to i
 | `POST` | `/api/reports` | `multipart/form-data`, field `file` = PDF | `Report` |
 | `GET`  | `/api/reports/{report_id}` | – | `Report` |
 | `POST` | `/api/reports/{report_id}/extract` | `{ "section": "<schema name>" }` | `Extraction` (synchronous; may take up to ~60 s with a local model) |
+| `GET`  | `/api/reports/{report_id}/candidates` | `?section=<schema name>` | `[{ page, heading }]` — the section's ranked candidate pages (1-based, best first), from the same deterministic locator the extractor runs, computed with no model call (fixture mode included). `heading` is the page's de-boilerplated opening, whitespace-normalized, ≤80 chars. Powers the extraction waiting UI (v164) |
 | `GET`  | `/api/reports/{report_id}/pages/{n}.png` | – | PNG of page `n` (1-based), ~150 dpi. 404 if out of range |
 | `GET`  | `/api/reports/{report_id}/extraction.csv` | – | last extraction for this report as CSV (one row per field). 404 if none |
 | `GET`  | `/api/reports/{report_id}/pdf` | – | the PDF itself, `Content-Disposition: inline`, so `<iframe src=".../pdf#page=64">` opens the browser's own viewer on that page |

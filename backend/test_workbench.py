@@ -88,6 +88,34 @@ with tempfile.TemporaryDirectory() as tmp, patch('pipeline.fetch.fetch_report', 
     assert not app.comparison('test_2025', 'debt_maturity')['rows']
     assert not app.comparison('test_2023', 'debt_maturity')['rows']
 
+# v164: candidate pages -- the deterministic locator behind GET /candidates, served before the
+# model runs. Isolated KB folder; the model entrypoint is rigged to fail so the endpoint's
+# zero-model claim is asserted, not assumed.
+with tempfile.TemporaryDirectory() as tmp:
+    os.environ['KB_DIR'] = tmp
+    stem = 'candidates_2025'
+    folder = Path(tmp) / stem
+    folder.mkdir()
+    filler = 'Annual report 2025\nKarnell Group'  # on every page: boilerplate the locator strips
+    note = 'Note 20 Borrowings Maturity profile of the loans total 1 234 due within 1 year 20 1 to 5 years 50 after 5 years 30'
+    pages = [filler] * 10 + [note] + [filler] * 9
+    (folder / 'meta.json').write_text(json.dumps(dict(company='Karnell Group', fiscal_year=2025, pages=len(pages), filename=stem + '.pdf')), encoding='utf-8')
+    (folder / 'pages.jsonl').write_text(''.join(json.dumps({'page': i + 1, 'text': t}) + '\n' for i, t in enumerate(pages)), encoding='utf-8')
+    with patch('app.extract_mod.extract', side_effect=AssertionError('candidates must not call the model')):
+        out = app.report_candidates(app.saved_report_id(stem), 'debt_maturity')
+    assert [c['page'] for c in out] == [11, 12]  # the note page, then the page after it (statements span two pages)
+    heading = out[0]['heading']
+    assert heading.startswith('Note 20 Borrowings') and len(heading) <= 80 and '  ' not in heading
+    assert 'Karnell Group' not in heading  # the running header was stripped before the heading was cut
+    assert out[1]['heading'] == ''  # a boilerplate-only page says nothing
+    for call in (lambda: app.report_candidates('lib-nowhere_2025', 'debt_maturity'),
+                 lambda: app.report_candidates(app.saved_report_id(stem), 'no_such_section')):
+        try:
+            call()
+            raise AssertionError('candidates accepted an unknown report or section')
+        except HTTPException as e:
+            assert e.status_code == 404
+
 # Deterministic rendered fixtures for visual review, outside the repository.
 for section in ('income_statement', 'debt_maturity'):
     x = statement(section)
