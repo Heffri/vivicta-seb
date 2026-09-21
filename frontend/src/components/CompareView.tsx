@@ -2,6 +2,7 @@ import { Download } from 'lucide-react'
 import { csvUrl } from '@/api'
 import { AskPanel } from '@/components/AskPanel'
 import { MaturityBar } from '@/components/compare/MaturityBar'
+import { MaturityWall } from '@/components/compare/MaturityWall'
 import { fmtValue } from '@/components/ResultsView'
 import { isMaturitySection } from '@/components/results/MaturityChart'
 import { fieldVerification } from '@/components/results/verification'
@@ -9,11 +10,18 @@ import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import type { Result } from '@/types'
+import type { KbEntry, Result } from '@/types'
 
-type Props = { results: Result[]; onSelect: (index: number, page?: number) => void; onReset: () => void }
+type Props = {
+  results: Result[]
+  onSelect: (index: number, page?: number) => void
+  onReset: () => void
+  // v174: threaded straight through to MaturityWall's row actions ("Open" / "Review"); undefined
+  // just disables those buttons, so this view still renders without it.
+  onOpenReport?: (report: KbEntry, section?: string, key?: string) => void
+}
 
-export function CompareView({ results, onSelect, onReset }: Props) {
+export function CompareView({ results, onSelect, onReset, onOpenReport }: Props) {
   // Row order = first successful extraction's schema order; all reports share the section so keys line up.
   const first = results.find((r) => r.extraction)?.extraction
   const rows = first?.fields ?? []
@@ -43,6 +51,9 @@ export function CompareView({ results, onSelect, onReset }: Props) {
         </div>
         <Button onClick={onReset}>New report</Button>
       </header>
+
+      {/* v174: the saved-collection-wide list, independent of the `results` columns below it. */}
+      <MaturityWall onOpenReport={onOpenReport} />
 
       <Card className="overflow-x-auto py-0">
         <Table>
