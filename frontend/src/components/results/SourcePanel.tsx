@@ -3,10 +3,10 @@ import { useEffect, useState } from 'react'
 import { getKbPage, pageUrl, pdfUrl } from '@/api'
 import { fieldVerification } from './verification'
 import { highlightQuote } from '@/components/results/highlight'
-import { buttonVariants } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Segmented } from '@/components/ui/segmented'
-import type { Field } from '@/types'
+import type { Field, Source } from '@/types'
 
 // Provenance viewer: browser PDF viewer (scroll/zoom/search/select for free) or the rendered PNG as fallback.
 export type Viewer = 'pdf' | 'image'
@@ -22,6 +22,7 @@ type SourcePanelProps = {
   onViewerChange: (v: Viewer) => void
   brokenPage: number | null
   onBrokenPage: (page: number) => void
+  onUseSource?: (source: Source) => void
 }
 
 const VIEWER_OPTIONS: { value: Viewer; label: string }[] = [
@@ -43,16 +44,17 @@ export function SourcePanel({
   onViewerChange,
   brokenPage,
   onBrokenPage,
+  onUseSource,
 }: SourcePanelProps) {
   const [savedPage, setSavedPage] = useState<{page: number; stem: string; text: string} | null>(null)
   const [pageError, setPageError] = useState<{page: number; stem: string; message: string} | null>(null)
   useEffect(() => {
-    if (pdfAvailable || !stem || page === null) return
+    if (!stem || page === null || (pdfAvailable && !onUseSource)) return
     let stale = false
     getKbPage(stem, page).then((result) => { if (!stale) { setSavedPage({...result, stem}); setPageError(null) } })
       .catch((error: Error) => { if (!stale) setPageError({page, stem, message: error.message}) })
     return () => { stale = true }
-  }, [pdfAvailable, stem, page])
+  }, [pdfAvailable, stem, page, onUseSource])
   return (
     <Card id="report-source" tabIndex={-1} className="self-start scroll-mt-4 focus-visible:outline-2 focus-visible:outline-ring">
       <CardHeader>
@@ -148,9 +150,11 @@ export function SourcePanel({
                       ),
                     )}
                   </pre>
+                  {onUseSource && !stem && page === selected.source.page && <Button type="button" variant="outline" size="xs" className="mt-2" onClick={() => onUseSource(selected.source!)}>Use this line as citation</Button>}
                 </div>
               )
             )}
+            {onUseSource && savedPage?.page === page && savedPage.stem === stem && <details open className="rounded-lg border p-3"><summary className="cursor-pointer text-xs font-medium">Choose a saved page line for the review citation</summary><div className="mt-2 max-h-44 space-y-1 overflow-y-auto">{savedPage.text.split(/\r?\n/).map((line, index) => line.trim() && <button key={index} type="button" aria-label="Use this line as citation" className="block w-full rounded px-2 py-1 text-left text-xs hover:bg-muted" onClick={() => onUseSource({ page, quote: line.trim() })}><span className="mr-2 font-medium text-primary">Use this line as citation</span>{line.trim()}</button>)}</div></details>}
           </>
         )}
       </CardContent>

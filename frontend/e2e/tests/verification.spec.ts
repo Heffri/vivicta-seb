@@ -38,6 +38,8 @@ for (const tone of ['dark', 'light']) {
     await page.goto('/')
     await page.getByRole('checkbox', {name:/Example company/}).check()
     await page.getByRole('main').getByRole('button', {name:/^Extract/}).click()
+    // v171: a finished batch never forces a tab switch (BatchProgress's own "View results" does).
+    await page.getByRole('main').getByRole('button', {name:/^View results/}).click({timeout: 20000})
     await expect(page.getByRole('columnheader', {name:'Verification'})).toBeVisible()
     await expect(page.getByRole('columnheader', {name:'Confidence'})).toHaveCount(0)
     await expect(page.getByRole('cell').filter({has: page.getByText('Not checked', {exact:true})})).toHaveCount(8)
@@ -73,6 +75,8 @@ for (const [passed, detail, expected] of [
     await page.goto('/')
     await page.getByRole('checkbox', {name:/Example company/}).check()
     await page.getByRole('main').getByRole('button', {name:/^Extract/}).click()
+    // v171: a finished batch never forces a tab switch (BatchProgress's own "View results" does).
+    await page.getByRole('main').getByRole('button', {name:/^View results/}).click({timeout: 20000})
     await expect(page.getByText(expected, {exact:true})).toBeVisible()
   })
 }
