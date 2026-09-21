@@ -1,5 +1,16 @@
 # Demo performance verification, 20 September 2026
 
+> **Where these numbers come from (added 21 September 2026, no re-test):** every measurement on
+> this page — the **26.748 s** fresh-extraction median included — was taken on the 20 September
+> revision, before the 21 September main-branch integration (see that section below). The
+> integrated app has since changed the pieces these timings ran through: extraction calls go
+> through a shared `pipeline.llm` (isolated Codex calls, low reasoning by default), retrieval
+> combines the BM25 scorer with local embeddings behind a verified index manifest, and parser 7
+> added selective OCR. Cached-repeat lookups (~6 ms) and the general shape "fresh extraction is
+> a model call, repeats are free" still hold; the exact seconds should be quoted as *that
+> revision's* numbers, not the current build's. Nothing here was re-measured for the integrated
+> app.
+
 Provider: Codex CLI using the existing ChatGPT login, `gpt-5.6-terra`, low reasoning.
 Embeddings: local Ollama `bge-m3`, 1024 dimensions. One extraction at a time.
 Five cached PDFs, two sections per PDF. Benchmark few-shot examples were disabled to
