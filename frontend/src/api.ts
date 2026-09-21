@@ -88,6 +88,14 @@ export const getConfig = () => request<Config>('/api/config')
 // issue #4); 'all' lists every saved extraction in data/kb. The backend default is 'all' — pass one explicitly.
 export const getKb = (collection: 'wallenberg' | 'all' = 'wallenberg') =>
   request<KbEntry[]>(`/api/kb?collection_name=${collection}`)
+// Whole-universe exports stay browser downloads, matching the existing per-report CSV/PPTX links.
+// `q` follows KbView's visible company/stem filter; no client-side data reconstruction is needed.
+const kbExportParams = (section: string, collection: 'wallenberg' | 'all', q = '') =>
+  new URLSearchParams({ section, collection, ...(q.trim() ? { q: q.trim() } : {}) })
+export const kbExportCsvUrl = (section: string, collection: 'wallenberg' | 'all', q = '') =>
+  `/api/kb/export.csv?${kbExportParams(section, collection, q)}`
+export const kbExportPptxUrl = (section: string, collection: 'wallenberg' | 'all', q = '') =>
+  `/api/kb/export.pptx?${kbExportParams(section, collection, q)}`
 // Stored extraction, no model call; the backend re-registers the PDF so pageUrl/csvUrl work.
 export const openKbExtraction = (stem: string, section: string) =>
   request<Extraction>(`/api/kb/${encodeURIComponent(stem)}/${encodeURIComponent(section)}`)
