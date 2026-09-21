@@ -14,10 +14,12 @@ for (const tone of TONES) {
 
     await page.setInputFiles('#pdf', [{ name: 'sample-report.pdf', mimeType: 'application/pdf', buffer: makePdf(70) }])
     const extractButton = page.getByRole('main').getByRole('button', { name: /^Extract/ })
-    await expect(extractButton).toHaveText('Extract') // single file: no "N reports" suffix, lands on Results not Compare
+    await expect(extractButton).toHaveText('Extract') // single file: no "N reports" suffix
     await extractButton.click()
 
-    await expect(page.getByRole('heading', { name: 'Nordic Industrials', exact: false })).toBeVisible({ timeout: 20000 })
+    // v171: a finished batch never forces a tab switch (BatchProgress's own "View results" does).
+    await page.getByRole('main').getByRole('button', { name: /^View results/ }).click({ timeout: 20000 })
+    await expect(page.getByRole('heading', { name: 'Nordic Industrials', exact: false })).toBeVisible()
 
     const askBox = page.getByPlaceholder(/Ask about these reports/)
     await askBox.fill('Which page is the income statement on?')
