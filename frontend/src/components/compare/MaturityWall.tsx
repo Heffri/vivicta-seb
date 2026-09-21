@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { ErrorBlock, LoadingLine } from '@/components/ui/state'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { useCollection } from '@/hooks/useCollection'
+import { useCollection, type Collection } from '@/hooks/useCollection'
 import type { KbEntry, MaturityWall as MaturityWallData, MaturityWallRow } from '@/types'
 
 const DEFAULT_THRESHOLD = 30
@@ -19,7 +19,8 @@ type Props = {
   onOpenReport?: (report: KbEntry, section?: string, key?: string) => void
 }
 
-const collectionLabel = (collection: 'wallenberg' | 'all') => (collection === 'wallenberg' ? 'Wallenberg collection' : 'all saved reports')
+const collectionLabel = (collection: Collection) =>
+  collection === 'wallenberg' ? 'Wallenberg collection' : collection === 'midcap' ? 'SEB Mid Cap universe' : 'all saved reports'
 
 const basisSummary = (row: MaturityWallRow) => [row.consolidation, row.debt_basis, row.leases && `Leases ${row.leases === 'Included' ? 'in' : 'out'}`].filter(Boolean)
 
