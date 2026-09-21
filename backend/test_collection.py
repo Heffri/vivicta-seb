@@ -37,10 +37,11 @@ with tempfile.TemporaryDirectory() as tmp:
             export = client.get('/api/kb/export.csv?section=income_statement&collection=midcap')
             assert export.status_code == 200 and 'Acast' in export.text and 'ABB' not in export.text
             assert client.get('/api/library?collection_name=wallenberg').json() == []
-            response = client.post('/api/reports/fetch', json={'company': 'ABB', 'year': 2025})
+            # download_pdf defaults to true (the PDF is always wanted); false is the text-only reuse of a saved report
+            response = client.post('/api/reports/fetch', json={'company': 'ABB', 'year': 2025, 'download_pdf': False})
             assert response.status_code == 200, response.text
             assert response.json()['report_id'] == 'lib-abb_2025'
-            assert client.post('/api/reports/fetch', json={'company': 'ABB', 'year': 2024}).status_code == 409
+            assert client.post('/api/reports/fetch', json={'company': 'ABB', 'year': 2024, 'download_pdf': False}).status_code == 409
             with patch.object(app.extract_mod, 'extract', side_effect=AssertionError('Saved extraction replaced')):
                 response = client.post('/api/reports/lib-abb_2025/extract', json={'section': 'income_statement', 'reuse_saved': True})
                 assert response.status_code == 200 and response.json()['fields'] == saved['fields']
@@ -53,6 +54,10 @@ with tempfile.TemporaryDirectory() as tmp:
             assert client.post('/api/reports/fetch', json=body).status_code == 200
             assert download.call_args.args[0] == 'ABB Ltd' and download.call_args.kwargs == {'url': body['url']}
             assert client.post('/api/reports/fetch', json=body | {'url': 'javascript:alert(1)'}).status_code == 400
+        # the PDF is wanted (default) but unreachable: saved page text still serves; nothing saved is a 404
+        with patch.object(app.fetch, 'fetch_report', side_effect=LookupError([], 'offline')):
+            assert client.post('/api/reports/fetch', json={'company': 'ABB', 'year': 2025}).json()['report_id'] == 'lib-abb_2025'
+            assert client.post('/api/reports/fetch', json={'company': 'ABB', 'year': 2024}).status_code == 404
         # /discover never downloads: it hands the query to fetch.discover and returns its candidates + note as-is
         with patch.object(app.fetch, 'fetch_report', side_effect=AssertionError('Unexpected PDF download')), \
                 patch.object(app.fetch, 'discover', return_value={'candidates': [], 'note': 'n'}) as discover:
@@ -60,4 +65,4 @@ with tempfile.TemporaryDirectory() as tmp:
             assert response.status_code == 200 and response.json() == {'candidates': [], 'note': 'n'}, response.text
             assert discover.call_args.args == ('intel', 2025, None, 'chips', library)
             assert client.post('/api/reports/discover', json={'company': 'intel', 'year': 1066}).status_code == 400
-print('Wallenberg scope, saved-text reuse, review preservation, discover and opt-in downloads passed')
+print('Wallenberg scope, saved-text reuse, review preservation, discover and always-download passed')

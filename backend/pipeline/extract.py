@@ -3188,17 +3188,32 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
                 warnings.append(f"{total_key}: column reading of {rows[idx]!r} declined -- gross-value maturity "
                                 f"block is headed {gross_prior_year}, not {fiscal_year}")
                 continue
+            # the row names the borrowing scope itself ("Total interest-bearing liabilities", "Borrowings") --
+            # or, for a bare Total/Summa row, the table's own title/body does and no all-liabilities row
+            # (trade payables, earn-outs) sits in it. Only such a row may earn the identity marker below:
+            # Karnell's markerless all-liabilities "Total 72.2 454.4 - 526.6" closes on its own arithmetic
+            # too, and closing alone is a self-referential proof, not identification (v088/v095).
+            debt_row = _label_known(_row_label(rows[idx]), debt_vocab)
             if scope_words:  # v103/v111: the wrong-table guard -- a table the guard refuses is not filled from,
                 hdr_i = _scope_header(rows, idx, bucket_sfs)  # whatever row of it happens to align
-                scope = _table_scope(rows, hdr_i, idx, basis, scope_words,
-                                     debt_scoped=_label_known(_row_label(rows[idx]), debt_vocab),
-                                     debt_words=debt_subj)
+                scope = _table_scope(rows, hdr_i, idx, basis, scope_words, debt_scoped=debt_row, debt_words=debt_subj)
                 if scope in _REFUSED_SCOPES:
                     warnings.append(f"{total_key}: column reading of {rows[idx]!r} declined -- "
                                     f"{_scope_reason(rows, hdr_i, idx, scope_words, scope)}; refused under the {basis} basis")
                     if (reason := _scope_missing_reason(rows, hdr_i, idx, scope_words, scope)) is not None:
                         _record_missing_reason(missing_events, [total_key, *part_keys], page=page, **reason)
                     continue
+                if not debt_row:
+                    # _scope_zone's title walk stops at the first digit-bearing row, and a column header
+                    # ("< 1 year", "31 Dec 2025") is one -- so climb the short rows above the header
+                    # ourselves: title, unit and date furniture are all short; the first long row is prose.
+                    # ponytail: a debt table stacked right above lends its title; bounded by 25 rows.
+                    top = hdr_i if hdr_i is not None else idx
+                    k = top - 1
+                    while k >= max(0, idx - 25) and len(rows[k]) <= _SCOPE_TITLE_MAX:
+                        k -= 1
+                    zone = " ".join(r.translate(_DASHES).lower() for r in rows[k + 1:idx])
+                    debt_row = any(w in zone for w in (debt_subj or ())) and not any(w in zone for w in (x.lower() for x in scope_words.get("all_liabilities", [])))
             # v095: the off-grid columns this header printed (">3 years") -- counted for the alignment above,
             # never assigned. A value in one is an honest decline: where its window crosses the 1/5-year
             # boundaries the split is a guess no check can verify (a counterfactual Karnell printing 173 under
@@ -3363,7 +3378,7 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
                     # column-read one -- the row closes (label_known via the identity marker, see the write below).
                     # "Total 197 22 1,377 9 1,605" is a bare label no synonym list can own; its arithmetic can.
                     src = by_key[key].get("source") or {}
-                    if value is not None and closes and src.get("page") == page and normalize_ws(str(src.get("quote") or "")) == normalize_ws(rows[idx]) \
+                    if value is not None and closes and debt_row and src.get("page") == page and normalize_ws(str(src.get("quote") or "")) == normalize_ws(rows[idx]) \
                             and "identity_all_columns" not in by_key[key]["evidence"]:
                         by_key[key]["evidence"].append("identity_all_columns")
                     continue  # nothing to add, or agrees with the model's own answer -- its evidence already covers it
@@ -3391,14 +3406,15 @@ def _fill_bucket_columns(fields: list[dict], sfs: list[dict], schema: dict, text
                 # literal quote, e.g. two finer bucket columns) needs to be pre-seeded, or it would double-count.
                 # a row whose buckets sum to its own total is this table's identity holding in every column
                 # -- the same proof that earns an unknown year-column row label_known (identity_all_columns, weight
-                # 0, score_field turns it into label_known). Only when it closes: a Total/Summa/Borrowings row that
-                # does not add up is not identified by anything, and its check fails on top.
+                # 0, score_field turns it into label_known). Only when it closes AND the row or its table names the
+                # borrowing scope (debt_row above): a row that does not add up is not identified by anything, and
+                # its check fails on top; a bare Total of an unnamed table is not identified by adding up either.
                 by_key[key].update(value=value, period=str(fiscal_year) if fiscal_year else by_key[key]["period"],
                                     raw_label=_row_label(rows[idx]), source={"page": page, "quote": rows[idx]},
                                     evidence=(["quote_on_page", "printed_nil"] if nil else
                                               ["quote_on_page", "value_derived"] if key in og_cover else
                                               ["quote_on_page"] if _value_in_quote(value, rows[idx]) else
-                                              ["quote_on_page", "value_derived"]) + (["identity_all_columns"] if closes else []))
+                                              ["quote_on_page", "value_derived"]) + (["identity_all_columns"] if closes and debt_row else []))
                 values[key] = value
                 filled.add(key)
                 acted = True
@@ -3491,7 +3507,11 @@ def score_field(field: dict, sf: dict, checks: list[dict], schema: dict, currenc
     failed = [c for c in mine if not c["passed"] and not c["detail"].startswith("missing:")]  # a check with a missing operand is n/a, not failed
     if not failed:
         ev.append("arith_ok")  # vacuously true for fields no check references (eps)
-    if _label_known(field.get("raw_label"), sf) or "value_derived" in ev or "identity_all_columns" in ev:
+    # scoring-only vocabulary: the field's synonyms, its row wording (debt_maturity's row_synonyms -- "Borrowings",
+    # "Lease liabilities" are known total rows even though selection keeps them apart) and its own label; never
+    # header_synonyms, whose "Total" would identify any row
+    vocab = {**sf, "synonyms": sf.get("synonyms", []) + sf.get("row_synonyms", []) + [sf.get("label", "")]}
+    if _label_known(field.get("raw_label"), vocab) or "value_derived" in ev or "identity_all_columns" in ev:
         ev.append("label_known")  # a derived sum, or an unknown row, is identified by the check holding in every column, not by a printed label
     if fiscal_year and str(field.get("period")) == str(fiscal_year):
         ev.append("period_ok")

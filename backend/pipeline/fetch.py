@@ -13,8 +13,10 @@ CLI: python -m pipeline.fetch "Boliden" 2025"""
 import datetime as dt
 import io
 import json
+import os
 import re
 import sys
+import threading
 import time
 import unicodedata
 import urllib.parse
@@ -215,7 +217,7 @@ def _local_candidates(query, year, dest_dir):
     out, seen = [], set()
     for stem, company, fy, url, reason in rows:
         key = collection.identity(company or "")
-        if fy != year or not key or key in seen or not (q == key or (len(q) >= 3 and q in key)):
+        if fy != year or not key or key in seen or not (q == key or (len(q) >= 3 and any(t.startswith(q) for t in key.split()))):  # "sca" must not surface Scandic
             continue
         seen.add(key)
         out.append(_candidate(company, document_type="annual report", url=url, reason=reason, saved=True, stem=stem))
@@ -247,7 +249,7 @@ def _model_discover(query, year, country=None, hint=None):
         out.append(_candidate(c["legal_name"], ticker=_str(c.get("ticker")), exchange=_str(c.get("exchange")),
                               country=_str(c.get("country")), org_number_or_lei=_str(c.get("org_number_or_lei")),
                               fiscal_year_end=_str(c.get("fiscal_year_end")), document_title=_str(c.get("document_title")),
-                              document_type=(_str(c.get("document_type")) or "").lower() or None, url=u, reason=_str(c.get("reason")) or ""))
+                              document_type=_str(c.get("document_type")) or None, url=u, reason=_str(c.get("reason")) or ""))
     return out, None
 
 
@@ -754,7 +756,19 @@ def _entry(fname, company, year, url, text, note=None, tags=("fetched",)):
 def _write_index(dest_dir, index):
     s = json.dumps(index, ensure_ascii=False, indent=2)
     s = re.sub(r'\[\s+("[^\]]*?")\s+\]', lambda m: "[" + re.sub(r",\s+", ", ", m.group(1)) + "]", s)  # tags on one line
-    (dest_dir / "index.json").write_text(s + "\n", encoding="utf-8")
+    tmp = dest_dir / "index.json.tmp"
+    tmp.write_text(s + "\n", encoding="utf-8")
+    os.replace(tmp, dest_dir / "index.json")  # a concurrent GET /api/library never reads a half-written file
+
+
+_INDEX_LOCK = threading.Lock()
+
+
+def _upsert_index(dest_dir, entry):
+    """Re-read under the lock, then replace the row with the same file: three parallel fetches (the UI's
+    pool of 3) each add their own row instead of the last writer dropping the others'."""
+    with _INDEX_LOCK:
+        _write_index(dest_dir, [e for e in _load_index(dest_dir) if e["file"] != entry["file"]] + [entry])
 
 
 def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, country: "str | None" = None, hint: "str | None" = None,
@@ -789,7 +803,7 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
             dest_dir.mkdir(parents=True, exist_ok=True)
             (dest_dir / fname).write_bytes(data)
             entry = _entry(fname, company, year, url, text, note=note)
-            _write_index(dest_dir, [e for e in index if e["file"] != fname] + [entry])
+            _upsert_index(dest_dir, entry)
             return {**entry, "tried": tried}
         if text:
             print(f"{url} -> {text}")
@@ -829,8 +843,7 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
             dest_dir.mkdir(parents=True, exist_ok=True)
             (dest_dir / fname).write_bytes(data)
             entry = _entry(fname, company, year, url, text, note=note, tags=["fetched", "foreign"])
-            index = [e for e in index if e["file"] != fname] + [entry]
-            _write_index(dest_dir, index)
+            _upsert_index(dest_dir, entry)
             return {**entry, "tried": tried}
     # Follow the official IR pages returned by the model before broad fallback discovery.
     if page_seeds and (found := _ir_page_report(page_seeds, company, year, tried)):
@@ -838,8 +851,7 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
         dest_dir.mkdir(parents=True, exist_ok=True)
         (dest_dir / fname).write_bytes(data)
         entry = _entry(fname, company, year, url, text, note="IR page crawl", tags=["fetched", "foreign"])
-        index = [e for e in index if e["file"] != fname] + [entry]
-        _write_index(dest_dir, index)
+        _upsert_index(dest_dir, entry)
         return {**entry, "tried": tried}
     # One targeted follow-up can find the official archive when direct links fail.
     # At most two model searches per uncached report.
@@ -851,8 +863,7 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
             dest_dir.mkdir(parents=True, exist_ok=True)
             (dest_dir / fname).write_bytes(data)
             entry = _entry(fname, company, year, url, text, note="IR page crawl", tags=["fetched", "foreign"])
-            index = [e for e in index if e["file"] != fname] + [entry]
-            _write_index(dest_dir, index)
+            _upsert_index(dest_dir, entry)
             return {**entry, "tried": tried}
         if ir_note:
             model_note = f"{model_note}; {ir_note}" if model_note else ir_note
@@ -891,15 +902,14 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
         dest_dir.mkdir(parents=True, exist_ok=True)
         (dest_dir / fname).write_bytes(data)
         entry = _entry(fname, company, year, url, text)
-        index = [e for e in index if e["file"] != fname] + [entry]
-        _write_index(dest_dir, index)
+        _upsert_index(dest_dir, entry)
         return {**entry, "tried": tried}
     if page_seeds and (found := _ir_page_report(page_seeds, company, year, tried)):
         url, data, text = found
         dest_dir.mkdir(parents=True, exist_ok=True)
         (dest_dir / fname).write_bytes(data)
         entry = _entry(fname, company, year, url, text, note="IR page crawl")
-        _write_index(dest_dir, [e for e in index if e["file"] != fname] + [entry])
+        _upsert_index(dest_dir, entry)
         return {**entry, "tried": tried}
     raise LookupError(tried, model_note)
 

@@ -197,9 +197,12 @@ extractions and reviews. The app opens these without re-extracting them. In
 **Knowledge base**, choose **Collection → All** to see the full library. Extract
 and Ask share this collection choice; Extract also offers **All companies**.
 
-In Extract, type any company name and use **AI search, download & extract** to
-find its official annual report with the connected Codex/Claude model. Saved
-text is reused first; feeds and traditional search are fallback sources.
+In Extract, type any company name and press Enter (or **Search**): the connected
+Codex/Claude model resolves the text to concrete companies — "intel" becomes
+Intel Corporation (NASDAQ: INTC) — shown as cards with ticker, country and the
+report it found. **Use this company** downloads that PDF and extracts; **None of
+these** re-runs the search with a hint. Saved reports appear first; feeds and
+traditional search are fallback sources.
 Ask lists saved text, nonempty extracted figures, and downloaded PDFs separately.
 A catalog entry with no readable page text is excluded from Ask.
 

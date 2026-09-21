@@ -1,5 +1,5 @@
 import { Check, Globe, Search, X } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -18,6 +18,7 @@ type CompanySearchProps = {
   dirError: string | null
   picked: Company[]
   busy: boolean
+  canRun: boolean // a section is picked; 'Use this company' runs the extraction straight away
   discovery: Discovery | null // null = nothing searched for this query yet
   discovering: boolean
   onQueryChange: (query: string) => void
@@ -37,6 +38,7 @@ export function CompanySearch({
   dirError,
   picked,
   busy,
+  canRun,
   discovery,
   discovering,
   onQueryChange,
@@ -48,6 +50,8 @@ export function CompanySearch({
   const [hint, setHint] = useState('')
   const [refining, setRefining] = useState(false) // "None of these" opens the hint input; empty results open it too
   const canSearch = query.trim().length > 0 && !busy && !discovering
+  const locked = busy || discovering // query/year frozen while /discover runs, so a late reply never lands under a new query or year
+  useEffect(() => { if (!discovery) { setRefining(false); setHint('') } }, [discovery])
   const refine = () => hint.trim() && onDiscover(hint.trim())
   const identity = (c: Candidate) =>
     [c.ticker && (c.exchange ? `${c.exchange}: ${c.ticker}` : c.ticker), c.country, c.fiscal_year_end && `FY ends ${c.fiscal_year_end}`]
@@ -61,7 +65,7 @@ export function CompanySearch({
           type="search"
           icon={<Search />}
           value={query}
-          disabled={busy}
+          disabled={locked}
           onChange={(e) => {
             setRefining(false)
             setHint('')
@@ -76,7 +80,7 @@ export function CompanySearch({
           value={year}
           onValueChange={(v) => v && onYearChange(v)}
           items={{ 2025: '2025', 2024: '2024', 2023: '2023' }}
-          disabled={busy}
+          disabled={locked}
         >
           <SelectTrigger aria-label="Fiscal year" className="w-24 shrink-0">
             <SelectValue />
@@ -181,7 +185,7 @@ export function CompanySearch({
                 </CardContent>
               )}
               <CardFooter>
-                <Button size="sm" disabled={busy} onClick={() => onUseCandidate(c)}>
+                <Button size="sm" disabled={busy || !canRun} title={canRun ? undefined : 'Pick a section first'} onClick={() => onUseCandidate(c)}>
                   Use this company
                 </Button>
               </CardFooter>

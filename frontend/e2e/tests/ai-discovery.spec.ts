@@ -5,9 +5,8 @@ const altera = { ...intel, legal_name: 'Altera Corporation', ticker: null, excha
 const card = (page: any, name: string) => page.locator('[data-slot="card"]', { hasText: name })
 
 // A typed fragment resolves to concrete legal entities the user confirms; only the confirmed one is fetched
-// (its PDF link tried first) and extracted. cached=false: the backend has nothing saved → 409 → automatic retry
-// with the download allowed, behind a "Downloading PDF" progress line.
-for (const cached of [false, true]) test(`AI discovery proposes companies to confirm before fetching [cached=${cached}]`, async ({ page }) => {
+// (its PDF link tried first, download_pdf always true) and extracted.
+test('AI discovery proposes companies to confirm before fetching', async ({ page }) => {
   const discovered: any[] = [], fetched: any[] = [], extracted: string[] = []
   await page.route('**/api/**', async route => {
     const path = new URL(route.request().url()).pathname
@@ -16,9 +15,7 @@ for (const cached of [false, true]) test(`AI discovery proposes companies to con
       return route.fulfill({ json: { candidates: body.hint ? [altera] : [intel, altera], note: null } })
     }
     if (path === '/api/reports/fetch') {
-      const body = route.request().postDataJSON(); fetched.push(body)
-      if (!cached && !body.download_pdf) return route.fulfill({ status: 409, json: { detail: 'No saved report' } })
-      if (body.download_pdf) await new Promise(r => setTimeout(r, 300)) // keep the download line visible long enough to assert on it
+      fetched.push(route.request().postDataJSON())
       return route.fulfill({ json: { report_id: 'lib-intel_2025', company: 'Intel Corporation', fiscal_year: 2025, pages: 120 } })
     }
     if (path.endsWith('/extract')) {
@@ -42,11 +39,9 @@ for (const cached of [false, true]) test(`AI discovery proposes companies to con
   await expect(card(page, 'Altera Corporation').getByText('saved', { exact: true })).toBeVisible()
   expect(fetched).toEqual([]) // nothing downloads until a card is confirmed
   await card(page, 'Intel Corporation').getByRole('button', { name: 'Use this company', exact: true }).click()
-  if (!cached) await expect(page.getByText(/Downloading PDF/)).toBeVisible()
   await expect.poll(() => extracted.length).toBe(1)
-  // The confirmed legal name and its PDF link go to /fetch; the unrelated directory pick stays out of this run.
-  expect(fetched.map(request => [request.company, request.url, request.download_pdf])).toEqual(
-    cached ? [['Intel Corporation', intel.url, false]] : [['Intel Corporation', intel.url, false], ['Intel Corporation', intel.url, true]])
+  // The confirmed legal name and its PDF link go to /fetch once; the unrelated directory pick stays out of this run.
+  expect(fetched.map(request => [request.company, request.url, request.download_pdf])).toEqual([['Intel Corporation', intel.url, true]])
 })
 
 test('"None of these" re-runs discovery with a hint', async ({ page }) => {

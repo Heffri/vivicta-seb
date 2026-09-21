@@ -153,16 +153,10 @@ export function UploadView({ batch, onSubmit, resultsCount, onViewResults, onDon
         ? ' about a minute on the local model.'
         : ''
 
-  // The PDF is always fetched when nothing is saved: saved text/PDF first (download_pdf:false keeps
-  // kb reuse), and the backend's 409 "nothing saved" answer retries with the download allowed.
-  const fetchWithDownload = async (company: string, opts: { country?: string | null; url?: string | null } = {}) => {
-    try {
-      return await fetchReport(company, Number(yearRef.current), { ...opts, download_pdf: false })
-    } catch (e) {
-      if ((e as ApiError).status !== 409) throw e
-      return fetchReport(company, Number(yearRef.current), { ...opts, download_pdf: true })
-    }
-  }
+  // The PDF is always wanted (page images, quote checks): the backend reuses a cached PDF, downloads one
+  // when only text is saved, and falls back to that saved text if the download fails.
+  const fetchWithDownload = (company: string, opts: { country?: string | null; url?: string | null } = {}) =>
+    fetchReport(company, Number(yearRef.current), { ...opts, download_pdf: true })
 
   // Stored extraction from the knowledge base (supervisor add-on): no model call, works without the
   // original PDF (v092). The result was extracted previously and still awaits its basis
@@ -287,6 +281,7 @@ export function UploadView({ batch, onSubmit, resultsCount, onViewResults, onDon
             dirError={dirError}
             picked={picked}
             busy={busy}
+            canRun={!!section}
             discovery={discovery}
             discovering={discovering}
             onQueryChange={(q) => { setQuery(q); setDiscovery(null) }}

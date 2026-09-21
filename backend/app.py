@@ -123,12 +123,12 @@ class DiscoverBody(BaseModel):
 
 
 class FetchBody(DiscoverBody):
-    download_pdf: bool = False
+    download_pdf: bool = True   # the PDF is always wanted (page images, quote checks); false = text-only reuse for API callers syncing KB text
     url: str | None = None      # a confirmed /discover candidate's PDF link: fetch_report tries it before its own sources
 
 
 def check_query(body: DiscoverBody):
-    if not (1990 <= body.year <= 2100) or len(body.company) > 100 or (body.country and len(body.country) > 60) or (body.hint and len(body.hint) > 300):
+    if not (1990 <= body.year <= 2100) or not body.company.strip() or len(body.company) > 100 or (body.country and len(body.country) > 60) or (body.hint and len(body.hint) > 300):
         raise HTTPException(400, "bad company/year")
 
 
@@ -321,11 +321,10 @@ def fetch_report(body: FetchBody):
     if body.url and (len(body.url) > 2000 or not body.url.startswith(("http://", "https://"))):
         raise HTTPException(400, "bad url")
     slug = fetch.slugify(body.company)
-    if not body.download_pdf:
-        saved = [e for e in kb.entries() if e.get("fiscal_year") == body.year and collection.identity(e.get("company")) == collection.identity(body.company)]
-        if saved:
-            saved.sort(key=lambda e: (e["stem"] != f"{slug}_{body.year}", e["stem"]))
-            return get_report(saved_report_id(saved[0]["stem"]))
+    saved = [e for e in kb.entries() if e.get("fiscal_year") == body.year and collection.identity(e.get("company")) == collection.identity(body.company)]
+    saved.sort(key=lambda e: (e["stem"] != f"{slug}_{body.year}", e["stem"]))
+    if saved and not body.download_pdf:
+        return get_report(saved_report_id(saved[0]["stem"]))
     entry = next((e for e in library_index() if e["fiscal_year"] == body.year and collection.identity(e["company"]) == collection.identity(body.company)), None)
     if not entry:
         if not body.download_pdf:
@@ -335,6 +334,8 @@ def fetch_report(body: FetchBody):
             # A confirmed candidate's url is tried first; then the connected model searches official sources; feeds are fallback discovery.
             entry = fetch.fetch_report(body.company, body.year, LIBRARY, body.country, body.hint, url=body.url)
         except LookupError as e:
+            if saved:  # the PDF is wanted but unreachable: the git-synced page text still extracts; the Source panel says the PDF is missing
+                return get_report(saved_report_id(saved[0]["stem"]))
             detail = f"no annual report found for {body.company} {body.year}"
             if len(e.args) > 1 and e.args[1]:  # v074: a failed model search says so, with why
                 detail += f"; {e.args[1]}"
@@ -936,7 +937,7 @@ def extraction_csv(report_id: str, section: str | None = None, previous_stem: st
     for f in x["fields"]:
         src = f.get("source") or {}
         w.writerow([x["report_id"], x["company"], x["fiscal_year"], x["section"], f["key"], f["label"], f["value"],
-                    f["unit"], f["period"], f["raw_label"], src.get("page"), src.get("quote"), f["confidence"], *[(f.get("human_review") or {}).get(k, "") for k in ("decision", "reviewer", "at", "note")], *human_evidence_csv(f), x.get("ready", False), json.dumps(x.get("basis", {})), json.dumps(x.get("issues", [])), json.dumps(x.get("comparison", {})), json.dumps(f.get("review_history", [])), json.dumps(x.get("basis_history", [])), json.dumps(x.get("check_history", []))])
+                    f["unit"], f["period"], f["raw_label"], src.get("page"), src.get("quote"), f["confidence"], *[(f.get("human_review") or {}).get(k, "") for k in ("decision", "reviewer", "at", "note")], *human_evidence_csv(f), x.get("ready", False), json.dumps(x.get("basis", {})), json.dumps(x.get("issues", []) + x.get("basis_issues", [])), json.dumps(x.get("comparison", {})), json.dumps(f.get("review_history", [])), json.dumps(x.get("basis_history", [])), json.dumps(x.get("check_history", []))])
     return Response(buf.getvalue(), media_type="text/csv; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="{report_id}_{x["section"]}.csv"'})
 

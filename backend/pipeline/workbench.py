@@ -31,13 +31,14 @@ def _basis_confirmed(x):
     return not values.get("period") or str(x.get("fiscal_year")) in values["period"]
 
 def _unit_basis(unit):
-    """'MSEK' -> ('SEK', 'Millions'), 'SEK thousand' -> ('SEK', 'Thousands'), 'kr' -> ('SEK', 'Units'); '' where unreadable."""
+    """'MSEK' -> ('SEK', 'Millions'), 'SEK thousand' -> ('SEK', 'Thousands'), 'kr' -> ('SEK', 'Units'); '' where unreadable --
+    a bare currency code ('SEK') names no scale: the analyst fills it."""
     u = re.sub(r"[\s.'‘’]+", " ", str(unit or "").translate(extract._SYMBOLS)).strip()
     s, ccy = u.casefold(), extract._ccy(u)
     scale = ("Billions" if re.search(r"\bbn\b|billion|\bmdr?kr\b", s) else
              "Millions" if re.search(r"\bmn?\b|million|miljoner|\bmn?kr\b|\bm[a-z]{3}\b|\b[a-z]{3}m\b", s) else
              "Thousands" if re.search(r"\b[kt]\b|thousand|tusen|\b0{3}\b|\b[kt][a-z]{3}\b", s) else
-             "Units" if re.fullmatch(r"[a-z]{3}|kr", s) else "")
+             "Units" if s == "kr" else "")
     return (ccy if re.fullmatch(r"[A-Z]{3}", ccy) else ""), scale
 
 def suggested_basis(x):
@@ -46,11 +47,12 @@ def suggested_basis(x):
     out = {"entity": x.get("company") or "", "consolidation": "Group", "period": str(x.get("fiscal_year") or ""), "currency": ccy, "scale": scale, "source": "Annual report", "restatement": "As reported"}
     if x["section"] == "debt_maturity":
         out.update(debt_basis={"carrying": "Carrying amounts", "undiscounted": "Contractual undiscounted cash flows"}.get(x.get("maturity_basis"), ""),
-                   leases="Included" if re.search(r"(?i)leas", x.get("debt_scope") or "") else "", bucket_mapping="")
+                   leases="", bucket_mapping="")  # nothing extracted says whether leases are in: the analyst answers
     return out
 
 def checks(x, schema):
     fields = {f["key"]: f for f in x["fields"]}
+    defaults = {f["key"]: f["default"] for f in schema["fields"] if "default" in f}  # a row the report may not print (discontinued ops) counts as its default, as in extract
     out = []
     for rule in schema.get("checks", []):
         keys = [f["key"] for f in schema["fields"] if re.search(r"\b" + re.escape(f["key"]) + r"\b", rule["expr"])]
@@ -61,8 +63,11 @@ def checks(x, schema):
         # the table it was not printed in, not an unresolved question about a read figure.
         absent = {k for k in keys if rule.get("require_explicit_values") and fields.get(k, {}).get("value") is None
                   and "absent_in_table" in (fields.get(k, {}).get("evidence") or [])}
-        operands = [fields.get(k, {}) for k in keys if k not in absent]
-        missing = [k for k in keys if k not in absent and (not isinstance(fields.get(k, {}).get("value"), (float, int)) or not math.isfinite(fields[k]["value"]))]
+        values = {k: fields.get(k, {}).get("value") for k in keys}
+        values.update({k: defaults[k] for k in keys if k in defaults and values[k] is None})  # a row the report may not print (discontinued ops) counts as its default
+        values.update({k: 0 for k in absent})
+        operands = [fields[k] for k in keys if fields.get(k, {}).get("value") is not None]
+        missing = [k for k, v in values.items() if not isinstance(v, (float, int)) or not math.isfinite(v)]
         units = {str(f.get("unit") or "").strip().casefold() for f in operands}
         periods = {str(f.get("period") or "").strip().casefold() for f in operands}
         reason = "Missing explicit values: " + ", ".join(missing) if missing else ""
@@ -71,8 +76,7 @@ def checks(x, schema):
         if reason:
             out.append({"name": rule["name"], "passed": False, "status": "unavailable", "detail": reason})
         else:
-            values = {k: fields[k]["value"] for k in keys if k not in absent}
-            result = extract._check(dict(rule, null_as_zero=[]), {**values, **{k: 0 for k in absent}})
+            result = extract._check(dict(rule, null_as_zero=[]), values)
             out.append(dict(result, status="passed" if result["passed"] else "failed"))
     return out
 
@@ -88,6 +92,11 @@ def decorate(x, schema, audit=None):
     if values.get("period") and str(x.get("fiscal_year")) not in values["period"]:
         basis_issues.append({"kind": "basis", "key": "period", "detail": "Confirmed period must identify the saved fiscal year"})
     optional = {f["key"] for f in schema["fields"] if f.get("optional")}  # a line the report may simply not print
+    # optional lines sharing an identity (cost of sales + gross profit) are printed together or not at all:
+    # one present and the other null is a miss, not "not reported"
+    by_key = {f["key"]: f for f in x["fields"]}
+    peers = {k: {o for c in schema.get("checks", []) if c.get("identity") and re.search(rf"\b{k}\b", c["expr"]) for o in optional if re.search(rf"\b{o}\b", c["expr"])} for k in optional}
+    sfs = {f["key"]: f for f in schema["fields"]}
     issues, not_reported = [], []
     for f in x["fields"]:
         review = f.get("human_review", {})
@@ -97,8 +106,12 @@ def decorate(x, schema, audit=None):
         # A reviewer actively marking it unresolved re-opens it below like any other field.
         if f.get("value") is None and "absent_in_table" in evidence and review.get("decision") != "unresolved":
             continue
-        resolved = _field_ok(f)
-        if f.get("value") is None and f["key"] in optional and review.get("decision") != "unresolved":
+        sf = sfs.get(f["key"], {})  # saved fields scored before extract widened label_known to row_synonyms + label: same vocabulary here, no re-extraction
+        if extract._label_known(f.get("raw_label"), {**sf, "synonyms": sf.get("synonyms", []) + sf.get("row_synonyms", []) + [sf.get("label", "")]}):
+            evidence.add("label_known")
+        matched = "value_in_quote" in evidence or len(evidence & SUBSTITUTES) == 1
+        resolved = review.get("decision") in ("confirmed", "corrected") or (matched and {"quote_on_page", "label_known", "period_ok", "page_is_statement", "unit_ok"} <= evidence and bool(f.get("source")))
+        if f.get("value") is None and f["key"] in optional and review.get("decision") != "unresolved" and all(by_key.get(o, {}).get("value") is None for o in peers[f["key"]]):
             not_reported.append(f["key"])
         elif f.get("value") is None or not f.get("unit") or not f.get("period") or review.get("decision") == "unresolved" or not resolved or (values.get("period") and str(f.get("period")) != values["period"]):
             issues.append({"kind": "field", "key": f["key"], "detail": f.get("label", f["key"]) + (": missing value (not zero)" if f.get("value") is None else ": verify value, unit, period and source")})

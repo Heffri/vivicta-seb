@@ -572,8 +572,8 @@ def demo():
     out = x.extract([linc], [1], dm, {"fiscal_year": 2025})
     total = next(f for f in out["fields"] if f["key"] == "total_debt")
     assert (total["value"], total["confidence"]) == (0, 0.5) \
-        and total["evidence"] == ["quote_on_page", "printed_nil", "arith_ok", "period_ok", "page_is_statement", "unit_ok"] \
-        and total["source"] == {"page": 1, "quote": "Räntebärande skulder – –"}, (total, out["warnings"])
+        and total["evidence"] == ["quote_on_page", "printed_nil", "arith_ok", "label_known", "period_ok", "page_is_statement", "unit_ok"] \
+        and total["source"] == {"page": 1, "quote": "Räntebärande skulder – –"}, (total, out["warnings"])  # label_known: the row synonym scores; the nil keeps the cap
     assert any("total_debt: 0 kept -- 'Räntebärande skulder – –' prints a dash in the fiscal-year column under a known label (printed nil)" in w
                for w in out["warnings"]), out["warnings"]
     # ... the bare row-synonym label ("räntebärande skulder", no summa/totalt prefix) is what the total field is
@@ -3037,8 +3037,8 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
         {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
     out = x.extract([momentum111, momentum117], [1, 2], dm_ship, {"fiscal_year": 2025})
     got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
-    assert got == {"total_debt": (622, 0.9), "due_within_1_year": (None, 0.0), "due_1_to_5_years": (None, 0.0),
-                   "due_after_5_years": (None, 0.0)}, (got, out["warnings"])
+    assert got == {"total_debt": (622, 1.0), "due_within_1_year": (None, 0.0), "due_1_to_5_years": (None, 0.0),
+                   "due_after_5_years": (None, 0.0)}, (got, out["warnings"])  # 1.0: "Interest-bearing liabilities" is a row synonym, known for scoring
     assert any("the Parent Company section 'Parent Company' holds this table" in w for w in out["warnings"]), out["warnings"]
     assert not any("filled from page 1 row" in w and "Within 1 year 2 2" in w for w in out["warnings"]), out["warnings"]
     # and the stored-seed11 shape (the model itself cited the parent rows): every bucket citation refused
@@ -4032,6 +4032,12 @@ def test_bucket_row_label_known():
     x.call_llm = lambda *a, **k: own("Interest-bearing liabilities 1,605")
     out = x.extract(["Interest-bearing liabilities 1,605\n" + header + "Total 197 1,399 9 1,605\n"], [1], dm, {"fiscal_year": 2025})
     assert "identity_all_columns" not in out["fields"][0]["evidence"], out["fields"][0]  # its own quote is another row; label_known, if any, comes from the synonym list alone
+    # a markerless all-liabilities table (Karnell's payables and earn-outs) closes on its own arithmetic too --
+    # no borrowing word in title or rows, so closing identifies nothing: no marker, no label_known
+    x.call_llm = lambda *a, **k: nulls
+    karnell = "Maturity of financial liabilities\nSEKm\n< 1 year\n1–5 years\n> 5 years Total\nAccounts payable 20.0 - - 20.0\nEarn-outs 9.4 - - 9.4\nTotal 72.2 454.4 - 526.6\n"
+    out = x.extract([karnell], [1], dm, {"fiscal_year": 2025})
+    assert all("identity_all_columns" not in f["evidence"] and "label_known" not in f["evidence"] for f in out["fields"] if f["value"] is not None), [f["evidence"] for f in out["fields"]]
     print("bucket-row label_known self-check ok")
 
 

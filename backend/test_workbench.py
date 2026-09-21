@@ -34,11 +34,11 @@ for section in ('income_statement', 'debt_maturity'):
     # An unconfirmed basis is a form to fill, not a blocker: it lives in basis_issues with a prefill, and never counts against ready.
     x = statement(section)
     x.pop('basis')
-    x.update(maturity_basis='carrying', debt_scope='Group borrowings, including lease liabilities')
+    x.update(maturity_basis='carrying')
     workbench.decorate(x, schema)
     assert x['ready'] and x['issues'] == [] and [i['key'] for i in x['basis_issues']] == workbench.required(section)
     expected = dict(entity='Atlas Copco AB', consolidation='Group', period='2025', currency='SEK', scale='Millions', source='Annual report', restatement='As reported')
-    assert x['basis_suggested'] == expected | (dict(debt_basis='Carrying amounts', leases='Included', bucket_mapping='') if section == 'debt_maturity' else {}), x['basis_suggested']
+    assert x['basis_suggested'] == expected | (dict(debt_basis='Carrying amounts', leases='', bucket_mapping='') if section == 'debt_maturity' else {}), x['basis_suggested']
     assert x['basis_suggested'].get('debt_basis', '') in workbench.CHOICES['debt_basis'] | {''}
     # Automated evidence resolves a field only with value_in_quote or exactly one stand-in for it, plus every other code and a source.
     x = statement(section)
@@ -48,10 +48,14 @@ for section in ('income_statement', 'debt_maturity'):
                          (['quote_on_page', 'stated_zero', 'label_known', 'period_ok', 'page_is_statement', 'unit_ok'], True),
                          (['quote_on_page', 'printed_nil', 'label_known', 'period_ok', 'page_is_statement', 'unit_ok'], True),
                          (['quote_on_page', 'value_derived', 'stated_zero', 'label_known', 'period_ok', 'page_is_statement', 'unit_ok'], False),
-                         (['quote_on_page', 'label_known', 'period_ok', 'page_is_statement', 'unit_ok'], False),
-                         (['quote_on_page', 'value_in_quote', 'period_ok', 'page_is_statement', 'unit_ok'], False)):
+                         (['quote_on_page', 'label_known', 'period_ok', 'page_is_statement', 'unit_ok'], False)):
         x['fields'][0]['evidence'] = evidence
         assert workbench.decorate(x, schema)['ready'] == ok, evidence
+    # label_known is re-derived from the field's own label/synonyms/row synonyms (saved fields predate that vocabulary); an unknown label stays a task
+    x['fields'][0].update(evidence=['quote_on_page', 'value_in_quote', 'period_ok', 'page_is_statement', 'unit_ok'], raw_label='Total')
+    assert not workbench.decorate(x, schema)['ready']
+    x['fields'][0]['raw_label'] = schema['fields'][0]['label']
+    assert workbench.decorate(x, schema)['ready']
     x['fields'][0].update(evidence=['quote_on_page', 'value_in_quote', 'label_known', 'period_ok', 'page_is_statement', 'unit_ok'], source=None)
     assert not workbench.decorate(x, schema)['ready']
     # A null on a schema-optional line (income statement cost of sales, gross profit, discontinued operations) is "not reported",
@@ -224,7 +228,7 @@ print('maturity_wall: baseline share, basis/evidence gates, zero debt, unit scal
 
 for unit, expected in (('MSEK', ('SEK', 'Millions')), ('SEK million', ('SEK', 'Millions')), ('SEKm', ('SEK', 'Millions')), ('Mkr', ('SEK', 'Millions')), ('€m', ('EUR', 'Millions')), ('MUSD', ('USD', 'Millions')),
                        ('KSEK', ('SEK', 'Thousands')), ('SEK thousand', ('SEK', 'Thousands')), ('USD IN THOUSANDS', ('USD', 'Thousands')), ("EUR’000", ('EUR', 'Thousands')), ('SEK 000', ('SEK', 'Thousands')),
-                       ('Mdkr', ('SEK', 'Billions')), ('kr', ('SEK', 'Units')), ('SEK', ('SEK', 'Units')), ('%', ('', '')), (None, ('', ''))):
+                       ('Mdkr', ('SEK', 'Billions')), ('kr', ('SEK', 'Units')), ('SEK', ('SEK', '')), ('%', ('', '')), (None, ('', ''))):
     assert workbench._unit_basis(unit) == expected, (unit, workbench._unit_basis(unit))
 
 with tempfile.TemporaryDirectory() as tmp, patch('pipeline.fetch.fetch_report', side_effect=AssertionError('PDF download forbidden')):

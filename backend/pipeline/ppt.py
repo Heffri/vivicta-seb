@@ -78,7 +78,7 @@ def add_slide(prs: Presentation, x: dict, prior_year: bool = False, per_year: bo
 
     comparison = x.get("comparison") or {}
     period = f"Comparison: {comparison.get('previous_year')} to {comparison.get('current_year')} | " if comparison else ""
-    unresolved = x.get("issues", [])
+    unresolved = x.get("issues", []) + x.get("basis_issues", [])  # basis lives beside the queue since it stopped blocking ready
     counts = {kind: sum(i["kind"] == kind for i in unresolved) for kind in ("field", "basis", "check")}
     _textbox(slide, period + (f"Unresolved: {counts['field']} figures, {counts['basis']} definitions, {counts['check']} calculations. " if unresolved else "") + "Full sources and review history in speaker notes.", Pt(11), top=Inches(6.9))
     slide.notes_slide.notes_text_frame.text = json.dumps(x, ensure_ascii=False, indent=2)
