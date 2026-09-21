@@ -68,6 +68,9 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
   const [fillResult, setFillResult] = useState<(FieldFill & { fieldKey: string }) | null>(null)
   const [fillingField, setFillingField] = useState(false)
   const [fillError, setFillError] = useState<string | null>(null)
+  // This stays above the per-field form so moving to the next unresolved figure does not make an
+  // analyst type their own name again. It is still only submitted with the review they choose.
+  const [reviewerName, setReviewerName] = useState('')
   const setViewer = (v: Viewer) => {
     setViewerState(v)
     try {
@@ -114,6 +117,9 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
     setAskPage(page)
   }
   const reviewCount = fields.filter((f) => ['Needs review', 'Not checked', 'Not found'].includes(fieldVerification(f).label)).length
+  const unresolvedFields = fields.filter(field => extraction.issues?.some(issue => issue.kind === 'field' && issue.key === field.key))
+  const selectedUnresolvedIndex = unresolvedFields.findIndex(field => field.key === selectedKey)
+  const nextUnresolved = unresolvedFields.length ? unresolvedFields[(selectedUnresolvedIndex + 1 + unresolvedFields.length) % unresolvedFields.length] : null
 
   const exportJson = () => {
     // ponytail: Blob URL + synthetic click, fine for a single JSON. Upgrade: File System Access API if size ever matters.
@@ -195,7 +201,8 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
 
         <div className="space-y-4">
           <FieldsTable fields={fields} selectedKey={selectedKey} onSelect={selectField} onOpenPage={openComponentPage} />
-          {selected && <HumanReviewForm key={`${selected.key}:${selected.human_review?.at ?? ''}`} extraction={extraction} field={selected} citation={reviewCitation} candidate={fillResult?.fieldKey === selected.key ? fillResult.candidate : null} candidateWarnings={fillResult?.fieldKey === selected.key ? fillResult.warnings : []} onDiscardCandidate={() => setFillResult(null)} onCitationChange={setReviewCitation} onSaved={(result) => { setReviewCitation({ page: '', quote: '' }); setFillResult(null); onUpdated(result) }} />}
+          {nextUnresolved && <Button type="button" variant="outline" onClick={() => selectField(nextUnresolved.key)}>Next unresolved field</Button>}
+          {selected && <HumanReviewForm key={`${selected.key}:${selected.human_review?.at ?? ''}`} extraction={extraction} field={selected} citation={reviewCitation} candidate={fillResult?.fieldKey === selected.key ? fillResult.candidate : null} candidateWarnings={fillResult?.fieldKey === selected.key ? fillResult.warnings : []} onDiscardCandidate={() => setFillResult(null)} onCitationChange={setReviewCitation} onSaved={(result) => { setReviewCitation({ page: '', quote: '' }); setFillResult(null); onUpdated(result) }} reviewerName={reviewerName} onReviewerNameChange={setReviewerName} />}
           {selected && fillResult?.fieldKey === selected.key && !fillResult.candidate && <section aria-live="polite" className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm"><p className="font-medium">No candidate for {selected.label}</p><ul className="list-disc space-y-1 pl-4 text-xs text-muted-foreground">{fillResult.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul><Button type="button" variant="ghost" size="xs" onClick={() => setFillResult(null)}>Discard</Button></section>}
         </div>
 

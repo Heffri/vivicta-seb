@@ -60,6 +60,10 @@ def decorate(x, schema, audit=None):
     x["checks"] = checks(x, schema)
     if audit and old != x["checks"]:
         x.setdefault("check_history", []).append(dict(audit, previous=old))
+    # v182: derive only explicitly sourced, unconfirmed starting values. This is deliberately
+    # recomputed rather than persisted as a review: a changed field citation must not leave a
+    # stale basis hint behind, and a suggestion never clears an issue or contributes to `ready`.
+    x["basis_suggestions"] = _basis_suggestions(x)
     basis = x.get("basis") or {}
     values = basis.get("values", {})
     issues = [{"kind": "basis", "key": k, "detail": "Confirm " + k.replace("_", " ")} for k in required(x["section"]) if not basis.get("reviewer") or not values.get(k, "").strip()]
@@ -138,6 +142,109 @@ def _parse_unit(unit):
         return None, None
     scale, ccy = key
     return ccy, _SCALE_MULTIPLIER[scale]
+
+
+_SCALE_LABEL = {1.0: "Units", 1e3: "Thousands", 1e6: "Millions", 1e9: "Billions"}
+_BUCKET_KEYS = ("due_within_1_year", "due_1_to_5_years", "due_after_5_years")
+
+
+def _citation(field):
+    """A safe, minimal `Source` for a suggestion, or None.
+
+    A basis hint is visible provenance, not a best-effort diagnostic. Keep the contract's page
+    and verbatim quote together and do not manufacture a source when legacy data has only a value.
+    """
+    source = field.get("source") or {}
+    page, quote = source.get("page"), source.get("quote")
+    if not isinstance(page, int) or page < 1 or not isinstance(quote, str) or not quote.strip():
+        return None
+    return {"page": page, "quote": quote}
+
+
+def _standard_bucket_header(quote):
+    """Whether one cited bucket header names exactly the standard <1 / 1-5 / >5 windows.
+
+    We intentionally require all three intervals in one bucket-field citation. A set of separate
+    row labels can be mapped in several ways; it is not evidence that the report's *header* uses
+    the standard three-bucket presentation.
+    """
+    text = re.sub(r"\s+", " ", quote).casefold()
+    return all(re.search(pattern, text) for pattern in (
+        r"(?:under|within|less than|<)\s*(?:one|1)\s*(?:year|yr)",
+        r"(?:one|1)\s*(?:to|[-–])\s*(?:five|5)\s*(?:years?|yrs?)",
+        r"(?:over|after|more than|>)\s*(?:five|5)\s*(?:years?|yrs?)",
+    ))
+
+
+def _basis_suggestions(x):
+    """Return conservative basis-review hints with a source for every item.
+
+    This is a convenience layer over an extraction, not an inference pass: metadata gives only
+    entity/year; a field-derived unit/page/bucket claim needs cited fields; debt basis needs the
+    extraction's named maturity basis or a direct carrying/undiscounted citation. Scope choices
+    such as consolidation, leases and restatement stay empty until a reviewer decides them.
+    """
+    suggestions = []
+
+    def add(key, value, source):
+        if isinstance(value, str) and value.strip() and source:
+            suggestions.append({"key": key, "value": value.strip(), "source": source})
+
+    company = x.get("company")
+    if isinstance(company, str) and company.strip():
+        add("entity", company, "report metadata")
+    year = x.get("fiscal_year")
+    if isinstance(year, (int, str)) and str(year).strip():
+        add("period", str(year), "report metadata")
+
+    fields = x.get("fields") or []
+    populated = [field for field in fields if field.get("value") is not None]
+    citations = [_citation(field) for field in populated]
+    all_cited = bool(populated) and all(citations)
+
+    # A field unit is only a safe statement-wide basis when every printed amount agrees after the
+    # one tested parser used by maturity_wall. A null field says nothing about a unit and is not
+    # silently treated as a numeric zero here.
+    parsed_units = {_parse_unit(field.get("unit")) for field in populated}
+    if all_cited and len(parsed_units) == 1:
+        currency, scale = next(iter(parsed_units))
+        if currency and scale in _SCALE_LABEL:
+            add("currency", currency, citations[0])
+            add("scale", _SCALE_LABEL[scale], citations[0])
+
+    if all_cited:
+        pages = sorted({citation["page"] for citation in citations})
+        add("source", "Cited pages p. " + ", ".join(str(page) for page in pages), citations[0])
+
+    if x.get("section") == "debt_maturity":
+        # A direct report phrase wins over the extraction setting because it gives the reviewer a
+        # page to inspect. The setting is still a bounded source-backed suggestion when the saved
+        # extraction explicitly names the basis but the quoted rows omit that table heading.
+        debt_suggestion = None
+        for field in fields:
+            citation = _citation(field)
+            quote = citation and citation["quote"].casefold()
+            if quote and re.search(r"\b(?:contractual\s+)?undiscounted\b", quote):
+                debt_suggestion = ("Contractual undiscounted cash flows", citation)
+                break
+            if quote and re.search(r"\bcarrying(?:\s+amounts?)?\b", quote):
+                debt_suggestion = ("Carrying amounts", citation)
+                break
+        if debt_suggestion is None:
+            maturity_basis = x.get("maturity_basis")
+            if maturity_basis == "carrying":
+                debt_suggestion = ("Carrying amounts", "report metadata")
+            elif maturity_basis == "undiscounted":
+                debt_suggestion = ("Contractual undiscounted cash flows", "report metadata")
+        if debt_suggestion:
+            add("debt_basis", *debt_suggestion)
+
+        bucket_citations = [_citation(next((field for field in fields if field.get("key") == key), {})) for key in _BUCKET_KEYS]
+        header_citation = next((citation for citation in bucket_citations if citation and _standard_bucket_header(citation["quote"])), None)
+        if len(bucket_citations) == len(_BUCKET_KEYS) and all(bucket_citations) and header_citation:
+            add("bucket_mapping", "Under 1, 1 to 5, over 5", header_citation)
+
+    return suggestions
 
 def _maturity_row(x):
     fields = {f["key"]: f for f in x.get("fields", [])}

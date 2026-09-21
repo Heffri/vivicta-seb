@@ -11,7 +11,14 @@ const choices: Record<string, string[]> = { consolidation: ['Group', 'Parent'], 
 
 export function BasisPanel({ extraction: x, onUpdated }: { extraction: Extraction; onUpdated: (x: Extraction) => void }) {
   const keys = ['entity', 'consolidation', 'period', 'currency', 'scale', 'source', 'restatement', ...(x.section === 'debt_maturity' ? ['debt_basis', 'leases', 'bucket_mapping'] : [])]
-  const [values, setValues] = useState<Record<string, string>>(x.basis?.values ?? {})
+  const suggestions = new Map((x.basis_suggestions ?? []).map(suggestion => [suggestion.key, suggestion]))
+  const [values, setValues] = useState<Record<string, string>>(() => {
+    const suggested = Object.fromEntries([...suggestions].map(([key, suggestion]) => [key, suggestion.value]))
+    // A reviewer’s existing nonempty value always wins over a fresh hint; an old empty value is
+    // still unknown, so let the source-backed suggestion make the form useful on reopen.
+    for (const [key, value] of Object.entries(x.basis?.values ?? {})) if (value.trim()) suggested[key] = value
+    return suggested
+  })
   const [reviewer, setReviewer] = useState('')
   const [note, setNote] = useState('')
   const [error, setError] = useState('')
@@ -21,7 +28,11 @@ export function BasisPanel({ extraction: x, onUpdated }: { extraction: Extractio
     <p className="my-3 text-sm text-muted-foreground">Unknown definitions remain unresolved. Enter definitions from the source and explain assumptions in your note. Human confirmation is separate from automated evidence.</p>
     {x.basis && <p className="mb-3 text-sm">Last confirmed by {x.basis.reviewer} · {x.basis.at} · {x.basis.note}</p>}
     <form className="space-y-3" onSubmit={async e => { e.preventDefault(); setBusy(true); setError(''); try { onUpdated(await saveBasis(x.report_id, { section: x.section, expected: x.basis ?? {}, values, reviewer, note })) } catch (err) { setError((err as Error).message) } finally { setBusy(false) } }}>
-      <div className="grid gap-3 md:grid-cols-2">{keys.map(k => <label key={k} className="text-sm">{labels[k]}{choices[k] ? <select aria-label={labels[k]} className={input} value={values[k] ?? ''} onChange={e => setValues({ ...values, [k]: e.target.value })}><option value="">Unknown / not confirmed</option>{choices[k].map(v => <option key={v}>{v}</option>)}</select> : <input aria-label={labels[k]} className={input} maxLength={2000} value={values[k] ?? ''} placeholder="Unknown / not confirmed" onChange={e => setValues({ ...values, [k]: e.target.value })} />}</label>)}</div>
+      <div className="grid gap-3 md:grid-cols-2">{keys.map(k => {
+        const suggestion = suggestions.get(k)
+        const suggestedFrom = suggestion?.source === 'report metadata' ? 'report metadata' : suggestion ? `p. ${suggestion.source.page}` : ''
+        return <label key={k} className="text-sm">{labels[k]}{choices[k] ? <select aria-label={labels[k]} className={input} value={values[k] ?? ''} onChange={e => setValues({ ...values, [k]: e.target.value })}><option value="">Unknown / not confirmed</option>{choices[k].map(v => <option key={v}>{v}</option>)}</select> : <input aria-label={labels[k]} className={input} maxLength={2000} value={values[k] ?? ''} placeholder="Unknown / not confirmed" onChange={e => setValues({ ...values, [k]: e.target.value })} />}{suggestion && <span className="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground"><span>Suggested from {suggestedFrom}</span><Button type="button" variant="ghost" size="xs" aria-label={`Use suggestion for ${labels[k]}`} onClick={() => setValues({ ...values, [k]: suggestion.value })}>Use suggestion</Button></span>}</label>
+      })}</div>
       <label className="block text-sm">Basis reviewer<input required maxLength={120} className={input} value={reviewer} onChange={e => setReviewer(e.target.value)} /></label>
       <label className="block text-sm">Basis review note<textarea required maxLength={2000} className={input} value={note} onChange={e => setNote(e.target.value)} /></label>
       {error && <p role="alert">{error}</p>}<Button type="submit" disabled={busy || !x.stem}>{busy ? 'Saving…' : 'Save basis review'}</Button>
@@ -53,11 +64,23 @@ export function YearComparison({ extraction: x, onChange }: { extraction: Extrac
   </section>
 }
 
-export function ReviewQueue({ onOpen }: { onOpen: (report: KbEntry, section: string, key?: string) => void }) {
+export type ReviewFilters = { company: string; year: string; section: string; kind: string }
+const issueCategories = [
+  { key: 'basis', heading: 'Basis to confirm' },
+  { key: 'conflict', heading: 'Numeric conflicts' },
+  { key: 'evidence', heading: 'Missing evidence' },
+  { key: 'unavailable', heading: 'Cannot calculate' },
+] as const
+const issueCategory = (issue: QueueIssue) => {
+  if (issue.kind === 'basis') return 'basis'
+  if (issue.kind === 'check') return /missing|cannot|unavailable|incompatible/i.test(issue.detail) ? 'unavailable' : 'conflict'
+  return /missing value|not found/i.test(issue.detail) ? 'unavailable' : 'evidence'
+}
+
+export function ReviewQueue({ onOpen, filters, onFiltersChange }: { onOpen: (report: KbEntry, section: string, key?: string) => void; filters: ReviewFilters; onFiltersChange: (filters: ReviewFilters) => void }) {
   const [collection, setCollection] = useCollection()
   const [issues, setIssues] = useState<QueueIssue[] | null>(null)
   const [error, setError] = useState('')
-  const [filters, setFilters] = useState({ company: '', year: '', section: '', kind: '' })
   useEffect(() => { let stale = false; getReviewQueue(collection).then(r => { if (!stale) setIssues(r) }).catch(e => { if (!stale) setError(e.message) }); return () => { stale = true } }, [collection])
   const value = (i: QueueIssue, k: string) => k === 'company' ? i.report.company ?? i.report.stem : k === 'year' ? String(i.report.fiscal_year ?? '') : k === 'section' ? i.section : i.kind
   const visible = issues?.filter(i => Object.entries(filters).every(([k, v]) => !v || value(i, k) === v))
@@ -70,17 +93,20 @@ export function ReviewQueue({ onOpen }: { onOpen: (report: KbEntry, section: str
   const target = (issue: QueueIssue) => issue.kind === 'field' ? issue.key : issue.kind === 'basis' ? '@basis' : '@checks'
   const collectionLabel = collection === 'midcap' ? 'SEB Mid Cap universe' : collection === 'all' ? 'All saved reports' : 'Wallenberg collection'
   return <section className="space-y-5"><header className="flex flex-wrap items-start justify-between gap-3"><div><h1 className="text-2xl font-semibold">Review</h1><p className="mt-2 text-muted-foreground">Outstanding checks in {collectionLabel}, grouped by statement. Open a statement to review its figures and sources.</p></div><CollectionPicker value={collection} onChange={value => { if (value !== collection) { setIssues(null); setError(''); setCollection(value) } }} /></header>
-    <div className="grid gap-3 sm:grid-cols-4">{Object.entries(filters).map(([k, v]) => <label key={k} className="text-sm capitalize">{k}<select aria-label={k} className={input} value={v} onChange={e => setFilters({ ...filters, [k]: e.target.value })}><option value="">All</option>{[...new Set(issues?.map(i => value(i, k)))].sort().map(v => <option key={v} value={v}>{v.replaceAll('_', ' ')}</option>)}</select></label>)}</div>
+    <div className="grid gap-3 sm:grid-cols-4">{Object.entries(filters).map(([k, v]) => <label key={k} className="text-sm capitalize">{k}<select aria-label={k} className={input} value={v} onChange={e => onFiltersChange({ ...filters, [k]: e.target.value })}><option value="">All</option>{[...new Set(issues?.map(i => value(i, k)))].sort().map(v => <option key={v} value={v}>{v.replaceAll('_', ' ')}</option>)}</select></label>)}</div>
     {error && <p role="alert">{error}</p>}{!issues && !error && <p>Loading review queue…</p>}
     {issues && <p role="status">{collectionLabel} · {groups.size} {groups.size === 1 ? 'statement' : 'statements'} · {visible?.length} outstanding {visible?.length === 1 ? 'check' : 'checks'}</p>}
     {issues && !visible?.length && <p className="text-sm text-muted-foreground">{issues.length ? 'No checks match these filters.' : 'No outstanding checks in this collection.'}</p>}
     <div className="space-y-3">{[...groups].map(([key, group]) => <article key={key} aria-label={`${group.report.company ?? group.report.stem} ${group.report.fiscal_year ?? ''} ${group.section.replaceAll('_', ' ')}`} className="rounded-xl border bg-card p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h2 className="font-medium">{group.report.company ?? group.report.stem} · {group.report.fiscal_year ?? 'Year unknown'}</h2><p className="mt-1 text-sm text-muted-foreground">{group.section.replaceAll('_', ' ')} · {group.issues.length} outstanding {group.issues.length === 1 ? 'check' : 'checks'}</p></div>
-        <Button variant="outline" onClick={() => onOpen(group.report, group.section, target(group.issues[0]))}>Review statement</Button>
+        <Button variant="outline" onClick={() => onOpen(group.report, group.section, target(group.issues.find(issue => issue.kind === 'basis') ?? group.issues[0]))}>Review statement</Button>
       </div>
       <details className="mt-3 border-t pt-3"><summary className="cursor-pointer text-sm text-muted-foreground">Show outstanding checks</summary>
-        <ul className="mt-2 divide-y">{group.issues.map((issue, n) => <li key={`${issue.kind}:${issue.key}:${n}`} className="flex items-start justify-between gap-3 py-2 text-sm"><span>{issue.detail}</span><button type="button" className="shrink-0 rounded px-2 text-primary underline underline-offset-4 focus-visible:outline-2" aria-label={`Review ${issue.detail}`} onClick={() => onOpen(group.report, group.section, target(issue))}>Review</button></li>)}</ul>
+        <div className="mt-3 space-y-4">{issueCategories.map(category => {
+          const categoryIssues = group.issues.filter(issue => issueCategory(issue) === category.key)
+          return categoryIssues.length > 0 && <section key={category.key} aria-label={category.heading}><h3 className="text-sm font-medium">{category.heading}</h3><ul className="mt-1 divide-y">{categoryIssues.map((issue, n) => <li key={`${issue.kind}:${issue.key}:${n}`} className="flex items-start justify-between gap-3 py-2 text-sm"><span>{issue.detail}</span><button type="button" className="shrink-0 rounded px-2 text-primary underline underline-offset-4 focus-visible:outline-2" aria-label={`Review ${issue.detail}`} onClick={() => onOpen(group.report, group.section, target(issue))}>Review</button></li>)}</ul></section>
+        })}</div>
       </details>
     </article>)}</div>
   </section>
