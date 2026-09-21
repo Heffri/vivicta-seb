@@ -8,6 +8,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 from pptx import Presentation
 import app
 from pipeline import kb, workbench, ppt
@@ -88,6 +89,33 @@ with tempfile.TemporaryDirectory() as tmp, patch('pipeline.fetch.fetch_report', 
     assert not app.comparison('test_2025', 'debt_maturity')['rows']
     assert not app.comparison('test_2023', 'debt_maturity')['rows']
 
+# Whole-KB exports deliberately read saved extracts, so this test has no PDF or model dependency.
+with tempfile.TemporaryDirectory() as tmp:
+    root = Path(tmp)
+    library = root / 'reports'
+    library.mkdir()
+    (library / 'index.json').write_text('[]')
+    with patch.dict(os.environ, {'KB_DIR': str(root / 'kb')}), patch.object(app, 'LIBRARY', library), patch.object(app, 'reports', {}), patch.object(app, 'extractions', {}), patch.object(app, 'library_paths', {}):
+        for stem, company, reviewed in [('abb_2025', 'ABB Ltd', True), ('ericsson_2025', 'Ericsson', False), ('outside_2025', 'Volvo', False)]:
+            x = statement('debt_maturity')
+            x.update(stem=stem, report_id=f'lib-{stem}', company=company)
+            if not reviewed:
+                for field in x['fields']:
+                    field.pop('human_review', None)
+            kb.save_report(stem, {'company': company, 'fiscal_year': 2025, 'pages': 1, 'sha256': 'test'}, ['Saved statement text'])
+            kb.save_extraction(stem, 'debt_maturity', workbench.decorate(x, app.load_schema('debt_maturity')))
+        client = TestClient(app.app)
+        rows = list(csv.DictReader(io.StringIO(client.get('/api/kb/export.csv?section=debt_maturity&collection=wallenberg').text)))
+        assert len(rows) == 2 and {row['stem'] for row in rows} == {'abb_2025', 'ericsson_2025'}
+        assert {'company', 'stem', 'review_status', 'human_review', 'ready'} <= set(rows[0])
+        abb = next(row for row in rows if row['stem'] == 'abb_2025')
+        assert abb['review_status'] == 'confirmed' and abb['human_review'] == 'yes'
+        filtered = client.get('/api/kb/export.csv?section=debt_maturity&collection=all&q=volvo')
+        assert filtered.status_code == 200 and [row['stem'] for row in csv.DictReader(io.StringIO(filtered.text))] == ['outside_2025']
+        deck = Presentation(io.BytesIO(client.get('/api/kb/export.pptx?section=debt_maturity&collection=wallenberg').content))
+        assert len(deck.slides) == 3
+        assert any(shape.has_table and shape.table.cell(0, 0).text == 'Company' for shape in deck.slides[0].shapes)
+
 # Deterministic rendered fixtures for visual review, outside the repository.
 for section in ('income_statement', 'debt_maturity'):
     x = statement(section)
@@ -97,4 +125,4 @@ for section in ('income_statement', 'debt_maturity'):
         workbench.decorate(x, app.load_schema(section))
     x['comparison'] = workbench.compare(x, statement(section, 2024))
     Path(tempfile.gettempdir(), f'arp-{section}.pptx').write_bytes(ppt.build_pptx(x))
-print('Workbench checks passed: both statements, strict arithmetic, audit history, conflicts, queue, comparisons, exports and no downloads')
+print('Workbench checks passed: both statements, strict arithmetic, audit history, conflicts, queue, single and whole-KB exports, and no downloads')
