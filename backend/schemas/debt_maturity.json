@@ -5,7 +5,7 @@
   "description_undiscounted": "Total interest-bearing debt and when it falls due, as printed in the report (often 'Note 20' but the number varies by issuer). Amounts only — no interest rates, no covenants. Some reports print two maturity tables on nearby pages: the borrowings note's carrying amounts, and a liquidity-risk note's contractual undiscounted cash flows (includes future interest, a higher total). Read the contractual undiscounted cash flows table — the liquidity-risk note's maturity table, whose total includes future interest — not the borrowings note's carrying-amount table.",
   "keywords": [
     "borrowings",
-    "financial liabilities",
+    "maturity of financial liabilities",
     "loans and borrowings",
     "interest-bearing liabilities",
     "interest bearing liabilities",

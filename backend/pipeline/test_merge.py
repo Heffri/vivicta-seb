@@ -511,7 +511,7 @@ def _stub_model(app_mod, results):
     app_mod.extract_mod.extract = fake_extract
     app_mod._llm_configured = lambda: True
     app_mod.report_texts = lambda rid: ["revenue page text", "page two", "page three"]
-    app_mod.locate.candidate_pages = lambda texts, schema: [1, 2]
+    app_mod.locate.candidate_pages = lambda texts, schema, **kw: [1, 2]  # kw: the caller passes fiscal_year
     return calls, orig
 
 
