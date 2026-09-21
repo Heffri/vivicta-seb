@@ -99,6 +99,15 @@ their own thin glass. Dark is the default (`:root`), light is `[data-tone="light
 | Settings / status strip / Results header | A "Maturity basis" select ("Carrying amount (default)" / "Contractual undiscounted") on all four provider cards beside the two-pass toggle — Save writes `DEBT_BASIS` and restarts the backend (unlike two-pass, it passes through for every non-fixture provider, Ollama included); the status strip shows the live `basis carrying amount \| contractual undiscounted` from `/api/config`'s `maturity_basis` — visible on the plain-browser mirror too, unlike two-pass — and the Results header meta line prints `basis: …` whenever the extraction carries one (older stored extractions and other sections show nothing) | [v089](evidence/v089.md) |
 | Knowledge base — open without a cached PDF | v092 enabled Open and the row checkbox for no-PDF entries (the "no PDF" badge stays, now carrying a tooltip on why page images are absent); the 09-18 merge kept that behavior through Sebastijan's rewritten KbView (his `saved_report_id` open path, the Wallenberg collection default) — the v092 frontend pieces that survive are the test coverage (rewritten to his semantics) and the SourcePanel "Fetch the PDF from Extract" hint sentence | [v092](evidence/v092.md) |
 | Knowledge base — collection switch | A "Collection: Wallenberg / All" segmented control beside "With PDF only" — default Wallenberg (Sebastijan's demo flow, issue #4), All lists every saved extraction in `data/kb` (the Mid Cap `debt_maturity` reports included); the choice persists in localStorage `arp-kb-collection`, switching refetches and clears the selected rows, filter box / "With PDF only" / Open / Compare unchanged, and the header count names the collection ("n reports · Wallenberg collection" / "n reports · all saved reports"; the eyebrow drops its hardcoded "Wallenberg collection" prefix to match) | [v112](evidence/v112.md) |
+| Extract — the wait, the miss, the sample | While a model extracts, the progress line names the pages it is actually reading — "Reading pages 30–32 of 70 · Note 20 Borrowings … · 2 s" — from a zero-model candidates endpoint (the locator's own ranking plus each page's heading; a window, honestly framed, never "the only pages"); a result with nothing found gets a muted banner — what happened, which pages the locator ranked, a "Fill in below" jump to the review form — firing only when values are truly missing, not on unit/period mismatches; the Extract header gains "Open a real debt sample · saved result, zero model calls" (the stored Karnell debt result, no PDF needed), and fixture mode shows a "Demo mode — no model is configured" notice with the same sample and a Settings shortcut | [v164](evidence/v164.md) |
+| Extract — batch runs | A multi-report extraction survives leaving the tab (the queue lives in `App`, not `UploadView`): one row per report with its stage (`queued → registering → candidates → extracting → done/failed`), elapsed seconds, "Stop after current", per-row Retry with a failure-classified next step, and a "Batch n/m" pill in the always-mounted status bar; a finished batch never force-navigates | [v171](evidence/v171.md) |
+| Review — corrections carry their own evidence | A correction can submit a paired PDF page + verbatim quote (validated against the saved page text; a mismatch returns 400 naming the page) or cited components whose stored value is the exact component sum (`human_reviewed` + `components_sum`, never presented as one printed number); the form has direct citation inputs and an add/remove component table with a live sum, Source's saved-text rows can populate the citation, and the CSV/PPTX exports carry the human citation columns | [v172](evidence/v172.md) |
+| Compare — upcoming maturities | A deterministic "Upcoming maturities" wall beside the side-by-side columns: each saved company's share of debt due within 1 year (pure arithmetic off the stored extractions — no PDF, no model), comparable rows first by share, non-comparable rows kept at the end with the reason (basis unconfirmed, missing fields, mismatched units or currency), and coverage counts on top | [v174](evidence/v174.md) |
+| Knowledge map / Review queue — collections | Both follow the KB's collection picker (Wallenberg / All / SEB Mid Cap): the map re-requests its company nodes and the review queue its statement cards for the selection, each naming its scope | [v175](evidence/v175.md) |
+| Results — find the cited line | The citation's own line is boxed on the page image (rects scaled to the page; a two-line-wrapped quote counts as one occurrence, a genuinely repeated line gets an "N matches" badge) and highlighted in the no-PDF saved-text view (scroll-to + a "1/N ▸" cycler when the line prints more than once); fields read from scanned pages say "From OCR — check the scanned image", and each human-reviewed component citation gets its own "p. N" link | [v179](evidence/v179.md) |
+| Knowledge base — export everything | "Export all" beside Compare downloads the whole current collection as a CSV (one row per company: the three maturity amounts plus review status columns) or a PPTX deck (summary table + one slide per company) — read straight from the saved extraction files, no PDF registration, no model call, honoring the page's collection and filter | [v163](evidence/v163.md) |
+| Knowledge base — the SEB Mid Cap collection | A third picker entry, "SEB Mid Cap (132)" (the Mid Cap universe from `data/companies.json`): the KB heading reads "n reports · SEB Mid Cap universe", and the companies/library/KB/review-queue endpoints plus the whole-KB exports all accept it — the UI default stays Wallenberg | [v169](evidence/v169.md) |
+| Knowledge base — maturity wall by sector | A "Maturity wall" toggle beside the collection picker opens an SVG card with one bar per company grouped by sector — share of debt due within 1 year, with honest states (grey "buckets incomplete", "not read" for a missing total; missing buckets are never backfilled as 0); the PPTX deck gains the same "Maturity wall by sector" pages, ≤30 rows per slide with "(cont.)" continuations | [v180](evidence/v180.md) |
 
 **Screenshots** — the closest thing to a full walkthrough, one pair per tab, `evidence/v010/`, 1440×900:
 
@@ -177,6 +186,14 @@ uploads, reviewed extractions, their own fetched index rows — is never overwri
 launch has no model provider
 configured, so it defaults to demo/fixture mode until Settings picks one (see "Model providers"
 below). [v029](evidence/v029.md), [v038](evidence/v038.md), [v032](evidence/v032.md), [v107](evidence/v107.md)
+
+The shared unpacked test package tracks the acrylic tip again: one `refresh-app.ps1` pass rebuilt all
+four bundled resources (frontend dist, backend exe, data, app.asar; a warm full refresh takes 41 s
+and `BUILD.txt` names the merge commit), and a clean-userData closed loop walked the packaged exe end
+to end — first start answered `/api/kb` in 18.4 s (206 reports), the one-click real-debt sample
+opened in 0.28 s, Export all produced the 105-row CSV and the 106-slide deck, the upcoming-maturities
+wall rendered, and after a graceful close a measured reopen served the saved review in 4.9 s.
+[v176](evidence/v176.md)
 
 **Build** (full detail: [`desktop/README.md`](../../desktop/README.md)):
 
@@ -374,6 +391,13 @@ green throughout — see "How to verify".
 | A null bucket may now be derived from a family of printed window rows only when that family closes on the verified table total; the section-subtotal-pair reader also accepts Sdiptech's footnote-star rows, deriving its **4,495** total. | The closure and table/column guards keep unsupported family sums null; four other diagnosed table shapes remain deliberately out of scope. | [v156](evidence/v156.md) |
 | A final debt-only provenance pass prefers a literal known-label row on a schema-keyword borrowing-note page over an existing non-note or derived citation, without changing the field value; it moves only when the replacement is self-proving. | Citations become more explanatory without accepting a competing table; stored-data scoring remains **317/367** values and **255/313** cited pages until re-publication. | [v157](evidence/v157.md) |
 | `scripts/mechanism_only.py` replays debt extraction with the model's four field answers nulled, first on the model-selected/cited pages and then on locator pages: deterministic mechanisms reach **85/269** labelled fields and **14/104** companies versus the stored pipeline's **221/269** and **73/104**; its 34 non-null reads are all already stored and label-correct. `EXTRACT_TABLE_FIRST` is therefore rejected. | Mechanisms are high-precision verification and null-fill, not a replacement reader: the model supplies the recall on 86% of replayed stems, and table-first would drop 137 stored-right fields to chase one refusal improvement. | [v158](evidence/v158.md) |
+| `PAGE_SELECT_HINTS=retry` — run 2 receives the carrying/undiscounted page markers only when run 1's identity check failed or a schema field stayed null (after majority's exact-match skip had its chance); on the 23 stored value-miss routes, 14 skipped run 2 entirely and the 8 hinted run-2s left merged values at 17/55 against stored 19/55 with two regressions (cavotec, fm_mattsson) and no offsetting gain — the default stays **off**, nothing published | The v146/v152 lesson in its last untested form: better page selection still does not become better extraction, even aimed only at the runs that need it | [v162](evidence/v162.md) |
+| A bucket the maturity table prints **no column for** is marked `absent_in_table` (value stays null; the evidence names the parsed header row) and — under `require_explicit_values`, while no other operand is an unanswered null — joins the identity as 0, so a proven absence can close a check without turning "not read" into a figure; the UI labels it in both places ("Not printed in this report" in the verification column, a dashed "not printed" slot in the MaturityChart, never a zero bar) and the review flow stops holding the reconciliation "unavailable" on it | 88/105 stored `due_after_5_years` are null and only 15/105 identities pass — many of those nulls are tables with no column for the window at all, and until now the check could not tell that from a missed figure | [v165](evidence/v165.md) |
+| `_balance_sheet_tie` — `total_debt` is tied out deterministically against the v139 balance-sheet page: up to four `row_synonyms` rows whose fiscal-year cells add to the total within the existing band earn a zero-weight `bs_tie` evidence marker (never overwriting the model's value); a null total fills only from exactly one explicit current + one explicit non-current row (Ratos's note-reference-ambiguous shape declines); a merge conflict where exactly one side carries `bs_tie` resolves to it; KABE's `Skulder till kreditinstitut`/`leaseskulder` and Net Insight's lease rows join `row_synonyms` | The balance sheet is the report's own proof of the total, and the merge's same-state conflicts had no way to prefer the side that carries one | [v166](evidence/v166.md) |
+| The two-run merge stops counting different financial questions as agreement: `_same_field` adds unit (by magnitude + currency — MSEK never equals TSEK) and period to the ±2 value rule, and `stored_ineligible` refuses the stored third vote unless report, section, fiscal_year and maturity_basis all match the live run — so a `DEBT_BASIS` flip or a changed report year can no longer stack old answers into a majority; an ineligible stored answer degrades to union with a named `stored_vote` reason | A same number under a different unit, period or basis is not a vote, and the conflict→null rule was only as safe as the agreement feeds beneath it | [v168](evidence/v168.md) |
+| Balance-sheet note numbers as locator hints: measured, **not shipped** — note-reference tokens read off the v139 balance-sheet page would add 32 candidate pages across 21 companies, 28 of them not label pages, and the mechanism class reaches exactly **one** of the five adjacent companies (acast); `locate.py` is unchanged | The work order's own ≥5-rank gate is unreachable, and the ceiling statistic — five structural reasons across the five adjacent companies — is the deliverable | [v170](evidence/v170.md) |
+| `GET /api/kb` latency: per-stem entries are cached against file fingerprints (meta/pages/embeddings/index/extraction mtimes + sizes + embedding identity) — a warm hit is one `kb_dir()` resolve, two globs and ~8 stats with zero file-content reads, invalidated only by writers touching files; responses byte-identical, warm **940 → 117 ms** over 206 stems, cold 8.2 s → 1.8 s | cProfile had every request rebuilding what the previous one already knew: 1,031 `kb_dir()` resolves, 206 meta re-reads, a lock + stat per stem | [v173](evidence/v173.md) |
+| `POST /api/reports/{id}/fill?section=` — the analyst pins one or two evidence pages for a single empty schema field: `extract(..., fixed_pages=True)` bypasses two-pass, locator and timeout fallback but keeps every guard, returns a candidate only (its source quote must sit on a supplied page; nothing persisted; reviewed sections keep their 409; fixture returns an explicit 422), and "Fill <field> from this page" hands the candidate to the v172 review form where a human still saves it; the controlled experiment on 8 hard-case stored nulls — analyst page = labelled page — returned **0/8 candidates**, 0 errors | The review queue's not-read rows needed a controlled way to point the model at a page a human found; the experiment shows the path is safe and honest — and not yet a recovery lever | [v177](evidence/v177.md) |
 
 **A single before/after model call is not proof.** v037 re-ran its own 10 companies a second time
 with no code change and watched two confidence numbers move anyway (Humana up, Storytel down) —
@@ -421,6 +445,17 @@ semantic changes:
 - **The KB page defaults to the Wallenberg collection filter.** All 186 companies — the 85 with a
   stored `debt_maturity` extraction included — stay in the backend, visible to Ask and
   `eval/run.py --stored-kb`; the KB page just doesn't list non-Wallenberg entries by default.
+
+## For whoever presents: the demo pack and the honest numbers
+
+`docs/DEMO.md` freezes the demo — the version lock (acrylic sha + installer feed names), the two
+bundled samples (Karnell, XANO) plus Ericsson as the honest-incomplete case, the three-minute
+script, a demo-day hardening checklist, and the "what we cannot promise" list. The repo `README.md`'s
+first screen was rebuilt around it (positioning line, three-step screenshot strip, a "try it in one
+minute — no model, no download" path, install entry points), the accuracy claims in "What a
+colleague sees now" were re-measured on this tree and reframed as the two separate claims, and
+`docs/PERFORMANCE.md` is stamped as the 20 September measurement, not this tree's.
+[v167](evidence/v167.md)
 
 ## Contract gaps we noticed, not fixed
 
@@ -518,14 +553,28 @@ code gates, so they're applied consistently — not yet confirmed:
 ## How to verify
 
 ```bash
-cd frontend && npm run build && npm run lint       # tsc -b + vite build, then oxlint
-cd frontend && npm run e2e                         # Playwright end-to-end pass
-cd backend  && python -m pipeline.test_confidence  # extract.py's evidence/confidence scoring
-cd backend  && python -m pipeline.test_parse       # parse.py's row-merge behavior
-cd backend  && python -m pipeline.test_kb          # kb.save_report idempotency self-check
-cd backend  && python -m pipeline.test_paths       # dev-tree-vs-frozen path resolution self-check
-cd backend  && python -m pipeline.test_llm         # codex_cli/claude_cli discovery + round-trip self-check
+cd frontend && npm run build && npm run lint           # tsc -b + vite build, then oxlint
+cd frontend && npm run e2e                             # Playwright end-to-end pass — 52 tests
+
+cd backend  && python -m pipeline.test_confidence      # extract.py's evidence/confidence scoring
+cd backend  && python -m pipeline.test_debt_selection  # page selection vs lease-table regression
+cd backend  && python -m pipeline.test_fetch           # fetch's document-anchored year validation
+cd backend  && python -m pipeline.test_global_ask      # global Ask contract, offline
+cd backend  && python -m pipeline.test_kb              # kb.save_report idempotency self-check
+cd backend  && python -m pipeline.test_llm             # codex_cli/claude_cli discovery + round-trip self-check
+cd backend  && python -m pipeline.test_locate          # locator candidate-window invariants
+cd backend  && python -m pipeline.test_maturity_ocr    # component/OCR evidence checks
+cd backend  && python -m pipeline.test_merge           # EXTRACT_MERGE_RUNS agreement/conflict rules
+cd backend  && python -m pipeline.test_parse           # parse.py's row-merge behavior
+cd backend  && python -m pipeline.test_paths           # dev-tree-vs-frozen path resolution self-check
+cd backend  && python -m pipeline.test_runtime         # runtime/config regressions, offline
+cd backend  && python test_collection.py               # collection scope (Wallenberg / SEB Mid Cap / all)
+cd backend  && python test_human_review.py             # review route: citations, components, targeted fill
+cd backend  && python test_workbench.py                # CSV/PPTX export, candidates, maturity wall
 ```
+
+The backend carries **15 standalone suites** (12 under `pipeline/` plus `test_collection`,
+`test_human_review`, `test_workbench`).
 
 Three offline, read-only scripts (repo root `scripts/`, no model calls, nothing started):
 
