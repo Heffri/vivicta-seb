@@ -1,6 +1,6 @@
 """Fetch N random listed companies' annual reports and extract a section; report how many parse at full confidence.
 
-    python scripts/random_check.py [--n 10] [--seed 1] [--year 2025] [--section income_statement] [--market "Large Cap"] [--exclude-sector "Real Estate"]
+    python scripts/random_check.py [--n 10] [--seed 1] [--year 2025] [--section income_statement] [--market "Large Cap"] [--exclude-sector "Real Estate"] [--download-pdf]
 
 "Full confidence" = every non-null field at confidence 1.0 and every arithmetic check passed (docs/CONFIDENCE.md).
 No labels involved: this is the backend's own evidence on companies nobody tuned the parser on. The labelled eval set
@@ -39,6 +39,8 @@ def main():
     ap.add_argument("--sector", action="append", default=[],
                     help="keep only companies whose sector contains this substring, e.g. 'Financials'; repeatable")
     ap.add_argument("--only", nargs="*", default=[], help="re-check only companies whose name contains one of these")
+    ap.add_argument("--download-pdf", action="store_true",
+                    help="allow an explicit PDF download for a fresh cache (off by default)")
     ap.add_argument("--api", default="http://localhost:8000", help="backend base URL")
     a = ap.parse_args()
 
@@ -58,7 +60,10 @@ def main():
             break
         tried += 1
         t0 = time.time()
-        st, r = call("POST", "/api/reports/fetch", {"company": c["name"], "year": a.year}, api=a.api)
+        fetch_body = {"company": c["name"], "year": a.year}
+        if a.download_pdf:
+            fetch_body["download_pdf"] = True
+        st, r = call("POST", "/api/reports/fetch", fetch_body, api=a.api)
         if st != 200:
             print(f"skip  {c['name']:<28} fetch {st}: {str(r)[:90]}", flush=True)
             continue
