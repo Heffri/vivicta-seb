@@ -320,6 +320,42 @@ def page_png(report_id: str, n: int):
     return Response(png, media_type="image/png")
 
 
+NUMBER_TOKEN = re.compile(r"\d[\d\s   .,']*\d|\d")  # a printed number, same separator set as frontend/verification.ts's THOUSANDS
+
+
+@app.get("/api/reports/{report_id}/pages/{n}/locate")
+def page_locate(report_id: str, n: int, quote: str = Query(min_length=1)):
+    """Zero-model (v179, consult item 12): where on the rendered page does this citation's quote
+    sit? `page.search_for` on the verbatim quote first; a citation that never prints as one
+    contiguous run (a wrapped table row) degrades to its own longest line, then to the longest
+    digit run inside it (the shape a value alone would print as). `rects` are page-point boxes --
+    the same top-down space page_png renders -- one per printed *line* a hit touches: MuPDF reports
+    a match spanning two lines (an ordinary wrapped citation) as two adjacent rects, exactly like a
+    genuine second, unrelated occurrence would add two more -- measured directly (a 2-line phrase
+    printed twice returns 4 rects). `occurrences` divides that back out by the searched string's own
+    line count, so a wrapped citation still reports 1 while a truly repeated line reports 2+; the
+    frontend's "N matches" badge reads `occurrences`, not `len(rects)`, and every rect is still drawn
+    either way. No PDF or nothing found leaves the page unframed."""
+    report = get_report(report_id)
+    if not 1 <= n <= report["pages"]:
+        raise HTTPException(404, f"page {n} out of range 1..{report['pages']}")
+    with pymupdf.open(require_pdf(report_id)) as doc:
+        page = doc[n - 1]
+        matched, searched, rects = "quote", quote, page.search_for(quote)
+        if not rects:
+            searched = max((l.strip() for l in quote.splitlines()), key=len, default="")
+            matched, rects = "line", (page.search_for(searched) if searched else [])
+        if not rects:
+            searched = max(NUMBER_TOKEN.findall(quote), key=len, default="")
+            matched, rects = "value", (page.search_for(searched) if searched else [])
+        if not rects:
+            matched, searched = "none", ""
+        lines = searched.count("\n") + 1 if searched else 1
+        occurrences = len(rects) // lines if lines > 1 and rects and len(rects) % lines == 0 else len(rects)
+        return {"page": n, "width": page.rect.width, "height": page.rect.height, "matched": matched,
+                "rects": [[r.x0, r.y0, r.x1, r.y1] for r in rects], "occurrences": occurrences}
+
+
 @app.get("/api/reports/{report_id}/candidates")
 def report_candidates(report_id: str, section: str = Query(min_length=1)):
     """Ranked candidate pages for a section (v164): the same deterministic locator the extractor

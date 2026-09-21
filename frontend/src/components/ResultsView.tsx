@@ -84,6 +84,13 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
     setAskPage(null)
     setReviewCitation({ page: '', quote: '' })
   }
+  // v179: a component citation may sit on a page the field's own source doesn't — reuses the same
+  // askPage override an Ask citation chip sets, so Source shows that page instead of the field's own.
+  const openComponentPage = (key: string, page: number) => {
+    setSelectedKey(key)
+    setReviewCitation({ page: '', quote: '' })
+    setAskPage(page)
+  }
   const reviewCount = fields.filter((f) => ['Needs review', 'Not checked', 'Not found'].includes(fieldVerification(f).label)).length
 
   const exportJson = () => {
@@ -164,7 +171,7 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
         <MaturityChart extraction={extraction} selectedKey={selectedKey} onSelect={selectField} onPriorChange={setPriorYear} onPerYearChange={setPerYear} />
 
         <div className="space-y-4">
-          <FieldsTable fields={fields} selectedKey={selectedKey} onSelect={selectField} />
+          <FieldsTable fields={fields} selectedKey={selectedKey} onSelect={selectField} onOpenPage={openComponentPage} />
           {selected && <HumanReviewForm key={`${selected.key}:${selected.human_review?.at ?? ''}`} extraction={extraction} field={selected} citation={reviewCitation} onCitationChange={setReviewCitation} onSaved={(result) => { setReviewCitation({ page: '', quote: '' }); onUpdated(result) }} />}
         </div>
 

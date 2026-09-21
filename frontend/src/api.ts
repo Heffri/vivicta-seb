@@ -83,6 +83,15 @@ export const ask = (question: string, reportIds?: string[], reportStems?: string
   })
 
 export const pageUrl = (reportId: string, page: number) => `/api/reports/${reportId}/pages/${page}.png`
+// v179: where a citation's quote sits on the rendered page (page-point rects, same top-down space
+// pageUrl renders) — zero-model, advisory for Image-mode framing only. `rects` holds every
+// occurrence at whichever tier matched; an older backend's 404 just leaves the page unframed.
+// `occurrences` divides `rects.length` back out by the searched text's own line count, so a citation
+// that merely wraps across two printed lines still reports 1 (with 2 rects to draw) rather than
+// crying "2 matches" — only a truly repeated line reports 2+.
+export type PageLocate = { page: number; width: number; height: number; matched: 'quote' | 'line' | 'value' | 'none'; rects: [number, number, number, number][]; occurrences: number }
+export const locateQuote = (reportId: string, page: number, quote: string) =>
+  request<PageLocate>(`/api/reports/${reportId}/pages/${page}/locate?quote=${encodeURIComponent(quote)}`)
 export const csvUrl = (reportId: string, section?: string, previous?: string) => `/api/reports/${reportId}/extraction.csv?${new URLSearchParams({ ...(section ? { section } : {}), ...(previous ? { previous_stem: previous } : {}) })}`
 // v091: prior=1 asks the pptx for the prior-year series alongside the current one (ignored by the
 // backend when the extraction carries no prior_year). v109: perYear=1 asks for the report's own
