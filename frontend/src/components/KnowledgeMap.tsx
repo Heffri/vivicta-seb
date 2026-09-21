@@ -1,8 +1,10 @@
 import { FileText, MessageCircle, Minus, Plus, RotateCcw, Search } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { getKb } from '@/api'
+import { CollectionPicker } from '@/components/CollectionPicker'
 import { Button } from '@/components/ui/button'
 import { ErrorBlock, LoadingLine } from '@/components/ui/state'
+import { useCollection } from '@/hooks/useCollection'
 import type { KbEntry } from '@/types'
 
 type Props = { onAsk: (company: string) => void; onOpenReport: (report: KbEntry) => void }
@@ -11,6 +13,7 @@ const COLORS = ['#3b82f6', '#a855f7', '#14b8a6', '#f59e0b', '#ec4899', '#6366f1'
 const polar = (angle: number, radius: number): Point => ({ x: Math.cos(angle) * radius, y: Math.sin(angle) * radius })
 
 export function KnowledgeMap({ onAsk, onOpenReport }: Props) {
+  const [collection, setCollection] = useCollection()
   const [entries, setEntries] = useState<KbEntry[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
@@ -26,9 +29,9 @@ export function KnowledgeMap({ onAsk, onOpenReport }: Props) {
 
   useEffect(() => {
     let stale = false
-    getKb().then(data => { if (!stale) setEntries(data) }).catch((e: Error) => { if (!stale) setError(e.message) })
+    getKb(collection).then(data => { if (!stale) setEntries(data) }).catch((e: Error) => { if (!stale) setError(e.message) })
     return () => { stale = true }
-  }, [])
+  }, [collection])
   useEffect(() => {
     const element = svg.current
     if (!element) return
@@ -96,11 +99,13 @@ export function KnowledgeMap({ onAsk, onOpenReport }: Props) {
   }
   const edge = (from: string, to: string, color: string, selectedEdge = false) => <line key={`${from}-${to}`} x1={positions[from].x} y1={positions[from].y} x2={positions[to].x} y2={positions[to].y} stroke={color} strokeOpacity={selectedEdge ? 0.7 : 0.2} strokeWidth={selectedEdge ? 2 : 1} />
 
+  const collectionLabel = collection === 'midcap' ? 'SEB Mid Cap universe' : collection === 'all' ? 'All saved reports' : 'Wallenberg collection'
+
   return <div className="space-y-5">
-    <header><p className="text-xs uppercase tracking-widest text-muted-foreground">Wallenberg collection</p><h1 className="mt-1 text-2xl font-semibold">Knowledge map</h1><p className="mt-2 text-sm text-muted-foreground">Explore connected sectors, companies and reports. Drag nodes or the background. Scroll to zoom.</p></header>
+    <header className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs uppercase tracking-widest text-muted-foreground">{collectionLabel}</p><h1 className="mt-1 text-2xl font-semibold">Knowledge map</h1><p className="mt-2 text-sm text-muted-foreground">Explore connected sectors, companies and reports. Drag nodes or the background. Scroll to zoom.</p></div><CollectionPicker value={collection} onChange={value => { if (value !== collection) { setEntries(null); setError(null); setCollection(value) } }} /></header>
     {error && <ErrorBlock>{error}</ErrorBlock>}
     {!entries && !error && <LoadingLine>Mapping your stored reports…</LoadingLine>}
-    {entries?.length === 0 && <p>Your map starts with a report. Extract or index one to get started.</p>}
+    {entries?.length === 0 && <p>{collectionLabel} has no saved reports yet. Extract or index one to get started.</p>}
     {!!entries?.length && <>
       <div className="flex flex-wrap items-center gap-3">
         <label className="relative min-w-52 flex-1"><Search className="absolute left-3 top-3 size-4 text-muted-foreground" aria-hidden /><input type="search" aria-label="Search companies or reports" placeholder="Find a company or report…" value={query} onChange={e => setQuery(e.target.value)} className="h-10 w-full rounded-lg border bg-background pl-9 pr-3 text-sm" /></label>
