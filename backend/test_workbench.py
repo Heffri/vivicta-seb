@@ -58,6 +58,29 @@ for section in ('income_statement', 'debt_maturity'):
     assert workbench.decorate(x, schema)['ready']
     x['fields'][0].update(evidence=['quote_on_page', 'value_in_quote', 'label_known', 'period_ok', 'page_is_statement', 'unit_ok'], source=None)
     assert not workbench.decorate(x, schema)['ready']
+    if section == 'debt_maturity':
+        # One printed row answers all four fields (Karnell p.106: "Liabilities to credit institutions
+        # 43.5 353.7 - 397.2", one label over four columns). The report labels it once, for the total's
+        # vocabulary, so every bucket inherits a label its own field cannot name and gets flagged though
+        # the very same quote is already trusted. The buckets summing to the total is what proves the row
+        # is really shared, so the grant is gated on that identity -- break it and the tasks come back.
+        x = statement(section)
+        row = {'page': 1, 'quote': 'Liabilities to credit institutions 20 50 30 100'}
+        for f in x['fields']:
+            f.pop('human_review')
+            f.update(raw_label='Liabilities to credit institutions', source=dict(row),
+                     evidence=['quote_on_page', 'value_in_quote', 'period_ok', 'page_is_statement', 'unit_ok'])
+        assert workbench.decorate(x, schema)['ready'], x['issues']
+        x['fields'][0]['value'] = 999  # the buckets no longer sum to the total: nothing proves the shared row
+        assert [i['key'] for i in workbench.decorate(x, schema)['issues'] if i['kind'] == 'field'] == \
+            ['due_within_1_year', 'due_1_to_5_years', 'due_after_5_years'], x['issues']
+        x = statement(section)  # a bucket citing its OWN row is not covered by the total's label
+        for f in x['fields']:
+            f.pop('human_review')
+            f.update(raw_label='Liabilities to credit institutions', source=dict(row),
+                     evidence=['quote_on_page', 'value_in_quote', 'period_ok', 'page_is_statement', 'unit_ok'])
+        x['fields'][1].update(raw_label='Förfaller', source={'page': 1, 'quote': 'Förfaller 20'})
+        assert [i['key'] for i in workbench.decorate(x, schema)['issues']] == ['due_within_1_year'], x['issues']
     # A null on a schema-optional line (income statement cost of sales, gross profit, discontinued operations) is "not reported",
     # never an issue and never a zero; every other null stays a task. A reviewer marking it unresolved makes it one again.
     x = statement(section)

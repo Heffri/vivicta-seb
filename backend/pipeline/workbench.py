@@ -97,6 +97,19 @@ def decorate(x, schema, audit=None):
     by_key = {f["key"]: f for f in x["fields"]}
     peers = {k: {o for c in schema.get("checks", []) if c.get("identity") and re.search(rf"\b{k}\b", c["expr"]) for o in optional if re.search(rf"\b{o}\b", c["expr"])} for k in optional}
     sfs = {f["key"]: f for f in schema["fields"]}
+    # saved fields scored before extract widened label_known to row_synonyms + label: same vocabulary here, no re-extraction
+    labelled = lambda f: extract._label_known(f.get("raw_label"), {**(sf := sfs.get(f["key"], {})),
+        "synonyms": sf.get("synonyms", []) + sf.get("row_synonyms", []) + [sf.get("label", "")]})
+    row_of = lambda f: ((f.get("source") or {}).get("page"), " ".join(str((f.get("source") or {}).get("quote") or "").split()))
+    # v157: one printed row can answer two fields. A maturity ladder's last bucket often IS its closing
+    # row ("Later 60 / Total 300" torn into one), and the report labels that row once -- the bucket
+    # inherits a bare "Total" and gets flagged though the very same quote already carries a known label
+    # on the other field. Grant it, debt only, and only when this extraction's own buckets-sum-to-total
+    # identity passes: the arithmetic is what proves the shared row is really shared. Measured: 11
+    # grants over the corpus (boozt, cloetta, ework, karnell, xano), 10 label-confirmed correct, 0 wrong.
+    known_rows = {row_of(f) for f in x["fields"] if f.get("value") is not None and f.get("source") and labelled(f)} \
+        if x["section"] == "debt_maturity" and any(c["name"] == "maturity_sums_to_total" and c.get("status") == "passed"
+                                                   for c in x["checks"]) else set()
     issues, not_reported = [], []
     for f in x["fields"]:
         review = f.get("human_review", {})
@@ -106,8 +119,7 @@ def decorate(x, schema, audit=None):
         # A reviewer actively marking it unresolved re-opens it below like any other field.
         if f.get("value") is None and "absent_in_table" in evidence and review.get("decision") != "unresolved":
             continue
-        sf = sfs.get(f["key"], {})  # saved fields scored before extract widened label_known to row_synonyms + label: same vocabulary here, no re-extraction
-        if extract._label_known(f.get("raw_label"), {**sf, "synonyms": sf.get("synonyms", []) + sf.get("row_synonyms", []) + [sf.get("label", "")]}):
+        if labelled(f) or (f.get("value") is not None and f.get("source") and row_of(f) in known_rows):
             evidence.add("label_known")
         matched = "value_in_quote" in evidence or len(evidence & SUBSTITUTES) == 1
         resolved = review.get("decision") in ("confirmed", "corrected") or (matched and {"quote_on_page", "label_known", "period_ok", "page_is_statement", "unit_ok"} <= evidence and bool(f.get("source")))
