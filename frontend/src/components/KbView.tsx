@@ -48,9 +48,9 @@ export function KbView({ onOpen, onOpenReport }: Props) {
   }, [entries, collection])
 
   useEffect(() => {
-    let alive = true
-    getKb(collection).then(rows => { if (alive) setEntries(rows) }).catch((e: Error) => { if (alive) setError(e.message) })
-    return () => { alive = false }
+    // React dev Strict Mode immediately cleans up the first effect. Keep its list response: otherwise
+    // the second full-KB listing waits behind it and the page remains on Loading long after it is ready.
+    getKb(collection).then(setEntries).catch((e: Error) => setError(e.message))
   }, [collection])
 
   useEffect(() => {

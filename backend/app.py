@@ -518,6 +518,12 @@ def universe_csv_row(x: dict) -> list:
 UNIVERSE_CSV_HEADER = CSV_HEADER + ["stem", *ppt.BUCKET_ORDER, "review_status", "human_review", "ready"]
 
 
+def kb_export_filename(section: str, collection_name: str, q: str, extension: str) -> str:
+    """Keep the browser download name ASCII-safe even when the visible KB filter is not."""
+    filter_suffix = re.sub(r"[^A-Za-z0-9_-]+", "-", q.strip()).strip("-")
+    return f"kb_{section}_{collection_name}{'_' + filter_suffix if filter_suffix else ''}.{extension}"
+
+
 @app.get("/api/kb/export.csv")
 def kb_export_csv(section: str = "debt_maturity", collection_name: Literal["all", "wallenberg"] = Query("all", alias="collection"), q: str = ""):
     rows = kb_export_extractions(section, collection_name, q)
@@ -527,9 +533,8 @@ def kb_export_csv(section: str = "debt_maturity", collection_name: Literal["all"
     writer = csv.writer(buf)
     writer.writerow(UNIVERSE_CSV_HEADER)
     writer.writerows(universe_csv_row(x) for x in rows)
-    suffix = f"_{q.strip()}" if q.strip() else ""
     return Response(buf.getvalue(), media_type="text/csv; charset=utf-8",
-                    headers={"Content-Disposition": f'attachment; filename="kb_{section}_{collection_name}{suffix}.csv"'})
+                    headers={"Content-Disposition": f'attachment; filename="{kb_export_filename(section, collection_name, q, "csv")}"'})
 
 
 @app.get("/api/kb/export.pptx")
@@ -538,9 +543,8 @@ def kb_export_pptx(section: str = "debt_maturity", collection_name: Literal["all
     if not extractions:
         raise HTTPException(404, f"No saved {section!r} extractions match this collection and filter")
     data = ppt.build_deck(extractions, [ppt.summary_row(x) for x in extractions])
-    suffix = f"_{q.strip()}" if q.strip() else ""
     return Response(data, media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                    headers={"Content-Disposition": f'attachment; filename="kb_{section}_{collection_name}{suffix}.pptx"'})
+                    headers={"Content-Disposition": f'attachment; filename="{kb_export_filename(section, collection_name, q, "pptx")}"'})
 
 
 @app.get("/api/kb/{stem}/pages/{page}")

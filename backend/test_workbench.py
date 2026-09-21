@@ -115,6 +115,11 @@ with tempfile.TemporaryDirectory() as tmp:
         deck = Presentation(io.BytesIO(client.get('/api/kb/export.pptx?section=debt_maturity&collection=wallenberg').content))
         assert len(deck.slides) == 3
         assert any(shape.has_table and shape.table.cell(0, 0).text == 'Company' for shape in deck.slides[0].shapes)
+        # The visible filter accepts non-ASCII company names; never put its raw bytes in a Latin-1 response header.
+        with patch.object(app, 'kb_export_extractions', return_value=[statement('debt_maturity')]):
+            unicode_filter = client.get('/api/kb/export.csv', params={'section': 'debt_maturity', 'collection': 'all', 'q': 'Å'})
+        assert unicode_filter.status_code == 200
+        assert unicode_filter.headers['content-disposition'] == 'attachment; filename="kb_debt_maturity_all.csv"'
 
 # Deterministic rendered fixtures for visual review, outside the repository.
 for section in ('income_statement', 'debt_maturity'):
