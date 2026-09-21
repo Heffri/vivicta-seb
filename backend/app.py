@@ -10,6 +10,7 @@ import logging
 import math
 import os
 import re
+import statistics
 import sys
 import time
 from logging.handlers import RotatingFileHandler
@@ -342,6 +343,42 @@ def page_png(report_id: str, n: int):
     return Response(png, media_type="image/png")
 
 
+NUMBER_TOKEN = re.compile(r"\d[\d\s   .,']*\d|\d")  # a printed number, same separator set as frontend/verification.ts's THOUSANDS
+
+
+@app.get("/api/reports/{report_id}/pages/{n}/locate")
+def page_locate(report_id: str, n: int, quote: str = Query(min_length=1)):
+    """Zero-model (v179, consult item 12): where on the rendered page does this citation's quote
+    sit? `page.search_for` on the verbatim quote first; a citation that never prints as one
+    contiguous run (a wrapped table row) degrades to its own longest line, then to the longest
+    digit run inside it (the shape a value alone would print as). `rects` are page-point boxes --
+    the same top-down space page_png renders -- one per printed *line* a hit touches: MuPDF reports
+    a match spanning two lines (an ordinary wrapped citation) as two adjacent rects, exactly like a
+    genuine second, unrelated occurrence would add two more -- measured directly (a 2-line phrase
+    printed twice returns 4 rects). `occurrences` divides that back out by the searched string's own
+    line count, so a wrapped citation still reports 1 while a truly repeated line reports 2+; the
+    frontend's "N matches" badge reads `occurrences`, not `len(rects)`, and every rect is still drawn
+    either way. No PDF or nothing found leaves the page unframed."""
+    report = get_report(report_id)
+    if not 1 <= n <= report["pages"]:
+        raise HTTPException(404, f"page {n} out of range 1..{report['pages']}")
+    with pymupdf.open(require_pdf(report_id)) as doc:
+        page = doc[n - 1]
+        matched, searched, rects = "quote", quote, page.search_for(quote)
+        if not rects:
+            searched = max((l.strip() for l in quote.splitlines()), key=len, default="")
+            matched, rects = "line", (page.search_for(searched) if searched else [])
+        if not rects:
+            searched = max(NUMBER_TOKEN.findall(quote), key=len, default="")
+            matched, rects = "value", (page.search_for(searched) if searched else [])
+        if not rects:
+            matched, searched = "none", ""
+        lines = searched.count("\n") + 1 if searched else 1
+        occurrences = len(rects) // lines if lines > 1 and rects and len(rects) % lines == 0 else len(rects)
+        return {"page": n, "width": page.rect.width, "height": page.rect.height, "matched": matched,
+                "rects": [[r.x0, r.y0, r.x1, r.y1] for r in rects], "occurrences": occurrences}
+
+
 @app.get("/api/reports/{report_id}/candidates")
 def report_candidates(report_id: str, section: str = Query(min_length=1)):
     """Ranked candidate pages for a section (v164): the same deterministic locator the extractor
@@ -656,8 +693,35 @@ def kb_export_pptx(section: str = "debt_maturity", collection_name: Literal["all
 def kb_maturity_wall(section: Literal["debt_maturity"] = "debt_maturity", collection_name: Literal["all", "wallenberg", "midcap"] = Query("all", alias="collection")):
     """v174: deterministic upcoming-maturities list over the saved collection -- reads the same decorated
     extracts as the CSV/PPTX exports, zero model calls. 200 with empty rows when the collection has no
-    debt_maturity extractions yet -- the empty state is the frontend's to render, not a 404."""
-    return workbench.maturity_wall(kb_export_extractions(section, collection_name))
+    debt_maturity extractions yet -- the empty state is the frontend's to render, not a 404.
+    v180: every row also carries its data/companies.json `sector` (None when the company is not in the
+    universe file) and a `complete` flag (ppt.complete_buckets: the stored identity check passed and both
+    total_debt and due_within_1_year are present), aggregated per sector as `sectors` -- companies/complete
+    counts plus median/min/max share over complete companies only, never over guessed figures."""
+    normalize = lambda name: re.sub(r"[\W_]+", " ", name.casefold()).strip()  # same mapping as list_kb
+    sector_of = {normalize(c["name"]): c.get("sector") for c in COMPANIES}
+    extracts = kb_export_extractions(section, collection_name)
+    wall = workbench.maturity_wall(extracts)
+    by_stem = {x["stem"]: x for x in extracts}
+    for row in wall["rows"]:
+        row["sector"] = sector_of.get(normalize(row.get("company") or ""))
+        row["complete"] = ppt.complete_buckets(by_stem.get(row["stem"], {}))
+    grouped = {}
+    for row in wall["rows"]:
+        grouped.setdefault(row["sector"], []).append(row)
+    wall["sectors"] = []
+    for sector in sorted(grouped, key=lambda s: (s is None, s or "")):  # unknown sector groups last
+        rows = grouped[sector]
+        shares = sorted(r["share"] for r in rows if r["complete"] and r["share"] is not None)
+        wall["sectors"].append({
+            "sector": sector,
+            "companies": len(rows),
+            "complete": sum(1 for r in rows if r["complete"]),
+            "median_share": round(statistics.median(shares), 4) if shares else None,
+            "min": round(shares[0], 4) if shares else None,
+            "max": round(shares[-1], 4) if shares else None,
+        })
+    return wall
 
 
 @app.get("/api/kb/{stem}/pages/{page}")

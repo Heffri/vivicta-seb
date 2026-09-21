@@ -14,6 +14,7 @@ Backend runs on `http://localhost:8000`, frontend dev server proxies `/api` to i
 | `POST` | `/api/reports/{report_id}/fill?section=<schema name>` | `{ "field": "<empty schema key>", "pages": [<one or two 1-based pages>] }` | `{ candidate: Field \| null, warnings: string[] }` — an analyst-directed, one-field candidate; it never saves or replaces the extraction |
 | `GET`  | `/api/reports/{report_id}/candidates` | `?section=<schema name>` | `[{ page, heading }]` — the section's ranked candidate pages (1-based, best first), from the same deterministic locator the extractor runs, computed with no model call (fixture mode included). `heading` is the page's de-boilerplated opening, whitespace-normalized, ≤80 chars. Powers the extraction waiting UI (v164) |
 | `GET`  | `/api/reports/{report_id}/pages/{n}.png` | – | PNG of page `n` (1-based), ~150 dpi. 404 if out of range |
+| `GET`  | `/api/reports/{report_id}/pages/{n}/locate` | `?quote=<verbatim text>` | `{ page, width, height, matched: "quote"\|"line"\|"value"\|"none", rects: [[x0,y0,x1,y1], ...], occurrences }` — zero-model (v179): where `quote` sits on page `n`, in page-point coordinates (the same top-down space `pages/{n}.png` renders, so a box scales directly against the image's rendered width/height). Tries `quote` verbatim, then its own longest line (a citation that never prints as one contiguous run), then the longest digit run inside it. `rects` holds one box per *printed line* a hit touches — a match spanning two lines (an ordinary wrapped citation) reports two adjacent rects the same way a genuine second occurrence would add two more, so `occurrences` divides that back out by the searched text's own line count: a wrapped citation reports `occurrences: 1` (still with 2 rects to draw), a truly repeated line reports 2+. `matched: "none"`, empty `rects`, `occurrences: 0` when nothing was found. 404 if `n` is out of range, 409 if the PDF is no longer cached (`require_pdf`, same as the other page endpoints) |
 | `GET`  | `/api/reports/{report_id}/extraction.csv` | – | last extraction for this report as CSV (one row per field). 404 if none |
 | `GET`  | `/api/reports/{report_id}/pdf` | – | the PDF itself, `Content-Disposition: inline`, so `<iframe src=".../pdf#page=64">` opens the browser's own viewer on that page |
 | `GET`  | `/api/companies?q=<text>&collection_name=wallenberg\|midcap\|all` | – | `Company[]` — the listed-company directory (`data/companies.json`, Nasdaq Stockholm), filtered by collection then name/ticker substring; max 50. Empty `q` = first 50. `midcap` is the 132 companies whose `market` is `Mid Cap` |
@@ -24,7 +25,7 @@ Backend runs on `http://localhost:8000`, frontend dev server proxies `/api` to i
 | `GET`  | `/api/kb` | `?collection_name=wallenberg\|midcap\|all` | `KbEntry[]` — what is in `data/kb/` (one per parsed report: pages indexed, sections extracted). `collection_name` filters the list: `all` (the backend default), the curated Wallenberg roster (`wallenberg` — what the KB page sends by default), or the 132-company SEB Mid Cap universe (`midcap`) |
 | `GET` | `/api/kb/export.csv` | `?section=debt_maturity&collection=wallenberg\|midcap\|all&q=` | One CSV row per saved company extraction. `collection` follows the KB page scope; optional `q` matches its company/stem filter. No PDF or model call is needed. |
 | `GET` | `/api/kb/export.pptx` | `?section=debt_maturity&collection=wallenberg\|midcap\|all&q=` | A PPTX deck with one maturity-wall summary table, then one established PowerPoint slide per saved company. Filtering is identical to the whole-KB CSV and no PDF or model call is needed. |
-| `GET` | `/api/kb/maturity-wall` | `?section=debt_maturity&collection=wallenberg\|midcap\|all` | `MaturityWall` — deterministic upcoming-maturities list (v174): total debt, amount due within 1 year and their share for every saved `debt_maturity` extraction in the collection, sorted comparable-first by share descending. Reads the same decorated extracts as the CSV/PPTX exports (no PDF, no model call); 200 with `rows: []` when the collection has none yet |
+| `GET` | `/api/kb/maturity-wall` | `?section=debt_maturity&collection=wallenberg\|midcap\|all` | `MaturityWall` — deterministic upcoming-maturities list (v174): total debt, amount due within 1 year and their share for every saved `debt_maturity` extraction in the collection, sorted comparable-first by share descending. Each row also names its `data/companies.json` sector and whether its buckets are complete (v180), and the wall is aggregated per sector — counts plus median/min/max share over complete companies only. Reads the same decorated extracts as the CSV/PPTX exports (no PDF, no model call); 200 with `rows: []` when the collection has none yet |
 | `GET` | `/api/kb/{stem}/pages/{page}` | – | `{ page: number, text: string }` — saved page text, available even without the PDF; exact known stem and valid page required |
 | `GET` | `/api/kb/{stem}/{section}` | – | Saved `Extraction`, no model call, available without the original PDF |
 | `GET`  | `/api/config` | – | `{ model, embed_model, base_url, llm, provider, retrieval, maturity_basis }` — what the backend runs with; `retrieval` is `"hybrid"` (cosine+BM25) \| `"bm25"` (keyword-only, e.g. codex/claude subscription with no embeddings endpoint) \| `"fixture"`; `maturity_basis` (v089) is `"carrying"` (default) \| `"undiscounted"`, from env `DEBT_BASIS` |
@@ -204,10 +205,20 @@ type MaturityWallRow = {
   review_status: string;                     // e.g. "confirmed", "unreviewed", "unresolved"
   comparable: boolean;
   reason: string;
+  sector: string | null;                     // v180: data/companies.json sector, null when unknown
+  complete: boolean;                         // v180: identity check passed AND total AND <1y present
+};
+// v180: the wall aggregated per sector (alphabetical, the null sector last). median/min/max count
+// complete companies' shares only — a missing bucket is never back-filled with 0, so a sector with
+// no complete company reports null stats while still counting its companies.
+type MaturityWallSector = {
+  sector: string | null; companies: number; complete: number;
+  median_share: number | null; min: number | null; max: number | null;
 };
 type MaturityWall = {
   rows: MaturityWallRow[];                   // sorted comparable-first, then by share descending
   coverage: { total: number; comparable: number; missing_total: number; missing_w1y: number; basis_unconfirmed: number };
+  sectors: MaturityWallSector[];
 };
 ```
 

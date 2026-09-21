@@ -22,9 +22,14 @@ function pdfLine(line: string): string {
 }
 
 function textStream(text: string): { body: string; length: number } {
+  // v179: T* (move to the next line per the leading set above) must run BEFORE the line it moves
+  // down for, not after the line just drawn — the previous placement drew every line but the first
+  // on top of its predecessor (T* only ever advanced position for a line that didn't exist), so a
+  // multi-line pageTexts entry silently collapsed into one overlapping run. get_text()/search_for()
+  // on a real PDF made this visible: two stacked lines read back as one line with no separator.
   const body = `BT${EOL}/F1 9 Tf${EOL}13 TL${EOL}72 720 Td${EOL}${text
     .split('\n')
-    .map((l, i) => `(${pdfLine(l)}) Tj${i === 0 ? '' : ' T*'}${EOL}`)
+    .map((l, i) => `${i === 0 ? '' : `T*${EOL}`}(${pdfLine(l)}) Tj${EOL}`)
     .join('')}ET`
   return { body, length: Buffer.byteLength(body, 'ascii') }
 }

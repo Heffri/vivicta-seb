@@ -6,6 +6,7 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ErrorBlock, LoadingLine } from '@/components/ui/state'
 import { CollectionPicker } from '@/components/CollectionPicker'
+import { MaturityWallCard } from '@/components/kb/MaturityWallCard'
 import { useCollection, type Collection } from '@/hooks/useCollection'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { ChunkPage, KbEntry, Result, Schema } from '@/types'
@@ -187,6 +188,8 @@ export function KbView({ onOpen, onOpenReport }: Props) {
             {filtered.length} / {entries.length}
           </span>
           <CollectionPicker value={collection} onChange={switchCollection} />
+          {/* v180: the sector view of the saved debt maturities; rows open through the same onOpenReport */}
+          <MaturityWallCard collection={collection} entries={entries ?? []} onOpenReport={onOpenReport} />
           <label
             className={`flex items-center gap-1.5 text-xs ${pdfFiles ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}
             title={pdfFiles ? undefined : 'PDF cache list unavailable — cannot filter by it'}

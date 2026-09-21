@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 import { getKbPage, pageUrl, pdfUrl } from '@/api'
 import { fieldVerification } from './verification'
 import { highlightQuote } from '@/components/results/highlight'
+import { PageLocateOverlay } from '@/components/results/PageLocateOverlay'
+import { StoredPageText } from '@/components/results/StoredPageText'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Segmented } from '@/components/ui/segmented'
@@ -59,6 +61,9 @@ export function SourcePanel({
       .catch((error: Error) => { if (!stale) setPageError({page, stem, message: error.message}) })
     return () => { stale = true }
   }, [pdfAvailable, stem, page, onUseSource])
+  // v179: the quote to locate/highlight for the page currently on screen — null for an Ask citation
+  // (no field is selected there) or once the selected field's own page has scrolled out of view.
+  const citedQuote = askPage === null && selected?.source && selected.source.page === page ? selected.source.quote : null
   return (
     <Card id="report-source" tabIndex={-1} className="self-start scroll-mt-4 focus-visible:outline-2 focus-visible:outline-ring">
       <CardHeader>
@@ -85,6 +90,8 @@ export function SourcePanel({
           <div className="text-sm" aria-live="polite">
             <p className="font-medium">{selected.label}: {fieldVerification(selected).label}</p>
             <p className="mt-1 text-muted-foreground">{fieldVerification(selected).detail}</p>
+            {/* v179: an OCR'd page's text is read, not photographed — a match here is not proof the OCR read it right. */}
+            {selected.evidence?.includes('ocr_text') && <p className="mt-1 font-medium text-warning">From OCR — check the scanned image.</p>}
           </div>
         )}
         {page === null ? (
@@ -99,7 +106,7 @@ export function SourcePanel({
               <div className="space-y-2">
                 <p className="text-xs text-muted-foreground">Saved page text. The original PDF is not available on this device.</p>
                 {pageError?.page === page && pageError.stem === stem ? <p role="alert" className="text-sm text-danger">{pageError.message}</p>
-                  : savedPage?.page === page && savedPage.stem === stem ? <pre className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap break-words rounded-lg border bg-background p-3 text-xs leading-relaxed">{savedPage.text}</pre>
+                  : savedPage?.page === page && savedPage.stem === stem ? <StoredPageText key={`${page}:${citedQuote ?? ''}`} text={savedPage.text} quote={citedQuote} />
                   : <p className="text-sm text-muted-foreground">{stem ? 'Loading saved page…' : 'Saved page reference unavailable.'}</p>}
               </div>
             ) : viewer === 'pdf' ? (
@@ -120,12 +127,16 @@ export function SourcePanel({
                 <span>Fetch the PDF from Extract (directory search) to see the pages.</span>
               </div>
             ) : (
-              <img
-                src={pageUrl(reportId, page)}
-                alt={`Page ${page} of the report`}
-                onError={() => onBrokenPage(page)}
-                className="w-full rounded-lg border bg-white"
-              />
+              <div className="relative">
+                <img
+                  src={pageUrl(reportId, page)}
+                  alt={`Page ${page} of the report`}
+                  onError={() => onBrokenPage(page)}
+                  className="w-full rounded-lg border bg-white"
+                />
+                {/* v179: frames the cited quote on the page image — Image mode only, PDF viewer untouched. */}
+                {citedQuote && <PageLocateOverlay key={`${page}:${citedQuote}`} reportId={reportId} page={page} quote={citedQuote} />}
+              </div>
             )}
             {askPage !== null ? (
               <p className="text-xs text-muted-foreground">

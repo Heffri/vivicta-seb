@@ -1,4 +1,5 @@
-"""Run with python test_workbench.py. Isolated files, no network or PDFs."""
+"""Run with python test_workbench.py. Isolated files, no network; v179's locate block is the one
+synthetic (pymupdf-generated, in-memory) PDF, exercised through a real upload."""
 import copy
 import csv
 import io
@@ -10,6 +11,8 @@ from unittest.mock import patch
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from pptx import Presentation
+import pymupdf
+from pptx.enum.shapes import MSO_SHAPE_TYPE
 import app
 from pipeline import kb, workbench, ppt
 
@@ -237,6 +240,11 @@ with tempfile.TemporaryDirectory() as tmp:
             if not reviewed:
                 for field in x['fields']:
                     field.pop('human_review', None)
+            if stem == 'ericsson_2025':  # v180: buckets stop reconciling -> identity fails -> wall "incomplete" (share still 0.2)
+                next(f for f in x['fields'] if f['key'] == 'due_1_to_5_years')['value'] = 60
+            if stem == 'outside_2025':  # v180: a second complete share (200 = 100 + 60 + 40 -> 0.5),
+                for key, value in (('total_debt', 200), ('due_within_1_year', 100), ('due_1_to_5_years', 60), ('due_after_5_years', 40)):
+                    next(f for f in x['fields'] if f['key'] == key)['value'] = value  # so a sector's median/min/max is non-trivial
             kb.save_report(stem, {'company': company, 'fiscal_year': 2025, 'pages': 1, 'sha256': 'test'}, ['Saved statement text'])
             kb.save_extraction(stem, 'debt_maturity', workbench.decorate(x, app.load_schema('debt_maturity')))
         client = TestClient(app.app)
@@ -247,9 +255,22 @@ with tempfile.TemporaryDirectory() as tmp:
         assert abb['review_status'] == 'confirmed' and abb['human_review'] == 'yes'
         filtered = client.get('/api/kb/export.csv?section=debt_maturity&collection=all&q=volvo')
         assert filtered.status_code == 200 and [row['stem'] for row in csv.DictReader(io.StringIO(filtered.text))] == ['outside_2025']
-        deck = Presentation(io.BytesIO(client.get('/api/kb/export.pptx?section=debt_maturity&collection=wallenberg').content))
-        assert len(deck.slides) == 3
+        # v180: the deck grows the "Maturity wall by sector" page between the summary table and the
+        # per-company slides. _sector_map is frozen so the sectors don't depend on data/ content.
+        with patch.object(ppt, '_sector_map', return_value={'abb ltd': 'Industrials', 'ericsson': 'Telecommunications', 'volvo': 'Industrials'}):
+            deck = Presentation(io.BytesIO(client.get('/api/kb/export.pptx?section=debt_maturity&collection=wallenberg').content))
+        assert len(deck.slides) == 4
         assert any(shape.has_table and shape.table.cell(0, 0).text == 'Company' for shape in deck.slides[0].shapes)
+        wall_slide = deck.slides[1]
+        texts = ' | '.join(shape.text_frame.text for shape in wall_slide.shapes if shape.has_text_frame)
+        assert 'Maturity wall by sector' in texts
+        assert 'Industrials' in texts and 'Telecommunications · 0 of 1 with complete buckets' in texts
+        assert '20.0% · buckets incomplete' in texts  # ericsson: share still arithmetic, drawn grey
+        # "not read" appears only in the page's own legend -- both fixture totals exist, so no
+        # company row may show the missing-total label.
+        assert sum(1 for shape in wall_slide.shapes if shape.has_text_frame and 'not read' in shape.text_frame.text) == 1
+        bars = [shape for shape in wall_slide.shapes if shape.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE]
+        assert len(bars) == 2  # one horizontal bar per saved company on the page
         # The visible filter accepts non-ASCII company names; never put its raw bytes in a Latin-1 response header.
         with patch.object(app, 'kb_export_extractions', return_value=[statement('debt_maturity')]):
             unicode_filter = client.get('/api/kb/export.csv', params={'section': 'debt_maturity', 'collection': 'all', 'q': 'Å'})
@@ -264,6 +285,45 @@ with tempfile.TemporaryDirectory() as tmp:
         assert not next(r for r in wall['rows'] if r['stem'] == 'ericsson_2025')['comparable']
         wall_all = client.get('/api/kb/maturity-wall?collection=all').json()
         assert wall_all['coverage']['total'] == 3 and {r['stem'] for r in wall_all['rows']} == {'abb_2025', 'ericsson_2025', 'outside_2025'}
+        # v180: every row names its data/companies.json sector and whether its buckets are complete
+        # (stored identity check passed AND total AND <1y present); COMPANIES is patched inline --
+        # fixtures never trust the universe file's live content. 3 companies, 2 sectors, one incomplete.
+        with patch.object(app, 'COMPANIES', [{'name': 'ABB Ltd', 'sector': 'Industrials'},
+                                             {'name': 'Ericsson', 'sector': 'Telecommunications'},
+                                             {'name': 'Volvo', 'sector': 'Industrials'}]):
+            wall = client.get('/api/kb/maturity-wall?collection=all').json()
+        rows = {r['stem']: r for r in wall['rows']}
+        assert rows['abb_2025']['sector'] == 'Industrials' and rows['abb_2025']['complete'] and rows['abb_2025']['share'] == 0.2
+        assert rows['ericsson_2025']['sector'] == 'Telecommunications' and not rows['ericsson_2025']['complete'] and rows['ericsson_2025']['share'] == 0.2
+        assert rows['outside_2025']['sector'] == 'Industrials' and rows['outside_2025']['complete'] and rows['outside_2025']['share'] == 0.5
+        sectors = {s['sector']: s for s in wall['sectors']}
+        assert sectors['Industrials'] == {'sector': 'Industrials', 'companies': 2, 'complete': 2, 'median_share': 0.35, 'min': 0.2, 'max': 0.5}
+        assert sectors['Telecommunications'] == {'sector': 'Telecommunications', 'companies': 1, 'complete': 0, 'median_share': None, 'min': None, 'max': None}
+        # A company the universe file doesn't know has no sector: it groups under null, sorted last,
+        # and its counts still count -- only incomplete buckets are excluded from median/min/max.
+        with patch.object(app, 'COMPANIES', [{'name': 'ABB Ltd', 'sector': 'Industrials'}]):
+            wall = client.get('/api/kb/maturity-wall?collection=wallenberg').json()
+        assert {r['stem']: r['sector'] for r in wall['rows']} == {'abb_2025': 'Industrials', 'ericsson_2025': None}
+        assert [s['sector'] for s in wall['sectors']] == ['Industrials', None]
+        assert wall['sectors'][0] == {'sector': 'Industrials', 'companies': 1, 'complete': 1, 'median_share': 0.2, 'min': 0.2, 'max': 0.2}
+        assert wall['sectors'][1] == {'sector': None, 'companies': 1, 'complete': 0, 'median_share': None, 'min': None, 'max': None}
+
+# v180: the sector wall page paginates at 30 row-units (companies + sector headers). 35 one-sector
+# companies spill onto two "Maturity wall by sector" pages between the summary and the per-company
+# slides; build_deck is pure here -- no disk, no KB, no model.
+many = []
+for i in range(35):
+    x = statement('debt_maturity')
+    x.update(stem=f'bulk_{i}', report_id=f'lib-bulk_{i}', company=f'Bulk {i} AB')
+    many.append(workbench.decorate(x, app.load_schema('debt_maturity')))
+bulk = Presentation(io.BytesIO(ppt.build_deck(many)))
+sector_slides = [s for s in bulk.slides
+                 if any(sh.has_text_frame and 'Maturity wall by sector' in sh.text_frame.text for sh in s.shapes)]
+assert len(sector_slides) == 2
+assert len(bulk.slides) == 1 + len(sector_slides) + len(many)
+assert sum(1 for sh in sector_slides[0].shapes if sh.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE) \
+    + sum(1 for sh in sector_slides[1].shapes if sh.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE) == 35
+assert '(cont.)' in ' | '.join(sh.text_frame.text for sh in sector_slides[1].shapes if sh.has_text_frame)
 
 # v164: candidate pages -- the deterministic locator behind GET /candidates, served before the
 # model runs. Isolated KB folder; the model entrypoint is rigged to fail so the endpoint's
@@ -292,6 +352,71 @@ with tempfile.TemporaryDirectory() as tmp:
             raise AssertionError('candidates accepted an unknown report or section')
         except HTTPException as e:
             assert e.status_code == 404
+
+# v179: GET .../pages/{n}/locate -- zero-model, degrades quote -> longest line -> longest digit
+# run. A real (synthetic) PDF with real searchable text exercises all four outcomes, one per page,
+# uploaded like any user PDF so require_pdf's own cache is what is actually being read.
+with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {'KB_DIR': tmp}), \
+        patch.object(app, 'UPLOADS', Path(tmp)), patch.object(app, 'reports', {}), \
+        patch.object(app, 'texts_cache', {}), patch.object(app, 'library_paths', {}):
+    pdf_file = Path(tmp) / 'locate-src.pdf'
+    with pymupdf.open() as doc:
+        doc.new_page().insert_text((72, 720), 'Total debt 1 234 MSEK due within one year')  # p.1: verbatim
+        twice = doc.new_page()  # p.2: the same line printed twice (group and parent columns)
+        twice.insert_text((72, 700), 'Total debt 1 234 MSEK')
+        twice.insert_text((72, 650), 'Total debt 1 234 MSEK')
+        doc.new_page().insert_text((72, 720), 'Total debt 1 234 MSEK due within one year, per the borrowings note filed with the group')  # p.3: quote's 2nd line only
+        doc.new_page().insert_text((72, 720), '1 234')  # p.4: the number alone, no surrounding row
+        doc.new_page().insert_text((72, 720), 'Unrelated boilerplate text with no numbers at all')  # p.5: no match at any tier
+        wrap_once = doc.new_page()  # p.6: a genuine two-line citation, printed once
+        wrap_once.insert_text((72, 720), 'Note 20 Borrowings')
+        wrap_once.insert_text((72, 733), 'Total debt is 1 234 MSEK due within one year, filed with the group')
+        wrap_twice = doc.new_page()  # p.7: the same two-line citation, printed twice (two real occurrences)
+        wrap_twice.insert_text((72, 720), 'Note 20 Borrowings')
+        wrap_twice.insert_text((72, 733), 'Total debt is 1 234 MSEK due within one year, filed with the group')
+        wrap_twice.insert_text((72, 760), 'Note 20 Borrowings')
+        wrap_twice.insert_text((72, 773), 'Total debt is 1 234 MSEK due within one year, filed with the group')
+        doc.save(pdf_file)
+    client = TestClient(app.app)
+    upload = client.post('/api/reports', files={'file': ('locate.pdf', pdf_file.read_bytes(), 'application/pdf')})
+    assert upload.status_code == 200, upload.text
+    report_id = upload.json()['report_id']
+
+    def locate(page, quote):
+        r = client.get(f'/api/reports/{report_id}/pages/{page}/locate', params={'quote': quote})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    exact = locate(1, 'Total debt 1 234 MSEK due within one year')
+    assert exact['matched'] == 'quote' and len(exact['rects']) == 1 and exact['occurrences'] == 1
+    x0, y0, x1, y1 = exact['rects'][0]
+    assert 0 <= x0 < x1 <= exact['width'] and 0 <= y0 < y1 <= exact['height'], exact
+
+    dup = locate(2, 'Total debt 1 234 MSEK')
+    assert dup['matched'] == 'quote' and len(dup['rects']) == 2 and dup['occurrences'] == 2, dup  # printed twice -> both frame, neither is guessed
+
+    wrapped = locate(3, 'Note 20\nTotal debt 1 234 MSEK due within one year, per the borrowings note filed with the group')
+    assert wrapped['matched'] == 'line' and len(wrapped['rects']) == 1 and wrapped['occurrences'] == 1, wrapped  # the fabricated 1st line never printed; the 2nd (longest) did
+
+    cell = locate(4, 'Total debt 1 234 MSEK due within one year')
+    assert cell['matched'] == 'value' and len(cell['rects']) == 1 and cell['occurrences'] == 1, cell  # only the bare number sits on this page
+
+    nothing = locate(5, 'Something entirely different, printed nowhere in this report')
+    assert nothing['matched'] == 'none' and nothing['rects'] == [] and nothing['occurrences'] == 0, nothing
+
+    # A genuine two-line citation must report as ONE occurrence even though it draws two rects (one
+    # per printed line) -- otherwise an ordinary wrapped citation would wrongly cry "2 matches".
+    two_line_quote = 'Note 20 Borrowings\nTotal debt is 1 234 MSEK due within one year, filed with the group'
+    once = locate(6, two_line_quote)
+    assert once['matched'] == 'quote' and len(once['rects']) == 2 and once['occurrences'] == 1, once
+    twice = locate(7, two_line_quote)
+    assert twice['matched'] == 'quote' and len(twice['rects']) == 4 and twice['occurrences'] == 2, twice  # a real second occurrence must still show as 2
+
+    assert client.get(f'/api/reports/{report_id}/pages/99/locate', params={'quote': 'x'}).status_code == 404
+    app.reports['up-nopdf'] = {'report_id': 'up-nopdf', 'filename': 'x.pdf', 'pages': 1, 'company': None, 'fiscal_year': None, 'stem': 'up-nopdf'}
+    missing = client.get('/api/reports/up-nopdf/pages/1/locate', params={'quote': 'x'})
+    assert missing.status_code == 409, missing.text
+print('locate endpoint checks passed: quote/line/value tiers, multi-match, none, out-of-range, no PDF cached')
 
 # Deterministic rendered fixtures for visual review, outside the repository.
 for section in ('income_statement', 'debt_maturity'):

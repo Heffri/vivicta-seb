@@ -10,12 +10,14 @@ type FieldsTableProps = {
   fields: Field[]
   selectedKey: string | null
   onSelect: (key: string) => void
+  onOpenPage?: (key: string, page: number) => void // v179: a component's own citation may sit on a page the field's own source doesn't
 }
 
 /** The product's argument, one row per number: the number, its unit and period, how much
  *  the backend could verify. Selecting a row (click or Enter/Space) aims the Source panel;
  *  the selected row carries an accent left edge and a faint accent wash. */
-export function FieldsTable({ fields, selectedKey, onSelect }: FieldsTableProps) {
+export function FieldsTable({ fields, selectedKey, onSelect, onOpenPage }: FieldsTableProps) {
+  const openPage = onOpenPage ?? ((key: string) => onSelect(key))
   return (
     <Card className="py-0">
       <p className="px-4 pt-4 text-xs text-muted-foreground">Select a figure to see its source and add a human review below the table.</p>
@@ -64,6 +66,18 @@ export function FieldsTable({ fields, selectedKey, onSelect }: FieldsTableProps)
                     {f.human_review?.source_verified && f.source && <button type="button" className="mt-2 block text-left text-xs text-primary underline-offset-2 hover:underline" title={f.source.quote} onClick={(e) => { e.stopPropagation(); onSelect(f.key) }}>
                       Reviewed source · p.{f.source.page} · “{f.source.quote.length > 96 ? `${f.source.quote.slice(0, 93).trimEnd()}…` : f.source.quote}”{f.components?.length ? ` · ${f.components.length} components` : ''}
                     </button>}
+                    {/* v179: each summed component gets its own page link — a total's components don't all sit on the field's own source page. */}
+                    {!!f.components?.length && (
+                      <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                        {f.components.map((c, i) => (
+                          <button key={i} type="button" className="text-primary underline-offset-2 hover:underline" title={c.quote} onClick={(e) => { e.stopPropagation(); openPage(f.key, c.page) }}>
+                            {c.label || `Component ${i + 1}`} · p.{c.page}
+                          </button>
+                        ))}
+                      </p>
+                    )}
+                    {/* v179: an OCR'd page is read text, not a photograph — flag it beside the check result, not only inside Source. */}
+                    {f.evidence?.includes('ocr_text') && <p className="mt-2 text-xs font-medium text-warning">From OCR — check the scanned image</p>}
                     {['Needs review', 'Not checked', 'Not found'].includes(verification.label) && !reason && (
                       <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{verification.detail}</p>
                     )}
@@ -82,7 +96,7 @@ export function FieldsTable({ fields, selectedKey, onSelect }: FieldsTableProps)
                               <tr key={`${item.page}-${item.span}-${index}`} className="border-b border-border/60 last:border-0">
                                 <td className="px-2 py-1">{item.span}</td>
                                 <td className="px-2 py-1 tabular-nums">{fmtValue(item.amount)}{item.unit ? ` ${item.unit}` : ''}</td>
-                                <td className="px-2 py-1"><button type="button" className="text-primary underline-offset-2 hover:underline" title={item.quote} onClick={(e) => { e.stopPropagation(); onSelect(f.key) }}>p. {item.page}</button></td>
+                                <td className="px-2 py-1"><button type="button" className="text-primary underline-offset-2 hover:underline" title={item.quote} onClick={(e) => { e.stopPropagation(); openPage(f.key, item.page) }}>p. {item.page}</button></td>
                               </tr>
                             ))}</tbody>
                           </table>
