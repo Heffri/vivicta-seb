@@ -60,6 +60,34 @@ test('SEB Mid Cap keeps the KB list within its collection', async ({ page }) => 
   expect(kbScopes).toContain('midcap')
 })
 
+test('Company map and Review follow the selected collection', async ({ page }) => {
+  const queue = (entry: typeof abb) => [{ report: entry, section: 'income_statement', kind: 'field', key: 'revenue', detail: `Review ${entry.company} revenue` }]
+  await page.route('**/api/**', async route => {
+    const url = new URL(route.request().url())
+    const all = url.searchParams.get('collection_name') === 'all'
+    const midcap = url.searchParams.get('collection_name') === 'midcap'
+    const entries = midcap ? [acast] : all ? [abb, acast] : [abb]
+    const json = url.pathname === '/api/config' ? { provider: 'codex', model: 'test', retrieval: 'bm25' }
+      : url.pathname === '/api/kb' ? entries
+      : url.pathname === '/api/review-queue' ? entries.flatMap(queue)
+      : []
+    await route.fulfill({ json })
+  })
+
+  await page.goto('/')
+  await page.getByRole('tab', { name: 'Company map', exact: true }).click()
+  const map = page.getByRole('region', { name: 'Interactive company graph' })
+  await expect(map.locator('[data-node-id^="company:"]')).toHaveCount(1)
+  await page.getByRole('group', { name: 'Collection' }).getByRole('button', { name: 'All', exact: true }).click()
+  await expect(map.locator('[data-node-id^="company:"]')).toHaveCount(2)
+
+  await page.getByRole('tab', { name: 'Review', exact: true }).click()
+  await expect(page.getByRole('article')).toHaveCount(2)
+  await page.getByRole('group', { name: 'Collection' }).getByRole('button', { name: 'SEB Mid Cap (132)', exact: true }).click()
+  await expect(page.getByRole('article')).toHaveCount(1)
+  await expect(page.getByRole('status')).toContainText('SEB Mid Cap universe · 1 statement · 1 outstanding check')
+})
+
 test('Review groups checks by exact report and statement, retaining filters and details', async ({ page }) => {
   await mockLibrary(page)
   await page.route('**/api/review-queue*', route => route.fulfill({ json: [
@@ -69,14 +97,14 @@ test('Review groups checks by exact report and statement, retaining filters and 
   ] }))
   await page.goto('/')
   await page.getByRole('tab', { name: 'Review', exact: true }).click()
-  await expect(page.getByText('3 statements · 5 outstanding checks', { exact: true })).toBeVisible()
+  await expect(page.getByText('Wallenberg collection · 3 statements · 5 outstanding checks', { exact: true })).toBeVisible()
   await expect(page.getByRole('article')).toHaveCount(3)
   const statement = page.getByRole('article', { name: 'ABB 2025 income statement' })
   await statement.getByText('Show outstanding checks', { exact: true }).click()
   for (const key of ['entity', 'period', 'currency']) await expect(statement.getByText(`Confirm ${key}`, { exact: true })).toBeVisible()
   await page.getByLabel('kind', { exact: true }).selectOption('basis')
   await expect(page.getByRole('article')).toHaveCount(1)
-  await expect(page.getByText('1 statement · 3 outstanding checks', { exact: true })).toBeVisible()
+  await expect(page.getByText('Wallenberg collection · 1 statement · 3 outstanding checks', { exact: true })).toBeVisible()
   await page.getByLabel('company', { exact: true }).selectOption('Acast')
   await expect(page.getByText('No checks match these filters.')).toBeVisible()
 })
