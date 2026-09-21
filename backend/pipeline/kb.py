@@ -25,6 +25,7 @@ import threading
 from datetime import datetime, timezone
 from collections import Counter
 from heapq import nlargest
+from functools import lru_cache
 from pathlib import Path
 
 from openai import OpenAI
@@ -491,6 +492,31 @@ def ask(stems: list[str], question: str, k=8, ids: dict[str, str] | None = None,
 
 # ---- listing / few-shot --------------------------------------------------------------------
 
+@lru_cache(maxsize=512)
+def _has_saved_text(path: str, mtime_ns: int, size: int) -> bool:
+    """Check actual saved text, cached by file identity; stop at the first readable page."""
+    try:
+        with open(path, encoding='utf-8') as stream:
+            for line in stream:
+                if not line.strip():
+                    continue
+                row = json.loads(line)
+                if isinstance(row.get('text'), str) and row['text'].strip():
+                    return True
+    except (OSError, ValueError, AttributeError):
+        return False
+    return False
+
+
+@lru_cache(maxsize=1024)
+def _has_saved_figures(path: str, mtime_ns: int, size: int) -> bool:
+    try:
+        data = json.loads(Path(path).read_text(encoding='utf-8'))
+        return any(isinstance(field, dict) and field.get('value') is not None for field in data.get('fields', []))
+    except (OSError, ValueError, TypeError, AttributeError):
+        return False
+
+
 def entries() -> list[dict]:
     """KbEntry[] minus report_id (app.py fills it from its registry)."""
     out = []
@@ -498,8 +524,14 @@ def entries() -> list[dict]:
                     and (p / "meta.json").is_file() and (p / "pages.jsonl").is_file()):
         m = _meta(d.name)
         status = index_status(d.name)
+        page_file = d / 'pages.jsonl'
+        page_stat = page_file.stat()
+        sections = _section_files(d.name)
+        figures = any(_has_saved_figures(str(p), (stat := p.stat()).st_mtime_ns, stat.st_size) for p in sections)
         out.append({"stem": d.name, "report_id": None, "company": m.get("company"), "fiscal_year": m.get("fiscal_year"),
-                    "pages": m.get("pages", 0), "sections": sorted(p.stem for p in _section_files(d.name)),
+                    "text_available": _has_saved_text(str(page_file), page_stat.st_mtime_ns, page_stat.st_size),
+                    "figures_available": figures,
+                    "pages": m.get("pages", 0), "sections": sorted(p.stem for p in sections),
                     "indexed": status["status"] == "ready", **status})
     return out
 

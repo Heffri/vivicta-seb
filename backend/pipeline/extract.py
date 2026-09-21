@@ -645,6 +645,11 @@ def _row_year_column(rows: list[str], i: int, fiscal_year) -> tuple[int, int] | 
             # part of BICO's torn header.  Only the exact orphan rejoin may look those two lines
             # further up; normal repeated-year headers retain v052's one-line context.
             near_start = max((orphan_start - 2) if orphan_start is not None else (j - 1), 0)
+            # Separate Group / Parent lines can precede a current/non-current
+            # year header. Only extend across these exact entity headings.
+            if j >= 2 and re.fullmatch(r"(?i)\s*(?:group|koncernen|parent(?: company)?|moderbolaget)\s*", rows[j - 1]) \
+                    and re.fullmatch(r"(?i)\s*(?:group|koncernen|parent(?: company)?|moderbolaget)\s*", rows[j - 2]):
+                near_start = j - 2
             near = " ".join(rows[near_start:j + 1]).lower()
             g, e = locate.GROUP.search(near), locate.ENTITY.search(near)
             if g and e:
@@ -897,6 +902,25 @@ def _page_unit(text: str):
     """'SEK m' / 'MSEK' / 'USD Thousands' from the statement page's header, or None."""
     m = _UNIT.search(" ".join(text[:4000].split()))
     return m.group() if m else None
+
+
+def _declared_report_unit(texts: list[str]) -> tuple[str, int] | None:
+    """Use an explicit report-wide amounts declaration, never currency popularity.
+
+    Conflicting declarations stay unresolved. Local table units take precedence
+    at the call site. Preserve the printed unit and page for the audit trail.
+    """
+    declarations: dict[str, tuple[str, int]] = {}
+    for page, text in enumerate(texts, 1):
+        for match in re.finditer(
+            r"\bAmounts\s+(?:are\s+)?(?:stated|presented|expressed)\s+in\s+"
+            r"([^.;\n]{1,35}?)\s+unless\s+(?:otherwise\s+(?:stated|specified)|(?:stated|specified)\s+otherwise)",
+            " ".join(text.split()), re.I,
+        ):
+            unit = match.group(1).strip()
+            if _UNIT.fullmatch(unit):
+                declarations.setdefault(unit.lower(), (unit, page))
+    return next(iter(declarations.values())) if len(declarations) == 1 else None
 
 
 def _num_pattern(value) -> str | None:
@@ -2295,6 +2319,16 @@ def _nearest_entity_section(rows: list[str], i: int, parent_words: list[str], ma
     for j in range(i - 1, max(0, i - max_back) - 1, -1):
         got = _section_heading(rows[j], parent_words)
         if got is not None:
+            # PDF text can put the column-group headings on separate lines:
+            # Group / Parent / Current 2025 2024 2025 2024. This is one
+            # shared table, not a new Parent section. Require adjacent entity
+            # headings and an immediately following repeated year pair.
+            if j > 0 and _section_heading(rows[j - 1], parent_words) not in (None, got):
+                header = rows[j:j + 2]
+                years = _year_run(" ".join(header))
+                if len(years) == 4 and years[:2] == years[2:] and years[0] != years[1]:
+                    if _row_year_column(rows, i, int(years[0])) is not None:
+                        return "group"
             return got
     return None
 
@@ -3487,6 +3521,11 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
             warnings.append(f"two_pass: page {selected} selected from candidates {pages}")
             windows = [tuple(selected)]
             two_pass_pages = selected
+            if schema.get("name") == "debt_maturity":
+                # Repairs must start from the note the model selected too.
+                # Otherwise a rejected liquidity/lease table at pages[:2]
+                # can silently fill gaps in a different borrowing scope.
+                pages = list(dict.fromkeys([*selected, *pages]))
         else:
             warnings.append(f"two_pass: page selection failed or illegal for candidates {pages}; fell back to the single-pass window")
     while windows:
@@ -3978,6 +4017,11 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
                 warnings.append(f"{f['key']}: {f['raw_label']!r} is not a known {sf['label'].lower()} label, but {c['name']} holds with that row in every column")
                 f["evidence"].append("identity_all_columns")
     currency = units.most_common(1)[0][0] if units else (_page_unit(texts[pages[0] - 1]) if pages else None)
+    if not currency and schema.get("name") == "debt_maturity":
+        declared = _declared_report_unit(texts)
+        if declared:
+            currency, unit_page = declared
+            warnings.append(f"currency: {currency} from the explicit report-wide amounts declaration on page {unit_page}; no unit printed in the selected table")
     if currency and pages:  # Evolution: a Swedish issuer reporting in EUR; the model votes SEK from habit, the statement names only EUR
         spread = {_ccy(t) for q in pages[:2] for t in _CCY.findall(texts[q - 1])}
         doc = Counter(_ccy(t) for t in _CCY.findall(" ".join(texts)))

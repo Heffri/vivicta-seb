@@ -218,7 +218,34 @@ def headers(mod=p):
     print("parse header self-check ok")
 
 
+def navigation():
+    doc = pymupdf.open()
+    for _ in range(6):
+        doc.new_page(width=1000, height=600)
+    page = doc[0]
+    for i in range(5):
+        y = 100 + i * 50
+        page.insert_text((20, y), f'Navigation {i}', fontsize=10)
+        page.insert_link({'kind': pymupdf.LINK_GOTO, 'from': pymupdf.Rect(20, y - 12, 100, y + 3), 'page': i + 1})
+        page.insert_text((250, y), f'Borrowing row {i}', fontsize=10)
+        for col in range(4):
+            page.insert_text((500 + col * 80, y), str(100 + i + col), fontsize=10)
+    page = doc.reload_page(page)
+    text = p.page_text(page)
+    assert 'Navigation 0 Borrowing' not in text, text
+    assert 'Borrowing row 0 100 101 102 103' in text, text
+    assert all(f'Navigation {i}' in text for i in range(5)), text
+    # Ordinary table labels must not be split without linked-navigation proof.
+    for link in page.get_links():
+        page.delete_link(link)
+    page = doc.reload_page(page)
+    assert p._navigation_columns(page) is None
+    doc.close()
+    print('Linked navigation column self-check ok')
+
+
 if __name__ == "__main__":
+    navigation()
     demo()
     columns()
     stacking()

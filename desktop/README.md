@@ -109,6 +109,10 @@ certificate, which is out of scope here.
 
 ## Automatic updates
 
+Team report sharing uses `node scripts/sync-team-data.js` from the checkout; see
+[Sharing saved reports](../README.md#sharing-saved-reports-with-the-hackathon-team).
+It works with the installed app without a new build and never reads model settings.
+
 Pushes to `main` and `demo` build the frontend, Python backend and Windows NSIS installer in
 GitHub Actions. Each branch publishes its own update feed:
 

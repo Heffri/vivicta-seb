@@ -89,6 +89,8 @@ type KbEntry = {
   indexed: boolean;         // embeddings cached
   sector: string | null;    // company directory sector, exact normalized name match; unknown stays null
   pdf_available: boolean;   // whether the source PDF currently exists
+  text_available: boolean;  // at least one nonempty saved page; empty catalog entries are excluded from Ask
+  figures_available: boolean; // at least one non-null field in a saved extraction, not merely a section file
 };
 
 type Source = {
@@ -199,34 +201,27 @@ One row per field. UTF-8, comma-separated, quotes escaped per RFC 4180.
 
 ## Company directory + on-demand report fetching
 
-Reports are **not** bundled. `data/companies.json` (committed, built by `python data/companies_build.py` from the
-Nasdaq Stockholm listed-companies list) is the directory the picker searches. Picking a company + year calls
-`POST /api/reports/fetch`, which runs `backend/pipeline/fetch.py`: search the web for that company's annual report
-for that year (press-release feeds first — MFN / Cision attachments — then a web search restricted to PDFs), download
-the first candidate that is a real PDF with a text layer and > 40 pages, save it as `data/reports/<slug>_<year>.pdf`
-and append a manifest entry to `data/reports/index.json` (`file, company, fiscal_year, language, source_url,
-tags: ["fetched"], fetched_at`). `data/reports/` is therefore a cache: gitignored PDFs, committed manifest.
-`GET /api/library` lists the cache; `python data/fetch.py` re-downloads manifest entries that are missing.
+Reports are **not** bundled. `data/companies.json` supplies local directory suggestions;
+`POST /api/reports/fetch` accepts any company name, including companies outside that directory.
 
-**Foreign companies (v074).** The directory is Swedish-listed only, but `/api/reports/fetch` accepts any name.
-`fetch.py` tries four sources in order — MFN/Cision feeds, Nasdaq notices, the DuckDuckGo web search — and, only
-when all three found nothing usable *and* the backend runs on a CLI provider (`LLM_PROVIDER=codex|claude`), asks
-the model itself for links, via its own web-search tool (`codex --search exec`, `claude -p --tools WebSearch`):
-at most 3 direct URLs to the official annual-report PDF on the issuer's investor-relations site or a regulatory
-repository (no ESEF zips, quarterly or sustainability reports), or — failing a direct link — the issuer's IR/
-annual-report page URL itself. Every candidate from every source passes the same validation; the first survivor
-registers with `note: "model search (<provider>)"` and `tags: ["fetched", "foreign"]`.
-With an OpenAI-compatible or no provider the fourth level never runs and the 404 keeps its usual shape (a model
-search that errored — unavailable CLI, unparseable reply — says so in `detail`). `country`/`hint` in the request
-body only feed that search's prompt.
+**AI-first discovery.** Existing saved text is reused without downloading. For a missing report,
+an explicit PDF-download request first uses the connected Codex/Claude model's live web-search tool.
+It looks for official annual-report PDFs or investor-relations pages for the requested fiscal year.
+The UI exposes this action for every non-empty company query, independently of the local collection
+or whether directory matches exist. A web-search action runs only that query, not other queued picks.
 
-**Fifth source (v080).** Only once all four sources above fail: `fetch.py` crawls whatever page-shaped leftovers
-those attempts produced (a model reply naming an IR page instead of a PDF, a web-search hit that served a page, or
-the guessed IR path for the domain of a direct link that 404d), one hop deep, harvesting `.pdf` links that pass
-the same validation gate. Unlike the other four sources, this one downloads every harvested candidate (budget:
-90 s total, ≤8 candidates, 20 s each) and keeps the one with the most pages rather than the first that validates,
-so a page linking both a summary volume and the full report resolves to the full report. The survivor registers
-with `note: "IR page crawl"` and `tags: ["fetched", "foreign"]`.
+A report search makes at most two model calls: official report links, then a targeted IR/archive
+follow-up if needed. Discovered IR pages may be followed to their PDF links. Every downloaded PDF
+still passes issuer, fiscal-year, report-type and text-layer checks, with complete reports preferred
+ over summary volumes. Model results retain `note: "model search (<provider>)"` and the legacy
+`tags: ["fetched", "foreign"]`; IR-page results use `note: "IR page crawl"`.
+
+MFN/Cision, Nasdaq and traditional web discovery are fallback sources if model search is unavailable
+or cannot retrieve a valid report. This is public-web discovery, not guaranteed access to every site.
+`country` and `hint` provide optional context for the model. Search errors remain in the 404 detail.
+
+Validated PDFs are cached in `data/reports/<slug>_<year>.pdf`, with their actual source URL recorded
+in `data/reports/index.json`. Repeated requests reuse the cache without another model search.
 
 ## Knowledge base — `data/kb/` (RAG + memory)
 

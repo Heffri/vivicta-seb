@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ErrorBlock, LoadingLine } from '@/components/ui/state'
-import { Segmented } from '@/components/ui/segmented'
+import { CollectionPicker } from '@/components/CollectionPicker'
+import { useCollection, type Collection } from '@/hooks/useCollection'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { ChunkPage, KbEntry, Result, Schema } from '@/types'
 
@@ -13,18 +14,6 @@ type Props = { onOpen: (results: Result[]) => void; onOpenReport: (report: KbEnt
 
 const NO_PDF_DESC_ID = 'kb-no-pdf-desc'
 const NO_PDF_TITLE = 'Saved figures and page text are available; the original PDF is not cached'
-
-// v112: which slice of data/kb the table lists — the curated Wallenberg roster (the default, keeping
-// Sebastijan's demo flow) or every saved extraction. Mirrors ResultsView's loadViewer/setViewer.
-type Collection = 'wallenberg' | 'all'
-const COLLECTION_KEY = 'arp-kb-collection'
-const loadCollection = (): Collection => {
-  try {
-    return localStorage.getItem(COLLECTION_KEY) === 'all' ? 'all' : 'wallenberg'
-  } catch {
-    return 'wallenberg'
-  }
-}
 
 // Everything the parser has learnt so far: one row per report in data/kb, opened from disk without a model call.
 export function KbView({ onOpen, onOpenReport }: Props) {
@@ -36,7 +25,7 @@ export function KbView({ onOpen, onOpenReport }: Props) {
   const [busy, setBusy] = useState<string | null>(null)
   const [notCached, setNotCached] = useState(false) // last error was the 409 "PDF no longer cached"
   const [query, setQuery] = useState('')
-  const [collection, setCollection] = useState<Collection>(loadCollection)
+  const [collection, setCollection] = useCollection()
   // Basenames present in data/reports/ right now (GET /api/library, disk-backed). null = not known yet — either
   // still loading or the call failed (old backend / network); either way fall back to "everything openable".
   const [pdfFiles, setPdfFiles] = useState<Set<string> | null>(null)
@@ -59,13 +48,15 @@ export function KbView({ onOpen, onOpenReport }: Props) {
   }, [entries, collection])
 
   useEffect(() => {
-    getKb(collection).then(setEntries).catch((e: Error) => setError(e.message))
+    let alive = true
+    getKb(collection).then(rows => { if (alive) setEntries(rows) }).catch((e: Error) => { if (alive) setError(e.message) })
+    return () => { alive = false }
   }, [collection])
 
   useEffect(() => {
     getSchemas().then(setSchemas).catch(() => {})
     getConfig().then(setConfig).catch(() => {}) // v034-era backend without `retrieval` -> null, column unchanged
-    getLibrary()
+    getLibrary('all')
       .then((lib) => setPdfFiles(new Set(lib.map((l) => l.file))))
       .catch(() => {}) // fixture-era backend or a blip: stay null, every row stays openable
   }, [])
@@ -75,11 +66,6 @@ export function KbView({ onOpen, onOpenReport }: Props) {
     setCollection(c) // the [collection] effect refetches; the previous list stays up until it lands
     setSelected(new Set()) // selected stems may be invisible in the other collection — never keep them
     setError(null)
-    try {
-      localStorage.setItem(COLLECTION_KEY, c)
-    } catch {
-      /* private mode etc. — the choice just won't stick */
-    }
   }
 
   // Same join the backend's own GET /api/kb/{stem}/{section} 409 check uses (app.py: file == f"{stem}.pdf").
@@ -200,18 +186,7 @@ export function KbView({ onOpen, onOpenReport }: Props) {
           <span className="text-xs text-muted-foreground tabular-nums">
             {filtered.length} / {entries.length}
           </span>
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground">Collection</span>
-            <Segmented
-              aria-label="Collection"
-              options={[
-                { value: 'wallenberg', label: 'Wallenberg' },
-                { value: 'all', label: 'All' },
-              ]}
-              value={collection}
-              onChange={switchCollection}
-            />
-          </div>
+          <CollectionPicker value={collection} onChange={switchCollection} />
           <label
             className={`flex items-center gap-1.5 text-xs ${pdfFiles ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}
             title={pdfFiles ? undefined : 'PDF cache list unavailable — cannot filter by it'}
