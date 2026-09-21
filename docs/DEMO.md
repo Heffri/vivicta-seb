@@ -110,7 +110,7 @@ after everything below has already succeeded.
   hit `GET /api/kb` / open a KB record, confirm the window survives (a fresh single-instance lock
   conflict closes the second copy silently).
 
-## 实测（2026-09-21 · package build `25ed26b` / acrylic `fba373d` · shared Windows test machine）
+## Measured rehearsal (2026-09-21 · package build `25ed26b` / acrylic `fba373d` · shared Windows test machine)
 
 This is a fixture-mode rehearsal of the unpacked shared test package, on a newly created
 `--user-data-dir`. It makes no model calls. The package was refreshed from the listed build; the
