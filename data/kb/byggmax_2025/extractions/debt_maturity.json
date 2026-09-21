@@ -12,7 +12,7 @@
       "value": 2021,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Total borrowing",
+      "raw_label": "Total borrowing (ties to BS: Lease liabilities + Borrowings from credit institutions + Lease liabilities)",
       "source": {
         "page": 99,
         "quote": "Total borrowing 2,021 2,477 CREDIT FACILITIES"
@@ -24,6 +24,7 @@
         "arith_ok",
         "label_known",
         "period_ok",
+        "bs_tie",
         "page_is_statement",
         "unit_ok"
       ]
@@ -81,6 +82,12 @@
   ],
   "warnings": [
     "two_pass: page [99, 100] selected from candidates [85, 86, 64, 87, 110, 80, 82, 99, 76]",
-    "published: seedv124-publish-kb run replayed with extract.py @ 3089ab08"
-  ]
+    "published: seedv124-publish-kb run replayed with extract.py @ 3089ab08",
+    "published: seedv166-publish-kb run replayed with extract.py @ a0dcac21"
+  ],
+  "timings": {
+    "model": 0.0,
+    "attempts": 1,
+    "validate": 0.261
+  }
 }

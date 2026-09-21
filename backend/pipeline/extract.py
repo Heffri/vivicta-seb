@@ -12,6 +12,7 @@ whether to flip the default;
 the model's "leftmost number" habit; (4) tune SYSTEM_PROMPT_TEMPLATE against eval/.
 """
 import json
+import itertools
 import time
 import os
 import re
@@ -576,7 +577,7 @@ def _check(check: dict, values: dict, texts: list[str] | None = None, pages: lis
 
 WEIGHTS = {"quote_on_page": 0.35, "value_in_quote": 0.20, "arith_ok": 0.20, "label_known": 0.10,
            "period_ok": 0.05, "page_is_statement": 0.05, "unit_ok": 0.05,  # docs/CONFIDENCE.md; sums to 1.0
-           "value_derived": 0.20,  # stands in for value_in_quote when the printed number is unreadable, never both
+           "value_derived": 0.20, "bs_tie": 0.0,  # a BS tie is a recorded independent fact, not a second confidence weight
            "stated_zero": 0.20,  # stands in for value_in_quote when the figure is never printed: the report says 0 in words (v050)
            "identity_all_columns": 0.0,  # a marker: an unknown label whose identity holds in every column earns label_known
            "identity_kept": 0.0,  # a marker: a column guard's own re-read lost to a value that closes the identity exactly (v066)
@@ -877,6 +878,95 @@ def _label_known(label, sf: dict) -> bool:
     if not rl or any(re.search(p, rl) for p in sf.get("exclude_labels", [])):
         return False
     return any(rl.startswith(cleans) for s in sf.get("synonyms", []) if (cleans := _clean_label(s)))  # a synonym that cleans away to nothing would prefix-match everything
+
+
+_BS_CURRENT = re.compile(r"\b(?:current|short[ -]?term|kortfristig\w*)\b", re.I)
+_BS_NONCURRENT = re.compile(r"\b(?:non[ -]?current|long[ -]?term|långfristig\w*)\b", re.I)
+_BS_LEASE = re.compile(r"\b(?:lease liabilities?|leaseskulder|leasingskulder)\b", re.I)
+_BS_QUALIFIER = re.compile(r"^(?:total\s+)?(?:(?:non[ -]?current|long[ -]?term|långfristig\w*|current|short[ -]?term|kortfristig\w*)\s+)+", re.I)
+
+
+def _balance_sheet_tie(texts: list[str], fiscal_year, total, schema: dict) -> tuple[list[dict], bool] | None:
+    """The balance-sheet counterpart of debt_maturity's carrying total, if it is deterministic.
+
+    Only the consolidated page `locate.balance_sheet_page` selected is read.  Rows must start with the
+    total field's `row_synonyms` (with a leading current/non-current classification or ``Total``
+    removed only for that exact row-label comparison), and their fiscal-year cells must be named by the
+    row's own year header.  At most four such rows may sum to a non-null total within the existing
+    two-unit band.  We prefer a no-lease solution when both scopes close, but record whether the
+    chosen proof includes a lease row.
+
+    `total is None` is deliberately narrower: exactly one current and one non-current, non-lease
+    component row are returned for the value-derived null fill.  A balance sheet cannot otherwise
+    choose a debt scope that the report did not make explicit.
+    """
+    if schema.get("name") != "debt_maturity" or not fiscal_year:
+        return None
+    total_sf = next((sf for sf in schema.get("fields", []) if sf.get("key") == "total_debt"), None)
+    if total_sf is None:
+        return None
+    page = locate.balance_sheet_page(texts)
+    if not page or not 0 < page <= len(texts):
+        return None
+    vocab = {"synonyms": total_sf.get("row_synonyms", [])}
+
+    def known(label: str) -> bool:
+        clean = _clean_label(label)
+        subjects = [clean, re.sub(r"^total\s+", "", clean), _BS_QUALIFIER.sub("", clean)]
+        return any(subject and any(subject.startswith(_clean_label(s)) for s in vocab["synonyms"])
+                   for subject in subjects)
+
+    rows = _page_rows(texts[page - 1])
+    candidates = []
+    for i, row in enumerate(rows):
+        label = _row_label(row)
+        if not known(label):
+            continue
+        # ``_row_amounts`` intentionally preserves ambiguous Swedish grouping for its general callers.
+        # "16, 25, 26 912" can mean note refs 16/25/26 + 912, but generic degrouping reads 26,912.
+        # A non-null model answer still needs the strict <=2 tie before this only adds evidence; a
+        # null fill has no such target, so never derive it from that ambiguous current/non-current cell.
+        if total is None and re.search(r"(?:\b\d{1,2},\s*){2,}\d{1,2}\s+\d{3}\b", row):
+            continue
+        header = _row_year_column(rows, i, fiscal_year)
+        if not header:
+            continue
+        col, ncols = header
+        amounts = _row_amounts(row, ncols, nil=None)
+        if len(amounts) != ncols or not isinstance(amounts[col], (int, float)) or isinstance(amounts[col], bool):
+            continue
+        clean = _clean_label(label)
+        kind = "lease" if _BS_LEASE.search(clean) else "non_current" if _BS_NONCURRENT.search(clean) \
+            else "current" if _BS_CURRENT.search(clean) else "other"
+        candidates.append({"page": page, "index": i, "row": row, "label": label,
+                           "value": amounts[col], "kind": kind})
+
+    if total is None:
+        pairs = [pair for pair in itertools.combinations(candidates, 2)
+                 if {row["kind"] for row in pair} == {"current", "non_current"}
+                 and not any(row["kind"] == "lease" or _clean_label(row["label"]).startswith("total") for row in pair)]
+        if not pairs:
+            return None
+        chosen = min(pairs, key=lambda pair: tuple(row["index"] for row in pair))
+        return list(chosen), False
+
+    if not isinstance(total, (int, float)) or isinstance(total, bool):
+        return None
+    matches = []
+    for count in range(1, min(4, len(candidates)) + 1):
+        for rows_subset in itertools.combinations(candidates, count):
+            if abs(sum(row["value"] for row in rows_subset) - total) <= 2:
+                matches.append(rows_subset)
+    if not matches:
+        return None
+
+    def order(rows_subset):
+        has_lease = any(row["kind"] == "lease" for row in rows_subset)
+        total_rows = sum(_clean_label(row["label"]).startswith("total") for row in rows_subset)
+        return has_lease, total_rows, len(rows_subset) == 1, len(rows_subset), tuple(row["index"] for row in rows_subset)
+
+    chosen = min(matches, key=order)
+    return list(chosen), any(row["kind"] == "lease" for row in chosen)
 
 
 def _row_label(row: str) -> str:
@@ -3210,7 +3300,8 @@ def _normalize_sign(fields, sfs, schema, texts, warnings, values):
         f["evidence"].append("sign_normalized")
 
 
-def score_field(field: dict, sf: dict, checks: list[dict], schema: dict, currency, fiscal_year, statement_pages: set[int]) -> None:
+def score_field(field: dict, sf: dict, checks: list[dict], schema: dict, currency, fiscal_year, statement_pages: set[int],
+                texts: list[str] | None = None) -> None:
     """Fill field["evidence"] and field["confidence"] from what the backend itself verified. Never the model's opinion."""
     ev = field["evidence"]  # may already hold quote_on_page
     src = field["source"] or {}
@@ -3224,6 +3315,11 @@ def score_field(field: dict, sf: dict, checks: list[dict], schema: dict, currenc
         ev.append("label_known")  # a derived sum, or an unknown row, is identified by the check holding in every column, not by a printed label
     if fiscal_year and str(field.get("period")) == str(fiscal_year):
         ev.append("period_ok")
+    if field.get("key") == "total_debt" and texts and (tie := _balance_sheet_tie(texts, fiscal_year, field.get("value"), schema)):
+        tied_rows, _ = tie
+        evidence = " + ".join(row["label"] for row in tied_rows)
+        ev.append("bs_tie")
+        field["raw_label"] = f"{field.get('raw_label') or sf.get('label')} (ties to BS: {evidence})"
     if src.get("page") in statement_pages:
         ev.append("page_is_statement")
     unit = str(field.get("unit") or "")
@@ -4041,6 +4137,24 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
     _subtotal_pair_fill(fields, sfs, schema, texts, pages, fiscal_year, warnings, values, filled, basis)  # v110: non-current + current section subtotals, no printed grand total (NOTE Not 19)
     _window_rows_derive(fields, schema, texts, fiscal_year, pages, scope_words, basis, warnings, values, filled)  # v156: a null bucket derived from its window's printed rows when they close on the total (v126's family, on null)
     _normalize_sign(fields, sfs, schema, texts, warnings, values)  # v101: liabilities-negative printed totals/buckets record their magnitude; the identity below closes on carrying positives
+    if schema.get("name") == "debt_maturity" and fiscal_year:
+        total = next((field for field in fields if field["key"] == "total_debt"), None)
+        tie = _balance_sheet_tie(texts, fiscal_year, None, schema) if total and total["value"] is None else None
+        if tie:
+            tied_rows, _ = tie
+            page = tied_rows[0]["page"]
+            rows = _page_rows(texts[page - 1])
+            start, end = min(row["index"] for row in tied_rows), max(row["index"] for row in tied_rows)
+            span = " ".join(rows[start:end + 1])
+            if quote_on_page(span, texts[page - 1]):  # a derived source must still be one contiguous page citation
+                value = round(sum(row["value"] for row in tied_rows), 2)
+                label = " + ".join(row["label"] for row in tied_rows)
+                warnings.append(f"total_debt: model returned null; balance-sheet current/non-current rows on page {page} "
+                                f"sum to {value} ({label})")
+                total.update(value=value, period=str(fiscal_year), raw_label=label,
+                             source={"page": page, "quote": span}, evidence=["quote_on_page", "value_derived"])
+                values["total_debt"] = value
+                filled.add("total_debt")
     checks = [_check(c, {**defaults, **values}, texts=texts, pages=pages, fields=fields, schema=schema, stated_zeros=stated_zeros) for c in schema.get("checks", [])]
     for c, sc in zip(checks, schema.get("checks", [])):
         if not c["passed"] or not sc.get("identity"):
@@ -4084,7 +4198,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
     _prefer_note_citations(fields, sfs, schema, texts, pages, warnings)
     for sf, field in zip(sfs, fields):
         if field["value"] is not None:
-            score_field(field, sf, checks, schema, currency, fiscal_year, statement_pages)
+            score_field(field, sf, checks, schema, currency, fiscal_year, statement_pages, texts)
 
     out = {
         "report_id": report_meta.get("report_id"),

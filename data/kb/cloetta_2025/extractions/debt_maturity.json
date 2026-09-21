@@ -1,6 +1,6 @@
 {
   "report_id": "lib-cloetta_2025",
-  "company": "cloetta",
+  "company": "Cloetta",
   "fiscal_year": 2025,
   "currency": "SEKm",
   "section": "debt_maturity",
@@ -12,7 +12,7 @@
       "value": 1605,
       "unit": "SEKm",
       "period": "2025",
-      "raw_label": "Total",
+      "raw_label": "Total (ties to BS: Long-term borrowings + Short-term borrowings)",
       "source": {
         "page": 169,
         "quote": "Total 197 22 1,377 9 1,605"
@@ -23,6 +23,7 @@
         "value_in_quote",
         "arith_ok",
         "period_ok",
+        "bs_tie",
         "page_is_statement",
         "unit_ok"
       ]
@@ -103,7 +104,8 @@
     "two_pass: page [169, 170] selected from candidates [169, 170, 179, 171]",
     "due_1_to_5_years: 1399 is printed on none of pages [169, 170]; dropped as computed, not read",
     "due_1_to_5_years: model returned null; 1399 read from 'Total 197 22 1,377 9 1,605' by its column order",
-    "published: seedseed-rerun-v115-kb run replayed with extract.py @ d3eb5fc8"
+    "published: seedseed-rerun-v115-kb run replayed with extract.py @ d3eb5fc8",
+    "published: seedv166-publish-kb run replayed with extract.py @ a0dcac21"
   ],
   "prior_year": {
     "fiscal_year": 2024,
@@ -141,5 +143,10 @@
       "passed": true,
       "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (±2 rounding) | abs((203 + 2294 + 12) - 2509) <= 2"
     }
+  },
+  "timings": {
+    "model": 0.0,
+    "attempts": 1,
+    "validate": 0.399
   }
 }

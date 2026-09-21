@@ -12,7 +12,7 @@
       "value": 4495,
       "unit": "MSEK",
       "period": "2025",
-      "raw_label": "Total (Non-current liabilities) + Total (Current liabilities)",
+      "raw_label": "Total (Non-current liabilities) + Total (Current liabilities) (ties to BS: Non-current interest-bearing liabilities + Current interest-bearing liabilities)",
       "source": {
         "page": 110,
         "quote": "Total 4,049 4,027 Current liabilities 2025 2024 Liabilities to credit institutions 10 10 Leasing liabilities 119 120 Contingent considerations * 317 406 Other liabilities** 1 1 Total 446 537"
@@ -24,6 +24,7 @@
         "arith_ok",
         "label_known",
         "period_ok",
+        "bs_tie",
         "page_is_statement",
         "unit_ok"
       ]
@@ -82,6 +83,12 @@
   "warnings": [
     "two_pass: page [110, 111] selected from candidates [110, 111, 80, 104, 105, 81, 112, 74, 75, 95, 113]",
     "published: seedv148-sdiptech-kb run replayed with extract.py @ 4d7a4930",
-    "published: seedv156-sdiptech-kb run replayed with extract.py @ 1df83fb8"
-  ]
+    "published: seedv156-sdiptech-kb run replayed with extract.py @ 1df83fb8",
+    "published: seedv166-publish-kb run replayed with extract.py @ a0dcac21"
+  ],
+  "timings": {
+    "model": 0.0,
+    "attempts": 1,
+    "validate": 0.39
+  }
 }

@@ -12,7 +12,7 @@
       "value": 6558,
       "unit": "SEK M",
       "period": "2025",
-      "raw_label": "Total borrowing",
+      "raw_label": "Total borrowing (ties to BS: Borrowing + Lease liabilities + Lease liabilities)",
       "source": {
         "page": 103,
         "quote": "Total borrowing 6,558 5,327 3,446 3,244 quarter 2027. The covenants for the bank loans shall be tested Provision for 40 39 - -"
@@ -24,6 +24,7 @@
         "arith_ok",
         "label_known",
         "period_ok",
+        "bs_tie",
         "page_is_statement",
         "unit_ok"
       ]
@@ -80,6 +81,12 @@
   "warnings": [
     "two_pass: page [102, 103] selected from candidates [101, 102]",
     "due_within_1_year: quote not found on page 103",
-    "published: seed4 run replayed with extract.py @ d3eb5fc8"
-  ]
+    "published: seed4 run replayed with extract.py @ d3eb5fc8",
+    "published: seedv166-publish-kb run replayed with extract.py @ a0dcac21"
+  ],
+  "timings": {
+    "model": 0.0,
+    "attempts": 1,
+    "validate": 0.507
+  }
 }
