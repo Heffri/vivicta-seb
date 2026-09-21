@@ -427,7 +427,7 @@ def _run_extract(report_id: str, body: ExtractBody):
         result = json.loads(FIXTURE.read_text(encoding="utf-8")) | {"report_id": report_id, "section": body.section}
     else:
         texts = report_texts(report_id)
-        pages = locate.candidate_pages(texts, schema)
+        pages = locate.candidate_pages(texts, schema, fiscal_year=report.get("fiscal_year"))
         print(f"[extract] {report_id} {body.section}: candidate pages {pages}")
         if not pages:
             raise HTTPException(422, "No candidate pages found for this section")

@@ -3223,6 +3223,10 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
         ("2026", 77141), ("2027", 39), ("2028", 300039), ("2029", 202539), ("2030", 39)], by
     assert all(y["source"] == {"page": 1, "quote": "SEK thousands 12-31-25 2026 77,141 2027 39 2028 300,039 2029 202,539 2030 39"}
                for y in by["years"]), by
+    # v157: the same ladder as ANSWERS, not just metadata -- 2026 -> within 1 year, 2027-2030 summed
+    # into 1-5 years. No tail row is printed, so due_after_5_years stays null; never a fabricated 0
+    vals = {f["key"]: f["value"] for f in out["fields"]}
+    assert (vals["due_within_1_year"], vals["due_1_to_5_years"], vals["due_after_5_years"]) == (77141, 502656, None), vals
     # the tail-year path the BTS page cannot reach (Ericsson p.97's real shape carries it, and its own
     # printed total -- but a LEASE table: below it declines on total_debt, the gate doing its work)
     ericsson97 = ("Total interest-bearing liabilities 32,703 38,041\n"
@@ -3236,8 +3240,12 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
         *[{"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None}
           for k in ("due_within_1_year", "due_1_to_5_years", "due_after_5_years")]]}
     out = x.extract([ericsson97], [1], dm, {"fiscal_year": 2025})
-    assert {f["key"]: f["value"] for f in out["fields"]}["total_debt"] == 32703, out["warnings"]
+    vals = {f["key"]: f["value"] for f in out["fields"]}
+    assert vals["total_debt"] == 32703, out["warnings"]
     assert "buckets_by_year" not in out, out.get("buckets_by_year")  # 530+386+308+252+193+169 = 1,838 != 32,703
+    # v157: and the year ladder must not ANSWER the buckets off it either -- a lease subset is strictly
+    # smaller than total_debt, which is the fill's first gate (1,838 < 32,703, and 94% away from it)
+    assert all(vals[k] is None for k in ("due_within_1_year", "due_1_to_5_years", "due_after_5_years")), vals
     # the same machinery with years that DO close on total_debt: the open-end tail row rides along as
     # the last bucket, its label as printed, its quote its own row
     yr_tail = "Note 20 Borrowings\nMSEK\n2026 120 2027 80 2028 – 2029 40\nSenare 60\nTotal 300\n"
@@ -3251,6 +3259,42 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     assert [(y["label"], y["value"]) for y in by["years"]] == [
         ("2026", 120), ("2027", 80), ("2028", 0), ("2029", 40), ("Senare", 60)], by  # the dash is the report's explicit 0 (v078)
     assert by["years"][-1]["source"]["quote"] == "Senare 60", by
+    vals = {f["key"]: f["value"] for f in out["fields"]}  # v157: the tail row is the after-5-years bucket
+    assert (vals["due_within_1_year"], vals["due_1_to_5_years"], vals["due_after_5_years"]) == (120, 120, 60), vals
+    # ABB p.89 (real text, trimmed): a US-GAAP borrowings note whose maturity table is a bare year
+    # ladder -- no bucket synonym anywhere on it, so every bucket came back null however well the page
+    # parsed. The ladder restates the total on its own basis (principal 8,247) while the model cited
+    # the instrument table's carrying 7,905 on the facing page: filling the buckets alone would turn
+    # three honest nulls into three right numbers plus a FAILING identity, so the bare-Total citation
+    # moves to the row the buckets actually sum to.
+    abb89 = ("Note 13 Debt\n"
+             "Long-term debt\n"
+             "Bonds and notes 6,180 5,006\n"
+             "Total $ 7,905 $ 6,644\n"
+             "Maturities of long-term debt outstanding\n"
+             "($ in millions) 2026 442 2027 1,143 2028 591 2029 837 2030 1,221\n"
+             "Thereafter 4,013\n"
+             "Total 8,247\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 7905, "unit": "USD millions", "period": "2025", "raw_label": "Total",
+         "source": {"page": 1, "quote": "Total $ 7,905 $ 6,644"}},
+        *[{"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None}
+          for k in ("due_within_1_year", "due_1_to_5_years", "due_after_5_years")]]}
+    out = x.extract([abb89], [1], dm, {"fiscal_year": 2025})
+    vals = {f["key"]: f["value"] for f in out["fields"]}
+    assert (vals["due_within_1_year"], vals["due_1_to_5_years"], vals["due_after_5_years"]) == (442, 3792, 4013), vals
+    assert vals["total_debt"] == 8247, (vals, out["warnings"])
+    assert out["checks"][0]["passed"], out["checks"]
+    assert any("re-cited" in w for w in out["warnings"]), out["warnings"]
+    # the same page with a total the model could NAME: a recognised debt row outranks the ladder's own
+    # Total and is left alone, buckets or not (the identity then fails loudly, which is the honest state)
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 7905, "unit": "USD millions", "period": "2025",
+         "raw_label": "Total borrowings", "source": {"page": 1, "quote": "Total borrowings 7,905"}},
+        *[{"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None}
+          for k in ("due_within_1_year", "due_1_to_5_years", "due_after_5_years")]]}
+    out = x.extract([abb89 + "Total borrowings 7,905\n"], [1], dm, {"fiscal_year": 2025})
+    assert {f["key"]: f["value"] for f in out["fields"]}["total_debt"] == 7905, out["warnings"]
     # a two-figure Total row below the years is a stacked table's own row (BTS p.92's liabilities
     # table prints exactly that shape): no one-column total, no proof, no key
     stacked = "Maturity analyses\nSEK thousands 12-31-25 2026 100 2027 50\nTotal 150 140\n"
