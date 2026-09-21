@@ -6,12 +6,14 @@ import os
 import tempfile
 from pathlib import Path
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 from pptx import Presentation
 import app
 from pipeline import kb
 
 with tempfile.TemporaryDirectory() as tmp:
     os.environ['KB_DIR'] = tmp
+    client = TestClient(app.app)
     f = dict(key='revenue', label='Revenue', value=100, unit='MSEK', period='2025', raw_label='Revenue', source={'page': 1, 'quote': 'Revenue 100'}, confidence=.8, evidence=['arith_ok', 'value_in_quote'])
     x = dict(report_id='lib-review_test', company='Test', fiscal_year=2025, currency='MSEK', section='income_statement', fields=[f], checks=[dict(name='net_profit_arith', passed=True, detail='old calculation')], warnings=[])
     app.reports[x['report_id']] = dict(report_id=x['report_id'], stem='review_test', pages=2)
@@ -76,4 +78,52 @@ with tempfile.TemporaryDirectory() as tmp:
         raise AssertionError('invalid numeric value accepted')
     except HTTPException as e:
         assert e.status_code == 422
+
+    # v177: an analyst-directed retry is a candidate only. It can use no page other than the
+    # explicitly supplied window, cannot change the stored extraction, and keeps the normal
+    # reviewed-section barrier ahead of even fixture-mode handling.
+    def fill_request(report_id, field, pages):
+        return client.post(f'/api/reports/{report_id}/fill?section=income_statement', json={'field': field, 'pages': pages})
+
+    reviewed_fill = fill_request(x['report_id'], 'revenue', [2])
+    assert reviewed_fill.status_code == 409, reviewed_fill.text
+
+    fill_field = dict(key='revenue', label='Revenue', value=None, unit='MSEK', period='2025', raw_label='Revenue', source=None, confidence=0, evidence=[])
+    untouched = dict(key='cost_of_sales', label='Cost of sales', value=-80, unit='MSEK', period='2025', raw_label='Cost of sales', source={'page': 1, 'quote': 'Cost of sales -80'}, confidence=.8, evidence=['quote_on_page'])
+    fill = dict(report_id='lib-fill_test', company='Fill Test', fiscal_year=2025, currency='MSEK', section='income_statement', fields=[fill_field, untouched], checks=[], warnings=[])
+    app.reports[fill['report_id']] = dict(report_id=fill['report_id'], stem='fill_test', pages=2)
+    app.texts_cache[fill['report_id']] = ['Revenue 100\nCost of sales -80', 'Revenue 120']
+    kb.save_extraction('fill_test', 'income_statement', fill)
+    stored_before = (Path(tmp) / 'fill_test/extractions/income_statement.json').read_text(encoding='utf-8')
+    configured, extract = app._llm_configured, app.extract_mod.extract
+    try:
+        app._llm_configured = lambda: False
+        fixture_fill = fill_request(fill['report_id'], 'revenue', [2])
+        assert fixture_fill.status_code == 422 and 'Demo mode does not support targeted field fill' in fixture_fill.text
+
+        seen = {}
+        def fixed_page_extract(texts, pages, schema, report, fixed_pages=False):
+            seen.update(pages=pages, fixed_pages=fixed_pages)
+            return {'fields': [
+                {**fill_field, 'value': 120, 'source': {'page': 2, 'quote': 'Revenue 120'}, 'confidence': .8, 'evidence': ['quote_on_page']},
+                {**untouched, 'value': -999},
+            ], 'warnings': ['stubbed response']}
+        app._llm_configured = lambda: True
+        app.extract_mod.extract = fixed_page_extract
+        response = fill_request(fill['report_id'], 'revenue', [2])
+        assert response.status_code == 200, response.text
+        candidate = response.json()
+        assert candidate == {'candidate': {**fill_field, 'value': 120, 'source': {'page': 2, 'quote': 'Revenue 120'}, 'confidence': .8, 'evidence': ['quote_on_page']}, 'warnings': ['stubbed response']}
+        assert seen == {'pages': [2], 'fixed_pages': True}
+        assert (Path(tmp) / 'fill_test/extractions/income_statement.json').read_text(encoding='utf-8') == stored_before
+
+        def outside_page_extract(texts, pages, schema, report, fixed_pages=False):
+            return {'fields': [{**fill_field, 'value': 100, 'source': {'page': 1, 'quote': 'Revenue 100'}, 'confidence': .8, 'evidence': ['quote_on_page']}], 'warnings': []}
+        app.extract_mod.extract = outside_page_extract
+        rejected_response = fill_request(fill['report_id'], 'revenue', [2])
+        assert rejected_response.status_code == 200, rejected_response.text
+        rejected = rejected_response.json()
+        assert rejected['candidate'] is None and any('outside the supplied pages' in warning for warning in rejected['warnings'])
+    finally:
+        app._llm_configured, app.extract_mod.extract = configured, extract
 print('Human review persistence, conflict, correction, export and re-extraction checks passed')

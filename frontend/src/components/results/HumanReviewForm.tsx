@@ -5,7 +5,7 @@ import type { Extraction, Field, HumanReview, ReviewComponent } from '@/types'
 
 type ComponentDraft = { label: string; value: string; page: string; quote: string }
 
-export function HumanReviewForm({ extraction, field, citation, onCitationChange, onSaved }: { extraction: Extraction; field: Field; citation: { page: string; quote: string }; onCitationChange: (citation: { page: string; quote: string }) => void; onSaved: (result: Extraction) => void }) {
+export function HumanReviewForm({ extraction, field, citation, onCitationChange, onSaved, candidate, candidateWarnings = [], onDiscardCandidate }: { extraction: Extraction; field: Field; citation: { page: string; quote: string }; onCitationChange: (citation: { page: string; quote: string }) => void; onSaved: (result: Extraction) => void; candidate?: Field | null; candidateWarnings?: string[]; onDiscardCandidate?: () => void }) {
   const [decision, setDecision] = useState<HumanReview['decision']>('confirmed')
   const [reviewer, setReviewer] = useState(field.human_review?.reviewer ?? '')
   const [note, setNote] = useState('')
@@ -22,6 +22,12 @@ export function HumanReviewForm({ extraction, field, citation, onCitationChange,
   const componentTotal = completeComponents ? componentNumbers.reduce((sum, component) => sum + component, 0) : null
   const updateComponent = (index: number, patch: Partial<ComponentDraft>) => setComponents((current) => current.map((component, i) => i === index ? { ...component, ...patch } : component))
   const addComponent = () => setComponents((current) => [...current, { label: `Component ${current.length + 1}`, value: '', page: '', quote: '' }])
+  const acceptCandidate = () => {
+    if (!candidate?.source || candidate.value === null) return
+    setDecision('corrected'); setValue(String(candidate.value)); setUnit(candidate.unit ?? ''); setPeriod(candidate.period ?? '')
+    setUseComponents(false); setError('')
+    onCitationChange({ page: String(candidate.source.page), quote: candidate.source.quote })
+  }
   return <form aria-label={`Review ${field.label}`} className="space-y-3 rounded-xl border bg-card p-4" onSubmit={async e => {
     e.preventDefault(); setError('')
     let componentPayload: ReviewComponent[] | undefined
@@ -46,6 +52,7 @@ export function HumanReviewForm({ extraction, field, citation, onCitationChange,
   }}>
     <h3 className="font-semibold">Review {field.label}</h3>
     <p className="text-xs text-muted-foreground">Check the source before confirming. Your name is self-reported. Original values and previous decisions remain in the history.</p>
+    {candidate && <section aria-label={`Candidate for ${field.label}`} className="space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3"><p className="text-sm font-medium">Candidate for {field.label}</p><p className="text-sm tabular-nums">{String(candidate.value ?? '—')} {candidate.unit ?? ''} {candidate.period ?? ''}</p>{candidate.source && <p className="text-xs text-muted-foreground">p.{candidate.source.page} · “{candidate.source.quote}”</p>}{candidateWarnings.length > 0 && <ul className="list-disc space-y-1 pl-4 text-xs text-muted-foreground">{candidateWarnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul>}<div className="flex flex-wrap gap-2"><Button type="button" size="xs" disabled={!candidate.source || candidate.value === null} onClick={acceptCandidate}>Accept as correction</Button><Button type="button" variant="ghost" size="xs" onClick={onDiscardCandidate}>Discard</Button></div></section>}
     {field.human_review && <p className="text-sm">Last review: {field.human_review.reviewer} · {new Date(field.human_review.at).toLocaleString()} · {field.human_review.note || field.human_review.decision}{field.human_review.source_verified ? ' · submitted citation checked on its page' : ''}</p>}
     <fieldset disabled={busy} className="space-y-3">
       <label className="block text-sm">Decision<select className={inputClass} value={decision} onChange={e => setDecision(e.target.value as HumanReview['decision'])}><option value="confirmed">Confirm against source</option><option value="corrected">Correct figure</option><option value="unresolved">Leave unresolved</option></select></label>
