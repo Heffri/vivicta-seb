@@ -94,7 +94,8 @@
         "interest-bearing liabilities", "interest bearing liabilities", "short-term interest-bearing liabilities",
         "lease liabilities", "lease liability",
         "upplåning", "räntebärande skulder",
-        "lån kreditinstitut", "liabilities to credit institutions"
+        "lån kreditinstitut", "liabilities to credit institutions",
+        "skulder till kreditinstitut", "leaseskulder"
       ],
       "zero_if_stated": {
         "negations": [

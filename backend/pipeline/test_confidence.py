@@ -3915,6 +3915,76 @@ def test_note_citation_preference():
     print("note citation preference ok")
 
 
+def test_balance_sheet_tie():
+    """v166: balance-sheet rows are independent zero-weight evidence for a debt total.
+
+    Frozen excerpts preserve the real KABE, Net Insight, Cavotec, Ericsson and Dynavox shapes without
+    coupling this test to mutable KB text.  KABE demonstrates the two narrowly added Swedish row labels;
+    Cavotec proves a carrying total is not tied merely because a balance sheet mentions some debt rows.
+    """
+    import json
+    import pathlib
+
+    dm = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
+    kabe = ("Koncernens rapport över finansiell ställning\nMkr Not 2025 2024\nSumma tillgångar 2 397 2 502\n"
+            "Skulder\nLångfristiga skulder\nSkulder till kreditinstitut 23 12 17\n"
+            "Långfristiga leaseskulder 23 8 14\nKortfristiga skulder\n"
+            "Skulder till kreditinstitut 23 22 19\nKortfristiga leaseskulder 23 8 12\n"
+            "Summa eget kapital och skulder 2 397 2 502")
+    rows, with_leases = x._balance_sheet_tie([kabe], 2025, 50, dm)
+    assert with_leases and [r["value"] for r in rows] == [12, 8, 22, 8], rows
+
+    net_insight = ("Consolidated Balance Sheet\nAmounts in SEK thousands NOTE 31 Dec 2025 31 Dec 2024\n"
+                   "Total assets 799,594 834,779\nNon-current liabilities\nLease liabilities 10 31,110 1,555\n"
+                   "Current liabilities\nLease liabilities 10 8,305 11,738\n"
+                   "TOTAL EQUITY AND LIABILITIES 799,594 834,779")
+    rows, with_leases = x._balance_sheet_tie([net_insight], 2025, 39415, dm)
+    assert with_leases and [r["value"] for r in rows] == [31110, 8305], rows
+
+    cavotec = ("Consolidated balance sheet\nEuro thousands Notes 2025 2024\nTOTAL ASSETS 147,717 144,700\n"
+               "Long-term liabilities\nLoans from credit institutions 27 9,811 13,601\n"
+               "Lease liabilities 15 10,378 10,160\nCurrent liabilities\nLease liabilities 15 3,324 2,566\n"
+               "TOTAL EQUITY AND LIABILITIES 147,717 144,700")
+    assert x._balance_sheet_tie([cavotec], 2025, 23702, dm) is None
+
+    ericsson = ("Consolidated balance sheet\nSEK million Dec 31 2025 Dec 31 2024\nTotal assets 279,223 292,374\n"
+                "Non-current liabilities\nBorrowings, non-current F4 29,165 31,904\n"
+                "Current liabilities\nBorrowings, current F4 3,538 6,137\n"
+                "Total equity and liabilities 279,223 292,374")
+    rows, with_leases = x._balance_sheet_tie([ericsson], 2025, 32703, dm)
+    assert not with_leases and [r["value"] for r in rows] == [29165, 3538], rows
+    total_sf = next(f for f in dm["fields"] if f["key"] == "total_debt")
+    model_total = {"key": "total_debt", "value": 32703, "unit": "MSEK", "period": "2025",
+                   "raw_label": "Total interest-bearing liabilities",
+                   "source": {"page": 1, "quote": "Borrowings, non-current F4 29,165 31,904"},
+                   "evidence": ["quote_on_page"]}
+    x.score_field(model_total, total_sf, [], dm, "MSEK", 2025, {1}, [ericsson])
+    assert "bs_tie" in model_total["evidence"] and "ties to BS: Borrowings, non-current F4 + Borrowings, current F4" in model_total["raw_label"], model_total
+
+    # Ratos has exact current/non-current labels, but the note-reference tail "16, 25, 26 912"
+    # is ambiguous in the shared row parser (26,912 versus note 26 + 912). It must not manufacture
+    # a 33,914 balance-sheet total from that uncertainty.
+    ratos = ("Consolidated statement of financial position\nSEKm Note 4 31 Dec 2025 31 Dec 2024\n"
+             "Total assets 27,885 34,536\nLiabilities\n"
+             "Non-current interest-bearing liabilities 16, 25, 26 7,002 7,613\n"
+             "Current interest-bearing liabilities 16, 25, 26 912 1,390\n"
+             "Total equity and liabilities 27,885 34,536")
+    assert x._balance_sheet_tie([ratos], 2025, None, dm) is None
+
+    dynavox = ("Consolidated statement of financial position\nSEK m Note Dec. 31, 2025 Dec. 31, 2024\n"
+               "Total assets 2,474.5 1,997.8\nNon-current liabilities\nBorrowings, non-current 24 828.8 647.5\n"
+               "Current liabilities\nBorrowings, current 24 67.5 44.0\n"
+               "Total equity and liabilities 2,474.5 1,997.8")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": f["key"], "value": None, "unit": None, "period": None, "raw_label": None, "source": None}
+        for f in dm["fields"]]}
+    out = x.extract([dynavox], [1], dm, {"fiscal_year": 2025})
+    total = next(f for f in out["fields"] if f["key"] == "total_debt")
+    assert total["value"] == 896.3 and "value_derived" in total["evidence"] and "bs_tie" in total["evidence"], total
+    assert "ties to BS: Borrowings, non-current + Borrowings, current" in total["raw_label"], total
+    print("balance-sheet tie ok")
+
+
 if __name__ == "__main__":
     test_confidence_never_exceeds_one()
     test_torn_bucket_headers()
@@ -3922,4 +3992,5 @@ if __name__ == "__main__":
     test_cash_flow_citation_refusal()
     test_gross_value_prior_year_citation_refusal()
     test_note_citation_preference()
+    test_balance_sheet_tie()
     demo()
