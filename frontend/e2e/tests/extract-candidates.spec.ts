@@ -53,4 +53,30 @@ for (const tone of TONES) {
     expect(extractCalls).toEqual([])
     expect(errors).toEqual([])
   })
+
+  test(`results: a banner names the searched pages when nothing was found [${tone}]`, async ({ page }) => {
+    const errors = trackPageErrors(page)
+    await gotoWithTone(page, tone)
+
+    await page.setInputFiles('#pdf', [{ name: 'not-found-report.pdf', mimeType: 'application/pdf', buffer: makePdf(70, DEBT_PAGES) }])
+    await expect(page.getByText('1 file selected')).toBeVisible()
+
+    // Same bytes, same locator — but the model "finds nothing": every field comes back null.
+    await page.route(/\/api\/reports\/.+\/extract$/, async (route) => {
+      const response = await route.fetch()
+      const json = await response.json()
+      json.fields = json.fields.map((f: { value: unknown }) => ({ ...f, value: null, source: null }))
+      await route.fulfill({ response, json })
+    })
+    await page.getByRole('main').getByRole('button', { name: /^Extract/ }).click()
+
+    const banner = page.getByRole('region', { name: 'Figures the model did not find' })
+    await expect(banner).toBeVisible({ timeout: 20000 })
+    await expect(banner.getByText(/Candidates were pages 30–32 of this report/)).toBeVisible()
+
+    // The banner's entry lands on the manual review form of the first not-found figure.
+    await banner.getByRole('button', { name: 'Fill in below' }).click()
+    await expect(page.getByRole('form', { name: /^Review / })).toBeVisible()
+    expect(errors).toEqual([])
+  })
 }

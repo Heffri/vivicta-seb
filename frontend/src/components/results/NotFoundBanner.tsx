@@ -16,10 +16,14 @@ type Props = {
 export function NotFoundBanner({ extraction, onSelectField }: Props) {
   const { fields, checks, report_id, section } = extraction
   const allNull = fields.length > 0 && fields.every((f) => f.value === null)
-  const identityMissing = checks.some((c) => c.status === 'unavailable')
+  // The identity "cannot close for missing values" case: a check marked unavailable *and* a figure
+  // actually missing. An unavailable check with every value present is a unit/period mismatch —
+  // the figures were found, so the banner has nothing to say there (work order: 全 null 或因缺值失败).
+  const identityMissing = checks.some((c) => c.status === 'unavailable') && fields.some((f) => f.value === null)
+  const show = allNull || identityMissing
   const [candidates, setCandidates] = useState<CandidatePage[] | null>(null)
   useEffect(() => {
-    if (!(allNull || identityMissing)) return
+    if (!show) return
     let stale = false
     // Advisory only: an older backend (404) or a textless report leaves the page list out and the
     // banner still says what happened.
@@ -29,8 +33,8 @@ export function NotFoundBanner({ extraction, onSelectField }: Props) {
     return () => {
       stale = true
     }
-  }, [allNull, identityMissing, report_id, section])
-  if (!(allNull || identityMissing)) return null
+  }, [show, report_id, section])
+  if (!show) return null
   const pages = (candidates ?? []).map((c) => c.page)
   const target = fields.find((f) => f.value === null) ?? fields[0]
   const openReview = () => {
