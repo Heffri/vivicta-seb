@@ -105,7 +105,7 @@ replay_check: baseline 072c578, sections ['debt_maturity'], worktree extract.py;
   kb/xano_industri_2025                        debt_maturity    same
   kb/xvivo_perfusion_2025                      debt_maturity    same
 
-totals: companies=104 same=104 changed=0 not_replayable=102
+totals: companies=104 same=104 changed=0 not_replayable=107
   not replayable: kb/4c_2025: no debt_maturity
   not replayable: kb/aak_2025: no debt_maturity
   not replayable: kb/abb_2025: no debt_maturity
@@ -201,6 +201,11 @@ totals: companies=104 same=104 changed=0 not_replayable=102
   not replayable: kb/traton_2025: no debt_maturity
   not replayable: kb/trelleborg_2025: no debt_maturity
   not replayable: kb/truecaller_2025: no debt_maturity
+  not replayable: kb/up-1c7475957fa6: no debt_maturity
+  not replayable: kb/up-796bed91838b: no debt_maturity
+  not replayable: kb/up-7d81079b4cf2: no debt_maturity
+  not replayable: kb/up-d6a30c34b48c: no debt_maturity
+  not replayable: kb/up-e8ae0f92da52: no debt_maturity
   not replayable: kb/verisure_2025: no debt_maturity
   not replayable: kb/vitec_software_2025: no debt_maturity
   not replayable: kb/vitrolife_2025: no debt_maturity
