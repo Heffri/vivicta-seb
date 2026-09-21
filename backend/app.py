@@ -987,12 +987,10 @@ def saved_extraction(report_id: str, section: str | None = None):
 
 
 def extraction_identity(report, schema, prompt):
-    from pipeline import merge
-    pipeline = [Path(__file__), *[Path(m.__file__) for m in (extract_mod, locate, parse, llm, merge, workbench)]]
-    return kb.fingerprint({"report": kb._meta(report["stem"]), "schema": schema,
-                           "pipeline": [kb.sha256(p.read_bytes()) if p.is_file() else "packaged-cache-v1" for p in pipeline],
+    # ponytail: EXTRACT_VERSION instead of hashing 7 source files -- a comment edit no longer re-runs every section
+    return kb.fingerprint({"report": kb._meta(report["stem"]), "schema": schema, "pipeline": extract_mod.EXTRACT_VERSION,
                            "model": os.getenv("LLM_MODEL") or {"codex": "gpt-5.6-terra", "claude": "claude-sonnet-5"}.get(llm.provider(), "fixture"), "provider": llm.provider(), "prompt": prompt,
-                           "settings": {k: os.getenv(k) for k in ("LLM_BASE_URL", "LLM_REASONING", "LLM_THINK", "LLM_NUM_CTX", "LLM_TIMEOUT", "LLM_STRICT_SCHEMA", "DEBT_BASIS", "EXTRACT_MERGE_RUNS", "EXTRACT_TWO_PASS", "FEWSHOT")}})
+                           "settings": {k: os.getenv(k) for k in ("LLM_BASE_URL", "LLM_REASONING", "LLM_THINK", "LLM_NUM_CTX", "LLM_STRICT_SCHEMA", "DEBT_BASIS", "EXTRACT_MERGE_RUNS", "EXTRACT_TWO_PASS", "FEWSHOT")}})
 
 
 @app.post("/api/knowledge/{stem}/open")
