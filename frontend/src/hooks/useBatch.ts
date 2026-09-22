@@ -52,6 +52,7 @@ function classify(stage: 'fetch' | 'extract', status: number | undefined): Batch
 }
 
 let seq = 0
+const BATCH_CONCURRENCY = 3
 
 type Handlers = {
   onSettle: (results: Result[]) => void // called with the full current results list after every item settles
@@ -146,13 +147,21 @@ export function useBatch({ onSettle }: Handlers) {
     commit(initial)
     setBusy(true)
     void (async () => {
-      for (const item of initial) {
-        if (stopRef.current) {
-          patch(item.id, (it) => (it.stage === 'queued' ? { ...it, stage: 'skipped' } : it))
-          continue
+      // Match the backend's hosted-model semaphore. Each worker claims its next item only after
+      // the previous one settles, so a five-report batch starts three extracts and holds the
+      // remaining two until a slot is free. The shared cursor is synchronous between awaits.
+      let cursor = 0
+      const worker = async () => {
+        while (!stopRef.current) {
+          const item = initial[cursor++]
+          if (!item) return
+          await runItem(item.id)
         }
-        await runItem(item.id)
       }
+      await Promise.all(Array.from({ length: Math.min(BATCH_CONCURRENCY, initial.length) }, worker))
+      // Stop never aborts an in-flight request (the backend would continue it anyway); it prevents
+      // the workers from claiming another item and marks every still-queued row honestly.
+      if (stopRef.current) commit(itemsRef.current.map((item) => (item.stage === 'queued' ? { ...item, stage: 'skipped' } : item)))
       setBusy(false)
     })()
   }
