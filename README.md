@@ -163,13 +163,15 @@ where the label is right and a named, bounded mechanism gap blocked the read
 ([v154](docs/acrylic/evidence/v154.md)). Scope calls that depend on Kristian's definitions
 (carrying vs undiscounted, leases in/out) are disclosed per company, not silently resolved.
 
-**4) Held-out first extraction (Small Cap, blind labels).** Ten FY2025 Small Cap reports never
-used for labels or tuning were hand-labelled before their outputs were opened. With the shipped
-default (`EXTRACT_MERGE_RUNS=off`), the raw first extraction scored **26/40 (65.0%)** values and
-**8/17 (47.1%)** cited pages: **5 empty** misses and **9 non-empty wrong** values. The same frozen
-labels under the non-default `majority` comparison scored 27/40 and 8/17 (5 empty, 8 non-empty
-wrong). This is an n=10 held-out measurement, not a market-accuracy claim; see
-[v178](docs/acrylic/evidence/v178.md).
+**4) Held-out first extraction (Small Cap, blind labels).** There are two separate ten-report
+FY2025 samples, each labelled before its outputs were opened. **Round 1** (`seed=1`) scored 26/40
+values and 8/17 cited pages at the shipped default (5 empty, 9 non-empty-wrong); it was
+subsequently used to develop guard/tuning work and is no longer the current held-out benchmark.
+**Round 2** (`seed=2`, excluding round 1's extracted-or-skipped companies) is the current
+held-out sample: shipped-default `off` scored **36/40 (90.0%)** values and **14/17 (82.4%)** cited
+pages (**1 empty**, **3 non-empty-wrong**), and the same frozen labels under non-default `majority`
+scored the same 36/40 and 14/17. Neither n=10 measurement is a market-accuracy claim; see
+[v178](docs/acrylic/evidence/v178.md) and [v190](docs/acrylic/evidence/v190.md).
 
 **5) The boundary.** The 105 labelled companies have been used repeatedly to debug and tune this
 pipeline — none of the numbers above is an out-of-the-box market-accuracy claim, and we do not
