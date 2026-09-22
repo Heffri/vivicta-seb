@@ -1,4 +1,4 @@
-import type { ChunkPage, Answer, Company, Discovery, Extraction, FieldFill, IndexStatus, KbEntry, LibraryEntry, MaturityWall, Report, ReviewComponent, Schema } from './types'
+import type { ChunkPage, Answer, Company, Discovery, Extraction, FieldFill, IndexStatus, Job, KbEntry, LibraryEntry, MaturityWall, Report, ReviewComponent, Schema } from './types'
 import type { Collection } from './hooks/useCollection'
 
 export type ApiError = Error & { status: number; tried?: string[]; ocrPagesNeeded?: number }
@@ -41,7 +41,8 @@ export const registerLibraryReport = (file: string, ocr?: 'full') =>
 export const getCompanies = (q: string, collection: Collection = 'wallenberg') => request<Company[]>(`/api/companies?q=${encodeURIComponent(q)}&collection_name=${collection}`)
 
 // Which legal entities a typed query could mean (saved first, then one model web search); downloads nothing.
-export const discoverCompanies = (company: string, year: number, opts?: { country?: string; hint?: string }) =>
+// job_id (v194, optional): GET /api/jobs/{job_id} (getJob) polls this call's progress while it runs.
+export const discoverCompanies = (company: string, year: number, opts?: { country?: string; hint?: string; job_id?: string }) =>
   request<Discovery>('/api/reports/discover', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -49,12 +50,17 @@ export const discoverCompanies = (company: string, year: number, opts?: { countr
   })
 
 // country/hint provide optional context for AI-first report discovery; url (a confirmed candidate's link) is tried first.
-export const fetchReport = (company: string, year: number, opts?: { country?: string | null; hint?: string; url?: string | null; download_pdf?: boolean; ocr?: 'full' }) =>
+// job_id (v194, optional): see discoverCompanies. ocr (v191, optional): see uploadReport.
+export const fetchReport = (company: string, year: number, opts?: { country?: string | null; hint?: string; url?: string | null; download_pdf?: boolean; ocr?: 'full'; job_id?: string }) =>
   request<Report>('/api/reports/fetch', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ company, year, ...opts }),
   })
+
+// v194: progress trail for a job_id passed to discoverCompanies/fetchReport; 404 once pipeline.jobs
+// has swept it (unknown id, or past its 1-hour TTL) -- request() turns that into a thrown ApiError.
+export const getJob = (jobId: string) => request<Job>(`/api/jobs/${encodeURIComponent(jobId)}`)
 
 export const extractSection = (reportId: string, section: string, force = false) =>
   request<Extraction>(`/api/reports/${reportId}/extract`, {

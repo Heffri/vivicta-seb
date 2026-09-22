@@ -1,0 +1,75 @@
+{
+  "company": "Husqvarna",
+  "tone": "light",
+  "ms": 30686,
+  "stagesSeen": [
+    "directory",
+    "model_search",
+    "done"
+  ],
+  "lastJob": {
+    "stage": "done",
+    "started": 1790066330.471974,
+    "updated": 1790066360.942756,
+    "done": true,
+    "error": null,
+    "events": [
+      {
+        "t": 1790066330.471974,
+        "stage": "directory",
+        "text": "checking saved reports for Husqvarna (2025)"
+      },
+      {
+        "t": 1790066330.6522899,
+        "stage": "directory",
+        "text": "1 saved match(es)"
+      },
+      {
+        "t": 1790066330.6522899,
+        "stage": "model_search",
+        "text": "asking the connected model to search the web"
+      },
+      {
+        "t": 1790066360.9356647,
+        "stage": "model_search",
+        "text": "model searched: site:husqvarnagroup.com 2025 annual report pdf Husqvarna AB; site:husqvarnagroup.com annual report 2025 Husqvarna Group PDF",
+        "data": {
+          "queries": [
+            "site:husqvarnagroup.com 2025 annual report pdf Husqvarna AB",
+            "site:husqvarnagroup.com annual report 2025 Husqvarna Group PDF"
+          ]
+        }
+      },
+      {
+        "t": 1790066360.9356647,
+        "stage": "model_search",
+        "text": "model searched: Husqvarna AB publ LEI 556000-5331 official; \"Husqvarna AB (publ)\" \"5493000\" LEI",
+        "data": {
+          "queries": [
+            "Husqvarna AB publ LEI 556000-5331 official",
+            "\"Husqvarna AB (publ)\" \"5493000\" LEI"
+          ]
+        }
+      },
+      {
+        "t": 1790066360.942756,
+        "stage": "model_search",
+        "text": "model suggested 1 entity",
+        "data": {
+          "candidates": [
+            {
+              "legal_name": "Husqvarna AB (publ)",
+              "url": "https://www.husqvarnagroup.com/sites/husqvarna/files/pr/202603249629-1.pdf"
+            }
+          ]
+        }
+      },
+      {
+        "t": 1790066360.942756,
+        "stage": "done",
+        "text": "1 candidate(s)"
+      }
+    ],
+    "job_id": "2207bca5-8377-4f54-bb11-dc5238991572"
+  }
+}

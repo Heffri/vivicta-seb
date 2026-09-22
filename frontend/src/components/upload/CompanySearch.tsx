@@ -3,12 +3,14 @@ import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { ErrorBlock, LoadingLine } from '@/components/ui/state'
+import { ErrorBlock } from '@/components/ui/state'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { Collection } from '@/hooks/useCollection'
+import type { SearchTrace } from '@/hooks/useReportSearch'
 import type { Candidate, Company, Discovery } from '@/types'
 import { Face } from './Face'
+import { SearchTracePanel } from './SearchTrace'
 
 type CompanySearchProps = {
   collection: Collection
@@ -21,6 +23,7 @@ type CompanySearchProps = {
   canRun: boolean // a section is picked; 'Use this company' runs the extraction straight away
   discovery: Discovery | null // null = nothing searched for this query yet
   discovering: boolean
+  trace: SearchTrace | null // v194: the current/last discover or fetch job's progress trail
   onQueryChange: (query: string) => void
   onYearChange: (year: string) => void
   onTogglePick: (company: Company) => void
@@ -41,6 +44,7 @@ export function CompanySearch({
   canRun,
   discovery,
   discovering,
+  trace,
   onQueryChange,
   onYearChange,
   onTogglePick,
@@ -154,8 +158,12 @@ export function CompanySearch({
       )}
 
       {/* Candidate cards: what the query resolved to. Every identity field is model-reported (or the
-          saved entry's own name); the PDF is only validated once a card is confirmed. */}
-      {discovering && <LoadingLine>Resolving “{query.trim()}” · {year} — saved reports first, then AI web search…</LoadingLine>}
+          saved entry's own name); the PDF is only validated once a card is confirmed. v194: the
+          progress trail replaces the old bare "Resolving…" line — it covers discover *and* the fetch
+          that follows confirming a candidate, survives switching tabs away and back, and on failure
+          keeps the trail up with the reason and a Retry (discover only; a failed fetch already has
+          its own Retry in BatchProgress, so this one isn't offered there — see SearchTrace.tsx). */}
+      {trace && <SearchTracePanel trace={trace} onRetry={trace.kind === 'discover' ? () => onDiscover() : undefined} />}
       {discovery && !discovering && (
         <div className="space-y-2" aria-label="Company candidates">
           <p className="text-xs text-muted-foreground">
