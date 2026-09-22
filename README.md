@@ -145,8 +145,10 @@ python eval/run.py --stored-kb data/kb --no-fail   # zero model calls, offline, 
 - Debt section alone: values **231/271 (85.2%)**, pages **171/221 (77.4%)** — the headline number
   is pulled up by the income section; the debt number is the honest one for the scoped section
 - Offline labelled-page coverage (all 276 debt rows with a page): locator candidates **263/276
-  (95.3%)** → candidates plus the deterministic full-text field sweep **264/276 (95.7%)**
-  ([w198](docs/acrylic/evidence/w198.md))
+  (95.3%)** → candidates plus the deterministic full-text field sweep **268/276 (97.1%)**
+  ([w198](docs/acrylic/evidence/w198.md) reached 264/276; [w203](docs/acrylic/evidence/w203.md)'s
+  wordlist fixes took it to 268/276 — the remaining 8 are named structural table-layout gaps, not
+  missing synonyms)
 
 **2) First extraction (no labels at run time).** Three measured batches where the pipeline ran
 without label access and was scored afterwards:
@@ -167,18 +169,26 @@ where the label is right and a named, bounded mechanism gap blocked the read
 (carrying vs undiscounted, leases in/out) are disclosed per company, not silently resolved.
 
 **4) Held-out first extraction (Small Cap, blind labels).** There are two separate ten-report
-FY2025 samples, each labelled before its outputs were opened. **Round 1** (`seed=1`) scored 26/40
-values and 8/17 cited pages at the shipped default (5 empty, 9 non-empty-wrong); it was
-subsequently used to develop guard/tuning work and is no longer the current held-out benchmark.
-**Round 2** (`seed=2`, excluding round 1's extracted-or-skipped companies) is the current
-held-out sample: shipped-default `off` scored **36/40 (90.0%)** values and **14/17 (82.4%)** cited
-pages (**1 empty**, **3 non-empty-wrong**), and the same frozen labels under non-default `majority`
-scored the same 36/40 and 14/17. Neither n=10 measurement is a market-accuracy claim; see
+FY2025 samples, each labelled before its outputs were opened. **Round 1** (`seed=1`) scored
+**26/40 (65.0%)** values and **8/17 (47.1%)** cited pages at the shipped default (5 empty, 9
+non-empty-wrong); it was subsequently used to develop guard/tuning work and is no longer the
+current held-out benchmark. **Round 2** (`seed=2`, excluding round 1's extracted-or-skipped
+companies) is the current held-out benchmark: shipped-default `off` scored **36/40 (90.0%)** values
+and **14/17 (82.4%)** cited pages (**1 empty**, **3 non-empty-wrong**), and the same frozen labels
+under non-default `majority` scored the same 36/40 and 14/17. Neither n=10 measurement is a
+market-accuracy claim, and neither is extrapolated into one; see
 [v178](docs/acrylic/evidence/v178.md) and [v190](docs/acrylic/evidence/v190.md).
 
 **5) The boundary.** The 105 labelled companies have been used repeatedly to debug and tune this
 pipeline — none of the numbers above is an out-of-the-box market-accuracy claim, and we do not
 present them as one.
+
+**6) What we've tried and ruled out.** Two alternatives a teammate benchmarked: **Laya** (zero-shot
+classifier) scored **79.6%** at its default threshold — below the **80.6%** always-applicable naive
+baseline — and **69.9%** after train-calibrated thresholding; a zero-shot miss, not a verdict on a
+fine-tuned model. **Docling**'s PDF conversion took **1710 s** for a 163-page report against **6.3 s**
+for this parser (**~271× slower**); no accuracy comparison was run, so the only supported conclusion
+is speed. Detail: [m02](docs/acrylic/evidence/m02.md).
 
 Other checks:
 
