@@ -631,7 +631,8 @@ def demo():
             doc, text = fetch._validate(abb_path.read_bytes(), "Asea Brown Boveri", 2025)
             assert doc is None and "issuer mismatch" in text, text
 
-            # 27. discover, model path: one DISCOVER_SYSTEM ask, identity fields kept per candidate, an
+            # 27. discover, forced model path: one DISCOVER_SYSTEM ask despite the saved Nestle report,
+            #     identity fields kept per candidate, an
             #     interim-named link nulled (the entity stays), a candidate without a legal name dropped,
             #     dedupe on collection.identity ("Nestle Ltd" is the same entity as the saved "Nestle"),
             #     local first, capped at MAX_DISCOVER_CANDIDATES. `dest` holds nestle_2025.pdf from case 2.
@@ -649,7 +650,7 @@ def demo():
                 {"legal_name": "Nestle Pakistan Limited", "reason": "b"},
                 {"legal_name": "Nestle Lanka PLC", "reason": "c"},
             ])
-            found = fetch.discover("nestle", YEAR, country="Switzerland", hint="the parent", dest_dir=dest)
+            found = fetch.discover("nestle", YEAR, country="Switzerland", hint="the parent", dest_dir=dest, force_web=True)
             assert len(fake.calls) == calls_before_27 + 1 and fake.calls[-1]["system"] == fetch.DISCOVER_SYSTEM, fake.calls[-1]
             assert "Query: nestle" in fake.calls[-1]["user"] and "Country: Switzerland" in fake.calls[-1]["user"] and "Hint: the parent" in fake.calls[-1]["user"]
             assert found["note"] is None, found
@@ -666,9 +667,8 @@ def demo():
             assert set(found["candidates"][0]) == {"legal_name", "ticker", "exchange", "country", "org_number_or_lei", "fiscal_year_end",
                                                    "document_title", "document_type", "url", "reason", "saved", "stem"}
 
-            # 28. discover, saved matches: a text-only data/kb stem counts (saved: true, its stem), only
-            #     for the asked year, and the roster alias resolves ("seb" finds the bank); no model call
-            #     without a search provider, the note says why; a failed model call is a note too
+            # 28. discover, saved-first: a text-only data/kb stem counts (saved: true, its stem), only
+            #     for the asked year, and a deterministic match short-circuits before any model call.
             kb = tmp / "kb"
             (kb / "nestle_2024").mkdir(parents=True)
             (kb / "nestle_2024" / "meta.json").write_text(json.dumps({"company": "Nestle", "fiscal_year": 2024, "source_url": None}), encoding="utf-8")
@@ -680,14 +680,15 @@ def demo():
             found = fetch.discover("Nestle", 2024, dest_dir=dest)
             assert len(fake.calls) == calls_before_28, "no search provider: web_lookup must not run"
             assert [(c["legal_name"], c["saved"], c["stem"]) for c in found["candidates"]] == [("Nestle", True, "nestle_2024")], found
-            assert found["note"] and "codex or claude" in found["note"], found
+            assert found["note"] is None and found["source"] == "saved" and found["skipped_web_search"] is True, found
             assert fetch.discover("Nestle", 2023, dest_dir=dest)["candidates"] == []
-            assert [c["stem"] for c in fetch.discover("seb", 2025, dest_dir=dest)["candidates"]] == ["seb_2025"]
+            seb = fetch.discover("SEB A", 2025, dest_dir=dest)
+            assert [c["stem"] for c in seb["candidates"]] == ["seb_2025"] and seb["skipped_web_search"] is True, seb
             assert fetch.discover("", 2025, dest_dir=dest)["candidates"] == []
             os.environ["LLM_PROVIDER"] = "codex"
             os.environ["FAKE_WEB_REPLY"] = "raise"
-            found = fetch.discover("Nestle", YEAR, dest_dir=dest)
-            assert [c["stem"] for c in found["candidates"]] == ["nestle_2025"] and "429" in found["note"], found
+            found = fetch.discover("Nestle research", YEAR, dest_dir=dest)
+            assert found["candidates"] == [] and "429" in found["note"], found
 
             # 29. fetch_report(url=...): the confirmed link is downloaded and validated first -- no model
             #     call at all when it holds -- and lands with its own note; the cache filename still follows
@@ -713,13 +714,13 @@ def demo():
             entry15 = fetch.fetch_report(COMPANY, YEAR, tmp / "reports15", url=other_url)
             assert entry15["source_url"] == good_url and entry15["tried"] == [other_url, good_url], entry15["tried"]
 
-            # 31. v194: discover(job_id=...) records directory -> model_search -> done, with the
+            # 31. v194: a forced discover(job_id=...) records directory -> model_search -> done, with the
             #     model's suggested candidates riding on the model_search event's own data
             os.environ["FAKE_WEB_REPLY"] = _reply([
                 {"legal_name": "Nestle Ltd", "ticker": "NESN", "exchange": "SIX", "country": "CH", "org_number_or_lei": None,
                  "fiscal_year_end": "Dec", "document_title": "Annual Report 2025", "document_type": "annual report", "url": good_url, "reason": "the Swiss parent"},
             ])
-            found = fetch.discover("nestle", YEAR, dest_dir=dest, job_id="job-discover-1")
+            found = fetch.discover("nestle", YEAR, dest_dir=dest, job_id="job-discover-1", force_web=True)
             job = jobs.get("job-discover-1")
             assert job["job_id"] == "job-discover-1" and job["done"] is True and job["stage"] == "done" and job["error"] is None, job
             stages = [e["stage"] for e in job["events"]]
@@ -818,6 +819,62 @@ def demo_candidates_events():
     print("fetch._candidates job-events self-check ok")
 
 
+def demo_saved_first_discovery():
+    """w200: a deterministic saved report (normalised name, ticker, or ISIN) ends discovery before
+    web lookup. An explicit force_web opt-in and an uncertain prefix still use the model instead."""
+    with tempfile.TemporaryDirectory(prefix="test-discover-saved-first-") as tmpdir:
+        tmp = Path(tmpdir)
+        reports = tmp / "reports"
+        reports.mkdir()
+        (reports / "example_holdings_2025.pdf").write_bytes(b"%PDF-1.7 saved fixture")
+        (reports / "index.json").write_text(json.dumps([{
+            "file": "example_holdings_2025.pdf", "company": "Example Holdings AB", "fiscal_year": 2025,
+            "source_url": "https://example.test/example-holdings-2025.pdf",
+        }]), encoding="utf-8")
+        data = tmp / "data"
+        data.mkdir()
+        (data / "companies.json").write_text(json.dumps([
+            {"name": "Example Holdings", "ticker": "EXMP", "isin": "SE0000000001"},
+            {"name": "Text Only", "ticker": "TEXT", "isin": "SE0000000002"},
+        ]), encoding="utf-8")
+        kb_dir = tmp / "kb"
+        text_only = kb_dir / "text_only_2025"
+        (text_only / "extractions").mkdir(parents=True)
+        (text_only / "meta.json").write_text(json.dumps({
+            "company": "Text Only AB", "fiscal_year": 2025, "source_url": None,
+        }), encoding="utf-8")
+        (text_only / "pages.jsonl").write_text(json.dumps({"page": 1, "text": "Saved text"}) + "\n", encoding="utf-8")
+        (text_only / "extractions" / "income_statement.json").write_text(json.dumps({"fields": []}), encoding="utf-8")
+        model_reply = _reply([{
+            "legal_name": "Example Holdings plc", "ticker": "EXMP", "exchange": "TEST", "country": "SE",
+            "org_number_or_lei": None, "fiscal_year_end": "Dec", "document_title": "Annual Report 2025",
+            "document_type": "annual report", "url": "https://example.test/web.pdf", "reason": "model result",
+        }])
+        with patch.dict(os.environ, {"LLM_PROVIDER": "codex", "ARP_DATA_DIR": str(data), "KB_DIR": str(kb_dir)}), \
+                patch.object(fetch.llm, "web_lookup", return_value=model_reply) as model:
+            by_name = fetch.discover("Example Holdings", 2025, dest_dir=reports, job_id="w200-saved-name")
+            assert by_name["source"] == "saved" and by_name["skipped_web_search"] is True, by_name
+            assert [c["stem"] for c in by_name["candidates"]] == ["example_holdings_2025"], by_name
+            by_ticker = fetch.discover("EXMP", 2025, dest_dir=reports)
+            assert by_ticker["source"] == "saved" and by_ticker["candidates"][0]["ticker"] == "EXMP", by_ticker
+            by_isin = fetch.discover("SE0000000002", 2025, dest_dir=reports)
+            assert by_isin["source"] == "saved" and by_isin["candidates"][0]["stem"] == "text_only_2025", by_isin
+            assert model.call_count == 0, "a saved exact match must not ask the model"
+            job = jobs.get("w200-saved-name")
+            assert [e["stage"] for e in job["events"]] == ["directory", "directory", "done"], job
+            assert "saved report found, web search skipped" in job["events"][1]["text"], job
+
+            forced = fetch.discover("Example Holdings", 2025, dest_dir=reports, force_web=True)
+            assert model.call_count == 1 and forced["skipped_web_search"] is False, forced
+            assert forced["source"] == "web" and forced["candidates"][0]["saved"] is True, forced
+
+            uncertain = fetch.discover("Example", 2025, dest_dir=reports)
+            assert model.call_count == 2 and uncertain["source"] == "web", uncertain
+            assert all(not c["saved"] for c in uncertain["candidates"]), uncertain
+    print("fetch saved-first discovery self-check ok")
+
+
 if __name__ == "__main__":
     demo()
     demo_candidates_events()
+    demo_saved_first_discovery()

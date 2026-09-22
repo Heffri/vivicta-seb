@@ -18,7 +18,7 @@ Backend runs on `http://localhost:8000`, frontend dev server proxies `/api` to i
 | `GET`  | `/api/reports/{report_id}/extraction.csv` | – | last extraction for this report as CSV (one row per field). 404 if none |
 | `GET`  | `/api/reports/{report_id}/pdf` | – | the PDF itself, `Content-Disposition: inline`, so `<iframe src=".../pdf#page=64">` opens the browser's own viewer on that page |
 | `GET`  | `/api/companies?q=<text>&collection_name=wallenberg\|midcap\|all` | – | `Company[]` — the listed-company directory (`data/companies.json`, Nasdaq Stockholm), filtered by collection then name/ticker substring; max 50. Empty `q` = first 50. `midcap` is the 132 companies whose `market` is `Mid Cap` |
-| `POST` | `/api/reports/discover` | `{ "company": "<typed query>", "year": 2025, "country"?, "hint"?, "job_id"? }` | `{ candidates: Candidate[], note: string \| null }` — which legal entities the query could mean, for the user to confirm one **before** anything is downloaded. Saved reports for that year first (`saved: true`, no model call), then one model web-search ask for up to 5 distinct entities with their official report PDF `url` when known; capped at 5, deduped on the normalized legal name. Without a codex/claude provider only saved matches come back and `note` says why; a failed model call is a `note` too. Nothing is downloaded. `job_id` (v194, optional) — see Progress tracking below |
+| `POST` | `/api/reports/discover` | `{ "company": "<typed query>", "year": 2025, "country"?, "hint"?, "force_web"?: false, "job_id"? }` | `{ candidates: Candidate[], note: string \| null, source: "saved"\|"web", skipped_web_search: boolean }` — which legal entities the query could mean, for the user to confirm one **before** anything is downloaded. An exact saved report for that year (normalised company name, ticker, or ISIN) returns `source: "saved"` and `skipped_web_search: true`, with zero model calls. `force_web: true` is the explicit "Search the web anyway" override; otherwise an uncertain/missing local match gets one model web-search ask for up to 5 distinct entities with their official report PDF `url` when known. Results are capped at 5 and deduped on the normalized legal name. Nothing is downloaded. `job_id` (v194, optional) — see Progress tracking below |
 | `POST` | `/api/reports/fetch` | `{ "company": "<Candidate.legal_name or Company.name>", "year": 2025, "country"?, "hint"?, "url"?, "download_pdf"?: true, "ocr"?: "bounded"\|"full", "job_id"? }` | `Report` — finds the company's annual report for that year on the web, downloads it into the cache (`data/reports/`), registers it like an upload. 10–90 s. `download_pdf` defaults to **true** (the PDF is always wanted); `false` is the text-only reuse of a saved report for API callers (409 when nothing is saved). When the download fails but page text is saved, the saved report is returned instead of a 404. Any company name is accepted — not just directory entries; `country`/`hint` are optional context for the model search (v074). `url` (a confirmed `/discover` candidate's link) is downloaded and validated **first**, before any source of the backend's own, and falls through to them when it fails. `404` with `{detail, tried: string[]}` when nothing usable was found (a failed model search says so in `detail`). Cached = instant. `ocr` (v191, default `bounded`): see "Bounded OCR" below. `job_id` (v194, optional) — see Progress tracking below |
 | `GET`  | `/api/jobs/{job_id}` | – | `Job` — progress trail for a `job_id` passed to `/discover` or `/fetch` (v194). `404` once unknown or expired (1 h TTL). See Progress tracking below |
 | `GET`  | `/api/library?collection_name=wallenberg\|midcap\|all` | – | `LibraryEntry[]` — the report **cache** in `data/reports/` (only files present on disk), filtered by the requested collection. Populated by `/fetch`; hand-curated entries also live in `index.json` |
@@ -312,12 +312,17 @@ Reports are **not** bundled. `data/companies.json` supplies local directory sugg
 **Discover, then confirm.** Typing a query and pressing Enter (or the search button) calls
 `POST /api/reports/discover`, which resolves the query to concrete legal entities — a fragment like
 "intel" comes back as "Intel Corporation, INTC, NASDAQ, US, FY ends Dec" with the report's title and
-PDF `url` when known — saved reports first, then one model web-search call. The UI renders one card
-per candidate (`saved` badge when the report is already local) and the user confirms one ("Use this
-company") or refines with a free-text hint ("None of these" re-runs discover with `hint`). Nothing is
-downloaded until a candidate is confirmed. The confirmed card's `legal_name` becomes the `company`
-sent to `/fetch` (so the cache filename and index entry carry the legal name, not the typed text) and
-its `url` is tried first. A search runs only that query, not other queued picks.
+PDF `url` when known. Before model search it checks downloaded reports and saved KB records for the
+same fiscal year. A normalised name equality, or an exact ticker/ISIN match, returns only the saved
+candidate(s) with `source: "saved"` and `skipped_web_search: true`; a prefix or other uncertain match
+does not qualify. The UI says "Saved report found — using it" and offers **Search the web anyway**,
+which re-runs discover with `force_web: true`. Otherwise one model web-search call resolves the
+query. The UI renders one card per candidate (`saved` badge when the report is already local) and the
+user confirms one ("Use this company") or refines with a free-text hint ("None of these" re-runs
+discover with `hint`). Nothing is downloaded until a candidate is confirmed. The confirmed card's
+`legal_name` becomes the `company` sent to `/fetch` (so the cache filename and index entry carry the
+legal name, not the typed text) and its `url` is tried first. A search runs only that query, not other
+queued picks.
 
 **AI-first fetch.** Existing saved text is reused without downloading. For a missing report,
 a PDF-download request first tries the confirmed `url`, then the connected Codex/Claude model's live
@@ -342,9 +347,10 @@ in `data/reports/index.json`. Repeated requests reuse the cache without another 
 ### Progress tracking (v194)
 
 `/discover` and `/fetch` can each take an optional `job_id` — a uuid the frontend generates once per
-call. When present, every stage the call passes through (checking the cache, MFN/Nasdaq/DuckDuckGo,
-the connected model's own web search — its query terms and the candidates it names — following an
-IR page, a PDF download's byte progress, page-count/issuer verification) is appended as an event to
+call. When present, every stage the call passes through (checking the cache — including the terminal
+"saved report found, web search skipped" shortcut — MFN/Nasdaq/DuckDuckGo, the connected model's own
+web search — its query terms and the candidates it names — following an IR page, a PDF download's
+byte progress, page-count/issuer verification) is appended as an event to
 an in-memory table `GET /api/jobs/{job_id}` serves back. The frontend polls it every 1.5 s while
 either call is in flight, so a search that would otherwise look stuck shows a live, scrolling trail
 instead. `job_id` is a no-op when omitted — every existing caller is unaffected. The table is

@@ -1,0 +1,25 @@
+{
+  "stage": "done",
+  "started": 1790070069.383852,
+  "updated": 1790070069.470716,
+  "done": true,
+  "error": null,
+  "events": [
+    {
+      "t": 1790070069.383852,
+      "stage": "directory",
+      "text": "checking saved reports for Sandvik (2025)"
+    },
+    {
+      "t": 1790070069.470716,
+      "stage": "directory",
+      "text": "1 saved match(es); saved report found, web search skipped"
+    },
+    {
+      "t": 1790070069.470716,
+      "stage": "done",
+      "text": "1 saved candidate(s)"
+    }
+  ],
+  "job_id": "w200-direct-check"
+}
