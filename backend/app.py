@@ -489,6 +489,7 @@ def _run_extract(report_id: str, body: ExtractBody):
                     result["merge"]["hints"] = "run2"
                 merge.recheck(result, schema, texts, pages)  # the winner's own checks would misdescribe a field mix
             print(f"[extract] {report_id} {body.section}: merge={mode} runs={result['merge']['runs']}")
+        apply_second_pass(result, texts, pages, schema, report)
         failures = [w for w in result["warnings"] if w.startswith("llm:")]
         if failures and not any(f.get("value") is not None for f in result["fields"]):
             raise HTTPException(502, " ".join(failures))
@@ -511,6 +512,24 @@ def _run_extract(report_id: str, body: ExtractBody):
             kb.save_extraction(report["stem"], body.section, result)  # fixture results never enter the KB
     extractions[report_id] = result
     return result
+
+
+def apply_second_pass(result: dict, texts: list[str], pages: list[int], schema: dict, report: dict) -> dict:
+    """Route-level policy and accounting for w197's bounded required-field retry.
+
+    The default is on because the measured route is expected to add only calls for honest required
+    nulls.  Setting ``EXTRACT_SECOND_PASS=0`` is the explicit kill switch; its zero timings make that
+    choice observable in the normal extraction response.
+    """
+    stats = extract_mod.second_pass(result, texts, pages, schema, report) \
+        if os.getenv("EXTRACT_SECOND_PASS", "1") == "1" else {"calls": 0, "seconds": 0.0, "model": 0.0, "validate": 0.0}
+    timings = result.setdefault("timings", {})
+    timings["model"] = round(timings.get("model", 0.0) + stats["model"], 3)
+    timings["validate"] = round(timings.get("validate", 0.0) + stats["validate"], 3)
+    timings["attempts"] = timings.get("attempts", 0) + stats["calls"]
+    timings["second_pass_calls"] = stats["calls"]
+    timings["second_pass"] = stats["seconds"]
+    return stats
 
 
 @app.post("/api/reports/{report_id}/fill")
@@ -1009,7 +1028,8 @@ def extraction_identity(report, schema, prompt):
     # ponytail: EXTRACT_VERSION instead of hashing 7 source files -- a comment edit no longer re-runs every section
     return kb.fingerprint({"report": kb._meta(report["stem"]), "schema": schema, "pipeline": extract_mod.EXTRACT_VERSION,
                            "model": os.getenv("LLM_MODEL") or {"codex": "gpt-5.6-terra", "claude": "claude-sonnet-5"}.get(llm.provider(), "fixture"), "provider": llm.provider(), "prompt": prompt,
-                           "settings": {k: os.getenv(k) for k in ("LLM_BASE_URL", "LLM_REASONING", "LLM_THINK", "LLM_NUM_CTX", "LLM_STRICT_SCHEMA", "DEBT_BASIS", "EXTRACT_MERGE_RUNS", "EXTRACT_TWO_PASS", "FEWSHOT")}})
+                           "settings": {k: os.getenv(k) for k in ("LLM_BASE_URL", "LLM_REASONING", "LLM_THINK", "LLM_NUM_CTX", "LLM_STRICT_SCHEMA", "DEBT_BASIS", "EXTRACT_MERGE_RUNS", "EXTRACT_TWO_PASS", "FEWSHOT")}
+                           | {"EXTRACT_SECOND_PASS": os.getenv("EXTRACT_SECOND_PASS", "1")}})
 
 
 @app.post("/api/knowledge/{stem}/open")
