@@ -731,7 +731,9 @@ async function main() {
 
   backendBaseEnv = {
     ARP_DATA_DIR: dataDir,
-    TESSDATA_PREFIX: process.env.TESSDATA_PREFIX || path.join(bundledDataDir, 'tessdata'),
+    TESSDATA_PREFIX:
+      process.env.TESSDATA_PREFIX ||
+      (isDev ? path.join(bundledDataDir, 'tessdata') : path.join(process.resourcesPath, 'tessdata')),
     KB_DIR: path.join(dataDir, 'kb'),
     ...(fs.existsSync(frontendDistDir) ? { FRONTEND_DIST: frontendDistDir } : {}),
   }

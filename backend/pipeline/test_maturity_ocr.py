@@ -87,6 +87,34 @@ def _text_page(doc, text, width=300, height=100):
     return page
 
 
+def text_pdf_image_cover_without_tessdata():
+    """w204: a real text PDF is classified as a book, not one page at a time.
+
+    An image-only cover must not make registration depend on OCR language files when the body has
+    a substantial text layer.  The cover stays blank/pending for possible on-demand OCR.
+    """
+    with tempfile.TemporaryDirectory() as root:
+        root = Path(root)
+        doc = pymupdf.open()
+        _image_page(doc, "Annual report cover")
+        body = "Annual report financial statements borrowings and maturity information " * 5
+        for n in range(2, 6):
+            _text_page(doc, f"Page {n} {body}", width=2600)
+        path = root / "text-with-image-cover.pdf"
+        doc.save(path)
+        doc.close()
+
+        missing = root / "no-tessdata"
+        with patch.dict(os.environ, {"TESSDATA_PREFIX": str(missing), "OCR_LANGUAGE": "eng+swe"}):
+            meta = {}
+            texts = parse.page_texts(path, meta)
+        assert texts[0] == "", repr(texts[0])
+        assert meta["ocr_pending"] == [1], meta
+        assert meta["ocr_unavailable"] == [], meta
+        assert all("financial statements" in text for text in texts[1:]), texts[1:]
+    print("text PDF with image-only cover and no OCR files self-check ok")
+
+
 def _bounded_fixture(tmp_path):
     """16 pages: 3 (front matter), 14/15/16 (an outline entry's ±1 window) and 11 (neither) are
     scanned; page 15's own outline title carries a debt_maturity toc_keyword ("Borrowings").
@@ -156,4 +184,5 @@ def bounded_ocr():
 
 if __name__ == "__main__":
     main()
+    text_pdf_image_cover_without_tessdata()
     bounded_ocr()

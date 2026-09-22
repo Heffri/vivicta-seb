@@ -17,6 +17,8 @@ extraResources:
     to: backend
   - from: build-resources/data
     to: data
+  - from: build-resources/tessdata
+    to: tessdata
 win:
   icon: icons/icon.ico
   target:
