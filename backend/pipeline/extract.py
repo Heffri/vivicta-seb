@@ -575,7 +575,7 @@ def _check(check: dict, values: dict, texts: list[str] | None = None, pages: lis
     return out
 
 
-EXTRACT_VERSION = "2026-09-22"  # bump when a pipeline change should invalidate saved extractions; the cache key used to hash 7 source files, so every commit re-ran every section (27 s each)
+EXTRACT_VERSION = "2026-09-22-w198"  # bump when a pipeline change should invalidate saved extractions; the cache key used to hash 7 source files, so every commit re-ran every section (27 s each)
 
 WEIGHTS = {"quote_on_page": 0.35, "value_in_quote": 0.20, "arith_ok": 0.20, "label_known": 0.10,
            "period_ok": 0.05, "page_is_statement": 0.05, "unit_ok": 0.05,  # docs/CONFIDENCE.md; sums to 1.0
@@ -880,6 +880,42 @@ def _label_known(label, sf: dict) -> bool:
     if not rl or any(re.search(p, rl) for p in sf.get("exclude_labels", [])):
         return False
     return any(rl.startswith(cleans) for s in sf.get("synonyms", []) if (cleans := _clean_label(s)))  # a synonym that cleans away to nothing would prefix-match everything
+
+
+def sweep_pages(texts: list[str], field: dict, tried_pages=(), top_n: int = 3,
+                ocr_pending=()) -> dict:
+    """Rank untried pages containing numeric rows labelled with a field synonym.
+
+    This is the zero-model full-document fallback: it reconstructs the same ``_page_rows`` that
+    extraction validates, and delegates label comparison to ``_label_known`` so case, ligatures,
+    Swedish characters, result/profit wording and maturity-window digits receive exactly the normal
+    guard's normalization.  One matching row is one hit; multiple overlapping synonyms cannot
+    inflate a page.  ``ocr_pending`` pages deliberately have no text yet and are counted, not guessed.
+    """
+    tried = {page for page in tried_pages
+             if isinstance(page, int) and not isinstance(page, bool)}
+    pending = {page for page in ocr_pending
+               if isinstance(page, int) and not isinstance(page, bool)}
+    vocabulary = [*field.get("synonyms", []), *field.get("row_synonyms", [])]
+    known = {**field, "synonyms": list(dict.fromkeys(str(word) for word in vocabulary if str(word).strip()))}
+    hits: dict[int, int] = {}
+    skipped = 0
+    for page, text in enumerate(texts, 1):
+        if page in pending:
+            skipped += 1
+            continue
+        if page in tried:
+            continue
+        count = 0
+        for row in _page_rows(text):
+            label = _row_label(row)
+            tail = row[len(label):]
+            if re.search(r"\d", tail) and _label_known(label, known):
+                count += 1
+        if count:
+            hits[page] = count
+    ranked = sorted(hits, key=lambda page: (-hits[page], page))
+    return {"pages": ranked[:max(0, top_n)], "hits": hits, "ocr_pending_skipped": skipped}
 
 
 _BS_CURRENT = re.compile(r"\b(?:current|short[ -]?term|kortfristig\w*)\b", re.I)
@@ -4682,8 +4718,9 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
 
 # EXTRACT_SECOND_PASS is deliberately a narrow follow-up, rather than another whole-report run. The
 # first extraction has already had all its normal selection and repair opportunities; this retry asks
-# once per still-empty required field, on only the locator's first three pages, and lets fixed_pages
-# run the ordinary provenance/scope gates before a candidate can replace that null.
+# once per still-empty required field on the locator's first three pages. If that stays empty, w198's
+# zero-model sweep may make one last fixed-page call on up to three untried synonym-hit pages. Both let
+# the ordinary provenance/scope gates decide whether a candidate can replace that null.
 SECOND_PASS_MAX_FIELDS = 3
 SECOND_PASS_GAAP_HINT = "US GAAP / IFRS common labels may differ; match the field meaning, not just its exact English wording."
 
@@ -4695,7 +4732,10 @@ def _second_pass_schema(schema: dict, sf: dict) -> dict:
     place.  Removing arithmetic checks here is intentional: a one-field answer cannot prove an
     identity on its own; the full result is rechecked only after an accepted candidate is copied back.
     """
-    synonyms = [str(word) for word in sf.get("synonyms", []) if str(word).strip()]
+    synonyms = list(dict.fromkeys(
+        str(word) for word in [*sf.get("synonyms", []), *sf.get("row_synonyms", [])]
+        if str(word).strip()
+    ))
     field = dict(sf)
     description = _basis_text(sf, debt_basis())
     field["description"] = " ".join(part for part in (
@@ -4749,11 +4789,13 @@ def _recheck_after_second_pass(result: dict, schema: dict, texts: list[str], pag
 
 
 def second_pass(result: dict, texts: list[str], pages: list[int], schema: dict, report_meta: dict) -> dict:
-    """Fill at most three required first-pass nulls with one fixed-window model call each.
+    """Fill at most three required first-pass nulls through bounded fixed-page calls.
 
     A candidate is eligible only if the normal fixed-page extraction has retained it and it still has
-    a literal quote/value/known-label trail on one of the supplied locator pages.  Null, malformed,
-    out-of-window and wrong-scope replies leave the first-pass null untouched.
+    a literal quote/value/known-label trail on one of the supplied pages. If the locator window leaves
+    a field null, the deterministic sweep ranks numeric synonym rows across the document and supplies
+    at most three untried pages for one final call. Null, malformed, out-of-window and wrong-scope
+    replies leave the first-pass null untouched.
     """
     started = time.perf_counter()
     window = []
@@ -4766,38 +4808,62 @@ def second_pass(result: dict, texts: list[str], pages: list[int], schema: dict, 
     wanted = [sf for sf in schema.get("fields", [])
               if not sf.get("optional") and by_key.get(sf.get("key"), {}).get("value") is None][:SECOND_PASS_MAX_FIELDS]
     stats = {"calls": 0, "seconds": 0.0, "model": 0.0, "validate": 0.0}
-    if not window or not wanted:
+    if not wanted:
         return stats
 
     for sf in wanted:
-        follow_up = extract(texts, window, _second_pass_schema(schema, sf), report_meta, fixed_pages=True)
-        timings = follow_up.get("timings", {})
-        stats["calls"] += timings.get("attempts", 0)
-        stats["model"] += timings.get("model", 0.0)
-        stats["validate"] += timings.get("validate", 0.0)
-        candidate = next((field for field in follow_up.get("fields", []) if field.get("key") == sf["key"]), None)
-        source = candidate.get("source") if isinstance(candidate, dict) else None
-        page = source.get("page") if isinstance(source, dict) else None
-        quote = source.get("quote") if isinstance(source, dict) else ""
-        vocabulary = {**sf, "synonyms": sf.get("synonyms", []) + sf.get("row_synonyms", []) + [sf.get("label", "")]}
-        accepted = bool(
-            candidate and candidate.get("value") is not None and isinstance(page, int) and page in window
-            and "quote_on_page" in candidate.get("evidence", []) and "value_in_quote" in candidate.get("evidence", [])
-            and "label_known" in candidate.get("evidence", []) and quote_on_page(quote, texts[page - 1])
-            and _value_in_quote(candidate["value"], quote) and _label_known(candidate.get("raw_label"), vocabulary)
-            and _second_pass_scope_ok(candidate, sf, schema, texts)
-        )
-        if not accepted:
+        def try_pages(target_pages: list[int]) -> dict | None:
+            if not target_pages:
+                return None
+            follow_up = extract(texts, target_pages, _second_pass_schema(schema, sf), report_meta,
+                                fixed_pages=True)
+            timings = follow_up.get("timings", {})
+            stats["calls"] += timings.get("attempts", 0)
+            stats["model"] += timings.get("model", 0.0)
+            stats["validate"] += timings.get("validate", 0.0)
+            candidate = next((field for field in follow_up.get("fields", [])
+                              if field.get("key") == sf["key"]), None)
+            source = candidate.get("source") if isinstance(candidate, dict) else None
+            page = source.get("page") if isinstance(source, dict) else None
+            quote = source.get("quote") if isinstance(source, dict) else ""
+            vocabulary = {**sf, "synonyms": sf.get("synonyms", []) + sf.get("row_synonyms", [])
+                          + [sf.get("label", "")]}
+            accepted = bool(
+                candidate and candidate.get("value") is not None and isinstance(page, int)
+                and page in target_pages
+                and "quote_on_page" in candidate.get("evidence", [])
+                and "value_in_quote" in candidate.get("evidence", [])
+                and "label_known" in candidate.get("evidence", [])
+                and quote_on_page(quote, texts[page - 1])
+                and _value_in_quote(candidate["value"], quote)
+                and _label_known(candidate.get("raw_label"), vocabulary)
+                and _second_pass_scope_ok(candidate, sf, schema, texts)
+            )
+            return candidate if accepted else None
+
+        candidate = try_pages(window)
+        source_kind, target_pages = "locator", window
+        if candidate is None:
+            swept = sweep_pages(texts, sf, tried_pages=window, top_n=3,
+                                ocr_pending=report_meta.get("ocr_pending", []))
+            target_pages = swept["pages"]
+            candidate = try_pages(target_pages)
+            source_kind = "full-text sweep"
+        if candidate is None:
             result.setdefault("warnings", []).append(
-                f"second_pass: {sf['key']} remained null; no candidate passed the existing provenance and scope guards"
+                f"second_pass: {sf['key']} remained null; no candidate passed the existing provenance "
+                "and scope guards on locator or full-text sweep pages"
             )
             continue
         candidate.setdefault("evidence", []).append("second_pass")
+        if source_kind == "full-text sweep":
+            candidate["evidence"].append("fulltext_sweep")
+        page = candidate["source"]["page"]
         for index, field in enumerate(result.get("fields", [])):
             if isinstance(field, dict) and field.get("key") == sf["key"] and field.get("value") is None:
                 result["fields"][index] = candidate
                 result.setdefault("warnings", []).append(
-                    f"second_pass: {sf['key']} filled from locator pages {window} with page {page}"
+                    f"second_pass: {sf['key']} filled from {source_kind} pages {target_pages} with page {page}"
                 )
                 break
     _recheck_after_second_pass(result, schema, texts, pages)

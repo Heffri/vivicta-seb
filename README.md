@@ -144,6 +144,9 @@ python eval/run.py --stored-kb data/kb --no-fail   # zero model calls, offline, 
 - Cited pages **263/313 (84.0%)** (scored only where a value is cited)
 - Debt section alone: values **231/271 (85.2%)**, pages **171/221 (77.4%)** — the headline number
   is pulled up by the income section; the debt number is the honest one for the scoped section
+- Offline labelled-page coverage (all 276 debt rows with a page): locator candidates **263/276
+  (95.3%)** → candidates plus the deterministic full-text field sweep **264/276 (95.7%)**
+  ([w198](docs/acrylic/evidence/w198.md))
 
 **2) First extraction (no labels at run time).** Three measured batches where the pipeline ran
 without label access and was scored afterwards:

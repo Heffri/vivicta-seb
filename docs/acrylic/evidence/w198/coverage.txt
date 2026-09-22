@@ -1,0 +1,20 @@
+coverage_check: debt_maturity labelled rows 276
+locator candidates 263/276
+full-text sweep supplemental 1/276
+combined coverage 264/276
+still uncovered 12/276
+sweep supplemental rows:
+  tangen_industrikapital_2025 total_debt p.62
+uncovered rows:
+  smartcraft_2025 total_debt p.58: label page has no numeric synonym row
+  smartcraft_2025 due_within_1_year p.58: label page has no numeric synonym row
+  smartcraft_2025 due_1_to_5_years p.58: label page has no numeric synonym row
+  smartcraft_2025 due_after_5_years p.58: label page has no numeric synonym row
+  tangen_industrikapital_2025 due_within_1_year p.62: label page has no numeric synonym row
+  tangen_industrikapital_2025 due_1_to_5_years p.62: label page has no numeric synonym row
+  tangen_industrikapital_2025 due_after_5_years p.62: label page has no numeric synonym row
+  dynavox_2025 total_debt p.133: label page has no numeric synonym row
+  rvrc_holding_2025 due_within_1_year p.95: label page has no numeric synonym row
+  acast_2025 total_debt p.67: label page has no numeric synonym row
+  acast_2025 due_within_1_year p.67: label page has no numeric synonym row
+  elanders_2025 total_debt p.143: label page has no numeric synonym row
