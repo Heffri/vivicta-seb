@@ -777,6 +777,40 @@ def demo():
             before = len(jobs._jobs)
             fetch.fetch_report(COMPANY, YEAR, tmp / "reports18", url=good_url)
             assert len(jobs._jobs) == before, "a job_id-less call must not create a job"
+
+            # m03/w213: a bare fiscal-year phrase buried in another report is not evidence that
+            # the document itself is for that year. The old fallback accepted this exact shape,
+            # then the longest-report selector could cache a silent wrong-year result. Keep the
+            # verify event too: the analyst's progress trail must expose why the PDF was refused.
+            stray_path = tmp / "public" / "nestle-annual-report-stray-year.pdf"
+            _pdf_from_page_texts(stray_path,
+                                 ["Nestle", "Annual Report", "Contents",
+                                  "Nestle revenue, operating profit and financial statements.",
+                                  "In fiscal year 2023, Nestle exited a sanctioned market."],
+                                 filler_lines=["Nestle revenue, operating profit and financial statements."] * 4,
+                                 filler_pages=45)
+            stray_url = _url(base, "/nestle-annual-report-stray-year.pdf")
+            fetch._candidates = lambda company, year, job_id=None: []
+            os.environ.pop("LLM_PROVIDER", None)
+            try:
+                fetch.fetch_report(COMPANY, 2023, tmp / "reports19", url=stray_url, job_id="job-bare-year-rejection")
+                assert False, "a buried bare fiscal-year phrase must not publish a wrong-year report"
+            except LookupError:
+                pass
+            job = jobs.get("job-bare-year-rejection")
+            verify = [event["text"] for event in job["events"] if event["stage"] == "verify"]
+            assert any("2023 not on the first 3 pages and no accounting period for it" in text for text in verify), verify
+
+            dated_path = tmp / "public" / "nestle-annual-report-dated-period.pdf"
+            _pdf_from_page_texts(dated_path,
+                                 ["Nestle", "Annual Report", "Contents",
+                                  "Nestle revenue, operating profit and financial statements.",
+                                  "Auditor's report for the financial year 2023-04-01-2024-03-31."],
+                                 filler_lines=["Nestle revenue, operating profit and financial statements."] * 4,
+                                 filler_pages=45)
+            doc, text = fetch._validate(dated_path.read_bytes(), COMPANY, 2023)
+            assert doc is not None, text
+            doc.close()
     finally:
         for k, v in saved.items():
             if v is None:

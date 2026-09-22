@@ -575,6 +575,9 @@ def _period_re(year):
         rf"|\bräkenskapsåret {y}\b", re.I)
 
 
+_BARE_PERIOD_PHRASE = re.compile(r"^(?:financial|fiscal) year \d{4}$|^räkenskapsåret \d{4}$", re.I)
+
+
 def _head_text(doc, page_texts=None):
     """The first three pages -- cover, title page, contents: where a report names its own year."""
     return "".join(page_texts[:3]) if page_texts is not None else "".join(doc[i].get_text() for i in range(min(3, doc.page_count)))
@@ -596,13 +599,21 @@ def _year_ok(doc, year, page_texts=None):
     "2024/25" / "2024/2025" cover shape -- must sit on the first three pages (cover, title page,
     contents), or an accounting period ending in the year must be stated anywhere in the text.
     A mere mention on some later page no longer passes: MTG's FY2021 report slipped through the
-    old year-anywhere check on six forward-looking "2025" target mentions."""
+    old year-anywhere check on six forward-looking "2025" target mentions. A bare "fiscal year Y"
+    in body prose is likewise insufficient unless it is immediately followed by the period dates;
+    otherwise a report merely describing an earlier year can be silently cached as that year."""
     declared = report_period.declared_year(_head_text(doc, page_texts))
     if declared is not None:
         return declared == year
     if _fiscal_year_re(year).search(_head_text(doc, page_texts)):
         return True
-    return bool(_period_re(year).search("".join(page_texts) if page_texts is not None else "".join(doc[i].get_text() for i in range(doc.page_count))))
+    full = "".join(page_texts) if page_texts is not None else "".join(doc[i].get_text() for i in range(doc.page_count))
+    match = _period_re(year).search(full)
+    if not match:
+        return False
+    if _BARE_PERIOD_PHRASE.match(match.group(0)) and not re.match(r"-\d{2}-\d{2}", full[match.end():match.end() + 6]):
+        return False
+    return True
 
 
 def _year_reason(doc, year, page_texts=None):
