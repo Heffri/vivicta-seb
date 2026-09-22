@@ -8,7 +8,7 @@ Backend runs on `http://localhost:8000`, frontend dev server proxies `/api` to i
 | Method | Path | Body | Returns |
 |---|---|---|---|
 | `GET`  | `/api/schemas` | – | `Schema[]` (section definitions, see below) |
-| `POST` | `/api/reports` | `multipart/form-data`, field `file` = PDF | `Report` |
+| `POST` | `/api/reports?ocr=bounded\|full` | `multipart/form-data`, field `file` = PDF | `Report` — `ocr` (v191, default `bounded`) bounds a scanned PDF's registration OCR to the pages a debt-maturity locate pass could reach; `full` OCRs every such page unconditionally. See "Bounded OCR" below |
 | `GET`  | `/api/reports/{report_id}` | – | `Report` |
 | `POST` | `/api/reports/{report_id}/extract` | `{ "section": "<schema name>" }` | `Extraction` (synchronous; may take up to ~60 s with a local model) |
 | `POST` | `/api/reports/{report_id}/fill?section=<schema name>` | `{ "field": "<empty schema key>", "pages": [<one or two 1-based pages>] }` | `{ candidate: Field \| null, warnings: string[] }` — an analyst-directed, one-field candidate; it never saves or replaces the extraction |
@@ -18,8 +18,9 @@ Backend runs on `http://localhost:8000`, frontend dev server proxies `/api` to i
 | `GET`  | `/api/reports/{report_id}/extraction.csv` | – | last extraction for this report as CSV (one row per field). 404 if none |
 | `GET`  | `/api/reports/{report_id}/pdf` | – | the PDF itself, `Content-Disposition: inline`, so `<iframe src=".../pdf#page=64">` opens the browser's own viewer on that page |
 | `GET`  | `/api/companies?q=<text>&collection_name=wallenberg\|midcap\|all` | – | `Company[]` — the listed-company directory (`data/companies.json`, Nasdaq Stockholm), filtered by collection then name/ticker substring; max 50. Empty `q` = first 50. `midcap` is the 132 companies whose `market` is `Mid Cap` |
-| `POST` | `/api/reports/discover` | `{ "company": "<typed query>", "year": 2025, "country"?, "hint"? }` | `{ candidates: Candidate[], note: string \| null }` — which legal entities the query could mean, for the user to confirm one **before** anything is downloaded. Saved reports for that year first (`saved: true`, no model call), then one model web-search ask for up to 5 distinct entities with their official report PDF `url` when known; capped at 5, deduped on the normalized legal name. Without a codex/claude provider only saved matches come back and `note` says why; a failed model call is a `note` too. Nothing is downloaded |
-| `POST` | `/api/reports/fetch` | `{ "company": "<Candidate.legal_name or Company.name>", "year": 2025, "country"?, "hint"?, "url"?, "download_pdf"?: true }` | `Report` — finds the company's annual report for that year on the web, downloads it into the cache (`data/reports/`), registers it like an upload. 10–90 s. `download_pdf` defaults to **true** (the PDF is always wanted); `false` is the text-only reuse of a saved report for API callers (409 when nothing is saved). When the download fails but page text is saved, the saved report is returned instead of a 404. Any company name is accepted — not just directory entries; `country`/`hint` are optional context for the model search (v074). `url` (a confirmed `/discover` candidate's link) is downloaded and validated **first**, before any source of the backend's own, and falls through to them when it fails. `404` with `{detail, tried: string[]}` when nothing usable was found (a failed model search says so in `detail`). Cached = instant |
+| `POST` | `/api/reports/discover` | `{ "company": "<typed query>", "year": 2025, "country"?, "hint"?, "job_id"? }` | `{ candidates: Candidate[], note: string \| null }` — which legal entities the query could mean, for the user to confirm one **before** anything is downloaded. Saved reports for that year first (`saved: true`, no model call), then one model web-search ask for up to 5 distinct entities with their official report PDF `url` when known; capped at 5, deduped on the normalized legal name. Without a codex/claude provider only saved matches come back and `note` says why; a failed model call is a `note` too. Nothing is downloaded. `job_id` (v194, optional) — see Progress tracking below |
+| `POST` | `/api/reports/fetch` | `{ "company": "<Candidate.legal_name or Company.name>", "year": 2025, "country"?, "hint"?, "url"?, "download_pdf"?: true, "ocr"?: "bounded"\|"full", "job_id"? }` | `Report` — finds the company's annual report for that year on the web, downloads it into the cache (`data/reports/`), registers it like an upload. 10–90 s. `download_pdf` defaults to **true** (the PDF is always wanted); `false` is the text-only reuse of a saved report for API callers (409 when nothing is saved). When the download fails but page text is saved, the saved report is returned instead of a 404. Any company name is accepted — not just directory entries; `country`/`hint` are optional context for the model search (v074). `url` (a confirmed `/discover` candidate's link) is downloaded and validated **first**, before any source of the backend's own, and falls through to them when it fails. `404` with `{detail, tried: string[]}` when nothing usable was found (a failed model search says so in `detail`). Cached = instant. `ocr` (v191, default `bounded`): see "Bounded OCR" below. `job_id` (v194, optional) — see Progress tracking below |
+| `GET`  | `/api/jobs/{job_id}` | – | `Job` — progress trail for a `job_id` passed to `/discover` or `/fetch` (v194). `404` once unknown or expired (1 h TTL). See Progress tracking below |
 | `GET`  | `/api/library?collection_name=wallenberg\|midcap\|all` | – | `LibraryEntry[]` — the report **cache** in `data/reports/` (only files present on disk), filtered by the requested collection. Populated by `/fetch`; hand-curated entries also live in `index.json` |
 | `POST` | `/api/reports/{report_id}/index` | – | `IndexStatus` — chunk + embed the report into the knowledge base (idempotent, cached on disk). ~10–30 s per report locally |
 | `POST` | `/api/ask` | `{ "question": string, "report_ids"?: string[], "report_stems"?: string[] }` | `Answer` — omit both scopes to search all saved reports. Explicit scopes must be non-empty and mutually exclusive; unknown entries fail rather than widening the search. Global retrieval uses BM25 with bounded context, without embedding the entire library |
@@ -30,7 +31,7 @@ Backend runs on `http://localhost:8000`, frontend dev server proxies `/api` to i
 | `GET` | `/api/kb/{stem}/pages/{page}` | – | `{ page: number, text: string }` — saved page text, available even without the PDF; exact known stem and valid page required |
 | `GET` | `/api/kb/{stem}/{section}` | – | Saved `Extraction`, no model call, available without the original PDF |
 | `GET`  | `/api/config` | – | `{ model, embed_model, base_url, llm, provider, retrieval, maturity_basis }` — what the backend runs with; `retrieval` is `"hybrid"` (cosine+BM25) \| `"bm25"` (keyword-only, e.g. codex/claude subscription with no embeddings endpoint) \| `"fixture"`; `maturity_basis` (v089) is `"carrying"` (default) \| `"undiscounted"`, from env `DEBT_BASIS` |
-| `POST` | `/api/reports/from-library` | `{ "file": "<LibraryEntry.file>" }` | `Report` — registers a bundled report exactly like an upload would. Same file twice = same `report_id` |
+| `POST` | `/api/reports/from-library` | `{ "file": "<LibraryEntry.file>", "ocr"?: "bounded"\|"full" }` | `Report` — registers a bundled report exactly like an upload would. Same file twice = same `report_id`. `ocr` (v191, default `bounded`): see "Bounded OCR" below |
 
 Errors: JSON `{ "detail": "message" }` with 4xx/5xx.
 
@@ -43,6 +44,7 @@ type Report = {
   pages: number;
   company?: string | null;  // best-effort guess from first pages, may be null
   fiscal_year?: number | null;
+  ocr_pages?: number[];     // v191: 1-based pages this registration actually OCR'd (empty for a text-layer PDF)
 };
 
 type Company = {
@@ -66,6 +68,19 @@ type Candidate = {          // one entity POST /api/reports/discover proposes; i
   reason: string;
   saved: boolean;           // already in the report cache or knowledge base for that year: no download needed
   stem: string | null;      // data/kb/<stem> when saved
+};
+
+type JobEvent = { t: number; stage: string; text: string; data?: Record<string, unknown> };
+// data (v194): download carries { bytes, total: number | null }; model_search carries { queries: string[] } and/or
+// { candidates / urls }, whichever the stage produced — see Progress tracking above
+type Job = {                // GET /api/jobs/{job_id} (v194)
+  job_id: string;
+  stage: string;             // directory | mfn | nasdaq | ddg | model_search | ir_page | download | verify | done | failed
+  started: number;           // unix seconds
+  updated: number;
+  done: boolean;
+  error: string | null;      // the failed event's own text; null until then
+  events: JobEvent[];
 };
 
 type LibraryEntry = {
@@ -324,6 +339,23 @@ or cannot retrieve a valid report. This is public-web discovery, not guaranteed 
 Validated PDFs are cached in `data/reports/<slug>_<year>.pdf`, with their actual source URL recorded
 in `data/reports/index.json`. Repeated requests reuse the cache without another model search.
 
+### Progress tracking (v194)
+
+`/discover` and `/fetch` can each take an optional `job_id` — a uuid the frontend generates once per
+call. When present, every stage the call passes through (checking the cache, MFN/Nasdaq/DuckDuckGo,
+the connected model's own web search — its query terms and the candidates it names — following an
+IR page, a PDF download's byte progress, page-count/issuer verification) is appended as an event to
+an in-memory table `GET /api/jobs/{job_id}` serves back. The frontend polls it every 1.5 s while
+either call is in flight, so a search that would otherwise look stuck shows a live, scrolling trail
+instead. `job_id` is a no-op when omitted — every existing caller is unaffected. The table is
+per-process (no persistence) and entries expire after an hour.
+
+`GET /api/jobs/{job_id}` → `Job` (below), or `404` once unknown or expired. `stage` names are fixed:
+`directory`, `mfn`, `nasdaq`, `ddg`, `model_search`, `ir_page`, `download`, `verify`, then a terminal
+`done` or `failed`. `done: true` on either terminal stage; `error` (the `failed` event's own text) is
+set only then. A call that fails outright (the `/fetch` 404 case) still leaves its trail in place —
+the frontend does not need to guess a job crashed vs. finished with nothing found.
+
 ## Knowledge base — `data/kb/` (RAG + memory)
 
 Every parsed report leaves its data behind as plain files so the corpus grows and the local model gets more context
@@ -454,5 +486,19 @@ Comparison responses include saved `candidates`, `previous_stem`, `current_year`
 - Parser 7 combines the current column/header reconstruction with selective local OCR.
   OCR language/path and page provenance are recorded with the cached text. OCR-derived
   fields are capped at 0.8 confidence. Missing language files return an actionable 422.
+- **Bounded OCR (v191).** A scanned PDF's registration request (`POST /api/reports`,
+  `/api/reports/from-library`, `/api/reports/fetch`) does not OCR the whole document
+  synchronously by default: it OCRs only the pages a debt-maturity locate pass could reach
+  (the report's own front matter plus any outline/bookmark entry naming a debt/maturity/
+  borrowings section, ±1 page) and leaves the rest blank, recorded as `ocr_pending` in
+  `data/kb/<stem>/meta.json`. If even that bounded set needs more than `OCR_PAGE_BUDGET`
+  pages (env, default 40), the request 422s instead of running it:
+  `{ "detail": "scanned PDF: OCR would take ~N min for P pages", "ocr_pages_needed": P }`,
+  where `P` is every scanned page in the document (what a full pass would cost), not just
+  the bounded subset. Retrying the same call with `ocr=full` OCRs the whole document
+  unconditionally, no budget check — an explicit opt-in. Before `/extract` runs, any
+  candidate page the locator picked for the section being extracted that is still
+  `ocr_pending` is OCR'd individually first, so the model never reads a page bounded
+  registration skipped but this extraction actually needs.
 - PPTX keeps analyst-review metadata and prior-year/per-year options. Incomplete or
   failed-check maturity splits render as a table. Chart axis IDs are unsigned.

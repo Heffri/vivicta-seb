@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { Tab } from '@/components/shell/tabs'
-import type { BatchErrorKind, BatchItem } from '@/hooks/useBatch'
+import type { BatchErrorKind, BatchItem, RegisterOpts } from '@/hooks/useBatch'
 
 type Props = {
   items: BatchItem[]
@@ -11,7 +11,7 @@ type Props = {
   stopRequested: boolean
   resultsCount: number
   onStopAfterCurrent: () => void
-  onRetry: (id: string) => void
+  onRetry: (id: string, opts?: RegisterOpts) => void
   onViewResults: () => void
   onNavigate?: (tab: Tab) => void
 }
@@ -24,9 +24,16 @@ const ERROR_COPY: Record<BatchErrorKind, { text: string; settings?: boolean; kb?
   'review-protected': { text: 'This report already has a human-reviewed result, which was kept as-is.', kb: true },
   'download-needed': { text: 'No saved text or local PDF for this one without a download. Check “Allow PDF download” above, then retry.' },
   'needs-ocr': { text: 'No text found on the candidate pages — this file may need OCR, or try a different one.', settings: true },
+  // v191: only the pages a locator would check were OCR'd; the rest of this scan was left unread to
+  // keep registration synchronous. "Run OCR anyway" resends with ocr=full.
+  'ocr-budget': { text: 'This is a scanned PDF. Only the pages a locator would check were read — run OCR on the rest to extract from anywhere else in it.' },
   'provider-failed': { text: 'The model provider failed. Check Settings › Test connection, then retry just this one.', settings: true },
   other: { text: '' },
 }
+
+// The backend's own 422 message already names the estimate ("...~N min for P pages"); read it back
+// instead of recomputing it, so the button's number can never drift from what the request actually said.
+const ocrMinutes = (message: string | undefined): string | null => message?.match(/~(\d+) min/)?.[1] ?? null
 
 const stageIcon = (item: BatchItem) => {
   switch (item.stage) {
@@ -130,6 +137,13 @@ export function BatchProgress({ items, busy, stopRequested, resultsCount, onStop
                         saved result
                       </Badge>
                     )}
+                    {/* v191(c): this report's registration OCR'd a bounded set of pages -- said here so a
+                        scanned report doesn't look silently skipped once it reaches Results. */}
+                    {item.ocrPages && item.ocrPages.length > 0 && (
+                      <Badge variant="secondary" className="normal-case">
+                        OCR: {item.ocrPages.length} page{item.ocrPages.length === 1 ? '' : 's'}
+                      </Badge>
+                    )}
                     {ACTIVE_STAGES.includes(item.stage) && seconds !== null && !inlineStopwatch && (
                       <span className="text-xs text-muted-foreground tabular-nums">{seconds}s</span>
                     )}
@@ -140,20 +154,30 @@ export function BatchProgress({ items, busy, stopRequested, resultsCount, onStop
                       <p className="text-xs text-danger">{item.result?.error}</p>
                       {copy?.text && <p className="mt-0.5 text-xs text-muted-foreground">{copy.text}</p>}
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
-                        {copy?.kb && (
-                          <Button variant="outline" size="xs" onClick={() => onNavigate?.('kb')}>
-                            Open Knowledge base
+                        {item.errorKind === 'ocr-budget' ? (
+                          <Button variant="outline" size="xs" disabled={item.retrying} onClick={() => onRetry(item.id, { ocr: 'full' })}>
+                            {item.retrying
+                              ? 'Running OCR…'
+                              : `Run OCR anyway${ocrMinutes(item.result?.error) ? ` (~${ocrMinutes(item.result?.error)} min)` : ''}`}
                           </Button>
-                        )}
-                        {copy?.settings && (
-                          <Button variant="outline" size="xs" onClick={() => onNavigate?.('settings')}>
-                            Open Settings
-                          </Button>
-                        )}
-                        {!copy?.kb && (
-                          <Button variant="outline" size="xs" disabled={item.retrying} onClick={() => onRetry(item.id)}>
-                            {item.retrying ? 'Retrying…' : 'Retry this one'}
-                          </Button>
+                        ) : (
+                          <>
+                            {copy?.kb && (
+                              <Button variant="outline" size="xs" onClick={() => onNavigate?.('kb')}>
+                                Open Knowledge base
+                              </Button>
+                            )}
+                            {copy?.settings && (
+                              <Button variant="outline" size="xs" onClick={() => onNavigate?.('settings')}>
+                                Open Settings
+                              </Button>
+                            )}
+                            {!copy?.kb && (
+                              <Button variant="outline" size="xs" disabled={item.retrying} onClick={() => onRetry(item.id)}>
+                                {item.retrying ? 'Retrying…' : 'Retry this one'}
+                              </Button>
+                            )}
+                          </>
                         )}
                       </div>
                       {item.tried && item.tried.length > 0 && (

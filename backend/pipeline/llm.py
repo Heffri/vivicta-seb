@@ -48,6 +48,8 @@ from pathlib import Path
 
 from openai import OpenAI
 
+from . import jobs
+
 # Hosted CLIs (codex/claude) take LLM_CONCURRENCY calls at once; a local Ollama is one GPU, so it stays at 1.
 _MODEL_LOCK = threading.BoundedSemaphore(1 if (os.getenv("LLM_PROVIDER") or "openai") == "openai" else max(1, int(os.getenv("LLM_CONCURRENCY", "3"))))
 DEFAULT_TIMEOUT = "300"  # v120 measured no accuracy change at 600; 120 caused spurious timeout-then-retry (v045/v051/v097/v136/v148)
@@ -97,17 +99,22 @@ def chat(system: str, user: str, schema: dict, name: str = "response") -> str:
     return _FENCE.sub("", content)  # fenced anyway (codex/claude answer like a chat assistant, fences and all)? strip
 
 
-def web_lookup(system: str, user: str, schema: dict, name: str = "web_lookup") -> str:
+def web_lookup(system: str, user: str, schema: dict, name: str = "web_lookup", job_id: "str | None" = None) -> str:
     """chat() with the provider's own web-search tool switched on: fetch.py's fourth report source
     asks the model for official annual-report PDF links the feeds and the plain web search missed.
     codex gets `--search` (the native Responses web_search tool, no per-call approval); claude gets
     `--tools WebSearch` -- its default `--tools ""` disables every tool, so the allowlist is the
     whole difference. openai_compatible (Ollama & co) has no search tool: raise rather than answer
     from the model's memory -- fetch.py gates on provider() in ("codex", "claude") first anyway.
-    Reply post-processing is chat()'s, byte for byte."""
+    Reply post-processing is chat()'s, byte for byte.
+
+    job_id (v194, optional): surfaces the web_search tool's own query terms as job-progress events
+    while this call runs, parsed from codex's --json event stream (_codex_search_events). claude's
+    `--output-format json` is a single object, not an event stream, so job_id is a no-op there --
+    fetch.py's own step() calls around this call are what a claude-backed search still shows."""
     p = provider()
     if p == "codex":
-        content = _codex_chat(system, user, search=True)
+        content = _codex_chat(system, user, search=True, job_id=job_id)
     elif p == "claude":
         content = _claude_chat(system, user, tools="WebSearch")
     else:
@@ -164,12 +171,40 @@ def _codex_executable() -> str:
     raise RuntimeError("codex executable not found (PATH, or the usual OpenAI Codex install dirs); set CODEX_BIN to override")
 
 
-def _codex_chat(system: str, user: str, search: bool = False, schema: dict | None = None) -> str:
+def _codex_search_events(job_id: "str | None", stdout: str) -> None:
+    """v194: pulls the web_search tool's own query terms out of codex's --json event stream (one JSON
+    object per line) and turns each into a model_search job-progress event -- the closest thing a
+    closed model offers to a visible chain of thought while fetch.py's web-search ask is in flight.
+    A probe against the real CLI (gpt-5.6-terra, 2026-09-22) shows two `item.completed` events per
+    turn sharing the identical query list; consecutive identical lists are folded into one event so
+    the trace does not show the same search twice."""
+    if not job_id or not stdout:
+        return
+    last = None
+    for line in stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        item = event.get("item") if isinstance(event, dict) else None
+        if not isinstance(item, dict) or event.get("type") != "item.completed" or item.get("type") != "web_search":
+            continue
+        queries = (item.get("action") or {}).get("queries") or ([item["query"]] if item.get("query") else [])
+        if not queries or queries == last:
+            continue
+        last = queries
+        jobs.step(job_id, "model_search", "model searched: " + "; ".join(queries), queries=queries)
+
+
+def _codex_chat(system: str, user: str, search: bool = False, schema: dict | None = None, job_id: "str | None" = None) -> str:
     exe = _codex_executable()
     model, timeout = os.getenv("LLM_MODEL", "gpt-5.6-terra"), float(os.getenv("LLM_TIMEOUT", DEFAULT_TIMEOUT))
     prompt = f"{system}\n\n{user}"
     with tempfile.TemporaryDirectory(prefix="vivicta-codex-") as cwd:
-        out = Path(cwd) / "last-message.txt"  # -o: codex's own answer to "which part of the output is the reply", no event-stream parsing needed
+        out = Path(cwd) / "last-message.txt"  # -o: codex's own answer to "which part of the output is the reply"; the --json stream on stdout is only parsed for job progress (_codex_search_events), never for the reply itself
         # --output-schema (v121, opt-in LLM_STRICT_SCHEMA) is an exec flag per `codex exec --help`
         # ("Path to a JSON Schema file describing the model's final response shape"): a FILE path, so
         # the schema goes into the call's own -C temp dir -- inside the read-only sandbox, never the repo.
@@ -185,6 +220,8 @@ def _codex_chat(system: str, user: str, search: bool = False, schema: dict | Non
         with _MODEL_LOCK:
             p = subprocess.run(cmd, input=prompt, cwd=cwd, capture_output=True, encoding="utf-8", errors="replace", timeout=timeout,
                                creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
+        if search:  # progress only, even on a failure below -- a search that then errors still showed what it tried
+            _codex_search_events(job_id, p.stdout)
         if p.returncode != 0 or not out.exists():
             tail = ((p.stdout or "") + "\n" + (p.stderr or ""))[-2000:].strip()
             raise RuntimeError(f"codex exec exited {p.returncode}: {tail}")

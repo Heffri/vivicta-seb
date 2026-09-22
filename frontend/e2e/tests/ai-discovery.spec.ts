@@ -22,6 +22,12 @@ test('AI discovery proposes companies to confirm before fetching', async ({ page
       extracted.push(path)
       return route.fulfill({ json: { report_id: 'lib-intel_2025', company: 'Intel Corporation', fiscal_year: 2025, section: 'income_statement', fields: [], checks: [], warnings: [] } })
     }
+    // v194: every discover/fetch call now carries a job_id; useReportSearch polls this once as soon
+    // as the call settles (plus every 1.5 s while it's still running) — a generic "done" reply is all
+    // this test needs, since it does not assert on the trace panel's own content.
+    if (path.startsWith('/api/jobs/')) {
+      return route.fulfill({ json: { job_id: path.slice('/api/jobs/'.length), stage: 'done', started: Date.now() / 1000, updated: Date.now() / 1000, done: true, error: null, events: [] } })
+    }
     return route.fulfill({ json: path === '/api/config' ? { provider: 'codex', model: 'test' }
       : path === '/api/schemas' ? [{ name: 'income_statement', title: 'Income statement' }]
       : path === '/api/companies' ? [{ name: 'ABB', ticker: 'ABB', sector: 'Industrials', cached_years: [] }] : [] })
@@ -32,7 +38,7 @@ test('AI discovery proposes companies to confirm before fetching', async ({ page
   await page.getByRole('searchbox', { name: 'Search companies', exact: true }).fill('intel')
   await page.getByRole('searchbox', { name: 'Search companies', exact: true }).press('Enter')
   await expect.poll(() => discovered.length).toBe(1)
-  expect(discovered[0]).toEqual({ company: 'intel', year: 2025 })
+  expect(discovered[0]).toEqual({ company: 'intel', year: 2025, job_id: expect.any(String) })
   // Cards name the legal entity, never the fragment; identity fields are shown so the user can tell them apart.
   await expect(card(page, 'Intel Corporation').getByText('NASDAQ: INTC · US · FY ends Dec', { exact: true })).toBeVisible()
   await expect(card(page, 'Intel Corporation').getByText('Intel 2025 Annual Report on Form 10-K · 10-K', { exact: true })).toBeVisible()
@@ -52,6 +58,9 @@ test('"None of these" re-runs discovery with a hint', async ({ page }) => {
       const body = route.request().postDataJSON(); discovered.push(body)
       return route.fulfill({ json: { candidates: body.hint ? [altera] : [intel], note: body.hint ? null : 'model search (codex) failed: timeout' } })
     }
+    if (path.startsWith('/api/jobs/')) {
+      return route.fulfill({ json: { job_id: path.slice('/api/jobs/'.length), stage: 'done', started: Date.now() / 1000, updated: Date.now() / 1000, done: true, error: null, events: [] } })
+    }
     return route.fulfill({ json: path === '/api/config' ? { provider: 'codex', model: 'test' } : path === '/api/schemas' ? [{ name: 'income_statement', title: 'Income statement' }] : [] })
   })
   await page.goto('/')
@@ -63,7 +72,7 @@ test('"None of these" re-runs discovery with a hint', async ({ page }) => {
   await page.getByRole('textbox', { name: 'Hint', exact: true }).fill('programmable logic, San Jose')
   await page.getByRole('button', { name: 'Search again', exact: true }).click()
   await expect.poll(() => discovered.length).toBe(2)
-  expect(discovered[1]).toEqual({ company: 'intel', year: 2025, hint: 'programmable logic, San Jose' })
+  expect(discovered[1]).toEqual({ company: 'intel', year: 2025, hint: 'programmable logic, San Jose', job_id: expect.any(String) })
   await expect(card(page, 'Altera Corporation')).toBeVisible()
   await expect(card(page, 'Intel Corporation')).toHaveCount(0)
 })

@@ -27,7 +27,7 @@ from pathlib import Path
 
 import pymupdf as fitz
 
-from . import collection, llm, paths
+from . import collection, jobs, llm, paths
 
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36"}
 MAX_TRIES = 6
@@ -133,17 +133,19 @@ def _filename_clear(label, *patterns):
     return not any(p.search(label) for p in patterns)
 
 
-def _model_candidates(company, year, country=None, hint=None):
+def _model_candidates(company, year, country=None, hint=None, job_id=None):
     """Ask the model for official annual-report PDF links. (urls, note): at most MAX_MODEL_CANDIDATES
     cleaned URLs, best first, plus a short note for the eventual 404 detail -- the model being
-    unavailable or replying with something unparseable is not the same thing as "no links found"."""
+    unavailable or replying with something unparseable is not the same thing as "no links found".
+    job_id (v194) rides through to llm.web_lookup, which surfaces the web_search tool's own query
+    terms as job-progress events while this call runs (codex only; see llm._codex_search_events)."""
     user = f"Company: {company}\nFiscal year: {year}"
     if country:
         user += f"\nCountry: {country}"
     if hint:
         user += f"\nHint: {hint}"
     try:
-        data = json.loads(llm.web_lookup(SEARCH_SYSTEM, user, SEARCH_SCHEMA))
+        data = json.loads(llm.web_lookup(SEARCH_SYSTEM, user, SEARCH_SCHEMA, job_id=job_id))
         if not isinstance(data, dict) or not isinstance(data.get("candidates"), list):
             raise ValueError("invalid response shape: expected an object with a candidates array")
     except Exception as e:  # the CLI's RuntimeError, a timeout, or bad JSON -- one clear note either way
@@ -163,20 +165,20 @@ def _model_candidates(company, year, country=None, hint=None):
     return urls, None
 
 
-def _ir_page_candidates(company, year, country=None, hint=None):
+def _ir_page_candidates(company, year, country=None, hint=None, job_id=None):
     """The second model ask (v081): (urls, note) like _model_candidates, but only ever called once
     every fourth-source candidate and the fifth source's own generic IR-path guesses have already
     failed, asking this time only for the company's IR/annual-report-archive page -- never a PDF --
     so v080's crawl (_ir_page_report) has a page the model actually named instead of only a guessed
     generic path. At most MAX_IR_PAGE_CANDIDATES URLs; a candidate that is itself a PDF is dropped,
-    since that is exactly what the first ask already tried and failed at."""
+    since that is exactly what the first ask already tried and failed at. job_id: see _model_candidates."""
     user = f"Company: {company}\nFiscal year: {year}"
     if country:
         user += f"\nCountry: {country}"
     if hint:
         user += f"\nHint: {hint}"
     try:
-        data = json.loads(llm.web_lookup(IR_PAGE_SYSTEM, user, SEARCH_SCHEMA))
+        data = json.loads(llm.web_lookup(IR_PAGE_SYSTEM, user, SEARCH_SCHEMA, job_id=job_id))
         if not isinstance(data, dict) or not isinstance(data.get("candidates"), list):
             raise ValueError("invalid response shape: expected an object with a candidates array")
     except Exception as e:
@@ -229,17 +231,18 @@ def _local_candidates(query, year, dest_dir):
     return out
 
 
-def _model_discover(query, year, country=None, hint=None):
+def _model_discover(query, year, country=None, hint=None, job_id=None):
     """The one discover model call: (candidates, note) like _model_candidates, but every candidate is a legal
     entity with its identity fields kept. A link that is not http(s) or is interim/risk/AGM-named (BAD_URL) is
-    nulled, not the whole candidate -- fetch_report searches for that entity itself when url is null."""
+    nulled, not the whole candidate -- fetch_report searches for that entity itself when url is null.
+    job_id: see _model_candidates."""
     user = f"Query: {query}\nFiscal year: {year}"
     if country:
         user += f"\nCountry: {country}"
     if hint:
         user += f"\nHint: {hint}"
     try:
-        data = json.loads(llm.web_lookup(DISCOVER_SYSTEM, user, DISCOVER_SCHEMA))
+        data = json.loads(llm.web_lookup(DISCOVER_SYSTEM, user, DISCOVER_SCHEMA, job_id=job_id))
         if not isinstance(data, dict) or not isinstance(data.get("candidates"), list):
             raise ValueError("invalid response shape: expected an object with a candidates array")
     except Exception as e:  # the CLI's RuntimeError, a timeout, or bad JSON -- one clear note either way
@@ -260,19 +263,29 @@ def _model_discover(query, year, country=None, hint=None):
     return out, None
 
 
-def discover(company: str, year: int, country: "str | None" = None, hint: "str | None" = None, dest_dir: "Path | None" = None) -> dict:
+def discover(company: str, year: int, country: "str | None" = None, hint: "str | None" = None, dest_dir: "Path | None" = None,
+            job_id: "str | None" = None) -> dict:
     """{"candidates": [...], "note": str | None}: which legal entities a typed query could mean, for the user to
     confirm one before any download. Saved reports first (no model call), then one web-search ask for up to
     MAX_DISCOVER_CANDIDATES distinct entities with their official report PDF URL for the year when known; an
     openai/fixture backend has no search tool and gets the saved matches plus a note saying so. Dedupe is
-    collection.identity, not a bare casefold, so a saved "ABB" and the model's "ABB Ltd" are one card."""
+    collection.identity, not a bare casefold, so a saved "ABB" and the model's "ABB Ltd" are one card.
+
+    job_id (v194, optional): reports the directory/model_search stages, the model's own query terms
+    and candidate names, and a final done event to pipeline.jobs -- a no-op when job_id is None."""
     dest_dir = Path(dest_dir) if dest_dir is not None else paths.reports_dir()
+    jobs.step(job_id, "directory", f"checking saved reports for {company} ({year})")
     local = _local_candidates(company, year, dest_dir)
+    jobs.step(job_id, "directory", f"{len(local)} saved match(es)" if local else "no saved match")
     found, note = [], None
     if websearch_provider():
-        found, note = _model_discover(company, year, country, hint)
+        jobs.step(job_id, "model_search", "asking the connected model to search the web")
+        found, note = _model_discover(company, year, country, hint, job_id=job_id)
+        jobs.step(job_id, "model_search", f"model suggested {len(found)} entit{'y' if len(found) == 1 else 'ies'}" if found else (note or "model suggested nothing"),
+                 candidates=[{"legal_name": c["legal_name"], "url": c["url"]} for c in found])
     else:
         note = "web search needs a codex or claude provider (Settings); only saved reports are listed"
+        jobs.step(job_id, "model_search", note)
     out, seen = [], set()
     for c in local + found:
         key = collection.identity(c["legal_name"])
@@ -280,7 +293,9 @@ def discover(company: str, year: int, country: "str | None" = None, hint: "str |
             continue
         seen.add(key)
         out.append(c)
-    return {"candidates": out[:MAX_DISCOVER_CANDIDATES], "note": note}
+    out = out[:MAX_DISCOVER_CANDIDATES]
+    jobs.step(job_id, "done", f"{len(out)} candidate(s)")
+    return {"candidates": out, "note": note}
 
 
 def _label_clean(url):
@@ -304,9 +319,29 @@ def _best_model_candidate(hits):
     return max(hits, key=lambda h: (h[3] >= FULL_REPORT_MIN_PAGES, _label_clean(h[0]), h[3]))
 
 
-def _get(url, timeout=60):
+DOWNLOAD_CHUNK = 65536      # bytes read per socket call once job_id opts into progress events
+DOWNLOAD_STEP_EVERY = 8     # ~512 KB between events -- enough to show movement on a 50+ MB PDF, not a flood
+
+
+def _get(url, timeout=60, job_id=None, label=None):
+    """job_id (v194, optional): streams the read in DOWNLOAD_CHUNK pieces and reports "download"
+    progress (bytes so far, total -- total is None when the server sends no Content-Length) every
+    DOWNLOAD_STEP_EVERY chunks, plus one final event with the true total read. Every existing call
+    site (job_id left unset) still does one unbuffered r.read(), byte for byte as before."""
     with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout) as r:
-        return r.read()
+        if not job_id:
+            return r.read()
+        total = r.headers.get("Content-Length")
+        total = int(total) if total and total.isdigit() else None
+        chunks, read, n = [], 0, 0
+        while chunk := r.read(DOWNLOAD_CHUNK):
+            chunks.append(chunk)
+            read += len(chunk)
+            n += 1
+            if n % DOWNLOAD_STEP_EVERY == 0:
+                jobs.step(job_id, "download", f"downloading {label or url}", bytes=read, total=total)
+        jobs.step(job_id, "download", f"downloaded {label or url}", bytes=read, total=total)
+        return b"".join(chunks)
 
 
 def _unzip(data):
@@ -574,12 +609,22 @@ def _crawl(company, year):
     return _harvest(pages, year)
 
 
-def _candidates(company, year):
+def _candidates(company, year, job_id=None):
     """Candidate PDF URLs, best first: the structured feeds, then (only if those are exhausted) the web — the feeds often carry
-    just the press release or the ESEF zip (AstraZeneca, Lundin Gold, SkiStar) while the report sits on the company's site."""
-    feeds = list(dict.fromkeys(_mfn(company, year) + _nasdaq(company, year)))[:MAX_TRIES]
+    just the press release or the ESEF zip (AstraZeneca, Lundin Gold, SkiStar) while the report sits on the company's site.
+    job_id (v194): one mfn/nasdaq event pair for the feed lookup, one ddg event pair for the crawl+DuckDuckGo fallback --
+    the same two groups this function already computes, just named and reported, the URLs and their order unchanged."""
+    jobs.step(job_id, "mfn", f"searching MFN for {company} ({year})")
+    mfn_urls = _mfn(company, year)
+    jobs.step(job_id, "nasdaq", f"searching Nasdaq company news for {company} ({year})")
+    nasdaq_urls = _nasdaq(company, year)
+    feeds = list(dict.fromkeys(mfn_urls + nasdaq_urls))[:MAX_TRIES]
+    jobs.step(job_id, "nasdaq", f"{len(feeds)} feed candidate(s)" if feeds else "no feed candidates")
     yield from feeds
-    yield from [u for u in dict.fromkeys(_crawl(company, year) + _ddg(company, year)) if u not in feeds][:MAX_TRIES]
+    jobs.step(job_id, "ddg", f"crawling the company's own pages and DuckDuckGo for {company} ({year})")
+    rest = [u for u in dict.fromkeys(_crawl(company, year) + _ddg(company, year)) if u not in feeds][:MAX_TRIES]
+    jobs.step(job_id, "ddg", f"{len(rest)} more candidate(s)" if rest else "no more candidates")
+    yield from rest
 
 
 def find_report(company: str, year: int) -> list[str]:
@@ -715,17 +760,26 @@ def _crawl_ir_page(start_url, year, deadline):
     return found, None
 
 
-def _ir_page_report(seeds, company, year, tried):
+def _verify_text(url, doc, text):
+    """The verify-stage progress line for one downloaded + validated candidate (v194) -- the same
+    "ok (N pages)" / rejection-reason shape every print(f"{url} -> ...") in this file already uses."""
+    return f"{url} -> ok ({doc.page_count} pages)" if doc else f"{url} -> {text}"
+
+
+def _ir_page_report(seeds, company, year, tried, job_id=None):
     """Fifth source (v080): crawl candidate IR/report pages for the report PDF itself, at most one hop deep.
     Every harvested link still runs the full download+validate chain, appended to `tried` like every other
     candidate; unlike the earlier sources (first validated survivor wins) this one downloads every harvested
     candidate within budget and keeps the one with the most pages, because the page linking a summary volume
-    often links the full report right next to it (Nestlé's Annual Review vs. its actual Annual Report)."""
+    often links the full report right next to it (Nestlé's Annual Review vs. its actual Annual Report).
+    job_id (v194): one "ir_page" event per seed page read, one "download"/"verify" pair per harvested
+    candidate (byte progress rides on _get; see jobs.py)."""
     deadline = time.time() + CRAWL_BUDGET
     ranked = {}
     for page in seeds[:MAX_CRAWL_SEEDS]:
         if time.time() > deadline:
             break
+        jobs.step(job_id, "ir_page", f"reading {page}")
         found, err = _crawl_ir_page(page, year, deadline)
         if err:
             print(err)
@@ -744,11 +798,13 @@ def _ir_page_report(seeds, company, year, tried):
         tried.append(url)
         t0 = time.time()
         try:
-            data = _unzip(_get(url, timeout=CRAWL_TIMEOUT))
+            data = _unzip(_get(url, timeout=CRAWL_TIMEOUT, job_id=job_id, label=url))
             doc, text = _validate(data, company, year)
         except Exception as e:
             print(f"{url} -> {e}")
+            jobs.step(job_id, "verify", f"{url} -> {e}")
             continue
+        jobs.step(job_id, "verify", _verify_text(url, doc, text))
         if not doc:
             print(f"{url} -> {text}")
             if TITLE_YEAR_MARK in text:  # v122: a cover naming an older year is a finding, not just a miss
@@ -855,23 +911,30 @@ def _publish_report(dest_dir: Path, entry: dict, data: bytes) -> None:
 
 
 def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, country: "str | None" = None, hint: "str | None" = None,
-                 url: "str | None" = None) -> dict:
+                 url: "str | None" = None, job_id: "str | None" = None) -> dict:
     """Reuse cached PDFs, then ask the connected model to search official sources.
 
     Model-directed PDF/IR discovery runs before legacy feeds and web scraping.
     Every candidate still passes issuer, fiscal-year and report-type validation.
     `url` (a discover candidate the user confirmed) is tried before any source of our own;
     `company` is then the confirmed legal name, and the cache filename follows it as always.
+
+    job_id (v194, optional): every source below reports its stage, each candidate's download
+    progress and verify outcome, and a final done/failed event to pipeline.jobs -- a no-op when
+    job_id is None. See jobs.py's module docstring and docs/API.md's Progress tracking section.
     """
     dest_dir = Path(dest_dir) if dest_dir is not None else paths.reports_dir()
     fname = f"{slugify(company)}_{year}.pdf"
+    jobs.step(job_id, "directory", f"checking the report cache for {company} ({year})")
     index = _load_index(dest_dir)
     for e in index:  # cache hit
         if e["file"] == fname and (dest_dir / fname).exists():
             if _readable_pdf(dest_dir / fname):
+                jobs.step(job_id, "done", f"{e['file']} (already cached)")
                 return {**e, "tried": []}
             # A previous interrupted/externally damaged download is not a cache hit. Remove both
             # halves before retrying so /api/library cannot expose a row PyMuPDF cannot open.
+            jobs.step(job_id, "verify", f"{e['file']} is unreadable; removing it before retry")
             try:
                 (dest_dir / fname).unlink(missing_ok=True)
                 _drop_index(dest_dir, fname)
@@ -884,11 +947,14 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
         tried.append(url)
         t0 = time.time()
         try:
-            data = _unzip(_get(url))
+            data = _unzip(_get(url, job_id=job_id, label=url))
             doc, text = _validate(data, company, year)
         except Exception as e:
             print(f"{url} -> {e}")
+            jobs.step(job_id, "verify", f"{url} -> {e}")
             data, doc, text = b"", None, ""
+        else:
+            jobs.step(job_id, "verify", _verify_text(url, doc, text))
         if doc:
             pages = doc.page_count
             doc.close()
@@ -896,6 +962,7 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
             note = "confirmed url" if _is_full_report(url, pages) else "confirmed url; summary volume"
             entry = _entry(fname, company, year, url, text, note=note)
             _publish_report(dest_dir, entry, data)
+            jobs.step(job_id, "done", f"{entry['file']} ({note})")
             return {**entry, "tried": tried}
         if text:
             print(f"{url} -> {text}")
@@ -904,7 +971,9 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
             if not data.startswith(b"%PDF"):  # the confirmed link was a page, not a PDF: crawl it (v080)
                 page_seeds.append(url)
     if p := websearch_provider():
-        urls, model_note = _model_candidates(company, year, country, hint)
+        jobs.step(job_id, "model_search", "asking the connected model to search the web")
+        urls, model_note = _model_candidates(company, year, country, hint, job_id=job_id)
+        jobs.step(job_id, "model_search", f"model suggested {len(urls)} candidate(s)" if urls else (model_note or "model suggested no candidates"), urls=urls)
         hits = []  # (url, data, text, pages) for every candidate that downloads + validates (v081: rank, don't stop at the first)
         for url in urls:
             if url in tried:
@@ -912,12 +981,14 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
             tried.append(url)
             t0 = time.time()
             try:
-                data = _unzip(_get(url))
+                data = _unzip(_get(url, job_id=job_id, label=url))
                 doc, text = _validate(data, company, year)
             except Exception as e:
                 print(f"{url} -> {e}")
+                jobs.step(job_id, "verify", f"{url} -> {e}")
                 page_seeds += [u for u in _host_guesses(url, toks) if u not in page_seeds]  # a dead link: guess its own IR page (v080)
                 continue
+            jobs.step(job_id, "verify", _verify_text(url, doc, text))
             if not doc:  # no stub-page harvest here: the model was asked for direct PDF links only
                 print(f"{url} -> {text}")
                 if TITLE_YEAR_MARK in text:  # v122: a cover naming an older year is a finding, not just a miss
@@ -936,29 +1007,34 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
             note = f"model search ({p})" if _is_full_report(url, pages) else f"model search ({p}); summary volume"
             entry = _entry(fname, company, year, url, text, note=note, tags=["fetched", "foreign"])
             _publish_report(dest_dir, entry, data)
+            jobs.step(job_id, "done", f"{entry['file']} ({note})")
             return {**entry, "tried": tried}
     # Follow the official IR pages returned by the model before broad fallback discovery.
-    if page_seeds and (found := _ir_page_report(page_seeds, company, year, tried)):
+    if page_seeds and (found := _ir_page_report(page_seeds, company, year, tried, job_id=job_id)):
         url, data, text = found
         entry = _entry(fname, company, year, url, text, note="IR page crawl", tags=["fetched", "foreign"])
         _publish_report(dest_dir, entry, data)
+        jobs.step(job_id, "done", f"{entry['file']} (IR page crawl)")
         return {**entry, "tried": tried}
     # One targeted follow-up can find the official archive when direct links fail.
     # At most two model searches per uncached report.
     if p:
-        ir_urls, ir_note = _ir_page_candidates(company, year, country, hint)
+        jobs.step(job_id, "ir_page", "asking the connected model for the investor-relations page")
+        ir_urls, ir_note = _ir_page_candidates(company, year, country, hint, job_id=job_id)
+        jobs.step(job_id, "ir_page", f"model suggested {len(ir_urls)} page(s)" if ir_urls else (ir_note or "model suggested no pages"), urls=ir_urls)
         new_seeds = [u for u in ir_urls if u not in page_seeds]
-        if new_seeds and (found := _ir_page_report(new_seeds, company, year, tried)):
+        if new_seeds and (found := _ir_page_report(new_seeds, company, year, tried, job_id=job_id)):
             url, data, text = found
             entry = _entry(fname, company, year, url, text, note="IR page crawl", tags=["fetched", "foreign"])
             _publish_report(dest_dir, entry, data)
+            jobs.step(job_id, "done", f"{entry['file']} (IR page crawl)")
             return {**entry, "tried": tried}
         if ir_note:
             model_note = f"{model_note}; {ir_note}" if model_note else ir_note
     # Traditional sources are a fallback, not a prerequisite for model search.
     # Start a fresh set of page seeds so failed AI pages are not crawled twice.
     page_seeds = []
-    candidates = list(_candidates(company, year))
+    candidates = list(_candidates(company, year, job_id=job_id))
     i = 0
     while i < len(candidates):
         url = candidates[i]
@@ -968,12 +1044,14 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
         tried.append(url)
         t0 = time.time()
         try:
-            data = _unzip(_get(url))
+            data = _unzip(_get(url, job_id=job_id, label=url))
             doc, text = _validate(data, company, year)
         except Exception as e:
             print(f"{url} -> {e}")
+            jobs.step(job_id, "verify", f"{url} -> {e}")
             page_seeds += [u for u in _host_guesses(url, toks) if u not in page_seeds]  # a dead link: guess its own IR page (v080)
             continue
+        jobs.step(job_id, "verify", _verify_text(url, doc, text))
         if not doc:
             print(f"{url} -> {text}")
             if TITLE_YEAR_MARK in text:  # v122: a cover naming an older year is a finding, not just a miss
@@ -991,12 +1069,15 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
         print(f"{url} -> ok ({pages} pages, {time.time() - t0:.0f}s)")
         entry = _entry(fname, company, year, url, text)
         _publish_report(dest_dir, entry, data)
+        jobs.step(job_id, "done", entry["file"])
         return {**entry, "tried": tried}
-    if page_seeds and (found := _ir_page_report(page_seeds, company, year, tried)):
+    if page_seeds and (found := _ir_page_report(page_seeds, company, year, tried, job_id=job_id)):
         url, data, text = found
         entry = _entry(fname, company, year, url, text, note="IR page crawl")
         _publish_report(dest_dir, entry, data)
+        jobs.step(job_id, "done", f"{entry['file']} (IR page crawl)")
         return {**entry, "tried": tried}
+    jobs.step(job_id, "failed", f"no annual report found for {company} {year}" + (f"; {model_note}" if model_note else ""))
     raise LookupError(tried, model_note)
 
 

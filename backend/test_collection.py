@@ -52,7 +52,7 @@ with tempfile.TemporaryDirectory() as tmp:
             # a confirmed /discover candidate: its url reaches fetch_report as the first thing to try
             body = {'company': 'ABB Ltd', 'year': 2024, 'country': 'CH', 'download_pdf': True, 'url': 'https://example.com/abb-annual-report-2024.pdf'}
             assert client.post('/api/reports/fetch', json=body).status_code == 200
-            assert download.call_args.args[0] == 'ABB Ltd' and download.call_args.kwargs == {'url': body['url']}
+            assert download.call_args.args[0] == 'ABB Ltd' and download.call_args.kwargs == {'url': body['url'], 'job_id': None}
             assert client.post('/api/reports/fetch', json=body | {'url': 'javascript:alert(1)'}).status_code == 400
         # the PDF is wanted (default) but unreachable: saved page text still serves; nothing saved is a 404
         with patch.object(app.fetch, 'fetch_report', side_effect=LookupError([], 'offline')):
@@ -65,4 +65,14 @@ with tempfile.TemporaryDirectory() as tmp:
             assert response.status_code == 200 and response.json() == {'candidates': [], 'note': 'n'}, response.text
             assert discover.call_args.args == ('intel', 2025, None, 'chips', library)
             assert client.post('/api/reports/discover', json={'company': 'intel', 'year': 1066}).status_code == 400
+        # v194 integration: a job_id on a REAL (unmocked) /discover call is recorded end to end through
+        # GET /api/jobs/{id}; no LLM_PROVIDER is set anywhere in this test, so this never reaches a model
+        job_id = 'job-discover-abb'
+        assert client.get(f'/api/jobs/{job_id}').status_code == 404
+        response = client.post('/api/reports/discover', json={'company': 'ABB', 'year': 2025, 'job_id': job_id})
+        assert response.status_code == 200 and response.json()['candidates'], response.text
+        job = client.get(f'/api/jobs/{job_id}').json()
+        assert job['job_id'] == job_id and job['done'] is True and job['stage'] == 'done' and job['error'] is None, job
+        stages = [e['stage'] for e in job['events']]
+        assert stages[0] == 'directory' and 'model_search' in stages and stages[-1] == 'done', stages
 print('Wallenberg scope, saved-text reuse, review preservation, discover and always-download passed')

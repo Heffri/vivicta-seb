@@ -2,9 +2,12 @@
 from copy import deepcopy
 import json
 import os
+import re
 from pathlib import Path
 import tempfile
 from unittest.mock import Mock, patch
+
+import pymupdf
 
 from . import maturity, parse
 
@@ -66,5 +69,91 @@ def main():
     print("maturity component and selective OCR checks passed")
 
 
+def _image_page(doc, text, width=300, height=100):
+    """A page with no text layer at all: `text` is rendered on a throwaway page and inserted as a
+    raster image, the same shape a scanned report page has -- real OCR (not a mock) can recover it."""
+    page = doc.new_page(width=width, height=height)
+    src = pymupdf.open()
+    src_page = src.new_page(width=width, height=height)
+    src_page.insert_text((10, height / 2), text, fontsize=20)
+    page.insert_image(page.rect, pixmap=src_page.get_pixmap(dpi=200))
+    src.close()
+    return page
+
+
+def _text_page(doc, text, width=300, height=100):
+    page = doc.new_page(width=width, height=height)
+    page.insert_text((10, height / 2), text, fontsize=11)
+    return page
+
+
+def _bounded_fixture(tmp_path):
+    """16 pages: 3 (front matter), 14/15/16 (an outline entry's ±1 window) and 11 (neither) are
+    scanned; page 15's own outline title carries a debt_maturity toc_keyword ("Borrowings").
+    Everything else has a normal text layer. v191."""
+    doc = pymupdf.open()
+    _text_page(doc, "Cover page")
+    _text_page(doc, "Table of contents")
+    _image_page(doc, "Front matter scan")            # 3: within FRONT_PAGES
+    for n in range(4, 11):
+        _text_page(doc, f"Body text page {n}")        # 4-10: ordinary text
+    _image_page(doc, "Should stay pending")           # 11: outside every window
+    _text_page(doc, "Body text page 12")
+    _text_page(doc, "Body text page 13")
+    _image_page(doc, "Borrowings prior page")         # 14: toc hit - 1
+    _image_page(doc, "Borrowings maturity table", width=420)  # 15: the toc hit itself
+    _image_page(doc, "Borrowings next page")          # 16: toc hit + 1
+    doc.set_toc([[1, "Note 24 Borrowings", 15]])
+    path = tmp_path / "scanned.pdf"
+    doc.save(path)
+    doc.close()
+    return path
+
+
+def bounded_ocr():
+    """v191: registration OCR is bounded to the pages a debt-maturity locate pass could reach, a
+    page budget refuses a synchronous pass that is bigger than that, ocr="full" is an unconditional
+    opt-in, and a page left ocr_pending can be OCR'd individually later (app.py's on-demand top-up
+    before /extract uses exactly this: a bare parse.page_text() call on the one page it needs).
+    Exercises real OCR (not a mocked textpage, unlike main()'s checks above) to prove the recovered
+    text actually lands on the right page -- skipped, not red, on a clone that never ran
+    scripts/setup_ocr.py."""
+    if not parse.ocr_ready():
+        print("bounded OCR self-check skipped: OCR language files missing -- run python scripts/setup_ocr.py")
+        return
+    with tempfile.TemporaryDirectory() as root:
+        path = _bounded_fixture(Path(root))
+
+        meta = {}
+        texts = parse.page_texts(path, meta)
+        assert meta["ocr_pages"] == [3, 14, 15, 16], meta["ocr_pages"]  # front matter + toc hit +-1
+        assert meta["ocr_pending"] == [11], meta["ocr_pending"]  # scanned, but outside every window
+        assert texts[10] == "", repr(texts[10])  # pending page comes back blank, not OCR'd
+        assert "Front matter scan" in texts[2], texts[2]
+        assert "Borrowings prior page" in texts[13], texts[13]
+        assert "Borrowings maturity table" in texts[14], texts[14]
+        assert "Borrowings next page" in texts[15], texts[15]
+        assert texts[0].strip() == "Cover page"  # an ordinary text-layer page is untouched
+
+        with patch.object(parse, "OCR_PAGE_BUDGET", 3):  # the bounded set alone (4 pages) already exceeds it
+            try:
+                parse.page_texts(path, {})
+                raise AssertionError("bounded OCR over budget must raise")
+            except parse.OCRBudgetExceeded as e:
+                assert e.pages_needed == 5, e.pages_needed  # every scanned page report-wide, not just the bounded set
+                assert re.search(r"~\d+ min for 5 pages", str(e)), str(e)
+
+            full_meta = {}  # explicit opt-in bypasses the same budget entirely
+            full_texts = parse.page_texts(path, full_meta, ocr="full")
+            assert full_meta["ocr_pages"] == [3, 11, 14, 15, 16], full_meta["ocr_pages"]
+            assert full_meta["ocr_pending"] == []
+            assert "Should stay pending" in full_texts[10], full_texts[10]
+
+        with pymupdf.open(path) as doc:  # the on-demand top-up primitive: page_text() alone, no ocr_allowed=False gate
+            assert "Should stay pending" in parse.page_text(doc[10])
+    print("bounded OCR self-check ok")
+
+
 if __name__ == "__main__":
     main()
+    bounded_ocr()
