@@ -32,8 +32,9 @@ script — the two bundled samples, a three-minute line-by-line, and the demo-da
 ## Install / run — three entry points
 
 1. **Windows installer** (double-click, no toolchain): grab the Setup exe from the
-   [latest release](https://github.com/Heffri/vivicta-seb/releases/latest). Open to anyone, no
-   login. CI rebuilds it from every push to `main`, so that link is always the current `main`;
+   [latest release](https://github.com/Heffri/vivicta-seb/releases/latest), or download it
+   directly — [`annual-report-parser-main-setup.exe`](https://github.com/Heffri/vivicta-seb/releases/latest/download/annual-report-parser-main-setup.exe),
+   a permanent link that always serves the newest build. Open to anyone, no login. CI rebuilds it from every push to `main`, so that link is always the current `main`;
    the app checks for updates on startup and applies them on exit. Everything it needs ships
    inside the installer — the Python backend and its dependencies, the Electron runtime, the
    frontend, the 206-report saved library and the OCR language data — so there is nothing to

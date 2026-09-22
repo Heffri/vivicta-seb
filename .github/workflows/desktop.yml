@@ -121,3 +121,9 @@ jobs:
           # Publish metadata last, so clients never see a partially uploaded build.
           gh release upload $tag desktop/dist/latest.yml --repo $env:GITHUB_REPOSITORY --clobber
           if ($LASTEXITCODE -ne 0) { throw 'Could not publish update metadata' }
+          # Re-assert every time rather than trusting a one-off manual edit: main is the public
+          # download, so it must stay a full release and hold the "Latest" slot.
+          if ($env:RELEASE_CHANNEL -eq 'main') {
+            gh release edit $tag --repo $env:GITHUB_REPOSITORY --prerelease=false --latest
+            if ($LASTEXITCODE -ne 0) { throw 'Could not mark the main release as latest' }
+          }
