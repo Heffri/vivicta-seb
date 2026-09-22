@@ -25,6 +25,7 @@ let logFile = '' // set once in main(); read by applySettings()'s error messages
 let backendBaseEnv = {} // ARP_DATA_DIR/KB_DIR/FRONTEND_DIST -- fixed for the app's lifetime, merged
 // with settings.envForConfig()'s LLM_* vars both at startup and on every settings-triggered restart
 let currentBackend = { port: null, proc: null } // the backend this instance actually owns right now
+let quitting = false
 
 function crashLog(label, err) {
   const line = `\n[${new Date().toISOString()}] ${label}: ${err && err.stack ? err.stack : err}\n`
@@ -39,6 +40,7 @@ function crashLog(label, err) {
 }
 process.on('uncaughtException', (err) => crashLog('uncaughtException', err))
 process.on('unhandledRejection', (err) => crashLog('unhandledRejection', err))
+app.on('child-process-gone', (_event, details) => crashLog('child-process-gone', JSON.stringify(details)))
 
 // v138: honor --user-data-dir <dir> (or --user-data-dir=<dir>) by relocating userData before
 // the single-instance lock below, which is keyed on app.getPath('userData') — without this the
@@ -64,6 +66,7 @@ if (!gotLock) {
   app.whenReady().then(main).catch(fatalStartupError)
   app.on('window-all-closed', () => app.quit())
   app.on('before-quit', () => {
+    quitting = true
     killProcessTree(backendProcess)
     killProcessTree(viteProcess)
   })
@@ -559,6 +562,35 @@ function applyOverlay() {
   mainWindow.setTitleBarOverlay(toneOverlayOptions(overlayTone))
 }
 
+// Keep the shell process alive when Chromium loses only the renderer. Before v193 there was no
+// render-process-gone listener, so the user saw a vanished/blank app with no crash.log evidence and
+// could reasonably mistake a renderer failure for the whole desktop app exiting. Record the reason,
+// keep the backend and main process intact, and offer a bounded reload of the same window.
+function wireRendererCrashRecovery(win) {
+  win.webContents.on('render-process-gone', (_event, details) => {
+    if (quitting || details.reason === 'clean-exit') return
+    crashLog('render-process-gone', JSON.stringify(details))
+    if (win.isDestroyed()) return
+    dialog
+      .showMessageBox(win, {
+        type: 'error',
+        title: 'Annual Report Parser — page stopped',
+        message: 'The app page stopped unexpectedly. Your downloaded files and saved work remain on disk.',
+        detail: `Reason: ${details.reason}; exit code: ${details.exitCode}. Reload this window to continue.`,
+        buttons: ['Reload window', 'Close'],
+        defaultId: 0,
+        cancelId: 1,
+        noLink: true,
+      })
+      .then(({ response }) => {
+        if (win.isDestroyed()) return
+        if (response === 0) win.webContents.reload()
+        else win.close()
+      })
+      .catch((err) => crashLog('render-process-gone dialog', err))
+  })
+}
+
 function createWindow(acrylic) {
   const options = {
     width: 1440,
@@ -587,6 +619,7 @@ function createWindow(acrylic) {
   }
 
   const win = new BrowserWindow(options)
+  wireRendererCrashRecovery(win)
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   win.webContents.on('before-input-event', (event, input) => {
     if (!isDev || input.type !== 'keyDown') return
