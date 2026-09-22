@@ -1,5 +1,5 @@
 replay_check: baseline origin/acrylic, sections ['debt_maturity'], worktree extract.py; stored fields fed back as the model answer, zero model calls
-  kb: C:\Users\xingyi chen\.ao\data\worktrees\vivicta-seb\vivicta-seb-119\data\kb
+  kb: <worktree>\data\kb
   kb/academedia_2025                           debt_maturity    same
   kb/acast_2025                                debt_maturity    same
   kb/alligo_2025                               debt_maturity    same
