@@ -8,7 +8,7 @@ zero model calls to set up, and the main show is **stored real results**, not a 
 
 | What | Value |
 |---|---|
-| Branch / commit demoed | m02 delivery app tree: commit `fca5051` (the following commit adds evidence/docs only; re-run `git rev-parse --short=7 HEAD` after a final fetch and use the delivered branch) |
+| Branch / commit demoed | acrylic demo rehearsal: commit `0dff6d1` (the following commit adds evidence/docs only; re-run `git rev-parse --short=7 HEAD` after a final fetch and use the delivered branch) |
 | Windows installer feed | [`desktop-demo`](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-demo) (auto-updating, CI-built from the team `demo` branch) — install the Setup exe once; it updates itself. [`desktop-main`](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-main) is the equivalent feed for `main` |
 | Not the installer? | Clone the repo and run `run.bat` (Windows) or `./run.sh` (macOS/Linux) — first run ~2–4 min, later runs seconds |
 | The old portable exe | `desktop-0.3.4` (portable/Setup zip) **cannot update itself** — do not demo from it; use the auto-updating installer above or a fresh `run.bat` checkout |
@@ -113,27 +113,30 @@ after everything below has already succeeded.
   hit `GET /api/kb` / open a KB record, confirm the window survives (a fresh single-instance lock
   conflict closes the second copy silently).
 
-## Measured rehearsal (2026-09-21 · package build `25ed26b` / acrylic `fba373d` · shared Windows test machine)
+## Measured rehearsal (2026-09-22 · package build / acrylic `0dff6d1` · isolated Windows package copy)
 
-This is a fixture-mode rehearsal of the unpacked shared test package, on a newly created
-`--user-data-dir`. It makes no model calls. The package was refreshed from the listed build; the
-last warm refresh took **41 s** and replaced frontend, backend, data and shell resources.
+This is a fixture-mode rehearsal of an isolated unpacked package, freshly refreshed from the listed
+acrylic commit and launched with a new quoted `--user-data-dir` whose path contains a space. No
+model call was made. The shared package was not changed. The clean first start returned 206 bundled
+saved reports; the close/reopen result later contains 207 because the Atlas fixture-upload result is
+stored in that user-data directory.
 
-| Step | Time | Result | Note |
-|---|---:|---|---|
-| First start → `/api/kb` | 18.4 s | 206 saved reports | First sync copied 206 KB entries and 4 other files into the clean userData. |
-| Extract landing page → **Open a real debt sample** | 0.28 s | Karnell Group results | Opens the stored real debt record; no `/extract` call or model call. |
-| Select **Due 1–5 years** → source | 0.07 s | Page 106 + highlighted Karnell quote | The bundled package has saved page text but no PDF image, as documented above. |
-| KB → Ependion | 1.48 s | **Not printed in this report** | The `Due after 5 years` absence is visibly distinct from zero. |
-| Confirm one figure | 0.71 s | Ependion total-borrowings review saved | The confirmation persisted after the close/reopen cycle. |
-| KB **Export all** CSV | 1.24 s | 105 data rows, 26,511 bytes | Debt-maturity export over the All collection. |
-| KB **Export all** PPTX deck | 5.75 s | 106 slides, 494,804 bytes | One summary slide plus 105 report slides. |
-| Compare two selected records → upcoming-maturities list fully loaded | 1.23 s | All-collection wall rendered | The wall showed 0/105 comparable, 105 basis-unconfirmed, 13 missing totals and 49 missing `<1y`; it does not imply a credit judgment. |
-| Close → reopen → `/api/kb` | close 0.27 s; reopen 4.9 s | 206 saved reports; review retained | Sync reported `+0 kb entries, +0 files` and kept the one user-modified reviewed extraction unchanged. |
+| Step | Time | Result |
+|---|---:|---|
+| First start → `/api/kb` | 11.33 s | 206 saved reports. |
+| Extract landing → **Open a real debt sample** | 0.137 s | Karnell Group's stored debt result; no extraction/model request. |
+| Select Karnell **Due 1–5 years** → source | 0.097 s | Page 106 with highlighted `Liabilities to credit institutions 43.5 353.7 - 397.2`. Saved page text is present; the original PDF is not bundled. |
+| KB → All → Ependion → **Due after 5 years** | 0.206 s | **Not printed in this report**, visibly distinct from zero, on page 155. |
+| Confirm Ependion total borrowings | ≤1.1 s UI run | Review saved against page 155: `Borrowing 167,546 35,636 380,348 583,531`. |
+| KB **Export all** CSV | 0.266 s | HTTP 200, 26,507 bytes, 105 parsed data rows. Quoted source fields can contain line breaks. |
+| KB **Export all** PPTX | 1.805 s | HTTP 200, 536,326 bytes; opened by `python-pptx` with 110 slides. |
+| Compare Karnell + Ependion → all maturity wall | 0.295 s + 0.202 s | 0/105 comparable, 105 basis-unconfirmed, 13 missing totals and 49 missing `<1y`; it is not a credit judgment. |
+| Wallenberg directory: Sarnova | 0.153 s | Per the rehearsal ruling, Extract's company directory showed `Private company — reported inside Investor AB's annual report (Patricia Industries)` and opened Investor AB at page 41, with no `/discover`, `/fetch`, or `/extract` request. Company map's private-member column treatment is out of scope. |
+| Atlas Copco exact upload | 9.1 s | Fixture batch row visibly **Done**; figures remain clearly labelled demo data. |
+| Close → reopen → `/api/kb` | close 0.11 s; reopen 2.99 s | HTTP 200 / 207 records. Renderer re-observed **All companies**, light tone, and Ependion's saved `Human confirmed` / `Demo rehearsal` review. |
 
-The refresh target's background updater also logs a non-blocking `ENOENT` for its absent
-`app-update.yml`. It did not affect package startup, saved data, review persistence, exports or the
-closed loop above; this unpacked refresh target is not an installer/update-feed test.
+The package, backend, and dedicated debug port were closed after verification. The supporting visual
+evidence is recorded in `docs/acrylic/evidence/w206.md` (five renderer captures).
 
 ## What we cannot promise (say none of these on stage)
 
