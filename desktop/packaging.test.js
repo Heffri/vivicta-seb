@@ -23,4 +23,7 @@ function walk(file) {
 }
 walk('main.js')
 assert.ok(packaged.has('preload.js'), 'preload.js must be packaged')
+const main = fs.readFileSync(path.join(here, 'main.js'), 'utf8')
+assert.match(main, /webContents\.on\(['"]render-process-gone['"]/, 'renderer crashes must be captured by the main process')
+assert.match(main, /dialog\s*\.showMessageBox[\s\S]*webContents\.reload\(\)/, 'a renderer crash must offer a safe window reload instead of exiting the app')
 console.log(`packaging: ${seen.size} shell modules all listed in electron-builder.yml (${[...seen].join(', ')})`)
