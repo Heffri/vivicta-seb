@@ -43,10 +43,9 @@ test('extract: switching tabs mid-batch and back keeps progress, and the finish 
   await expect(rowA).toBeVisible()
   await expect(rowB).toBeVisible()
 
-  // Let the batch finish while we stay on Extract this time (both reports run sequentially, so B
-  // only starts once A is done). We DID navigate away during the run, so per the work order it
-  // must not force a navigation once it ends — it offers a button instead, and we're still
-  // looking at the Extract screen once both reports are done.
+  // Let the active reports finish while we stay on Extract. We DID navigate away during the run,
+  // so per the work order it must not force a navigation once it ends — it offers a button
+  // instead, and we're still looking at the Extract screen once both reports are done.
   await expect(rowA.getByText('Done', { exact: true })).toBeVisible({ timeout: 20000 })
   await expect(rowB.getByText('Done', { exact: true })).toBeVisible({ timeout: 20000 })
   const viewResults = page.getByRole('button', { name: /^View results/ })
@@ -81,29 +80,37 @@ test('extract: one of two reports fails with a provider error, retry only re-run
 
   const rowA = batchRow(page, 'retry-a.pdf')
   const rowB = batchRow(page, 'retry-b.pdf')
-  await expect(rowA.getByText('Failed', { exact: true })).toBeVisible({ timeout: 20000 })
-  await expect(rowA.getByText(/model provider failed/)).toBeVisible()
-  await expect(rowB.getByText('Done', { exact: true })).toBeVisible({ timeout: 20000 })
+  // The first request to reach the mocked route may be either concurrent worker, so identify the
+  // failed row by its observed outcome rather than relying on upload scheduling.
+  await expect.poll(async () => (
+    await rowA.getByText('Failed', { exact: true }).isVisible().catch(() => false) ? 'a'
+      : await rowB.getByText('Failed', { exact: true }).isVisible().catch(() => false) ? 'b' : ''
+  )).not.toBe('')
+  const failedRow = await rowA.getByText('Failed', { exact: true }).isVisible() ? rowA : rowB
+  const doneRow = failedRow === rowA ? rowB : rowA
+  await expect(failedRow.getByText(/model provider failed/)).toBeVisible()
+  await expect(doneRow.getByText('Done', { exact: true })).toBeVisible({ timeout: 20000 })
   await expect.poll(() => extractCalls).toBe(2)
 
-  await rowA.getByRole('button', { name: 'Retry this one' }).click()
-  await expect(rowA.getByText('Done', { exact: true })).toBeVisible({ timeout: 20000 })
-  expect(extractCalls).toBe(3) // only A's retry — B was never re-called
-  await expect(rowB.getByText('Done', { exact: true })).toBeVisible() // untouched throughout
+  await failedRow.getByRole('button', { name: 'Retry this one' }).click()
+  await expect(failedRow.getByText('Done', { exact: true })).toBeVisible({ timeout: 20000 })
+  expect(extractCalls).toBe(3) // only the failed row's retry — the successful row was never re-called
+  await expect(doneRow.getByText('Done', { exact: true })).toBeVisible() // untouched throughout
 
   await expect(page.getByRole('button', { name: /^View results/ })).toHaveText('View results (2)')
 
   expect(errors).toEqual([])
 })
 
-test('extract: Stop after current finishes the running report but leaves the rest untouched', async ({ page }) => {
+test('extract: Stop after current lets the active three finish and leaves later reports untouched', async ({ page }) => {
   const errors = trackPageErrors(page)
   await page.goto('/')
 
   let extractCalls = 0
   await page.route(/\/api\/reports\/.+\/extract$/, async (route) => {
     extractCalls++
-    if (extractCalls === 1) await new Promise((resolve) => setTimeout(resolve, 3000))
+    // Hold the active three so the two later reports remain queued while Stop is requested.
+    if (extractCalls <= 3) await new Promise((resolve) => setTimeout(resolve, 3000))
     await route.continue()
   })
 
@@ -111,23 +118,29 @@ test('extract: Stop after current finishes the running report but leaves the res
     { name: 'stop-a.pdf', mimeType: 'application/pdf', buffer: makePdf(2) },
     { name: 'stop-b.pdf', mimeType: 'application/pdf', buffer: makePdf(3) },
     { name: 'stop-c.pdf', mimeType: 'application/pdf', buffer: makePdf(4) },
+    { name: 'stop-d.pdf', mimeType: 'application/pdf', buffer: makePdf(5) },
+    { name: 'stop-e.pdf', mimeType: 'application/pdf', buffer: makePdf(6) },
   ])
   await page.getByRole('main').getByRole('button', { name: /^Extract/ }).click()
 
   const rowA = batchRow(page, 'stop-a.pdf')
   const rowB = batchRow(page, 'stop-b.pdf')
   const rowC = batchRow(page, 'stop-c.pdf')
+  const rowD = batchRow(page, 'stop-d.pdf')
+  const rowE = batchRow(page, 'stop-e.pdf')
 
-  // A is mid-flight (its /extract is the delayed one); stop now, before B or C ever start.
+  // A/B/C are the three active slots; stop now before D or E can claim one.
   await expect(rowA.getByText(/Extracting|Reading/)).toBeVisible({ timeout: 10000 })
   await page.getByRole('button', { name: 'Stop after current' }).click()
   await expect(page.getByRole('button', { name: 'Stopping after this one…' })).toBeVisible()
 
   await expect(rowA.getByText('Done', { exact: true })).toBeVisible({ timeout: 20000 })
-  await expect(rowB.getByText('Stopped after current')).toBeVisible()
-  await expect(rowC.getByText('Stopped after current')).toBeVisible()
+  await expect(rowB.getByText('Done', { exact: true })).toBeVisible({ timeout: 20000 })
+  await expect(rowC.getByText('Done', { exact: true })).toBeVisible({ timeout: 20000 })
+  await expect(rowD.getByText('Stopped after current')).toBeVisible()
+  await expect(rowE.getByText('Stopped after current')).toBeVisible()
   await expect(page.getByRole('button', { name: /Stop after current|Stopping after/ })).toHaveCount(0)
-  expect(extractCalls).toBe(1) // B and C never reached /extract
+  expect(extractCalls).toBe(3) // D and E never reached /extract
 
   expect(errors).toEqual([])
 })

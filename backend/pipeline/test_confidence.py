@@ -4210,6 +4210,112 @@ def test_fixed_pages_skip_selection():
             os.environ["EXTRACT_TWO_PASS"] = old_two_pass
 
 
+def test_heldout_parent_continuation_and_unmarked_lease_schedule():
+    """v186: held-out wrong tables stay outside the Group debt result."""
+    import json
+    import pathlib
+
+    dm = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
+    scope_words = dm["table_scope_words"]
+    debt_words = x._debt_subject_words(dm)
+
+    # Balco p.101, verbatim apart from the repeated navigation banner: the page's terminal running
+    # heading is the only entity marker. The preceding p.100 starts the Parent Company notes and
+    # p.101 repeats that heading; this Borrowings row must not supply Group buckets.
+    balco101 = ("Note 45: Financial instruments\n"
+                "As of 31 December 2025 Less than 3 months Between 3 months and 1 year Between 1 and 2 years Between 2 and 5 years More than 5 years\n"
+                "Borrowings 7,039 21,118 56,314 482,039 0\n"
+                "Other non-current liabilities 0 0 0 0 0\n"
+                "Liabilities to group companies 165,519 0 0 0 0\n"
+                "Trade payables and other liabilities 1,778 0 0 0 0\n"
+                "Total 174,336 21,118 56,314 482,039 0\n"
+                "THE PARENT COMPANY'S NOTES\n")
+    balco_rows = x._page_rows(balco101)
+    balco_i = balco_rows.index("Borrowings 7,039 21,118 56,314 482,039 0")
+
+    # G5 p.92, real page text trimmed after the schedule. The table has no lease title of its own;
+    # its local predecessor is the leased-premises roll-forward, and it has no borrowing/debt row.
+    g5_92 = ("Movement of leased premises 2025 2024\n"
+             "Opening balance 4,788 6,435\n"
+             "Investments 1,058 1,557\n"
+             "Terminations -1,668 -3,237\n"
+             "Currency exchange difference -296 33\n"
+             "Closing accumulated cost 3,883 4,788\n"
+             "Opening depreciation -2,877 -3,495\n"
+             "Depreciation for the year -977 -1,191\n"
+             "Terminations 954 1,812 The board of directors has the overall responsibility for the management of financial risks.\n"
+             "Currency exchange difference 287 -3\n"
+             "Closing accumulated depreciation -2,614 -2,877\n"
+             "Closing planned residual value 1,269 1,911\n"
+             "Maturity analysis financial liabilities 2025 2024\n"
+             "Within one year 384 685\n"
+             "Between 1 and 5 years More than 5 years 897 0 1,118 0\n"
+             "Total 1,282 1,803\n")
+    g5_rows = x._page_rows(g5_92)
+    g5_i = g5_rows.index("Total 1,282 1,803")
+    assert (
+        x._table_scope(balco_rows, None, balco_i, "carrying", scope_words, debt_words=debt_words),
+        x._table_scope(g5_rows, None, g5_i, "carrying", scope_words, debt_words=debt_words),
+    ) == ("parent", "lease_only")
+
+    # Balco end to end: the valid Group total from p.90 survives while all three p.101 Parent Company
+    # buckets are refused. This is the exact stored held-out answer shape replay_check feeds back.
+    balco90 = ("THE GROUP'S NOTES\nNote 27: Interest-bearing liabilities\n"
+               "Total current borrowings 21,295 16,642\nTotal borrowings 540,153 425,828\n")
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 540153, "unit": "KSEK", "period": "2025", "raw_label": "Total borrowings",
+         "source": {"page": 1, "quote": "Total borrowings 540,153 425,828"}},
+        {"key": "due_within_1_year", "value": 28157, "unit": "KSEK", "period": "2025", "raw_label": "Borrowings",
+         "source": {"page": 2, "quote": "Borrowings 7,039 21,118 56,314 482,039 0"}},
+        {"key": "due_1_to_5_years", "value": 538353, "unit": "KSEK", "period": "2025", "raw_label": "Borrowings",
+         "source": {"page": 2, "quote": "Borrowings 7,039 21,118 56,314 482,039 0"}},
+        {"key": "due_after_5_years", "value": 0, "unit": "KSEK", "period": "2025", "raw_label": "Borrowings",
+         "source": {"page": 2, "quote": "Borrowings 7,039 21,118 56,314 482,039 0"}},
+    ]}
+    out = x.extract([balco90, balco101], [1, 2], dm, {"fiscal_year": 2025})
+    got = {field["key"]: field["value"] for field in out["fields"]}
+    assert got == {"total_debt": 540153, "due_within_1_year": None,
+                   "due_1_to_5_years": None, "due_after_5_years": None}, (got, out["warnings"])
+    assert any("Parent Company" in warning and "refused" in warning for warning in out["warnings"]), out["warnings"]
+
+    # A new Group heading closes the continued Parent-note scope; a later consolidated table stays.
+    reopened = ("THE PARENT COMPANY'S NOTES\nGroup\n"
+                "Maturity analysis of borrowings 2025\nWithin one year 100\n"
+                "Between 1 and 5 years 300\nTotal borrowings 400\n")
+    reopened_rows = x._page_rows(reopened)
+    reopened_i = reopened_rows.index("Total borrowings 400")
+    assert x._table_scope(reopened_rows, None, reopened_i, "carrying", scope_words,
+                          debt_words=debt_words) == "unknown"
+
+    # G5 end to end: all four figures from the unmarked lease schedule are refused. The separate
+    # explicit no-loan sentence is intentionally outside this fixture; this guard abstains rather
+    # than manufacturing the report's correct zero.
+    x.call_llm = lambda *a, **k: {"fields": [
+        {"key": "total_debt", "value": 1282, "unit": "KSEK", "period": "2025", "raw_label": "Total",
+         "source": {"page": 1, "quote": "Total 1,282 1,803"}},
+        {"key": "due_within_1_year", "value": 384, "unit": "KSEK", "period": "2025", "raw_label": "Within one year",
+         "source": {"page": 1, "quote": "Within one year 384 685"}},
+        {"key": "due_1_to_5_years", "value": 897, "unit": "KSEK", "period": "2025", "raw_label": "Between 1 and 5 years",
+         "source": {"page": 1, "quote": "Between 1 and 5 years More than 5 years 897 0 1,118 0"}},
+        {"key": "due_after_5_years", "value": 0, "unit": "KSEK", "period": "2025", "raw_label": "More than 5 years",
+         "source": {"page": 1, "quote": "Between 1 and 5 years More than 5 years 897 0 1,118 0"}},
+    ]}
+    out = x.extract([g5_92], [1], dm, {"fiscal_year": 2025})
+    got = {field["key"]: field["value"] for field in out["fields"]}
+    assert all(value is None for value in got.values()), (got, out["warnings"])
+    assert any("lease-only maturity schedule" in warning for warning in out["warnings"]), out["warnings"]
+
+    # Counterexample: an ordinary Group borrowing schedule may include a lease row. Its explicit
+    # borrowings/bank-loans/carrying signals rescue the generic Total and bucket rows.
+    group_borrowings = ("GROUP NOTES\nNote 20 Borrowings\nCarrying amount maturity schedule 2025\n"
+                        "Within one year 120\nBetween 1 and 5 years 300\nMore than 5 years 80\n"
+                        "Bank loans 450\nLease liabilities 50\nTotal 500\n")
+    group_rows = x._page_rows(group_borrowings)
+    group_i = group_rows.index("Total 500")
+    assert x._table_scope(group_rows, None, group_i, "carrying", scope_words,
+                          debt_words=debt_words) not in x._REFUSED_SCOPES
+
+
 def test_missing_reasons_for_honest_debt_nulls():
     """v181: known mapping gaps explain a null without changing any debt value."""
     import json
@@ -4309,6 +4415,7 @@ if __name__ == "__main__":
     test_note_citation_preference()
     test_absent_in_table_bucket()
     test_fixed_pages_skip_selection()
+    test_heldout_parent_continuation_and_unmarked_lease_schedule()
     test_missing_reasons_for_honest_debt_nulls()
     test_balance_sheet_tie()
     demo()
