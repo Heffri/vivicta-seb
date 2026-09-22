@@ -50,6 +50,35 @@ test('AI discovery proposes companies to confirm before fetching', async ({ page
   expect(fetched.map(request => [request.company, request.url, request.download_pdf])).toEqual([['Intel Corporation', intel.url, true]])
 })
 
+test('a deterministic saved report skips search until Search the web anyway is chosen', async ({ page }) => {
+  const discovered: any[] = []
+  const saved = { legal_name: 'Sandvik', ticker: 'SAND', exchange: null, country: null, org_number_or_lei: null, fiscal_year_end: null, document_title: null, document_type: 'annual report', url: 'https://example.test/sandvik-2025.pdf', reason: 'saved PDF in the report cache', saved: true, stem: 'sandvik_2025' }
+  await page.route('**/api/**', route => {
+    const path = new URL(route.request().url()).pathname
+    if (path === '/api/reports/discover') {
+      const body = route.request().postDataJSON(); discovered.push(body)
+      return route.fulfill({ json: body.force_web
+        ? { candidates: [intel], note: null, source: 'web', skipped_web_search: false }
+        : { candidates: [saved], note: null, source: 'saved', skipped_web_search: true } })
+    }
+    if (path.startsWith('/api/jobs/')) {
+      return route.fulfill({ json: { job_id: path.slice('/api/jobs/'.length), stage: 'done', started: Date.now() / 1000, updated: Date.now() / 1000, done: true, error: null, events: [] } })
+    }
+    return route.fulfill({ json: path === '/api/config' ? { provider: 'codex', model: 'test' } : path === '/api/schemas' ? [{ name: 'income_statement', title: 'Income statement' }] : [] })
+  })
+  await page.goto('/')
+  await page.getByRole('searchbox', { name: 'Search companies', exact: true }).fill('sandvik')
+  await page.getByRole('searchbox', { name: 'Search companies', exact: true }).press('Enter')
+  await expect(page.getByText('Saved report found — using it.', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Search the web anyway', exact: true })).toBeVisible()
+  await expect.poll(() => discovered.length).toBe(1)
+  expect(discovered[0]).toEqual({ company: 'sandvik', year: 2025, job_id: expect.any(String) })
+  await page.getByRole('button', { name: 'Search the web anyway', exact: true }).click()
+  await expect.poll(() => discovered.length).toBe(2)
+  expect(discovered[1]).toEqual({ company: 'sandvik', year: 2025, force_web: true, job_id: expect.any(String) })
+  await expect(card(page, 'Intel Corporation')).toBeVisible()
+})
+
 test('"None of these" re-runs discovery with a hint', async ({ page }) => {
   const discovered: any[] = []
   await page.route('**/api/**', route => {

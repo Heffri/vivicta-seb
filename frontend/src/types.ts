@@ -39,7 +39,12 @@ export type Candidate = {          // one entity POST /api/reports/discover prop
   stem: string | null;      // data/kb/<stem> when saved
 };
 
-export type Discovery = { candidates: Candidate[]; note: string | null };
+export type Discovery = {
+  candidates: Candidate[];
+  note: string | null;
+  source?: 'saved' | 'web';
+  skipped_web_search?: boolean;
+};
 
 export type JobEvent = { t: number; stage: string; text: string; data?: Record<string, unknown> };
 // data (v194): download carries { bytes, total: number | null }; model_search carries { queries: string[] } and/or

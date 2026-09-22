@@ -66,7 +66,8 @@ with tempfile.TemporaryDirectory() as tmp:
                     patch.object(app.fetch, 'fetch_report', side_effect=AssertionError('private holdings must not fetch a standalone PDF')):
                 discovered = client.post('/api/reports/discover', json={'company': 'Sarnova', 'year': 2025})
                 assert discovered.status_code == 200 and discovered.json() == {
-                    'candidates': [], 'note': "Private company — reported inside Investor AB's annual report (Patricia Industries)"
+                    'candidates': [], 'note': "Private company — reported inside Investor AB's annual report (Patricia Industries)",
+                    'source': 'saved', 'skipped_web_search': True,
                 }, discovered.text
                 blocked = client.post('/api/reports/fetch', json={'company': 'Sarnova', 'year': 2025,
                                                                    'url': 'https://example.com/investor.pdf'})
@@ -100,9 +101,10 @@ with tempfile.TemporaryDirectory() as tmp:
         # /discover never downloads: it hands the query to fetch.discover and returns its candidates + note as-is
         with patch.object(app.fetch, 'fetch_report', side_effect=AssertionError('Unexpected PDF download')), \
                 patch.object(app.fetch, 'discover', return_value={'candidates': [], 'note': 'n'}) as discover:
-            response = client.post('/api/reports/discover', json={'company': 'intel', 'year': 2025, 'hint': 'chips'})
+            response = client.post('/api/reports/discover', json={'company': 'intel', 'year': 2025, 'hint': 'chips', 'force_web': True})
             assert response.status_code == 200 and response.json() == {'candidates': [], 'note': 'n'}, response.text
             assert discover.call_args.args == ('intel', 2025, None, 'chips', library)
+            assert discover.call_args.kwargs == {'job_id': None, 'force_web': True}
             assert client.post('/api/reports/discover', json={'company': 'intel', 'year': 1066}).status_code == 400
         # v194 integration: a job_id on a REAL (unmocked) /discover call is recorded end to end through
         # GET /api/jobs/{id}; no LLM_PROVIDER is set anywhere in this test, so this never reaches a model
@@ -113,5 +115,6 @@ with tempfile.TemporaryDirectory() as tmp:
         job = client.get(f'/api/jobs/{job_id}').json()
         assert job['job_id'] == job_id and job['done'] is True and job['stage'] == 'done' and job['error'] is None, job
         stages = [e['stage'] for e in job['events']]
-        assert stages[0] == 'directory' and 'model_search' in stages and stages[-1] == 'done', stages
+        assert stages == ['directory', 'directory', 'done'], stages
+        assert 'saved report found, web search skipped' in job['events'][1]['text'], job
 print('Wallenberg scope, saved-text reuse, review preservation, discover and always-download passed')

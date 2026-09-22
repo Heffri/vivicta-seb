@@ -40,9 +40,9 @@ export const registerLibraryReport = (file: string, ocr?: 'full') =>
 
 export const getCompanies = (q: string, collection: Collection = 'wallenberg') => request<Company[]>(`/api/companies?q=${encodeURIComponent(q)}&collection_name=${collection}`)
 
-// Which legal entities a typed query could mean (saved first, then one model web search); downloads nothing.
-// job_id (v194, optional): GET /api/jobs/{job_id} (getJob) polls this call's progress while it runs.
-export const discoverCompanies = (company: string, year: number, opts?: { country?: string; hint?: string; job_id?: string }) =>
+// Which legal entities a typed query could mean (a deterministic saved report returns before model search);
+// force_web is the explicit analyst override. job_id (v194, optional): getJob polls this call's progress.
+export const discoverCompanies = (company: string, year: number, opts?: { country?: string; hint?: string; job_id?: string; force_web?: boolean }) =>
   request<Discovery>('/api/reports/discover', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

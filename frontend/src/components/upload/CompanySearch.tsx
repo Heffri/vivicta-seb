@@ -28,7 +28,7 @@ type CompanySearchProps = {
   onYearChange: (year: string) => void
   onTogglePick: (company: Company) => void
   onOpenReportedCompany: (company: Company) => void
-  onDiscover: (hint?: string) => void
+  onDiscover: (hint?: string, forceWeb?: boolean) => void
   onUseCandidate: (candidate: Candidate) => void
 }
 
@@ -109,6 +109,14 @@ export function CompanySearch({
         <ErrorBlock className="px-3 py-2 text-xs">Company directory unavailable{dirError && ` (${dirError})`}.</ErrorBlock>
       ) : (
         <ul className="max-h-64 min-[1280px]:max-h-80 divide-y divide-border overflow-y-auto rounded-lg border border-border bg-background/50 text-sm">
+          {discovery?.skipped_web_search && (
+            <li className="flex flex-wrap items-center gap-1 px-3 py-2 text-xs text-muted-foreground">
+              <span>Saved report found — using it.</span>
+              <Button aria-label="Search the web anyway" variant="link" size="sm" className="h-auto p-0 text-xs" disabled={busy || discovering} onClick={() => onDiscover(undefined, true)}>
+                Search the web anyway?
+              </Button>
+            </li>
+          )}
           {companies.length === 0 && <li className="px-3 py-2 text-xs text-muted-foreground">No local matches. Press Enter for AI search.</li>}
           {companies.map((c) => {
             const on = picked.some((p) => p.name === c.name)
