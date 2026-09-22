@@ -1,0 +1,91 @@
+{
+  "forced": {
+    "candidates": [
+      {
+        "legal_name": "Sandvik",
+        "ticker": "SAND",
+        "exchange": null,
+        "country": null,
+        "org_number_or_lei": null,
+        "fiscal_year_end": null,
+        "document_title": null,
+        "document_type": "annual report",
+        "url": "https://www.annualreport.sandvik/en/2025/_assets/downloads/entire-en-svk-ar25.pdf",
+        "reason": "saved page text in the knowledge base",
+        "saved": true,
+        "stem": "sandvik_2025"
+      },
+      {
+        "legal_name": "Sandvik Aktiebolag (publ)",
+        "ticker": "SAND",
+        "exchange": "Nasdaq Stockholm",
+        "country": "SE",
+        "org_number_or_lei": "556000-3468",
+        "fiscal_year_end": "Dec",
+        "document_title": "Sandvik Annual Report 2025",
+        "document_type": "annual report",
+        "url": "https://www.annualreport.sandvik/en/2025/_assets/downloads/entire-en-svk-ar25.pdf",
+        "reason": "Sandvik AB (publ) is the Swedish listed parent company matching the query; this is its complete official 2025 annual report PDF.",
+        "saved": false,
+        "stem": null
+      }
+    ],
+    "note": null,
+    "source": "web",
+    "skipped_web_search": false
+  },
+  "job": {
+    "stage": "done",
+    "started": 1790070254.58939,
+    "updated": 1790070278.4002829,
+    "done": true,
+    "error": null,
+    "events": [
+      {
+        "t": 1790070254.58939,
+        "stage": "directory",
+        "text": "checking saved reports for Sandvik (2025)"
+      },
+      {
+        "t": 1790070254.713392,
+        "stage": "directory",
+        "text": "1 saved match(es); searching the web anyway"
+      },
+      {
+        "t": 1790070254.713392,
+        "stage": "model_search",
+        "text": "asking the connected model to search the web"
+      },
+      {
+        "t": 1790070278.3983073,
+        "stage": "model_search",
+        "text": "model searched: site:home.sandvik annual report 2025 PDF Sandvik AB; Sandvik AB annual report 2025 pdf organisation number LEI",
+        "data": {
+          "queries": [
+            "site:home.sandvik annual report 2025 PDF Sandvik AB",
+            "Sandvik AB annual report 2025 pdf organisation number LEI"
+          ]
+        }
+      },
+      {
+        "t": 1790070278.3998766,
+        "stage": "model_search",
+        "text": "model suggested 1 entity",
+        "data": {
+          "candidates": [
+            {
+              "legal_name": "Sandvik Aktiebolag (publ)",
+              "url": "https://www.annualreport.sandvik/en/2025/_assets/downloads/entire-en-svk-ar25.pdf"
+            }
+          ]
+        }
+      },
+      {
+        "t": 1790070278.4002829,
+        "stage": "done",
+        "text": "2 candidate(s)"
+      }
+    ],
+    "job_id": "w200-force-trace"
+  }
+}

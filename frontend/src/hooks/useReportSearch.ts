@@ -88,11 +88,11 @@ export function useReportSearch() {
     )
   }
 
-  const discover = (hint?: string) => {
+  const discover = (hint?: string, forceWeb = false) => {
     setDiscovering(true)
     setDiscovery(null)
     trackJob('discover', 'Resolving which company you mean', (jobId) =>
-      discoverCompanies(query.trim(), Number(year), { ...(hint ? { hint } : {}), job_id: jobId }),
+      discoverCompanies(query.trim(), Number(year), { ...(hint ? { hint } : {}), ...(forceWeb ? { force_web: true } : {}), job_id: jobId }),
     )
       .then(setDiscovery)
       .catch((e: Error) => setTrace((t) => (t ? { ...t, done: true, error: e.message, finishedAt: t.finishedAt ?? Date.now() } : t)))

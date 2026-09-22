@@ -5,6 +5,57 @@ import { railTab } from '../support/nav'
 import { trackPageErrors } from '../support/page-errors'
 import { gotoWithTone, TONES } from '../support/tone'
 
+// Fully mocked (w199): proves the KB page's building-poll stops on its own instead of re-fetching
+// the whole KB every 2 s for as long as any row says building (the w195 poll storm). Two building
+// listings, then a ready one — the third scheduled poll must never fire.
+const kbEntry = (status: string) => ({
+  stem: 'acme_2025', report_id: 'lib-acme_2025', company: 'Acme', fiscal_year: 2025, pages: 3,
+  sections: ['income_statement'], indexed: status === 'ready', status,
+  reason: status === 'building' ? 'Report update in progress' : 'No embeddings built',
+  embed_model: status === 'ready' ? 'bge-m3' : null, dimensions: status === 'ready' ? 1024 : null,
+  chunks: status === 'ready' ? 12 : 0, page_chunks: status === 'ready' ? 10 : 0, fact_chunks: status === 'ready' ? 2 : 0,
+  built_at: status === 'ready' ? '2026-09-22T00:00:00Z' : null, sector: null,
+  pdf_available: false, text_available: true, figures_available: true,
+})
+
+test('kb: building poll backs off, then stops for good once a listing has no building row', async ({ page }) => {
+  const errors = trackPageErrors(page)
+  const kbCalls: number[] = []
+  let kbResponses = 0
+  await page.route('**/api/**', async (route) => {
+    const reqPath = new URL(route.request().url()).pathname
+    if (reqPath === '/api/kb') {
+      kbCalls.push(Date.now())
+      kbResponses += 1
+      return route.fulfill({ json: [kbEntry(kbResponses <= 3 ? 'building' : 'ready')] })
+    }
+    if (reqPath === '/api/config') {
+      return route.fulfill({ json: { provider: 'codex', model: 'test', embed_model: 'bge-m3', base_url: null, llm: true, retrieval: 'hybrid' } })
+    }
+    if (reqPath === '/api/schemas') {
+      return route.fulfill({ json: [{ name: 'income_statement', title: 'Income statement' }] })
+    }
+    return route.fulfill({ json: [] })
+  })
+
+  await page.goto('/')
+  await railTab(page, 'Knowledge base').click()
+  const row = page.locator('tbody tr').first()
+  await expect(row).toBeVisible()
+  await expect(row.getByText('building', { exact: true })).toBeVisible()
+
+  // first poll (2 s) still building, second poll lands ready — dev StrictMode's double mount
+  // consumes two of the three building responses either way
+  await expect(row.getByText('ready', { exact: true })).toBeVisible({ timeout: 20000 })
+  const callsAtReady = kbCalls.length
+  expect(callsAtReady).toBeGreaterThanOrEqual(4)
+
+  // and then silence: no further /api/kb request may fire now that nothing says building
+  await page.waitForTimeout(3000)
+  expect(kbCalls.length).toBe(callsAtReady)
+  expect(errors).toEqual([])
+})
+
 // The real-library smoke case requires the Atlas saved extraction.
 const ATLAS_EXTRACTION = path.resolve(import.meta.dirname, '../../../data/kb/atlas_copco_2025/extractions/income_statement.json')
 const REASON = 'Atlas Copco saved income statement is not present'

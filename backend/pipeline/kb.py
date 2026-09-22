@@ -648,8 +648,9 @@ def entries() -> list[dict]:
                  "figures_available": figures,
                  "pages": m.get("pages", 0), "sections": sorted(p.stem for p in sections),
                  "indexed": status["status"] == "ready", **status}
-        _entry_cache[d.name] = (signature, entry)
-        out.append(entry)
+        if status["status"] != "building":  # w199: never persist building -- it describes this
+            _entry_cache[d.name] = (signature, entry)  # listing only, and a cached one outlives
+        out.append(entry)  # the write that caused it (fingerprint unchanged), feeding the poll storm
     return out
 
 
@@ -773,58 +774,65 @@ def validate_rows(rows, dimensions):
 
 
 def index_status(stem):
-    """Hash/validate once per file revision; repeated listings only stat the dependencies."""
-    guard = report_lock(stem)
-    if not guard.acquire(blocking=False):
-        previous = _status_cache.get(str(kb_dir() / stem), (None, {}))[1]
+    """Hash/validate once per file revision; repeated listings only stat the dependencies.
+    "building" is reported only while a real write (index/save/OCR fill) holds the stem's write
+    lock, probed via _index_in_progress: readers never take that lock, so overlapping listings --
+    the KB page's poll storm -- cannot manufacture the status or stall each other (w199). Before,
+    readers hashed under the write lock and kept failing each other's acquire, then entries()
+    cached the building they had seen, serving it forever. A hash that overlaps a writer's
+    atomic replace reads old-or-new files whole; any mismatch shows as a transient "invalid"
+    whose changed signature forces a recompute on the next listing."""
+    key = str(kb_dir() / stem)
+    if _index_in_progress(key):
+        previous = _status_cache.get(key, (None, {}))[1]
         return {"embed_model": None, "dimensions": None, "chunks": 0, "page_chunks": 0,
                 "fact_chunks": 0, "built_at": None, **previous,
                 "status": "building", "reason": "Report update in progress"}
-    try:
-        d = kb_dir() / stem
-        paths = [d / n for n in ("meta.json", "pages.jsonl", "embeddings.jsonl", "index.json")]
-        paths += _section_files(stem)
-        signature = (fingerprint(embedding_identity()), tuple((str(p), p.stat().st_mtime_ns, p.stat().st_size) for p in paths if p.exists()))
-        key = str(d)
-        if key not in _status_cache or _status_cache[key][0] != signature:
-            _status_cache[key] = (signature, _index_status(stem))
-        return dict(_status_cache[key][1])
-    finally:
-        guard.release()
+    d = kb_dir() / stem
+    paths = [d / n for n in ("meta.json", "pages.jsonl", "embeddings.jsonl", "index.json")]
+    paths += _section_files(stem)
+    signature = (fingerprint(embedding_identity()), tuple((str(p), p.stat().st_mtime_ns, p.stat().st_size) for p in paths if p.exists()))
+    if key not in _status_cache or _status_cache[key][0] != signature:
+        _status_cache[key] = (signature, _index_status(stem))
+    return dict(_status_cache[key][1])
 
 
 def _index_status(stem):
-    with report_lock(stem):
-        d = kb_dir() / stem
-        status = {"status": "missing", "reason": "No embeddings built", "embed_model": None,
-                  "dimensions": None, "chunks": 0, "page_chunks": 0, "fact_chunks": 0, "built_at": None}
-        if not (d / "embeddings.jsonl").exists():
-            return status
-        if not (d / "index.json").exists():
-            return status | {"status": "outdated", "reason": "Legacy index has no model metadata; rebuild required"}
-        try:
-            m = json.loads((d / "index.json").read_text(encoding="utf-8"))
-            status.update({k: m[k] for k in ("embed_model", "dimensions", "chunks", "page_chunks", "fact_chunks", "built_at")})
-            if sha256((d / "embeddings.jsonl").read_bytes()) != m["content_sha256"]:
-                raise ValueError("Embedding file does not match its manifest")
-            rows = _rows(stem)
-            validate_rows(rows, m["dimensions"])
-            if len(rows) != m["chunks"]:
-                raise ValueError("Chunk count does not match manifest")
-            if any(m.get(k) != v for k, v in embedding_identity().items()) or m["sources"] != index_dependencies(stem):
-                return status | {"status": "outdated", "reason": "Model, sources or chunk settings changed"}
-            return status | {"status": "ready", "reason": "Index matches current sources and model"}
-        except (OSError, ValueError, KeyError, TypeError) as e:
-            return status | {"status": "invalid", "reason": str(e)}
+    # No write lock here (w199): taking it made every sibling reader report "building" and queued
+    # listings behind each other. Atomic writes keep a torn read detectable, and the signature
+    # computed by the caller changes on any real write, so a stale result recomputes next time.
+    d = kb_dir() / stem
+    status = {"status": "missing", "reason": "No embeddings built", "embed_model": None,
+              "dimensions": None, "chunks": 0, "page_chunks": 0, "fact_chunks": 0, "built_at": None}
+    if not (d / "embeddings.jsonl").exists():
+        return status
+    if not (d / "index.json").exists():
+        return status | {"status": "outdated", "reason": "Legacy index has no model metadata; rebuild required"}
+    try:
+        m = json.loads((d / "index.json").read_text(encoding="utf-8"))
+        status.update({k: m[k] for k in ("embed_model", "dimensions", "chunks", "page_chunks", "fact_chunks", "built_at")})
+        if sha256((d / "embeddings.jsonl").read_bytes()) != m["content_sha256"]:
+            raise ValueError("Embedding file does not match its manifest")
+        rows = _rows(stem)
+        validate_rows(rows, m["dimensions"])
+        if len(rows) != m["chunks"]:
+            raise ValueError("Chunk count does not match manifest")
+        if any(m.get(k) != v for k, v in embedding_identity().items()) or m["sources"] != index_dependencies(stem):
+            return status | {"status": "outdated", "reason": "Model, sources or chunk settings changed"}
+        return status | {"status": "ready", "reason": "Index matches current sources and model"}
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        return status | {"status": "invalid", "reason": str(e)}
 
 
 def inspect_chunks(stem, query="", offset=0, limit=25):
-    with report_lock(stem):
-        path = kb_dir() / stem / "embeddings.jsonl"
-        rows = _rows(stem) if path.exists() else []
-        hits = [{k: r[k] for k in ("page", "start", "text")} | {"kind": "fact" if r["start"] == -1 else "page"}
-                for r in rows if query.casefold() in r["text"].casefold()]
-        return {"items": hits[offset:offset + limit], "total": len(hits), "offset": offset, "limit": limit}
+    # No write lock (w199): a reader must never hold it -- a chunk-browser poll holding the lock
+    # made listings report "building". _rows is mtime-keyed, so a read racing an atomic replace
+    # is re-read on the next call.
+    path = kb_dir() / stem / "embeddings.jsonl"
+    rows = _rows(stem) if path.exists() else []
+    hits = [{k: r[k] for k in ("page", "start", "text")} | {"kind": "fact" if r["start"] == -1 else "page"}
+            for r in rows if query.casefold() in r["text"].casefold()]
+    return {"items": hits[offset:offset + limit], "total": len(hits), "offset": offset, "limit": limit}
 
 
 if __name__ == "__main__":
