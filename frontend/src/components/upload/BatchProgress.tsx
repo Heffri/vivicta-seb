@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { Tab } from '@/components/shell/tabs'
 import type { BatchErrorKind, BatchItem, RegisterOpts } from '@/hooks/useBatch'
+import type { ReportListing } from '@/api'
 
 type Props = {
   items: BatchItem[]
@@ -12,6 +13,7 @@ type Props = {
   resultsCount: number
   onStopAfterCurrent: () => void
   onRetry: (id: string, opts?: RegisterOpts) => void
+  onDownload: (id: string, listing: ReportListing) => void
   onViewResults: () => void
   onNavigate?: (tab: Tab) => void
 }
@@ -28,7 +30,8 @@ const ERROR_COPY: Record<BatchErrorKind, { text: string; settings?: boolean; kb?
   // keep registration synchronous. "Run OCR anyway" resends with ocr=full.
   'ocr-budget': { text: 'This is a scanned PDF. Only the pages a locator would check were read — run OCR on the rest to extract from anywhere else in it.' },
   'provider-failed': { text: 'The model provider failed. Check Settings › Test connection, then retry just this one.', settings: true },
-  'report-unavailable': { text: 'Some companies do not publish public standalone annual reports. Upload this company’s annual-report PDF above if you have one, or try another year if available. A parent company’s report cannot replace its own accounts.' },
+  'report-unavailable': { text: 'Automatic search could not verify a report. This does not mean it is unpublished. Upload this company’s annual-report PDF above if you have one, or check a registry or the company’s report archive.' },
+  'report-listed': { text: 'Open the listing below, download the annual-report PDF using the site’s normal process, then upload it above. The listing is confirmed; the PDF’s contents have not yet been verified.' },
   'download-failed': { text: 'A source site could not be reached or refused the download. Retry later, or download the report in your browser and upload the PDF above.' },
   other: { text: '' },
 }
@@ -73,7 +76,7 @@ function stageLine(item: BatchItem, seconds: number | null): string {
     case 'skipped':
       return 'Stopped after current — not started'
     case 'failed':
-      return item.errorKind === 'report-unavailable' ? 'Report not available' : item.errorKind === 'download-failed' ? 'Download could not complete' : 'Failed'
+      return item.errorKind === 'report-listed' ? 'Report listed — manual download needed' : item.errorKind === 'report-unavailable' ? 'Report not found automatically' : item.errorKind === 'download-failed' ? 'Download could not complete' : 'Failed'
   }
 }
 
@@ -85,7 +88,7 @@ const ACTIVE_STAGES: BatchItem['stage'][] = ['registering', 'candidates', 'extra
 // stage, a stopwatch, whether it reused a cached result, and — for failures — which next step
 // applies. Lives below the action bar as its own bordered step of the one glass pane (DESIGN.md);
 // survives switching tabs and back because the state itself lives in App, not here.
-export function BatchProgress({ items, busy, stopRequested, resultsCount, onStopAfterCurrent, onRetry, onViewResults, onNavigate }: Props) {
+export function BatchProgress({ items, busy, stopRequested, resultsCount, onStopAfterCurrent, onRetry, onDownload, onViewResults, onNavigate }: Props) {
   // The stopwatch: like UploadView's own (v164), the elapsed string is read off `now` — a state
   // value refreshed inside the interval — never off a bare Date.now()/performance.now() call made
   // directly during render, so render stays pure.
@@ -151,10 +154,23 @@ export function BatchProgress({ items, busy, stopRequested, resultsCount, onStop
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground">{stageLine(item, seconds)}</p>
+                  {item.sourceNotice && <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">{item.sourceNotice}</p>}
                   {item.stage === 'failed' && (
                     <div className="mt-1.5">
-                      <p className="text-xs text-danger">{item.result?.error}</p>
-                      {copy?.text && <p className="mt-0.5 text-xs text-muted-foreground">{copy.text}</p>}
+                      <p className="text-xs text-danger">{item.errorKind === 'report-listed' && window.arp?.downloadReport
+                        ? 'The report is listed online, but automatic download could not retrieve its PDF. Use the report website below to continue.'
+                        : item.result?.error}</p>
+                      {copy?.text && <p className="mt-0.5 text-xs text-muted-foreground">{item.errorKind === 'report-listed' && window.arp?.downloadReport
+                        ? 'Choose Download and continue, then use the website’s download button. Complete any site verification yourself. The app checks the downloaded PDF’s company and year, then resumes this extraction automatically.'
+                        : copy.text}</p>}
+                      {!!item.listings?.length && <ul aria-label="Report listings" className="my-2 space-y-2">{item.listings.filter(listing => /^https?:\/\//i.test(listing.url)).map(listing => <li key={listing.url} className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs">
+                        {window.arp?.downloadReport
+                          ? <Button variant="outline" size="sm" disabled={busy} onClick={() => onDownload(item.id, listing)}>Download and continue — {listing.title}</Button>
+                          : <a className="font-medium text-primary underline" href={listing.url} target="_blank" rel="noreferrer">Open report listing — {listing.title}</a>}
+                        <p className="mt-1 text-muted-foreground">{listing.company} · FY{listing.fiscal_year}</p><p className="mt-1 break-words">{listing.evidence}</p>
+                      </li>)}</ul>}
+                      {item.downloadPending && <p role="status" className="my-2 text-sm">Waiting for the report download in the separate window. Closing that window cancels this step.</p>}
+                      {item.downloadError && <p role="alert" className="my-2 text-sm text-danger">{item.downloadError}</p>}
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         {item.errorKind === 'ocr-budget' ? (
                           <Button variant="outline" size="xs" disabled={item.retrying} onClick={() => onRetry(item.id, { ocr: 'full' })}>

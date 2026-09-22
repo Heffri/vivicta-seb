@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import type { Config } from './api'
+import type { ReportListing } from './api'
+import type { Report } from './types'
 
 // desktop/preload.js exposes this on Electron only; a browser tab never has `window.arp`, so
 // dataset.material is simply never set and index.css's [data-material="on"] block never matches.
@@ -24,6 +26,7 @@ declare global {
       platform: string
       version: string
       settings: ArpSettingsApi
+      downloadReport?: (listing: ReportListing) => Promise<{ ok: true; report: Report } | { ok: false; cancelled?: boolean; error?: string }>
       // v100: Settings' Theme select — persists config.json and switches the live window material
       // without the backend restart a settings Save would do (desktop only; a browser tab has no
       // window.arp and keeps the theme in localStorage alone). Optional so an older desktop build

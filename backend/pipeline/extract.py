@@ -20,7 +20,7 @@ import unicodedata
 from collections import Counter
 from datetime import date
 
-from . import kb, llm, locate
+from . import kb, llm, locate, report_period
 from .parse import normalize_ws, quote_on_page
 
 SYSTEM_PROMPT_TEMPLATE = """You extract figures from a corporate annual report (Swedish or English) into JSON.
@@ -4126,11 +4126,14 @@ def _buckets_by_year_fill(schema: dict, texts: list[str], fiscal_year, bucket_pi
 
 def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
             page_select_hints: bool | None = None, fixed_pages: bool = False) -> dict:
+    texts = report_period.extraction_texts(texts, report_meta)
     extraction_started = time.perf_counter()
     model_seconds, attempts = 0.0, 0
     fiscal_year = report_meta.get("fiscal_year")
     basis = debt_basis()  # v089: which maturity table total_debt and the buckets are read from
     system, warnings, raw = system_prompt(schema, report_meta.get("stem")), [], []
+    if report_meta.get("source_notice"):
+        warnings.append(report_meta["source_notice"])
     nonnull = lambda fs: sum(isinstance(f, dict) and f.get("value") is not None for f in fs)
     # jev c7f7d59 comparison mode: brute-force every page instead of trusting locate.py's
     # candidates. Never for a fixed-page (analyst / second-pass) call: that window is the contract.

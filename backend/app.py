@@ -22,7 +22,7 @@ from pathlib import Path
 import pymupdf
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, UploadFile, Query
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -31,7 +31,7 @@ from typing import Literal
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from pipeline import extract as extract_mod, fetch, jobs, kb, llm, locate, parse, paths, ppt, collection, workbench, source_evidence
+from pipeline import extract as extract_mod, fetch, jobs, kb, llm, locate, parse, paths, ppt, collection, workbench, source_evidence, report_period
 
 load_dotenv()
 UPLOADS = paths.uploads_dir()
@@ -140,7 +140,7 @@ class FetchBody(DiscoverBody):
 
 
 def check_query(body: DiscoverBody):
-    if not (1990 <= body.year <= 2100) or not body.company.strip() or len(body.company) > 100 or (body.country and len(body.country) > 60) or (body.hint and len(body.hint) > 300):
+    if not (1900 <= body.year <= 2100) or not body.company.strip() or len(body.company) > 100 or (body.country and len(body.country) > 60) or (body.hint and len(body.hint) > 300):
         raise HTTPException(400, "bad company/year")
 
 
@@ -264,7 +264,8 @@ def get_report(report_id: str) -> dict:
                 if not stem.startswith("up-") and pdf_matches_saved(cached, stem):
                     library_paths[report_id] = cached
             reports[report_id] = {"report_id": report_id, "filename": filename, "pages": meta.get("pages", 0),
-                                  "company": meta.get("company"), "fiscal_year": meta.get("fiscal_year"), "stem": stem}
+                                  "company": meta.get("company"), "fiscal_year": meta.get("fiscal_year"), "stem": stem,
+                                  **{k: meta[k] for k in report_period.FIELDS if k in meta}}
     if report_id not in reports:
         raise HTTPException(404, f"unknown report_id {report_id!r}")
     return reports[report_id]
@@ -346,7 +347,58 @@ def list_library(collection_name: Literal["all", "wallenberg", "midcap"] = "all"
     return out
 
 
-def register_library(entry: dict, ocr: str = "bounded") -> dict:
+@app.post("/api/reports/import-download")
+def import_download(file: UploadFile = File(...), company: str = Form(...), year: int = Form(...), source_url: str = Form(...)):
+    """Accept a browser download only after verifying the requested issuer/year.
+
+    Content-addressed filenames preserve any earlier PDF, evidence and reviews.
+    The listing URL records provenance; it is never fetched by this endpoint.
+    """
+    check_query(DiscoverBody(company=company, year=year))
+    if len(source_url) > 2000 or not fetch.report_listing.http_url(source_url, source_url):
+        raise HTTPException(400, "Invalid report source URL")
+    data = file.file.read(50 * 1024 * 1024 + 1)
+    if len(data) > 50 * 1024 * 1024:
+        raise HTTPException(413, "Report exceeds the 50 MB browser import limit")
+    try:
+        parsing = {"ocr_pages": [], "ocr_settings": parse.ocr_settings()}
+        with pymupdf.open(stream=data, filetype="pdf") as original:
+            texts = [parse.page_text(page, parsing) for page in original]
+        doc, text = fetch._validate(data, company, year, page_texts=texts)
+    except parse.OCRUnavailable as exc:
+        raise HTTPException(422, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(400, "The downloaded file is not a readable annual-report PDF") from exc
+    if not doc:
+        raise HTTPException(400, f"Downloaded report was not imported: {text}")
+    doc.close()
+    digest = kb.sha256(data)
+    # Reuse identical registered bytes, including any human-reviewed result.
+    for entry in library_index():
+        if (entry.get("fiscal_year") == year and collection.identity(entry.get("company")) == collection.identity(company)
+                and kb.sha256((LIBRARY / entry["file"]).read_bytes()) == digest):
+            return register_library(entry)
+    filename = f"{fetch.slugify(company)}_{year}_{digest[:12]}.pdf"
+    LIBRARY.mkdir(parents=True, exist_ok=True)
+    path = LIBRARY / filename
+    with kb.report_lock(path.stem):
+        if not path.exists():
+            fd, temporary = tempfile.mkstemp(dir=LIBRARY, suffix=".tmp")
+            try:
+                with os.fdopen(fd, "wb") as stream:
+                    stream.write(data)
+                os.replace(temporary, path)
+            finally:
+                Path(temporary).unlink(missing_ok=True)
+        elif kb.sha256(path.read_bytes()) != digest:
+            raise HTTPException(409, "A different saved PDF occupies this report filename")
+    entry = fetch._entry(filename, company, year, source_url, text, note="Verified browser download", tags=["browser-download"])
+    report = register_library(entry, parsed=(texts, parsing))
+    fetch._upsert_index(LIBRARY, entry | {"sha256": digest})
+    return report
+
+
+def register_library(entry: dict, ocr: str = "bounded", parsed=None) -> dict:
     """Register a cached PDF (curated or fetched) exactly like an upload; same file twice = same report_id."""
     report_id = "lib-" + Path(entry["file"]).stem
     path = LIBRARY / entry["file"]
@@ -357,11 +409,12 @@ def register_library(entry: dict, ocr: str = "bounded") -> dict:
             raise HTTPException(409, "This PDF is a different edition from the saved source. Download the original PDF from its source panel to preserve citation page numbers.")
         if report_id in reports and report_id in texts_cache and library_paths.get(report_id) == path:
             return reports[report_id]
-        texts, parsing = kb.load_texts(path.stem, path, digest, ocr)
+        texts, parsing = parsed if parsed is not None else kb.load_texts(path.stem, path, digest, ocr)
         report = {"report_id": report_id, "filename": entry["file"], "pages": len(texts),
                   "company": entry["company"], "fiscal_year": entry["fiscal_year"], "stem": Path(entry["file"]).stem,
-                  "ocr_pages": parsing.get("ocr_pages", [])}  # curated beats guess_meta
-        kb.save_report(Path(entry["file"]).stem, meta | {k: entry.get(k) for k in ("company", "fiscal_year", "language", "source_url")}
+                  "ocr_pages": parsing.get("ocr_pages", []),
+                  **{k: entry[k] for k in report_period.FIELDS if k in entry}}  # curated beats guess_meta
+        kb.save_report(Path(entry["file"]).stem, meta | {k: entry.get(k) for k in ("company", "fiscal_year", "language", "source_url", *report_period.FIELDS)}
                        | {"pages": len(texts), "sha256": digest, "filename": entry["file"]} | parsing, texts)
         # Publish only after parsing and persistence succeed, so a failed request can be retried.
         library_paths[report_id] = path
@@ -403,7 +456,7 @@ def restore_source_pdf(stem: str):
             finally:
                 Path(temporary).unlink(missing_ok=True)
             library_pages.pop(filename, None)
-        entry = {k: meta.get(k) for k in ("company", "fiscal_year", "language", "source_url")}
+        entry = {k: meta.get(k) for k in ("company", "fiscal_year", "language", "source_url", *report_period.FIELDS)}
         entry.update(file=filename, sha256=meta.get("sha256"), tags=["restored"])
         fetch._upsert_index(LIBRARY, entry)
         # Restoring identical bytes does not need to reparse or alter saved evidence/reviews.
@@ -469,7 +522,7 @@ def discover_companies(body: DiscoverBody):
 @app.post("/api/reports/fetch")
 def fetch_report(body: FetchBody):
     check_query(body)
-    if private := collection.report_metadata(body.company):
+    if (private := collection.report_metadata(body.company)) and private.get("no_standalone_report"):
         # Keep the API boundary aligned with pipeline.fetch.fetch_report(): no supplied URL, model
         # result, feed or cache entry may turn a private holding into a standalone-report request.
         detail = fetch.private_report_note(private)
@@ -628,7 +681,7 @@ def report_candidates(report_id: str, section: str = Query(min_length=1)):
     heading = the page's de-boilerplated opening, whitespace-normalized (a peeks-at-the-page line)."""
     report = get_report(report_id)
     schema = load_schema(section)
-    texts = report_texts(report_id)
+    texts = report_period.extraction_texts(report_texts(report_id), report)
     stripped = locate.strip_boilerplate(texts)
     return [{"page": page, "heading": " ".join(stripped[page - 1].split())[:80]}
             for page in locate.candidate_pages(texts, schema, fiscal_year=report.get("fiscal_year"))]
@@ -664,11 +717,11 @@ def _run_extract(report_id: str, body: ExtractBody):
         # candidates call), and that must name the section the user actually ran.
         result = json.loads(FIXTURE.read_text(encoding="utf-8")) | {"report_id": report_id, "section": body.section}
     else:
-        texts = report_texts(report_id)
+        texts = report_period.extraction_texts(report_texts(report_id), report)
         pages = locate.candidate_pages(texts, schema, fiscal_year=report.get("fiscal_year"))
         pending = set(pages) & set(kb._meta(report["stem"]).get("ocr_pending", []))
         if pending and pdf_path(report_id).is_file():  # v191(b): a candidate this section actually needs, OCR'd on demand
-            texts = fill_pending_ocr(report_id, report["stem"], sorted(pending))
+            texts = report_period.extraction_texts(fill_pending_ocr(report_id, report["stem"], sorted(pending)), report)
             pages = locate.candidate_pages(texts, schema, fiscal_year=report.get("fiscal_year"))
         unavailable = set(kb._meta(report["stem"]).get("ocr_unavailable", []))
         if pages and set(pages) <= unavailable:

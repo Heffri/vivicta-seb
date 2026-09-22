@@ -17,11 +17,8 @@ GROUPS = {
     'FAM holdings': ['SKF', 'Stora Enso', 'Munters', 'IPCO', 'Kopparfors Skogar', 'The Grand Group', 'Höganäs', 'Nefab', 'Kivra'],
 }
 
-# These names belong in the holdings directory, but naming them there must not imply that each has
-# its own annual report.  The Patricia subsidiaries are disclosed in Investor AB's report; the three
-# FAM holdings below are likewise represented in FAM's holding report rather than as a standalone
-# issuer report.  Keep this separate from GROUPS: GROUPS remains the source-of-truth roster and this
-# small map adds only report-availability facts to those existing members.
+# Parent-report context does not establish whether a subsidiary publishes its own accounts.
+# Preserve this mapping for the company map, but allow standalone discovery for every issuer.
 NO_STANDALONE_REPORTS = {
     'Atlas Antibodies': {'reports_in': 'Investor AB', 'collection_group': 'Patricia Industries', 'report_stem': 'investor_2025'},
     'BraunAbility': {'reports_in': 'Investor AB', 'collection_group': 'Patricia Industries', 'report_stem': 'investor_2025'},
@@ -85,9 +82,9 @@ def member(name, collection_name='wallenberg'):
 
 
 def report_metadata(name):
-    """Private-holding report availability for one roster name, or None for standalone issuers."""
+    """Parent-report context, without assuming standalone accounts are unavailable."""
     metadata = NO_STANDALONE.get(identity(name))
-    return dict(metadata) | {'no_standalone_report': True} if metadata else None
+    return dict(metadata) | {'no_standalone_report': False} if metadata else None
 
 
 def reported_members(report_owner):

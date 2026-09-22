@@ -1,4 +1,4 @@
-import { Database, Download, Library, Loader2, Search } from 'lucide-react'
+import { Database, Download, Library, Loader2, RefreshCw, Search } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { type ApiError, getChunks, rebuildIndex, openKnowledge, pdfUrl, getConfig, getKb, getLibrary, getSchemas, kbExportCsvUrl, kbExportPptxUrl, openKbExtraction, type Config } from '@/api'
 import { Badge } from '@/components/ui/badge'
@@ -12,7 +12,7 @@ import { useCollection, type Collection } from '@/hooks/useCollection'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { ChunkPage, KbEntry, Result, Schema } from '@/types'
 
-type Props = { onOpen: (results: Result[]) => void; onOpenReport: (report: KbEntry) => void }
+type Props = { onOpen: (results: Result[]) => void; onOpenReport: (report: KbEntry) => void; revision?: number }
 
 const NO_PDF_DESC_ID = 'kb-no-pdf-desc'
 const NO_PDF_TITLE = 'Saved figures and page text are available; the original PDF is not cached'
@@ -25,7 +25,7 @@ const POLL_MAX_DELAY_MS = 16000
 const POLL_MAX_ATTEMPTS = 10
 
 // Everything the parser has learnt so far: one row per report in data/kb, opened from disk without a model call.
-export function KbView({ onOpen, onOpenReport }: Props) {
+export function KbView({ onOpen, onOpenReport, revision = 0 }: Props) {
   const [entries, setEntries] = useState<KbEntry[] | null>(null)
   const [schemas, setSchemas] = useState<Schema[]>([])
   const [config, setConfig] = useState<Config | null>(null) // retrieval mode decides what the Embeddings column says
@@ -34,7 +34,8 @@ export function KbView({ onOpen, onOpenReport }: Props) {
   const [busy, setBusy] = useState<string | null>(null)
   const [notCached, setNotCached] = useState(false) // last error was the 409 "PDF no longer cached"
   const [query, setQuery] = useState('')
-  const [collection, setCollection] = useCollection()
+  const [collection, setCollection] = useCollection('all', 'arp-kb-view-collection')
+  const [refresh, setRefresh] = useState(0)
   // Basenames present in data/reports/ right now (GET /api/library, disk-backed). null = not known yet — either
   // still loading or the call failed (old backend / network); either way fall back to "everything openable".
   const [pdfFiles, setPdfFiles] = useState<Set<string> | null>(null)
@@ -77,20 +78,24 @@ export function KbView({ onOpen, onOpenReport }: Props) {
   }, [entries, collection])
 
   useEffect(() => {
-    // React dev Strict Mode immediately cleans up the first effect. Keep its list response: otherwise
-    // the second full-KB listing waits behind it and the page remains on Loading long after it is ready.
-    let stale = false
-    getKb(collection).then((rows) => { if (!stale) setEntries(rows) }).catch((e: Error) => { if (!stale) setError(e.message) })
-    return () => { stale = true }
-  }, [collection])
+    let active = true
+    getKb(collection).then(rows => { if (active) { setEntries(rows); setError(null) } })
+      .catch((e: Error) => { if (active) setError(e.message) })
+    return () => { active = false }
+  }, [collection, revision, refresh])
 
   useEffect(() => {
     getSchemas().then(setSchemas).catch(() => {})
     getConfig().then(setConfig).catch(() => {}) // v034-era backend without `retrieval` -> null, column unchanged
-    getLibrary('all')
-      .then((lib) => setPdfFiles(new Set(lib.map((l) => l.file))))
-      .catch(() => {}) // fixture-era backend or a blip: stay null, every row stays openable
   }, [])
+
+  useEffect(() => {
+    let active = true
+    getLibrary('all')
+      .then((lib) => { if (active) setPdfFiles(new Set(lib.map((l) => l.file))) })
+      .catch(() => {}) // fixture-era backend or a blip: stay null, every row stays openable
+    return () => { active = false }
+  }, [revision, refresh])
 
   const switchCollection = (c: Collection) => {
     if (c === collection) return
@@ -242,6 +247,7 @@ export function KbView({ onOpen, onOpenReport }: Props) {
   return (
     <div className="space-y-5">
       <PageHeader eyebrow="Knowledge base" title="Saved reports" description="Browse saved figures and source pages, or manage the report search index." actions={<div className="flex flex-wrap items-center gap-2">
+        <Button variant="outline" onClick={() => setRefresh(value => value + 1)}><RefreshCw />Refresh</Button>
         <Button disabled={withSection.length < 2 || !!busy} onClick={() => open(withSection, section)}>
           {busy && withSection.join() === busy ? <Loader2 className="animate-spin" /> : <Database />}
           Compare {withSection.length > 1 ? withSection.length : ''} selected
@@ -274,7 +280,8 @@ export function KbView({ onOpen, onOpenReport }: Props) {
 
       {gaveUp && entries?.some((entry) => entry.status === 'building') && <p role="status" className="text-sm text-muted-foreground">Indexing did not finish — refresh the page to retry.</p>}
 
-      {entries && entries.length === 0 && <p className="text-sm text-muted-foreground">Empty — extract a report first.</p>}
+      {collection !== 'all' && <div role="status" className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm"><span>This collection hides reports from other companies, including reports found by web search.</span><Button variant="outline" size="xs" onClick={() => switchCollection('all')}>Show all saved reports</Button></div>}
+      {entries && entries.length === 0 && <p className="text-sm text-muted-foreground">{collection === 'all' ? 'No saved reports yet. Fetch or upload a report in Extract.' : 'No saved reports in this collection.'}</p>}
 
       <Workspace label="Knowledge base workspace" value={view} onChange={setView} toolbar={<div className="flex flex-wrap items-center gap-3">
           <div className="relative w-full sm:w-72">

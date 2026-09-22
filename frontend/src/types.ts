@@ -6,6 +6,9 @@ export type Report = {
   pages: number;
   company?: string | null;  // best-effort guess from first pages, may be null
   fiscal_year?: number | null;
+  document_type?: "registration_statement";
+  statement_pages?: number[];
+  source_notice?: string;
   ocr_pages?: number[];     // v191: 1-based pages this registration actually OCR'd (empty for a text-layer PDF)
 };
 
@@ -17,7 +20,7 @@ export type Company = {
   cached_years: number[];   // years already present in the report cache, e.g. [2025]
   // Curated private holdings are disclosed in this parent report, not fetchable as an issuer PDF.
   // `report_page` is the parent report's relevant portfolio section when saved page text can find it.
-  no_standalone_report?: true;
+  no_standalone_report?: boolean;
   reports_in?: string;
   collection_group?: string;
   report_stem?: string | null;
