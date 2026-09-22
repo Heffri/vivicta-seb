@@ -170,12 +170,25 @@ def fill_pending_ocr(report_id: str, stem: str, wanted: list[int]) -> list[str]:
     todo = sorted(set(kb._meta(stem).get("ocr_pending", [])) & set(wanted))
     if not todo:
         return texts_cache[report_id]
+    parsing = {"ocr_pages": [], "ocr_pending": [], "ocr_unavailable": [], "ocr_settings": parse.ocr_settings()}
     with pymupdf.open(pdf_path(report_id)) as doc:
-        updates = {n: parse.page_text(doc[n - 1]) for n in todo}
-    kb.fill_ocr_pages(stem, updates)
+        attempted = {n: parse.page_text(doc[n - 1], parsing) for n in todo}
+    unavailable = set(parsing["ocr_unavailable"])
+    updates = {n: text for n, text in attempted.items() if n not in unavailable}
+    if updates:
+        kb.fill_ocr_pages(stem, updates)
     texts = texts_cache[report_id]
     for n, t in updates.items():
         texts[n - 1] = t
+    if unavailable:
+        # save_report's cache guard intentionally leaves pages.jsonl alone but updates meta.json;
+        # an unavailable page is no longer pending (retrying cannot help until the installation is
+        # repaired) and remains blank in the already-cached text list.
+        meta = kb._meta(stem)
+        meta["ocr_pending"] = sorted(set(meta.get("ocr_pending", [])) - unavailable)
+        meta["ocr_unavailable"] = sorted(set(meta.get("ocr_unavailable", [])) | unavailable)
+        meta["ocr_settings"] = parse.ocr_settings()
+        kb.save_report(stem, meta, texts)
     return texts
 
 
@@ -551,8 +564,17 @@ def _run_extract(report_id: str, body: ExtractBody):
         if pending and pdf_path(report_id).is_file():  # v191(b): a candidate this section actually needs, OCR'd on demand
             texts = fill_pending_ocr(report_id, report["stem"], sorted(pending))
             pages = locate.candidate_pages(texts, schema, fiscal_year=report.get("fiscal_year"))
+        unavailable = set(kb._meta(report["stem"]).get("ocr_unavailable", []))
+        if pages and set(pages) <= unavailable:
+            raise HTTPException(422, parse.ocr_unavailable_message())
+        pages = [page for page in pages if page not in unavailable]
         print(f"[extract] {report_id} {body.section}: candidate pages {pages}")
         if not pages:
+            # A fully scanned report with no language data cannot produce locator candidates at
+            # all because every attempted page is blank.  Distinguish that from an ordinary
+            # native-text report whose requested section simply is not present.
+            if unavailable and not any(text.strip() for text in texts):
+                raise HTTPException(422, parse.ocr_unavailable_message())
             raise HTTPException(422, "No candidate pages found for this section")
         hints_retry = os.getenv("PAGE_SELECT_HINTS") == "retry"
         # v162: retry starts from the ordinary page-selection prompt even though the same request
