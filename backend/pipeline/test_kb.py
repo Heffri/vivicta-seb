@@ -160,6 +160,47 @@ def test_bm25_ranking():
     print("kb bm25 ranking ok")
 
 
+def test_ask_keeps_adjacent_10k_statement_rows():
+    """A question matching the Item 8 heading must retain the later Net income row too.
+
+    These are the relevant rows from AMD FY2025 PDF p.72 (printed p.60).  In the old
+    800-character windows, the Item 8/statement hit ended before ``Other income`` and
+    ``Net income``.  The table-aware context expansion must keep the contiguous numeric
+    statement block together for Ask without changing the BM25 rank itself.
+    """
+    from . import kb
+    prefix = (
+        "ITEM 8. FINANCIAL STATEMENTS AND SUPPLEMENTARY DATA\n"
+        "Advanced Micro Devices, Inc.\nConsolidated Statements of Operations\n"
+        "Year Ended December 27, 2025 December 28, 2024 December 30, 2023\n"
+        "Net revenue $ 34,639 $ 25,785 $ 22,680\nCost of sales 16,456 12,114 11,278\n"
+        "Gross profit 17,152 12,725 10,460\n"
+    )
+    middle = "".join(f"Operating expense line {n} 1,{n:03} 9{n:02} 8{n:02}\n" for n in range(28))
+    tail = (
+        "Other income (expense), net 577 181 197\n"
+        "Income from continuing operations before income taxes and equity income 4,140 1,989 492\n"
+        "Income tax provision (benefit) (103) 381 (346)\n"
+        "Income from continuing operations, net of tax 4,269 1,641 854\n"
+        "Income from discontinued operations, net of tax 66 — —\n"
+        "Net income $ 4,335 $ 1,641 $ 854\n"
+    )
+    with tempfile.TemporaryDirectory() as tmp:
+        with _env(KB_DIR=tmp, LLM_BASE_URL=None, LLM_PROVIDER="codex"):
+            kb._vecs.clear()
+            kb._pages_cache.clear()
+            kb._bm25_cache.clear()
+            kb._entry_cache.clear()
+            kb.save_report("amd_2025", {"company": "AMD", "fiscal_year": 2025, "pages": 1,
+                                         "sha256": "amd-fixture", "filename": "amd.pdf"}, [prefix + middle + tail])
+            hits = kb.search(["amd_2025"], "you sure there is no profit for the year in this pdf?", k=1,
+                             keyword_only=True)
+            assert len(hits) == 1 and hits[0]["page"] == 1, hits
+            assert "Other income (expense), net 577 181 197" in hits[0]["text"], hits[0]["text"]
+            assert "Net income $ 4,335 $ 1,641 $ 854" in hits[0]["text"], hits[0]["text"]
+    print("kb table continuation context ok")
+
+
 def test_stopwords_neutral():
     from . import kb
     with tempfile.TemporaryDirectory() as tmp:
@@ -615,6 +656,7 @@ if __name__ == "__main__":
     demo()
     test_retrieval_modes()
     test_bm25_ranking()
+    test_ask_keeps_adjacent_10k_statement_rows()
     test_stopwords_neutral()
     test_swedish_prefix_stem()
     test_bm25_mode_never_embeds()
