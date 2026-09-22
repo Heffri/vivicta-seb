@@ -370,6 +370,11 @@ def fetch_report(body: FetchBody):
     if saved and not body.download_pdf:
         return get_report(saved_report_id(saved[0]["stem"]))
     entry = next((e for e in library_index() if e["fiscal_year"] == body.year and collection.identity(e["company"]) == collection.identity(body.company)), None)
+    if entry:
+        # v194's UI starts polling before this route resolves. A library hit bypasses
+        # pipeline.fetch.fetch_report(), so settle the job here instead of making that otherwise
+        # successful fast path produce a noisy /api/jobs/{id} 404 in the renderer.
+        jobs.step(body.job_id, "done", f"{entry['file']} (already cached)")
     if not entry:
         if not body.download_pdf:
             raise HTTPException(409, "No saved report text or local PDF for this company and year. Enable PDF download explicitly or upload your own report.")
