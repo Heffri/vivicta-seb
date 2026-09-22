@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { type ApiError, type CandidatePage, extractSection, formatPageRanges, getCandidates } from '@/api'
+import { type ApiError, type CandidatePage, type FetchAttempt, extractSection, formatPageRanges, getCandidates } from '@/api'
 import type { Report, Result } from '@/types'
 
 // v171 (consult item 6): the extraction queue's state used to live inside UploadView, so switching
@@ -17,9 +17,9 @@ export type BatchStage = 'queued' | 'registering' | 'candidates' | 'extracting' 
 // explicit download). 422 during registration with an ocr_pages_needed body = a scanned PDF whose
 // bounded OCR pass alone is over budget (v191) -- 'ocr-budget', offering a full-OCR retry; any other
 // 422 = no text candidates (needs OCR some other way, or a different file). 502 = the model provider
-// itself failed. Everything else (400 bad file, 404 unknown company, network errors) is 'other' — the
-// raw message is still shown, just without a canned next step.
-export type BatchErrorKind = 'review-protected' | 'download-needed' | 'needs-ocr' | 'ocr-budget' | 'provider-failed' | 'other'
+// itself failed. Fetch failures can additionally distinguish an unavailable public report from a
+// blocked/failed download. Everything else remains 'other'; the raw message is still shown.
+export type BatchErrorKind = 'review-protected' | 'download-needed' | 'needs-ocr' | 'ocr-budget' | 'provider-failed' | 'report-unavailable' | 'download-failed' | 'other'
 export type BatchWait = { pages: string; total: number; heading: string }
 export type RegisterOpts = { ocr?: 'full' }
 
@@ -46,11 +46,14 @@ export type BatchItem = BatchSpec & {
   result: Result | null // set once done or failed; null while queued/running
   errorKind: BatchErrorKind | null
   tried: string[] | undefined // /fetch 404's attempted URLs, when the backend reports them
+  attempts?: FetchAttempt[]
   ocrPages: number[] | null // v191: pages this item's own registration actually OCR'd, once known
   retrying: boolean
 }
 
 function classify(stage: 'fetch' | 'extract', err: ApiError): BatchErrorKind {
+  if (err.code === 'report_unavailable' || (stage === 'fetch' && err.status === 404)) return 'report-unavailable'
+  if (err.code === 'download_failed') return 'download-failed'
   if (err.status === 409) return stage === 'fetch' ? 'download-needed' : 'review-protected'
   if (stage === 'fetch' && err.status === 422 && err.ocrPagesNeeded != null) return 'ocr-budget'
   if (err.status === 422) return 'needs-ocr'
@@ -87,7 +90,7 @@ export function useBatch({ onSettle }: Handlers) {
   const runItem = async (id: string, opts?: RegisterOpts) => {
     const before = itemsRef.current.find((it) => it.id === id)
     if (!before) return
-    patch(id, (it) => ({ ...it, stage: 'registering', startedAt: performance.now(), finishedAt: null, wait: null, errorKind: null, tried: undefined }))
+    patch(id, (it) => ({ ...it, stage: 'registering', startedAt: performance.now(), finishedAt: null, wait: null, errorKind: null, tried: undefined, attempts: undefined }))
     let report: Report
     try {
       report = await before.getReport(opts)
@@ -99,6 +102,7 @@ export function useBatch({ onSettle }: Handlers) {
         finishedAt: performance.now(),
         errorKind: classify('fetch', err),
         tried: err.tried,
+        attempts: err.attempts,
         result: { label: before.label, sectionTitle: before.sectionTitle, error: err.message },
       }))
       notifySettle()

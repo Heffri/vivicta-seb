@@ -1,12 +1,13 @@
 import { ArrowUp, BookOpen, Copy, RotateCcw, Square, TriangleAlert } from 'lucide-react'
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
-import { ask, getKbPage, indexReport, pdfUrl } from '@/api'
+import { ask, indexReport } from '@/api'
 import { AnswerText } from '@/components/ask/AnswerText'
+import { AskSourcePanel, type AskSource } from '@/components/ask/AskSourcePanel'
 import { companyMentions, mentionAtCursor } from '@/components/ask/companyMentions'
 import { ThinkingOrb } from '@/components/ask/ThinkingOrb'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ErrorBlock, LoadingLine } from '@/components/ui/state'
+import { ErrorBlock } from '@/components/ui/state'
 import type { Answer, KbEntry } from '@/types'
 
 type Props = {
@@ -16,7 +17,6 @@ type Props = {
   onCitation?: (reportId: string, page: number) => void
 }
 type Turn = { id: number; question: string; scope: string; answer?: Answer; error?: string; pending?: boolean; stopped?: boolean }
-type Source = { title: string; text?: string; error?: string }
 const EXAMPLES = [
   { title: 'Understand the figures', question: 'Explain the key figures in plain language', hint: 'Revenue, earnings, and the story behind them' },
   { title: 'Compare periods', question: 'What changed from the previous year?', hint: 'Find changes across saved annual reports' },
@@ -30,12 +30,11 @@ export function AskPanel({ reports, catalog, initialCompany, onCitation }: Props
   const [cursor, setCursor] = useState(initialCompany ? initialCompany.length + 2 : 0)
   const [active, setActive] = useState(0)
   const [dismissed, setDismissed] = useState(!!initialCompany)
-  const [source, setSource] = useState<Source | null>(null)
+  const [source, setSource] = useState<AskSource | null>(null)
   const [elapsed, setElapsed] = useState(0)
   const [copyStatus, setCopyStatus] = useState<{ id: number; message: string } | null>(null)
   const currentRequest = useRef<AbortController | null>(null)
   const nextTurn = useRef(0)
-  const sourcePanel = useRef<HTMLElement>(null)
   const sourceRequest = useRef(0)
   const input = useRef<HTMLTextAreaElement>(null)
   const pendingSelection = useRef<number | null>(null)
@@ -58,7 +57,6 @@ export function AskPanel({ reports, catalog, initialCompany, onCitation }: Props
     const timer = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000)
     return () => clearInterval(timer)
   }, [busy])
-  useEffect(() => { if (source) sourcePanel.current?.scrollIntoView({ block: 'nearest' }) }, [source])
 
   useEffect(() => {
     if (global) return // Global queries index on demand, never warm the whole catalog.
@@ -115,25 +113,15 @@ export function AskPanel({ reports, catalog, initialCompany, onCitation }: Props
 
   }
 
-  const openCitation = async (answer: Answer, reportId: string, page: number) => {
+  const openCitation = (answer: Answer, reportId: string, page: number) => {
     if (onCitation) { onCitation(reportId, page); return }
     const citation = answer.citations.find((item) => item.report_id === reportId && item.page === page)
     const entry = catalog?.find((item) => item.report_id === reportId || item.stem === citation?.stem)
-    if (entry?.pdf_available || !global && !citation?.stem) {
-      window.open(pdfUrl(reportId, page), '_blank', 'noopener')
-      return
-    }
-    const request = ++sourceRequest.current
     const title = `${citation?.company ?? entry?.company ?? 'Source'}${citation?.fiscal_year ? ` · FY${citation.fiscal_year}` : ''} · page ${page}`
     const stem = entry?.stem ?? citation?.stem
-    setSource({ title, text: stem ? undefined : citation?.quote, error: stem || citation?.quote ? undefined : 'No saved source text is available.' })
-    if (!stem) return
-    try {
-      const saved = await getKbPage(stem, page)
-      if (request === sourceRequest.current) setSource({ title, text: saved.text || citation?.quote || 'This page has no saved text.' })
-    } catch (error) {
-      if (request === sourceRequest.current) setSource({ title, text: citation?.quote, error: `Could not load the saved page: ${(error as Error).message}` })
-    }
+    setSource({ id: ++sourceRequest.current, title, reportId, page, stem,
+      pdfAvailable: !!entry?.pdf_available || !global && !citation?.stem,
+      quotes: [...new Set(answer.citations.filter(item => item.report_id === reportId && item.page === page).map(item => item.quote).filter(Boolean))] })
   }
 
   return (
@@ -164,12 +152,7 @@ export function AskPanel({ reports, catalog, initialCompany, onCitation }: Props
           </div>}
           </div>
         </li>)}</ol>}
-        {source && <section ref={sourcePanel} aria-label="Saved source text" className="space-y-3 rounded-xl border border-primary/30 bg-background p-5">
-          <div className="flex items-center justify-between gap-2"><h3 className="text-sm font-medium">{source.title}</h3><Button variant="ghost" size="xs" onClick={() => { sourceRequest.current++; setSource(null) }}>Close source</Button></div>
-          <p className="text-xs text-muted-foreground">Saved report text</p>
-          {source.error && <ErrorBlock>{source.error}</ErrorBlock>}
-          {source.text ? <p className="max-h-80 overflow-y-auto whitespace-pre-wrap break-words text-sm">{source.text}</p> : !source.error && <LoadingLine>Loading source page…</LoadingLine>}
-        </section>}
+        {source && <AskSourcePanel key={source.id} source={source} onClose={() => setSource(null)} />}
         {global && catalog.length === 0 && <p className="text-sm text-muted-foreground">No saved reports yet. Add and parse a report first, then return here.</p>}
         <div className="space-y-3 rounded-2xl border bg-background p-4 shadow-sm">
           <p id={`${inputId}-scope`} className="text-sm" aria-live="polite"><span className="font-medium">Scope: </span>{scope || 'No reports selected'}</p>

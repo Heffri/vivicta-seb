@@ -45,7 +45,8 @@ def normalize(name):
 
 NAMES = {normalize(name): (name, group) for group, names in GROUPS.items() for name in names}
 NO_STANDALONE = {normalize(name): metadata for name, metadata in NO_STANDALONE_REPORTS.items()}
-ALIASES = {'swedish orphan biovitrum': 'sobi', 'skandinaviska enskilda banken': 'seb', 'molnlycke health care': 'molnlycke', 'grand': 'the grand'}
+ALIASES = {'swedish orphan biovitrum': 'sobi', 'skandinaviska enskilda banken': 'seb', 'molnlycke health care': 'molnlycke', 'grand': 'the grand',
+           'vectura fastigheter': 'vectura', 'hi3g scandinavia': '3 scandinavia'}
 
 def identity(name):
     key = normalize(name)

@@ -734,6 +734,10 @@ async function main() {
     TESSDATA_PREFIX:
       process.env.TESSDATA_PREFIX ||
       (isDev ? path.join(bundledDataDir, 'tessdata') : path.join(process.resourcesPath, 'tessdata')),
+    // Pipes inherit the Windows code page otherwise; logging a name such as Mölnlycke
+    // must never turn an otherwise successful report download into an HTTP 500.
+    PYTHONIOENCODING: 'utf-8',
+    PYTHONUTF8: '1',
     KB_DIR: path.join(dataDir, 'kb'),
     ...(fs.existsSync(frontendDistDir) ? { FRONTEND_DIST: frontendDistDir } : {}),
   }
