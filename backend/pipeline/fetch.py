@@ -832,7 +832,10 @@ def _publish_pdf(dest_dir: Path, fname: str, data: bytes) -> Path:
         return final
     except Exception as e:
         if tmp_path is not None:
-            tmp_path.unlink(missing_ok=True)
+            try:
+                tmp_path.unlink(missing_ok=True)
+            except OSError as cleanup_error:
+                print(f"PDF temp cleanup failed ({type(cleanup_error).__name__}): {cleanup_error}")
         print(f"PDF publish failed ({type(e).__name__}): {e}")
         raise ReportStoreError("Downloaded report could not be saved and validated; retry download.") from e
 
@@ -843,7 +846,10 @@ def _publish_report(dest_dir: Path, entry: dict, data: bytes) -> None:
     try:
         _upsert_index(dest_dir, entry)
     except Exception as e:
-        final.unlink(missing_ok=True)
+        try:
+            final.unlink(missing_ok=True)
+        except OSError as cleanup_error:
+            print(f"unindexed PDF cleanup failed ({type(cleanup_error).__name__}): {cleanup_error}")
         print(f"report index publish failed ({type(e).__name__}): {e}")
         raise ReportStoreError("Downloaded report could not be indexed; retry download.") from e
 
