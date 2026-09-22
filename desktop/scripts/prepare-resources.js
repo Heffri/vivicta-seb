@@ -9,18 +9,40 @@ const path = require('node:path')
 const repoRoot = path.resolve(__dirname, '..', '..')
 const desktopDir = path.resolve(__dirname, '..')
 const stageDir = path.join(desktopDir, 'build-resources')
+const tessdataFiles = ['eng.traineddata', 'swe.traineddata', 'LICENSE']
+const tessdataBaseUrl = 'https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/'
 
 function shouldSkipDataEntry(relPath) {
   const p = relPath.replace(/\\/g, '/')
   return (
     /^reports\/.*\.pdf$/i.test(p) ||
     /^uploads(?:\/|$)/.test(p) ||
+    /^tessdata(?:\/|$)/.test(p) ||
     /\.log$/.test(p) ||
     /^kb\/[^/]+\/index\.json$/.test(p) ||
     /^kb\/[^/]+\/embeddings\.jsonl$/.test(p) ||
     /^kb\/[^/]+\/.*\.tmp$/.test(p) ||
     /^kb\/up-/.test(p)
   )
+}
+
+async function stageTessdata(dataDir) {
+  const sourceDir = path.join(dataDir, 'tessdata')
+  const destDir = path.join(stageDir, 'tessdata')
+  await fsp.mkdir(destDir, { recursive: true })
+  for (const name of tessdataFiles) {
+    const source = path.join(sourceDir, name)
+    const dest = path.join(destDir, name)
+    if (fs.existsSync(source)) {
+      await fsp.copyFile(source, dest)
+      continue
+    }
+    const response = await fetch(tessdataBaseUrl + name, { signal: AbortSignal.timeout(120_000) })
+    if (!response.ok) throw new Error(`could not download OCR resource ${name}: HTTP ${response.status}`)
+    const temp = `${dest}.tmp`
+    await fsp.writeFile(temp, Buffer.from(await response.arrayBuffer()))
+    await fsp.rename(temp, dest)
+  }
 }
 
 async function main() {
@@ -55,6 +77,10 @@ async function main() {
       return rel === '' || !shouldSkipDataEntry(rel)
     },
   })
+  // w204: every distributable carries the two languages the parser requests by default. Prefer
+  // an already-downloaded developer copy; a clean CI/build machine fetches the official fast
+  // models during packaging instead of shipping an app that tells users to run a repo script.
+  await stageTessdata(dataDir)
 
   console.log(`[prepare-resources] staged resources at ${stageDir}`)
 }

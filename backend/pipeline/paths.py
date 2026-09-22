@@ -36,6 +36,23 @@ def data_dir() -> Path:
     return (resource_dir().parent / "data").resolve()
 
 
+def tessdata_dir() -> Path:
+    """Tesseract language files, in explicit-override -> package -> writable-data order.
+
+    The desktop bundle places them at ``resources/tessdata``.  A frozen backend lives two
+    directories below that (``resources/backend/_internal``), while source checkouts keep the
+    optional developer copy under ``data/tessdata``.
+    """
+    env = os.getenv("TESSDATA_PREFIX")
+    if env:
+        return Path(env).resolve()
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        bundled = resource_dir().parent.parent / "tessdata"
+        if bundled.is_dir():
+            return bundled.resolve()
+    return (data_dir() / "tessdata").resolve()
+
+
 def reports_dir() -> Path:
     return data_dir() / "reports"
 

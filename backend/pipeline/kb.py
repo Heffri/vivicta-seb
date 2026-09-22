@@ -744,7 +744,8 @@ def load_texts(stem, path, digest, ocr="bounded"):
     from .parse import page_texts, ocr_settings
     texts = cached_texts(stem, digest)
     meta = _meta(stem)
-    parsing = {"ocr_pages": meta.get("ocr_pages", []), "ocr_pending": meta.get("ocr_pending", []), "ocr_settings": ocr_settings()}
+    parsing = {"ocr_pages": meta.get("ocr_pages", []), "ocr_pending": meta.get("ocr_pending", []),
+               "ocr_unavailable": meta.get("ocr_unavailable", []), "ocr_settings": ocr_settings()}
     if texts is None:
         texts = page_texts(path, parsing) if ocr == "bounded" else page_texts(path, parsing, ocr=ocr)
     return texts, parsing

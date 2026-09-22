@@ -244,6 +244,31 @@ class RuntimeChecks(unittest.TestCase):
             self.assertEqual(full.status_code, 200, full.text)
             self.assertEqual(full.json()["ocr_pages"], [3, 4, 5])
 
+    def test_scanned_upload_without_languages_registers_then_extract_422s(self):
+        """w204: missing language data is page provenance, not a registration failure.
+
+        Extraction returns the packaged-app-safe 422 only when every selected page is known to be
+        unavailable; it must never tell an installed user to run a repository script.
+        """
+        from . import parse
+        doc = pymupdf.open()
+        _image_page(doc, "Scanned borrowings table")
+        data = doc.tobytes()
+        doc.close()
+        missing = self.root / "missing-tessdata"
+        with patch.dict(os.environ, {"TESSDATA_PREFIX": str(missing), "OCR_LANGUAGE": "eng"}):
+            registered = self.client.post("/api/reports", files={"file": ("scan.pdf", data, "application/pdf")})
+            self.assertEqual(registered.status_code, 200, registered.text)
+            report_id = registered.json()["report_id"]
+            self.assertEqual(kb._meta(report_id)["ocr_unavailable"], [1])
+            self.assertEqual(kb._meta(report_id)["ocr_pending"], [])
+            with patch.object(app.locate, "candidate_pages", return_value=[1]), patch.object(app.extract_mod, "extract") as extract:
+                response = self.client.post(f"/api/reports/{report_id}/extract", json={"section": "debt_maturity"})
+            self.assertEqual(response.status_code, 422, response.text)
+            self.assertIn("Reinstall or update the app", response.json()["detail"])
+            self.assertNotIn("scripts/", response.json()["detail"])
+            extract.assert_not_called()
+
     def test_extract_fills_pending_candidate_page_on_demand(self):
         """v191(b): a candidate page the bounded registration pass left ocr_pending (it sits past
         the front matter, with no outline hit) is OCR'd individually, right before the model call

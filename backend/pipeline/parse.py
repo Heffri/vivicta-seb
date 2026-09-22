@@ -48,7 +48,7 @@ _DIGIT_SPACE = re.compile(r" (?=\d)|(?<=\d) ")  # any space touching a digit
 _CHARMAP = str.maketrans({"\u00a0": " ", "\u202f": " ", "\u2013": "-", "\u2212": "-"})  # NBSP, narrow NBSP, en dash, minus
 
 
-PARSER_VERSION = 9  # v196: collapse a duplicated PDF text layer before locating/rebuilding its rows
+PARSER_VERSION = 10  # w204: classify OCR need across the whole PDF; image-only pages no longer fail native-text reports
 NUMERIC_RUN = 12  # consecutive letterless lines: a column-major text layer (Arion Bank prints every figure first, then every label, in no order)
 _LEADERS = re.compile(r"(?:\s*\.){3,}")
 _PURE_VALUE = re.compile(r"[\s\d.,()\-–—%*]+")  # a figures-only line ("164,155 164,155", " - "), as opposed to a label
@@ -64,6 +64,8 @@ _HEADER_MAX_LINES = 3  # a transposed header is at most this many physical lines
 OCR_PAGE_BUDGET = int(os.getenv("OCR_PAGE_BUDGET", "40"))  # v191: pages a bounded registration pass may OCR synchronously
 OCR_SECONDS_PER_PAGE = 2.2  # v191: Saab's 231-page scan measured 506s (docs/PERFORMANCE.md) -- for the budget 422's "~N min" estimate only
 FRONT_PAGES = 8  # v191: report front matter always considered, mirrors locate.py's own TOC_PAGES
+TEXT_LAYER_PAGE_CHARS = 200  # w204: enough letters/digits to prove this page has useful native text
+TEXT_LAYER_PAGE_RATIO = 0.20  # w204: this share proves the PDF as a whole is not a scan
 
 
 def _dedupe_doubled_tokens(text: str) -> str:
@@ -124,23 +126,45 @@ def _looks_scanned(page, text: str) -> bool:
     return len(re.sub(r"\W", "", text)) < 20 and bool(page.get_images() or len(page.get_drawings()) > 100)
 
 
+def _has_document_text_layer(texts: list[str]) -> bool:
+    """A few picture/cover pages do not turn an otherwise native-text report into a scan.
+
+    Classification is deliberately book-wide.  At least 20% of pages must carry a substantial
+    (200 letter/digit) layer; short page numbers, watermarks and accidental OCR fragments do not
+    qualify a genuinely scanned report as native text.
+    """
+    if not texts:
+        return False
+    useful = sum(sum(char.isalnum() for char in text) >= TEXT_LAYER_PAGE_CHARS for text in texts)
+    return useful / len(texts) >= TEXT_LAYER_PAGE_RATIO
+
+
 def page_texts(pdf_path, metadata: dict | None = None, ocr: str = "bounded") -> list[str]:
     """0-based list; page n (1-based) is texts[n-1]. `ocr="bounded"` (default) synchronously OCRs
     only the pages a debt-maturity locate pass could actually reach (_locator_bound_pages) when a
     page has no text layer; other such pages come back "" and are listed in metadata["ocr_pending"]
     for later, on-demand OCR (app.py's extract path) instead of costing a ten-minute registration
     request on a long scanned report. Raises OCRBudgetExceeded rather than running it when even that
-    bounded set is bigger than OCR_PAGE_BUDGET. `ocr="full"` OCRs every such page unconditionally
-    (pre-v191 behaviour) -- an explicit opt-in, since only the caller knows the wait is wanted."""
+    bounded set is bigger than OCR_PAGE_BUDGET. For a scan-classified document, `ocr="full"` OCRs
+    every such page unconditionally (pre-v191 behaviour) -- an explicit opt-in, since only the
+    caller knows the wait is wanted. Image-only pages in a native-text document remain pending."""
     if metadata is not None:
-        metadata.update(ocr_pages=[], ocr_pending=[], ocr_settings=ocr_settings())
+        metadata.update(ocr_pages=[], ocr_pending=[], ocr_unavailable=[], ocr_settings=ocr_settings())
     with pymupdf.open(pdf_path) as doc:
-        if ocr == "full":
-            return [page_text(page, metadata) for page in doc]
         pages = list(doc)
-        scanned = {p.number + 1 for p in pages if _looks_scanned(p, p.get_text())}
+        raw_texts = [page.get_text() for page in pages]
+        scanned = {p.number + 1 for p, text in zip(pages, raw_texts) if _looks_scanned(p, text)}
+        # w204: registration of a native-text annual report never attempts OCR merely because its
+        # cover or an illustration page is image-only.  Keep that page blank/pending; its useful
+        # body text remains immediately available with or without Tesseract data.
+        if scanned and _has_document_text_layer(raw_texts):
+            return [page_text(page, metadata, ocr_allowed=False) for page in pages]
+        if ocr == "full":
+            return [page_text(page, metadata) for page in pages]
         bound = _locator_bound_pages(doc) if scanned else set()
-        if len(scanned & bound) > OCR_PAGE_BUDGET:
+        # No OCR will run when the language data is absent, so registration must not fail a time
+        # budget first.  page_text records each attempted page as ocr_unavailable instead.
+        if not missing_ocr_languages() and len(scanned & bound) > OCR_PAGE_BUDGET:
             raise OCRBudgetExceeded(len(scanned))
         return [page_text(p, metadata, ocr_allowed=(p.number + 1) in bound) for p in pages]
 
@@ -157,9 +181,12 @@ def page_text(page, metadata: dict | None = None, ocr_allowed: bool = True) -> s
         # PyMuPDF bundles the OCR engine. Language files stay local, no report upload.
         settings = ocr_settings()
         tessdata, language = Path(settings["tessdata"]), settings["language"]
-        missing = [lang for lang in language.split("+") if not (tessdata / f"{lang}.traineddata").is_file()]
+        missing = missing_ocr_languages(settings)
         if missing:
-            raise OCRUnavailable("Scanned PDF needs OCR language files. Run python scripts/setup_ocr.py (missing: " + ", ".join(missing) + ").")
+            if metadata is not None:
+                metadata.setdefault("ocr_unavailable", []).append(page.number + 1)
+                return ""
+            raise OCRUnavailable(ocr_unavailable_message(missing))
         tp = page.get_textpage_ocr(language=language, dpi=200, full=True, tessdata=str(tessdata))
         if metadata is not None:
             metadata.setdefault("ocr_pages", []).append(page.number + 1)
@@ -688,7 +715,21 @@ class OCRUnavailable(RuntimeError):
 
 def ocr_settings():
     return {"language": os.getenv("OCR_LANGUAGE", "eng+swe"),
-            "tessdata": str(Path(os.getenv("TESSDATA_PREFIX") or paths.data_dir() / "tessdata").resolve())}
+            "tessdata": str(paths.tessdata_dir())}
+
+
+def missing_ocr_languages(settings: dict | None = None) -> list[str]:
+    settings = settings or ocr_settings()
+    tessdata = Path(settings["tessdata"])
+    return [lang for lang in settings["language"].split("+")
+            if not (tessdata / f"{lang}.traineddata").is_file()]
+
+
+def ocr_unavailable_message(missing: list[str] | None = None) -> str:
+    missing = missing if missing is not None else missing_ocr_languages()
+    suffix = f" (missing: {', '.join(missing)})" if missing else ""
+    return ("OCR language files are unavailable" + suffix + ". Reinstall or update the app, "
+            "or set TESSDATA_PREFIX to a folder containing the language files.")
 
 
 def ocr_ready() -> bool:
@@ -696,6 +737,4 @@ def ocr_ready() -> bool:
     the same per-language check page_text makes before raising OCRUnavailable, exposed standalone
     so a caller (tests exercising real OCR, not a mocked textpage) can skip instead of hitting that
     exception on a fresh clone that never ran scripts/setup_ocr.py."""
-    settings = ocr_settings()
-    tessdata = Path(settings["tessdata"])
-    return all((tessdata / f"{lang}.traineddata").is_file() for lang in settings["language"].split("+"))
+    return not missing_ocr_languages()

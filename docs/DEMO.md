@@ -92,11 +92,9 @@ after everything below has already succeeded.
 - **No dependence on web search or full-report OCR.** Do not demo the foreign-company web fetch or
   any scanned report. Saab's English PDF has no text layer — its OCR pass took **506 seconds**;
   never on stage.
-- **If packaging on a machine that has never run OCR, run `python scripts/setup_ocr.py` first.**
-  `desktop/scripts/prepare-resources.js` stages whatever is already in `data/` (including
-  `data/tessdata`, gitignored) — it does not fetch the OCR language files itself, so a scanned
-  report opened from the packaged app 422s with "Run python scripts/setup_ocr.py" unless that
-  build machine already had `data/tessdata` populated before `npm run pack` / `npm run dist`.
+- **OCR languages ship with the app.** `desktop/scripts/prepare-resources.js` copies an existing
+  developer `data/tessdata` or downloads the official fast English/Swedish files while packaging,
+  then places them in `resources/tessdata`. A clean installed app does not need repository scripts.
 - **One redistributable real PDF, prepared.** Karnell's is a public `storage.mfn.se` link recorded
   in its own `meta.json`. Download it once, verify the sha256 against the meta, keep it on the demo
   machine and a spare stick. Other companies are fine as saved text.
