@@ -28,6 +28,8 @@ const ERROR_COPY: Record<BatchErrorKind, { text: string; settings?: boolean; kb?
   // keep registration synchronous. "Run OCR anyway" resends with ocr=full.
   'ocr-budget': { text: 'This is a scanned PDF. Only the pages a locator would check were read — run OCR on the rest to extract from anywhere else in it.' },
   'provider-failed': { text: 'The model provider failed. Check Settings › Test connection, then retry just this one.', settings: true },
+  'report-unavailable': { text: 'Some companies do not publish public standalone annual reports. Upload this company’s annual-report PDF above if you have one, or try another year if available. A parent company’s report cannot replace its own accounts.' },
+  'download-failed': { text: 'A source site could not be reached or refused the download. Retry later, or download the report in your browser and upload the PDF above.' },
   other: { text: '' },
 }
 
@@ -71,7 +73,7 @@ function stageLine(item: BatchItem, seconds: number | null): string {
     case 'skipped':
       return 'Stopped after current — not started'
     case 'failed':
-      return 'Failed'
+      return item.errorKind === 'report-unavailable' ? 'Report not available' : item.errorKind === 'download-failed' ? 'Download could not complete' : 'Failed'
   }
 }
 
@@ -180,7 +182,8 @@ export function BatchProgress({ items, busy, stopRequested, resultsCount, onStop
                           </>
                         )}
                       </div>
-                      {item.tried && item.tried.length > 0 && (
+                      {!!item.attempts?.length && <details className="mt-2 text-xs"><summary className="cursor-pointer text-muted-foreground">Source checks ({item.attempts.length})</summary><ul className="mt-1 space-y-2">{item.attempts.map((attempt, i) => <li key={i} className="break-words">{attempt.url.startsWith('https://') || attempt.url.startsWith('http://') ? <a className="underline" href={attempt.url} target="_blank" rel="noreferrer">{attempt.url}</a> : attempt.url}<p className="text-muted-foreground">{attempt.reason}</p></li>)}</ul></details>}
+                      {!item.attempts?.length && item.tried && item.tried.length > 0 && (
                         <details className="mt-1 text-xs">
                           <summary className="cursor-pointer text-muted-foreground">
                             tried {item.tried.length} URL{item.tried.length === 1 ? '' : 's'}

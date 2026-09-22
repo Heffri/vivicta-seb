@@ -63,6 +63,7 @@ export function CompanySearch({
       .join(' · ')
   return (
     <Face label="Find a company" hint={collection === 'all' ? 'Local matches below · AI search works worldwide' : collection === 'midcap' ? 'SEB Mid Cap matches below · AI search works worldwide' : 'Wallenberg matches below · AI search works worldwide'}>
+      {collection === 'wallenberg' && <p className="mb-3 text-xs text-muted-foreground">Includes private companies. Some do not publish public standalone annual reports; you can upload a report you already have.</p>}
       <div className="flex gap-2">
         <Input
           id="company-q"

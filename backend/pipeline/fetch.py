@@ -31,8 +31,38 @@ from . import collection, jobs, llm, paths
 
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36"}
 MAX_TRIES = 6
+
+
+class FetchAttempts(list):
+    """Keep the compatible URL list plus actionable per-attempt diagnostics."""
+    def __init__(self):
+        super().__init__()
+        self.failures = []
+
+
+def _failure(tried, url, reason, kind="rejected"):
+    if isinstance(tried, FetchAttempts):
+        tried.failures.append({"url": url, "reason": str(reason)[:400], "kind": kind})
+
+
+def failure_response(company, year, error):
+    tried = error.args[0] if error.args else []
+    note = error.args[1] if len(error.args) > 1 else None
+    failures = getattr(tried, "failures", [])
+    if note:
+        code, status = "search_unavailable", 502
+        detail = f"Report search could not complete for {company} {year}. {note}"
+    elif any(f["kind"] == "download" for f in failures):
+        code, status = "download_failed", 502
+        detail = f"No report could be downloaded and verified for {company} {year}. Some source sites failed or blocked access; this does not mean the report is unpublished."
+    else:
+        code, status = "report_unavailable", 404
+        detail = f"No verified public annual-report PDF was found for {company} {year}. The company may publish through a registry or require you to obtain its report directly."
+    return status, {"detail": detail, "code": code, "tried": tried, "attempts": failures}
+
+
 NOT_AR = re.compile(r"general meeting|st[äa]mma|notice|kallelse|nomination|valberedning|20-f|interim|delårs|quarter", re.I)
-IS_AR = re.compile(r"annual|årsredovisning|års- och", re.I)
+IS_AR = re.compile(r"annual|[åa]rsredovisning|[åa]rs-?\s*och", re.I)
 # a PDF that is not *the* annual report even though the search matched: Nordea's Pillar 3 report, AGM decks, quarterlies
 BAD_URL = re.compile(r"interim|q[1-4]\b|quarter|delars|half-?year|risk|pillar|remuneration|ersattning|sustainab|hallbarhet|governance|bolagsstyrning|presentation|agm|stamma|prospect", re.I)
 NOT_REPORT = re.compile(r"capital and risk management|pillar 3|remuneration report|sustainability (report|statement)|corporate governance report|prospectus|interim report|half-year|year-end report|bokslutskommunik", re.I)
@@ -125,12 +155,31 @@ def _filename_clear(label, *patterns):
     real annual-report PDF sits under a "sustainability/reporting-centre" IR section; BAD_URL's
     "sustainab" term matches that section name, not the file, which is plainly shell-annual-report-
     2025.pdf). A hit *in* the filename itself (interim-q3.pdf) still rejects outright, wherever it sits."""
+    label = urllib.parse.unquote(label)
     fname = label.rsplit("/", 1)[-1].split("?", 1)[0]
+    # A combined annual report legitimately includes sustainability/governance chapters.
+    # Keep rejecting stand-alone topic reports, interim statements and meeting notices.
+    if re.search(r"annual[-_\s]+(?:(?:and|&)[-_\s]+sustainability[-_\s]+)?report|[åa]rsredovisning", fname, re.I):
+        fname = re.sub(r"sustainab\w*|h[åa]llbarhet\w*|(?:corporate[-_\s]+)?governance|bolagsstyrning", "", fname, flags=re.I)
     if any(p.search(fname) for p in patterns):
         return False
     if IS_AR.search(fname):
         return True
     return not any(p.search(label) for p in patterns)
+
+
+def _collection_context(company):
+    member = collection.member(company)
+    return (f"\nCompany context: {member[0]} in the Wallenberg collection ({member[1]}). "
+            "Find this entity's own accounts, not a similarly named business or the owner's report.") if member else ""
+
+
+def _candidate_clear(url, title):
+    # Publishers sometimes call a combined annual report simply sustainability-report.pdf.
+    # A search result's explicit title lets it reach content validation, never bypass it.
+    combined = re.search(r"annual\s+(?:and|&)\s+sustainability\s+report", title, re.I)
+    hard_topic = re.search(r"interim|q[1-4]\b|quarter|delars|half-?year|pillar|prospect|agm|stamma", urllib.parse.unquote(url), re.I)
+    return _filename_clear(url, BAD_URL) or bool(combined and not hard_topic)
 
 
 def _model_candidates(company, year, country=None, hint=None, job_id=None):
@@ -139,7 +188,7 @@ def _model_candidates(company, year, country=None, hint=None, job_id=None):
     unavailable or replying with something unparseable is not the same thing as "no links found".
     job_id (v194) rides through to llm.web_lookup, which surfaces the web_search tool's own query
     terms as job-progress events while this call runs (codex only; see llm._codex_search_events)."""
-    user = f"Company: {company}\nFiscal year: {year}"
+    user = f"Company: {company}\nFiscal year: {year}" + _collection_context(company)
     if country:
         user += f"\nCountry: {country}"
     if hint:
@@ -154,7 +203,7 @@ def _model_candidates(company, year, country=None, hint=None, job_id=None):
     urls = []
     for c in (data.get("candidates") or [])[:MAX_MODEL_CANDIDATES]:
         u = str(c.get("url", "")).strip() if isinstance(c, dict) else ""
-        if not u.startswith(("http://", "https://")) or not _filename_clear(u, BAD_URL):
+        if not u.startswith(("http://", "https://")) or not _candidate_clear(u, str(c.get("title", ""))):
             print(f"model candidate dropped: {u!r}")  # not a direct link, or an interim/risk/AGM URL by name
             continue
         urls.append(u)
@@ -172,7 +221,7 @@ def _ir_page_candidates(company, year, country=None, hint=None, job_id=None):
     so v080's crawl (_ir_page_report) has a page the model actually named instead of only a guessed
     generic path. At most MAX_IR_PAGE_CANDIDATES URLs; a candidate that is itself a PDF is dropped,
     since that is exactly what the first ask already tried and failed at. job_id: see _model_candidates."""
-    user = f"Company: {company}\nFiscal year: {year}"
+    user = f"Company: {company}\nFiscal year: {year}" + _collection_context(company)
     if country:
         user += f"\nCountry: {country}"
     if hint:
@@ -279,7 +328,7 @@ def _model_discover(query, year, country=None, hint=None, job_id=None):
     entity with its identity fields kept. A link that is not http(s) or is interim/risk/AGM-named (BAD_URL) is
     nulled, not the whole candidate -- fetch_report searches for that entity itself when url is null.
     job_id: see _model_candidates."""
-    user = f"Query: {query}\nFiscal year: {year}"
+    user = f"Query: {query}\nFiscal year: {year}" + _collection_context(query)
     if country:
         user += f"\nCountry: {country}"
     if hint:
@@ -296,7 +345,7 @@ def _model_discover(query, year, country=None, hint=None, job_id=None):
         if not isinstance(c, dict) or not _str(c.get("legal_name")):
             continue
         u = _str(c.get("url"))
-        if u and (not u.startswith(("http://", "https://")) or not _filename_clear(u, BAD_URL)):
+        if u and (not u.startswith(("http://", "https://")) or not _candidate_clear(u, str(c.get("document_title", "")))):
             print(f"model candidate link dropped: {u!r}")
             u = None
         out.append(_candidate(c["legal_name"], ticker=_str(c.get("ticker")), exchange=_str(c.get("exchange")),
@@ -377,6 +426,8 @@ def _get(url, timeout=60, job_id=None, label=None):
     progress (bytes so far, total -- total is None when the server sends no Content-Length) every
     DOWNLOAD_STEP_EVERY chunks, plus one final event with the true total read. Every existing call
     site (job_id left unset) still does one unbuffered r.read(), byte for byte as before."""
+    # Keep existing escapes/signatures intact while encoding raw spaces and Unicode paths.
+    url = urllib.parse.quote(url, safe=":/?#[]@!$&'()*+,;=%")
     with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout) as r:
         if not job_id:
             return r.read()
@@ -685,33 +736,75 @@ def _validate(data, company, year):
     if not data.startswith(b"%PDF"):
         return None, "not a PDF"
     doc = fitz.open(stream=data, filetype="pdf")
-    if doc.page_count <= 40:
+    if doc.page_count < 3:
         pages = doc.page_count
         doc.close()
         return None, f"only {pages} pages"
     text = "".join(doc[i].get_text() for i in range(min(20, doc.page_count)))
-    if len(text) <= 5000:
+    if len(text.strip()) < 200:
         doc.close()
         return None, "no text layer"
+    head = _head_text(doc)
+    key = collection.identity(company)
+    aliases = {key, *(alias for alias, target in collection.ALIASES.items() if target == key)}
+    normalized_head = collection.normalize(head)
+    cover_alias = any(re.search(r"\b" + r"\s+".join(map(re.escape, alias.split())) + r"\b", normalized_head) for alias in aliases if alias)
+    # A subsidiary sharing the brand is not the requested group's report (e.g. Nefab Danmark A/S).
+    def issuer_key(name):
+        name = re.sub(r"\b(?:a/s|a s|as|holding|holdings|corporation|corp|limited)\b", "", _fold(name), flags=re.I)
+        return collection.identity(name)
+    wanted = issuer_key(company)
+    for line in doc[0].get_text().splitlines():
+        label = " ".join(line.split())
+        if len(label) < 100 and re.search(r"\b(?:AB|A/S|Ltd\.?|plc|Inc\.?|Oyj)(?:\s*\(publ\))?$", label, re.I):
+            claimed = issuer_key(label)
+            if wanted and claimed.startswith(wanted + " "):
+                doc.close()
+                return None, f"issuer mismatch: cover names {label!r}, not {company!r}"
+    # Numeric brand names must match as a phrase: "3 Scandinavia" is not "Candles Scandinavia".
+    name = collection.normalize(company)
+    if re.search(r"\b\d+\b", name) and not cover_alias:
+        doc.close()
+        return None, "issuer mismatch: numeric company name not on the cover"
     plain = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
-    missing = [t for t in _toks(company) if not re.search(rf"\b{re.escape(t)}", plain)]  # "nibe", "abb", "lundin gold" (not Lundin Mining)
+    missing = [t for t in _toks(company) if not re.search(rf"\b{re.escape(t)}\b", plain)]  # "nibe", "abb", "lundin gold" (not Lundin Mining)
     if missing:
         # v122 ruling: the issuer may style itself only by its acronym, when the initials (at least
         # three letters) stand whole-word on the cover -- that is how MTG's own FY2025 report reads.
         # An acronym in the body alone accepts nothing: an unrelated report naming "ABB" as a
         # supplier is still somebody else's report (DDG happily returns those).
         acr = _acronym(company)
-        if not (acr and re.search(rf"\b{acr}\b", _fold(_head_text(doc)))):
+        if not cover_alias and not (acr and re.search(rf"\b{acr}\b", _fold(_head_text(doc)))):
             doc.close()
             return None, f"issuer mismatch: {missing[0]!r} not in first 20 pages"
+    # Portfolio-company names in the body of an owner's report are not issuer evidence.
+    # Image-only covers have no searchable title; retain the body check for those files.
+    if len(re.sub(r"\W", "", head)) >= 100:
+        missing_head = [t for t in _toks(company) if not re.search(rf"\b{re.escape(t)}\b", _fold(head))]
+        acr = _acronym(company)
+        if missing_head and not cover_alias and not (acr and re.search(rf"\b{acr}\b", _fold(head))):
+            doc.close()
+            return None, "issuer mismatch: company is mentioned in the body but not identified on the first pages"
     if reason := _year_reason(doc, year):  # v122: the year on the first pages or an accounting period, not "anywhere"
         doc.close()
         return None, reason
-    head = "".join(doc[i].get_text() for i in range(min(3, doc.page_count)))
     if NOT_REPORT.search(head) and not IS_AR.search(head):
         reason = f"not an annual report: {NOT_REPORT.search(head).group(0)!r} on the cover"
         doc.close()
         return None, reason
+    if doc.page_count <= 40:
+        # Small private-company statutory accounts are often much shorter than listed reports.
+        # Accept their content, while still rejecting notices, brochures and topic-only reports.
+        full = _fold(" ".join(page.get_text() for page in doc))
+        title = re.search(r"annual[\w\s&-]*report|arsredovisning|annual accounts|financial statements", _fold(head))
+        income = re.search(r"income statement|statement of (?:comprehensive )?income|profit and loss|resultatrakning|rapport over (?:total)?resultat", full)
+        balance = re.search(r"balance sheet|statement of financial position|balansrakning|rapport over finansiell stallning", full)
+        if not (title and income and balance):
+            doc.close()
+            return None, "short document lacks annual accounts (report title, income statement and balance sheet)"
+        if not cover_alias and any(not re.search(rf"\b{re.escape(t)}\b", _fold(head)) for t in _toks(company)):
+            doc.close()
+            return None, "issuer mismatch: short accounts do not name the company on the first pages"
     return doc, text
 
 
@@ -832,6 +925,7 @@ def _ir_page_report(seeds, company, year, tried, job_id=None):
         found, err = _crawl_ir_page(page, year, deadline)
         if err:
             print(err)
+            _failure(tried, page, err, "download")
             continue
         for u, sc in found.items():
             if u in ranked:
@@ -847,15 +941,17 @@ def _ir_page_report(seeds, company, year, tried, job_id=None):
         tried.append(url)
         t0 = time.time()
         try:
-            data = _unzip(_get(url, timeout=CRAWL_TIMEOUT, job_id=job_id, label=url))
+            data = _unzip(_get(url, timeout=CRAWL_TIMEOUT, job_id=job_id, label=url) if job_id else _get(url, timeout=CRAWL_TIMEOUT))
             doc, text = _validate(data, company, year)
         except Exception as e:
             print(f"{url} -> {e}")
             jobs.step(job_id, "verify", f"{url} -> {e}")
+            _failure(tried, url, e, "download")
             continue
         jobs.step(job_id, "verify", _verify_text(url, doc, text))
         if not doc:
             print(f"{url} -> {text}")
+            _failure(tried, url, text)
             if TITLE_YEAR_MARK in text:  # v122: a cover naming an older year is a finding, not just a miss
                 tried.append(text)
             continue
@@ -987,20 +1083,27 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
             try:
                 (dest_dir / fname).unlink(missing_ok=True)
                 _drop_index(dest_dir, fname)
+                index = [row for row in index if row.get("file") != fname]
             except OSError as err:
                 print(f"corrupt report cache cleanup failed ({type(err).__name__}): {err}")
                 raise ReportStoreError("The incomplete cached report could not be removed; retry download.") from err
-    tried, toks, stub_pages, page_seeds = [], _toks(company), [], []
+    # Curated source links remain useful even before their PDF is downloaded.
+    if not url:
+        known = next((e for e in index if e.get("fiscal_year") == year and collection.identity(e.get("company")) == collection.identity(company) and e.get("source_url")), None)
+        if known:
+            url = known["source_url"]
+    tried, toks, stub_pages, page_seeds = FetchAttempts(), _toks(company), [], []
     model_note = None
     if url:  # the confirmed link first: same download + validation as every other source, then fall through
         tried.append(url)
         t0 = time.time()
         try:
-            data = _unzip(_get(url, job_id=job_id, label=url))
+            data = _unzip(_get(url, job_id=job_id, label=url) if job_id else _get(url))
             doc, text = _validate(data, company, year)
         except Exception as e:
             print(f"{url} -> {e}")
             jobs.step(job_id, "verify", f"{url} -> {e}")
+            _failure(tried, url, e, "download")
             data, doc, text = b"", None, ""
         else:
             jobs.step(job_id, "verify", _verify_text(url, doc, text))
@@ -1015,6 +1118,7 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
             return {**entry, "tried": tried}
         if text:
             print(f"{url} -> {text}")
+            _failure(tried, url, text)
             if TITLE_YEAR_MARK in text:  # v122: a cover naming an older year is a finding, not just a miss
                 tried.append(text)
             if not data.startswith(b"%PDF"):  # the confirmed link was a page, not a PDF: crawl it (v080)
@@ -1030,16 +1134,18 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
             tried.append(url)
             t0 = time.time()
             try:
-                data = _unzip(_get(url, job_id=job_id, label=url))
+                data = _unzip(_get(url, job_id=job_id, label=url) if job_id else _get(url))
                 doc, text = _validate(data, company, year)
             except Exception as e:
                 print(f"{url} -> {e}")
                 jobs.step(job_id, "verify", f"{url} -> {e}")
+                _failure(tried, url, e, "download")
                 page_seeds += [u for u in _host_guesses(url, toks) if u not in page_seeds]  # a dead link: guess its own IR page (v080)
                 continue
             jobs.step(job_id, "verify", _verify_text(url, doc, text))
             if not doc:  # no stub-page harvest here: the model was asked for direct PDF links only
                 print(f"{url} -> {text}")
+                _failure(tried, url, text)
                 if TITLE_YEAR_MARK in text:  # v122: a cover naming an older year is a finding, not just a miss
                     tried.append(text)
                 if not data.startswith(b"%PDF") and url not in page_seeds:  # the model named a page, not a PDF (v080)
@@ -1093,16 +1199,18 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
         tried.append(url)
         t0 = time.time()
         try:
-            data = _unzip(_get(url, job_id=job_id, label=url))
+            data = _unzip(_get(url, job_id=job_id, label=url) if job_id else _get(url))
             doc, text = _validate(data, company, year)
         except Exception as e:
             print(f"{url} -> {e}")
             jobs.step(job_id, "verify", f"{url} -> {e}")
+            _failure(tried, url, e, "download")
             page_seeds += [u for u in _host_guesses(url, toks) if u not in page_seeds]  # a dead link: guess its own IR page (v080)
             continue
         jobs.step(job_id, "verify", _verify_text(url, doc, text))
         if not doc:
             print(f"{url} -> {text}")
+            _failure(tried, url, text)
             if TITLE_YEAR_MARK in text:  # v122: a cover naming an older year is a finding, not just a miss
                 tried.append(text)
             if data.startswith(b"%PDF"):  # not a download error: a page an RNS-style notice may name its own site on

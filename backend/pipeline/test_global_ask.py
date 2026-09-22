@@ -20,10 +20,10 @@ def check():
         kb._bm25_cache.clear()
         with patch.multiple(app, LIBRARY=library, UPLOADS=uploads, reports={}, library_paths={}, texts_cache={}, extractions={},
                             COMPANIES=[{"name": "Acme AB", "sector": "Industrials"}]), TestClient(app.app) as client:
-            def seed(stem, company="Acme AB", year=2025):
+            def seed(stem, company="Acme AB", year=2025, digest=None):
                 text = "Revenue 100 MSEK. Operating profit 20 MSEK."
                 kb.save_report(stem, {"company": company, "fiscal_year": year, "pages": 1,
-                                      "filename": stem + ".pdf", "sha256": stem}, [text])
+                                      "filename": stem + ".pdf", "sha256": digest or stem}, [text])
                 kb.save_extraction(stem, "income_statement", {
                     "section": "income_statement", "fields": [
                         {"key": "revenue", "label": "Revenue", "value": 100, "unit": "MSEK", "period": str(year),
@@ -33,14 +33,16 @@ def check():
             with patch.object(app, "_llm_configured", return_value=False), patch.object(kb.llm, "chat", side_effect=AssertionError("model called")):
                 empty = client.post("/api/ask", json={"question": "revenue"}).json()
                 assert "no parsed reports" in empty["answer"] and empty["citations"] == []
-                seed("acme_2025")
+                available_pdf = b"only checking availability"
+                seed("acme_2025", digest=kb.sha256(available_pdf))
                 no_model = client.post("/api/ask", json={"question": "revenue"}).json()
                 assert "Connect a model" in no_model["answer"] and no_model["citations"] == []
                 assert "152" not in no_model["answer"]
 
-            seed("acme_2024", year=2024)
+            fetched_pdf = b"newly fetched PDF"
+            seed("acme_2024", year=2024, digest=kb.sha256(fetched_pdf))
             seed("up-1234", company="Unknown")
-            (library / "acme_2025.pdf").write_bytes(b"only checking availability")
+            (library / "acme_2025.pdf").write_bytes(available_pdf)
             listing = {r["stem"]: r for r in client.get("/api/kb").json()}
             assert listing["acme_2025"]["sector"] == "Industrials"
             assert listing["up-1234"]["sector"] is None
@@ -59,16 +61,17 @@ def check():
             assert client.get("/api/kb/acme_2024/pages/2").status_code == 404
             assert client.get("/api/kb/..%5Csecret/pages/1").status_code == 404
 
-            # Opening saved text before fetching the PDF must not make registration a no-op.
+            # Opening saved text before fetching the exact source must not prevent the PDF path
+            # from being published. Matching saved evidence is deliberately not reparsed or changed.
             assert app.report_texts("lib-acme_2024")[0].startswith("Revenue")
-            (library / "acme_2024.pdf").write_bytes(b"newly fetched PDF")
+            (library / "acme_2024.pdf").write_bytes(fetched_pdf)
             fresh = "Revenue 100 MSEK. Operating profit 20 MSEK. Fresh PDF text."
             with patch.object(app.parse, "page_texts", return_value=[fresh]) as parser:
                 entry = {"file": "acme_2024.pdf", "company": "Acme AB", "fiscal_year": 2024}
                 app.register_library(entry)
                 app.register_library(entry)  # an already registered PDF still avoids reparsing
-                assert parser.call_count == 1
-            assert app.report_texts("lib-acme_2024") == [fresh]
+                assert parser.call_count == 0
+            assert app.report_texts("lib-acme_2024")[0].startswith("Revenue 100 MSEK")
             assert app.require_pdf("lib-acme_2024") == library / "acme_2024.pdf"
             assert client.get("/api/kb/acme_2024/income_statement").json()["pdf_available"] is True
             assert next(e for e in client.get("/api/kb").json() if e["stem"] == "acme_2024")["pdf_available"] is True

@@ -12,7 +12,9 @@ import math
 import os
 import re
 import statistics
+import shutil
 import sys
+import tempfile
 import time
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -29,7 +31,7 @@ from typing import Literal
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from pipeline import extract as extract_mod, fetch, jobs, kb, llm, locate, parse, paths, ppt, collection, workbench
+from pipeline import extract as extract_mod, fetch, jobs, kb, llm, locate, parse, paths, ppt, collection, workbench, source_evidence
 
 load_dotenv()
 UPLOADS = paths.uploads_dir()
@@ -146,12 +148,28 @@ def pdf_path(report_id: str) -> Path:
     return library_paths.get(report_id) or UPLOADS / f"{report_id}.pdf"
 
 
+def pdf_matches_saved(path: Path, stem: str) -> bool:
+    if not path.is_file():
+        return False
+    digest = kb._meta(stem).get("sha256")
+    return not digest or kb.sha256(path.read_bytes()) == digest
+
+
+def pdf_available(report_id: str) -> bool:
+    stem = report_id[4:] if report_id.startswith("lib-") else report_id
+    return pdf_matches_saved(pdf_path(report_id), stem)
+
+
 def report_texts(report_id: str) -> list[str]:
     if report_id not in texts_cache:
-        if pdf_path(report_id).is_file():
-            stem = report_id[4:] if report_id.startswith("lib-") else report_id
-            digest = kb.sha256(pdf_path(report_id).read_bytes())
-            texts_cache[report_id], parsing = kb.load_texts(stem, pdf_path(report_id), digest)
+        stem = report_id[4:] if report_id.startswith("lib-") else report_id
+        path = pdf_path(report_id)
+        # A newly reattached upload is authoritative for its own up-* record and refreshes that
+        # record's digest/provenance. Curated library files remain checksum-strict: a different
+        # publisher edition must never silently move saved citation page numbers.
+        if path.is_file() and (stem.startswith("up-") or pdf_matches_saved(path, stem)):
+            digest = kb.sha256(path.read_bytes())
+            texts_cache[report_id], parsing = kb.load_texts(stem, path, digest)
             if kb._meta(stem):
                 kb.save_report(stem, kb._meta(stem) | parsing | {"sha256": digest, "pages": len(texts_cache[report_id])}, texts_cache[report_id])
         else:
@@ -230,7 +248,7 @@ def get_report(report_id: str) -> dict:
             # Saved metadata is not allowed to choose a file outside the PDF cache.
             if isinstance(filename, str) and Path(filename).name == filename and "/" not in filename and "\\" not in filename:
                 cached = LIBRARY / filename
-                if not stem.startswith("up-") and cached.is_file():
+                if not stem.startswith("up-") and pdf_matches_saved(cached, stem):
                     library_paths[report_id] = cached
             reports[report_id] = {"report_id": report_id, "filename": filename, "pages": meta.get("pages", 0),
                                   "company": meta.get("company"), "fiscal_year": meta.get("fiscal_year"), "stem": stem}
@@ -246,8 +264,8 @@ def saved_report_id(stem: str) -> str:
 def require_pdf(report_id: str) -> Path:
     get_report(report_id)
     path = pdf_path(report_id)
-    if not path.is_file():
-        raise HTTPException(409, "The PDF is no longer cached. Saved page text is available in the knowledge base; fetch the PDF again to view it.")
+    if not pdf_available(report_id):
+        raise HTTPException(409, "The matching source PDF is not cached. Saved page text is still available; download the original PDF again to view it.")
     return path
 
 
@@ -319,18 +337,65 @@ def register_library(entry: dict, ocr: str = "bounded") -> dict:
     """Register a cached PDF (curated or fetched) exactly like an upload; same file twice = same report_id."""
     report_id = "lib-" + Path(entry["file"]).stem
     path = LIBRARY / entry["file"]
-    if report_id not in reports or library_paths.get(report_id) != path:
-        library_paths[report_id] = path
-        texts_cache.pop(report_id, None)  # a restored text-only report must now read the fetched PDF
+    with kb.report_lock(path.stem):
         digest = kb.sha256(path.read_bytes())
+        meta = kb._meta(path.stem)
+        if meta.get("sha256") and meta["sha256"] != digest:
+            raise HTTPException(409, "This PDF is a different edition from the saved source. Download the original PDF from its source panel to preserve citation page numbers.")
+        if report_id in reports and report_id in texts_cache and library_paths.get(report_id) == path:
+            return reports[report_id]
         texts, parsing = kb.load_texts(path.stem, path, digest, ocr)
-        texts_cache[report_id] = texts
-        reports[report_id] = {"report_id": report_id, "filename": entry["file"], "pages": len(texts),
-                              "company": entry["company"], "fiscal_year": entry["fiscal_year"], "stem": Path(entry["file"]).stem,
-                              "ocr_pages": parsing.get("ocr_pages", [])}  # curated beats guess_meta
-        kb.save_report(Path(entry["file"]).stem, {k: entry.get(k) for k in ("company", "fiscal_year", "language", "source_url")}
+        report = {"report_id": report_id, "filename": entry["file"], "pages": len(texts),
+                  "company": entry["company"], "fiscal_year": entry["fiscal_year"], "stem": Path(entry["file"]).stem,
+                  "ocr_pages": parsing.get("ocr_pages", [])}  # curated beats guess_meta
+        kb.save_report(Path(entry["file"]).stem, meta | {k: entry.get(k) for k in ("company", "fiscal_year", "language", "source_url")}
                        | {"pages": len(texts), "sha256": digest, "filename": entry["file"]} | parsing, texts)
+        # Publish only after parsing and persistence succeed, so a failed request can be retried.
+        library_paths[report_id] = path
+        texts_cache[report_id] = texts
+        reports[report_id] = report
     return reports[report_id]
+
+
+@app.post("/api/kb/{stem}/pdf")
+def restore_source_pdf(stem: str):
+    report_id = saved_report_id(stem)
+    get_report(report_id)  # validates the stem and requires an existing saved report
+    with kb.report_lock(stem):
+        meta = kb._meta(stem)
+        filename = meta.get("filename") or f"{stem}.pdf"
+        if stem.startswith("up-") or Path(filename).name != filename or "/" in filename or "\\" in filename:
+            raise HTTPException(409, "Upload this source PDF again to restore it.")
+        path = LIBRARY / filename
+        if not pdf_matches_saved(path, stem):
+            url, expected = meta.get("source_url"), meta.get("sha256")
+            if not expected or not isinstance(url, str) or not url.startswith(("https://", "http://")):
+                raise HTTPException(409, "This saved report has no verifiable download source. Upload the original PDF to restore it.")
+            try:
+                data = fetch._unzip(fetch._get(url))
+            except Exception as exc:
+                raise HTTPException(502, "The original PDF could not be downloaded. Please retry later; saved text is still available.") from exc
+            if kb.sha256(data) != expected:
+                raise HTTPException(409, "The publisher's PDF differs from the saved source. It was not attached because its citation pages may differ.")
+            LIBRARY.mkdir(parents=True, exist_ok=True)
+            if path.is_file():
+                backup = LIBRARY / "replaced"
+                backup.mkdir(exist_ok=True)
+                shutil.copy2(path, backup / f"{path.stem}-{kb.sha256(path.read_bytes())[:12]}.pdf")
+            fd, temporary = tempfile.mkstemp(dir=LIBRARY, suffix=".tmp")
+            try:
+                with os.fdopen(fd, "wb") as stream:
+                    stream.write(data)
+                os.replace(temporary, path)
+            finally:
+                Path(temporary).unlink(missing_ok=True)
+            library_pages.pop(filename, None)
+        entry = {k: meta.get(k) for k in ("company", "fiscal_year", "language", "source_url")}
+        entry.update(file=filename, sha256=meta.get("sha256"), tags=["restored"])
+        fetch._upsert_index(LIBRARY, entry)
+        # Restoring identical bytes does not need to reparse or alter saved evidence/reviews.
+        library_paths[report_id] = path
+        return get_report(report_id)
 
 
 @app.post("/api/reports/from-library")
@@ -371,7 +436,23 @@ def fetch_report(body: FetchBody):
     saved = [e for e in kb.entries() if e.get("fiscal_year") == body.year and collection.identity(e.get("company")) == collection.identity(body.company)]
     saved.sort(key=lambda e: (e["stem"] != f"{slug}_{body.year}", e["stem"]))
     if saved and not body.download_pdf:
-        return get_report(saved_report_id(saved[0]["stem"]))
+        report = get_report(saved_report_id(saved[0]["stem"]))
+        jobs.step(body.job_id, "done", f"{saved[0]['stem']} (saved page text)")
+        return report
+    if saved:
+        jobs.step(body.job_id, "directory", f"saved evidence found for {body.company} ({body.year}); restoring its original PDF")
+        try:
+            report = restore_source_pdf(saved[0]["stem"])
+            jobs.step(body.job_id, "done", f"{saved[0]['stem']} (original PDF restored)")
+            return report
+        except HTTPException as exc:
+            if exc.status_code not in (409, 502):
+                jobs.step(body.job_id, "failed", str(exc.detail))
+                raise
+            # Keep the saved edition usable as text; discovery must not replace its citations.
+            report = get_report(saved_report_id(saved[0]["stem"]))
+            jobs.step(body.job_id, "done", f"{saved[0]['stem']} (saved text; original PDF unavailable)")
+            return report
     entry = next((e for e in library_index() if e["fiscal_year"] == body.year and collection.identity(e["company"]) == collection.identity(body.company)), None)
     if entry:
         # v194's UI starts polling before this route resolves. A library hit bypasses
@@ -392,10 +473,8 @@ def fetch_report(body: FetchBody):
         except LookupError as e:
             if saved:  # the PDF is wanted but unreachable: the git-synced page text still extracts; the Source panel says the PDF is missing
                 return get_report(saved_report_id(saved[0]["stem"]))
-            detail = f"no annual report found for {body.company} {body.year}"
-            if len(e.args) > 1 and e.args[1]:  # v074: a failed model search says so, with why
-                detail += f"; {e.args[1]}"
-            return JSONResponse({"detail": detail, "tried": e.args[0]}, status_code=404)
+            status, detail = fetch.failure_response(body.company, body.year, e)
+            return JSONResponse(detail, status_code=status)
         print(f"[fetch] {body.company} {body.year} -> {entry['file']} from {entry['source_url']} in {time.time() - t0:.0f}s")
     return register_library(entry, body.ocr)
 
@@ -416,9 +495,26 @@ def read_report(report_id: str):
     return get_report(report_id)
 
 
+def evidence_quotes(quotes: list[str]) -> list[str]:
+    if not quotes or len(quotes) > 20 or any(not q.strip() or len(q) > 8000 for q in quotes) or sum(map(len, quotes)) > 24000:
+        raise HTTPException(422, "Supply 1-20 nonempty quotes (8,000 characters each, 24,000 total)")
+    return quotes
+
+
 @app.get("/api/reports/{report_id}/pdf")
-def report_pdf(report_id: str):
+def report_pdf(report_id: str, page: int | None = None, quote: list[str] | None = Query(default=None)):
     report = get_report(report_id)  # FileResponse handles Range, so the browser viewer can seek
+    if quote is not None:
+        quotes = evidence_quotes(quote)
+        with pymupdf.open(require_pdf(report_id)) as doc:
+            if page is None or not 1 <= page <= len(doc):
+                raise HTTPException(422, "A valid page is required for PDF highlights")
+            found = source_evidence.locate(doc[page - 1], quotes)
+            source_evidence.annotate(doc[page - 1], found)
+            return Response(doc.tobytes(garbage=3, deflate=True), media_type="application/pdf", headers={
+                "Content-Disposition": 'inline; filename="highlighted-report.pdf"', "Cache-Control": "no-store",
+                "X-Evidence-Matched-Quotes": str(found["matched_quotes"]),
+            })
     return FileResponse(require_pdf(report_id), media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{report["filename"]}"'})
 
 
@@ -433,6 +529,16 @@ def page_png(report_id: str, n: int):
 
 
 NUMBER_TOKEN = re.compile(r"\d[\d\s   .,']*\d|\d")  # a printed number, same separator set as frontend/verification.ts's THOUSANDS
+
+
+@app.get("/api/reports/{report_id}/pages/{n}/evidence")
+def page_evidence(report_id: str, n: int, quote: list[str] = Query()):
+    quotes = evidence_quotes(quote)
+    with pymupdf.open(require_pdf(report_id)) as doc:
+        if not 1 <= n <= len(doc):
+            raise HTTPException(404, "Page out of range")
+        page = doc[n - 1]
+        return source_evidence.response(page, source_evidence.locate(page, quotes))
 
 
 @app.get("/api/reports/{report_id}/pages/{n}/locate")
@@ -576,7 +682,7 @@ def _run_extract(report_id: str, body: ExtractBody):
         result.update(cache_key=extraction_identity(report, schema, extract_mod.system_prompt(schema, report["stem"])),
                       cached=False, model=os.getenv("LLM_MODEL"), provider=llm.provider())
         result.setdefault("timings", {})["total"] = round(time.perf_counter() - started, 3)
-        result.update(stem=report["stem"], pdf_available=pdf_path(report_id).is_file())
+        result.update(stem=report["stem"], pdf_available=pdf_available(report_id))
         workbench.decorate(result, schema, {"at": datetime.datetime.now(datetime.timezone.utc).isoformat(), "reason": "Recalculated explicit values after extraction"})
         with review_lock:
             if saved.exists() and has_reviews(json.loads(saved.read_text(encoding="utf-8"))):
@@ -718,7 +824,7 @@ def list_kb(collection_name: Literal["all", "wallenberg", "midcap"] = "all"):
             continue
         report_id = saved_report_id(e["stem"])
         get_report(report_id)
-        out.append(e | {"report_id": report_id, "pdf_available": pdf_path(report_id).is_file(),
+        out.append(e | {"report_id": report_id, "pdf_available": pdf_available(report_id),
                         "sector": sectors.get(normalize(e.get("company") or ""))})
     return out
 
@@ -866,7 +972,7 @@ def kb_extraction(stem: str, section: str):
         raise HTTPException(404, f"no {section!r} extraction for {stem!r}; see GET /api/kb")
     report_id = get_report(saved_report_id(stem))["report_id"]
     extractions[report_id] = saved_extraction(report_id, section) | {
-        "report_id": report_id, "stem": stem, "pdf_available": pdf_path(report_id).is_file()}
+        "report_id": report_id, "stem": stem, "pdf_available": pdf_available(report_id)}
     return workbench.decorate(extractions[report_id], load_schema(section))
 
 
@@ -940,7 +1046,7 @@ def review_field(report_id: str, body: ReviewBody):
         field.setdefault("review_history", []).append({**review, "previous": previous})
         workbench.decorate(result, load_schema(body.section), review)
         kb.save_extraction(stem, body.section, result)
-        result.update(report_id=report_id, stem=stem, pdf_available=pdf_path(report_id).is_file())
+        result.update(report_id=report_id, stem=stem, pdf_available=pdf_available(report_id))
         extractions[report_id] = result
         return result
 
@@ -975,7 +1081,7 @@ def review_basis(report_id: str, body: BasisBody):
         result["basis"] = basis
         workbench.decorate(result, load_schema(body.section), basis)
         kb.save_extraction(stem, body.section, result)
-        result.update(report_id=report_id, stem=stem, pdf_available=pdf_path(report_id).is_file())
+        result.update(report_id=report_id, stem=stem, pdf_available=pdf_available(report_id))
         extractions[report_id] = result
         return result
 

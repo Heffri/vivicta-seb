@@ -1,5 +1,32 @@
 [
   {
+    "file": "fam_2025.pdf",
+    "company": "FAM AB",
+    "fiscal_year": 2025,
+    "language": "sv",
+    "source_url": "https://fam.se/sites/default/files/2026-06/FAM_%C3%85R_2025.pdf",
+    "tags": ["wallenberg"],
+    "note": "Official annual report linked from FAM's JavaScript news page; verified 2026-09-22"
+  },
+  {
+    "file": "hoganas_2025.pdf",
+    "company": "Höganäs",
+    "fiscal_year": 2025,
+    "language": "en",
+    "source_url": "https://www.hoganas.com/globalassets/downloads/corporate/sustainability/sustainabilty-report-2025_3710hog.pdf",
+    "tags": ["wallenberg"],
+    "note": "Combined annual and sustainability report despite its shortened filename; verified 2026-09-22"
+  },
+  {
+    "file": "kopparfors_skogar_2025.pdf",
+    "company": "Kopparfors Skogar",
+    "fiscal_year": 2025,
+    "language": "sv",
+    "source_url": "https://kopparfors.se/wp-content/uploads/2026/03/KS_Arsredovisning_2025.pdf",
+    "tags": ["wallenberg"],
+    "note": "Official annual accounts; verified 2026-09-22"
+  },
+  {
     "file": "atlas_copco_2025.pdf",
     "company": "Atlas Copco",
     "fiscal_year": 2025,
