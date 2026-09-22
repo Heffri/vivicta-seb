@@ -5,6 +5,7 @@ import datetime
 import threading
 import csv
 import io
+import inspect
 import json
 import logging
 import math
@@ -196,12 +197,28 @@ def fill_texts(report_id: str) -> list[str]:
 
 
 def library_index() -> list[dict]:
-    """index.json entries whose PDF is actually on disk."""
+    """index.json entries whose PDF is present *and readable*.
+
+    A killed write may leave a filename behind. Never advertise that as a cached report: the
+    fetch route can retry it, while /api/library and /from-library stay safe and deterministic.
+    """
     index = LIBRARY / "index.json"
     if not index.is_file():
         return []  # an isolated ARP_DATA_DIR starts with an empty report cache
     entries = json.loads(index.read_text(encoding="utf-8"))
-    return [e for e in entries if (LIBRARY / e["file"]).exists()]
+    out = []
+    for e in entries:
+        filename = e.get("file") if isinstance(e, dict) else None
+        if not isinstance(filename, str) or Path(filename).name != filename:
+            continue
+        path = LIBRARY / filename
+        try:
+            with pymupdf.open(path) as doc:
+                if doc.is_pdf and doc.page_count > 0:
+                    out.append(e)
+        except Exception:
+            continue
+    return out
 
 
 def get_report(report_id: str) -> dict:
@@ -356,13 +373,22 @@ def fetch_report(body: FetchBody):
     if saved and not body.download_pdf:
         return get_report(saved_report_id(saved[0]["stem"]))
     entry = next((e for e in library_index() if e["fiscal_year"] == body.year and collection.identity(e["company"]) == collection.identity(body.company)), None)
+    if entry:
+        # v194's UI starts polling before this route resolves. A library hit bypasses
+        # pipeline.fetch.fetch_report(), so settle the job here instead of making that otherwise
+        # successful fast path produce a noisy /api/jobs/{id} 404 in the renderer.
+        jobs.step(body.job_id, "done", f"{entry['file']} (already cached)")
     if not entry:
         if not body.download_pdf:
             raise HTTPException(409, "No saved report text or local PDF for this company and year. Enable PDF download explicitly or upload your own report.")
         t0 = time.time()
         try:
             # A confirmed candidate's url is tried first; then the connected model searches official sources; feeds are fallback discovery.
-            entry = fetch.fetch_report(body.company, body.year, LIBRARY, body.country, body.hint, url=body.url, job_id=body.job_id)
+            entry = fetch.fetch_report(body.company, body.year, LIBRARY, body.country, body.hint,
+                                       url=body.url, job_id=body.job_id)
+        except fetch.ReportStoreError as e:
+            jobs.step(body.job_id, "failed", str(e))
+            return JSONResponse({"detail": str(e), "tried": [body.url] if body.url else []}, status_code=503)
         except LookupError as e:
             if saved:  # the PDF is wanted but unreachable: the git-synced page text still extracts; the Source panel says the PDF is missing
                 return get_report(saved_report_id(saved[0]["stem"]))
@@ -534,6 +560,7 @@ def _run_extract(report_id: str, body: ExtractBody):
                     result["merge"]["hints"] = "run2"
                 merge.recheck(result, schema, texts, pages)  # the winner's own checks would misdescribe a field mix
             print(f"[extract] {report_id} {body.section}: merge={mode} runs={result['merge']['runs']}")
+        apply_second_pass(result, texts, pages, schema, report)
         failures = [w for w in result["warnings"] if w.startswith("llm:")]
         if failures and not any(f.get("value") is not None for f in result["fields"]):
             raise HTTPException(502, " ".join(failures))
@@ -557,6 +584,32 @@ def _run_extract(report_id: str, body: ExtractBody):
             kb.save_extraction(report["stem"], body.section, result)  # fixture results never enter the KB
     extractions[report_id] = result
     return result
+
+
+def apply_second_pass(result: dict, texts: list[str], pages: list[int], schema: dict, report: dict) -> dict:
+    """Route-level policy and accounting for w197's bounded required-field retry.
+
+    The default is off: the bounded live validation did not produce a net-positive correction.
+    Set ``EXTRACT_SECOND_PASS=1`` to opt in; the zero timings make the default or an explicit off
+    choice observable in the normal extraction response.
+    """
+    # A normal extract always records timings and accepts fixed_pages. Treat a malformed/synthetic
+    # result or an injected legacy extractor without that contract as non-retryable rather than
+    # issuing model work whose provenance window or call accounting cannot be reconciled.
+    try:
+        fixed_pages_supported = "fixed_pages" in inspect.signature(extract_mod.extract).parameters
+    except (TypeError, ValueError):
+        fixed_pages_supported = False
+    enabled = os.getenv("EXTRACT_SECOND_PASS", "0") == "1" and isinstance(result.get("timings"), dict) and fixed_pages_supported
+    stats = extract_mod.second_pass(result, texts, pages, schema, report) \
+        if enabled else {"calls": 0, "seconds": 0.0, "model": 0.0, "validate": 0.0}
+    timings = result.setdefault("timings", {})
+    timings["model"] = round(timings.get("model", 0.0) + stats["model"], 3)
+    timings["validate"] = round(timings.get("validate", 0.0) + stats["validate"], 3)
+    timings["attempts"] = timings.get("attempts", 0) + stats["calls"]
+    timings["second_pass_calls"] = stats["calls"]
+    timings["second_pass"] = stats["seconds"]
+    return stats
 
 
 @app.post("/api/reports/{report_id}/fill")
@@ -1055,7 +1108,8 @@ def extraction_identity(report, schema, prompt):
     # ponytail: EXTRACT_VERSION instead of hashing 7 source files -- a comment edit no longer re-runs every section
     return kb.fingerprint({"report": kb._meta(report["stem"]), "schema": schema, "pipeline": extract_mod.EXTRACT_VERSION,
                            "model": os.getenv("LLM_MODEL") or {"codex": "gpt-5.6-terra", "claude": "claude-sonnet-5"}.get(llm.provider(), "fixture"), "provider": llm.provider(), "prompt": prompt,
-                           "settings": {k: os.getenv(k) for k in ("LLM_BASE_URL", "LLM_REASONING", "LLM_THINK", "LLM_NUM_CTX", "LLM_STRICT_SCHEMA", "DEBT_BASIS", "EXTRACT_MERGE_RUNS", "EXTRACT_TWO_PASS", "FEWSHOT")}})
+                           "settings": {k: os.getenv(k) for k in ("LLM_BASE_URL", "LLM_REASONING", "LLM_THINK", "LLM_NUM_CTX", "LLM_STRICT_SCHEMA", "DEBT_BASIS", "EXTRACT_MERGE_RUNS", "EXTRACT_TWO_PASS", "FEWSHOT")}
+                           | {"EXTRACT_SECOND_PASS": os.getenv("EXTRACT_SECOND_PASS", "0")}})
 
 
 @app.post("/api/knowledge/{stem}/open")

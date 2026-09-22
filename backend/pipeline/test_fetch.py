@@ -17,6 +17,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pymupdf as fitz
+from fastapi.testclient import TestClient
 
 import app
 from . import fetch, jobs
@@ -190,6 +191,22 @@ def demo():
             with patch.object(app, "LIBRARY", empty_library):
                 assert app.library_index() == []
 
+            # A filename merely existing is not enough to make a library row usable. A killed
+            # download can leave a zero/partial file beside a previously written index row; that
+            # exact "listed, then says it does not exist" shape must be hidden from /api/library
+            # and rejected by /from-library rather than crashing PyMuPDF while the list renders.
+            broken_library = tmp / "broken-library"
+            broken_library.mkdir()
+            broken_entry = {"file": "broken_2025.pdf", "company": "Broken", "fiscal_year": 2025}
+            (broken_library / "index.json").write_text(json.dumps([broken_entry]), encoding="utf-8")
+            (broken_library / broken_entry["file"]).write_bytes(b"%PDF-partial")
+            with patch.object(app, "LIBRARY", broken_library), patch.object(app, "reports", {}), \
+                    patch.object(app, "library_paths", {}), patch.object(app, "library_pages", {}):
+                assert app.library_index() == []
+                client = TestClient(app.app)
+                assert client.get("/api/library?collection_name=all").json() == []
+                assert client.post("/api/reports/from-library", json={"file": broken_entry["file"]}).status_code == 404
+
             dest = tmp / "reports"
 
             # 1. gate: with no CLI provider there is no fourth source -- web_lookup is never called,
@@ -228,7 +245,77 @@ def demo():
             again = fetch.fetch_report(COMPANY, YEAR, dest)
             assert again["tried"] == [] and again["file"] == entry["file"], again
             assert len(fake.calls) == 1, "cache hit must not re-search"
+
+            # The API finds valid library entries before it calls pipeline.fetch.fetch_report().
+            # That fast path must still settle v194's frontend-generated job_id, or the renderer's
+            # final job poll receives a 404 even though the cached fetch itself returned 200.
+            cached_job_id = "job-fetch-cached-route"
+            jobs._jobs.pop(cached_job_id, None)
+            with patch.object(app, "LIBRARY", dest), patch.object(
+                app, "register_library", return_value={"report_id": "lib-nestle_2025"}
+            ):
+                cached_response = TestClient(app.app).post("/api/reports/fetch", json={
+                    "company": COMPANY, "year": YEAR, "download_pdf": True, "job_id": cached_job_id,
+                })
+            assert cached_response.status_code == 200, cached_response.text
+            cached_job = jobs.get(cached_job_id)
+            assert cached_job and cached_job["done"] and cached_job["stage"] == "done", cached_job
+            assert "already cached" in cached_job["events"][-1]["text"], cached_job
             fetch._candidates = lambda company, year, job_id=None: []
+
+            # A corrupt file must never count as a cache hit just because its name is indexed.
+            # Remove the ghost row/file and retry discovery; with every source disabled here the
+            # retry honestly fails and leaves neither a visible index row nor a partial target.
+            dest_ghost = tmp / "reports-ghost"
+            dest_ghost.mkdir()
+            (dest_ghost / "index.json").write_bytes((dest / "index.json").read_bytes())
+            (dest_ghost / entry["file"]).write_bytes(b"%PDF-interrupted")
+            os.environ.pop("LLM_PROVIDER", None)
+            try:
+                fetch.fetch_report(COMPANY, YEAR, dest_ghost)
+                assert False, "expected the corrupt cache entry to be rejected"
+            except LookupError:
+                pass
+            assert not (dest_ghost / entry["file"]).exists()
+            assert all(e["file"] != entry["file"] for e in fetch._load_index(dest_ghost))
+
+            # Publish is PDF-temp -> fsync -> on-disk PyMuPDF validation -> atomic rename ->
+            # index. Interrupt the PDF rename: no final file, no index row and no .tmp remain.
+            dest_atomic = tmp / "reports-atomic"
+            original_replace = fetch.os.replace
+
+            def interrupt_pdf_publish(src, dst):
+                if Path(dst).suffix.lower() == ".pdf":
+                    raise OSError("simulated PDF rename interruption")
+                return original_replace(src, dst)
+
+            try:
+                with patch.object(fetch.os, "replace", side_effect=interrupt_pdf_publish):
+                    fetch.fetch_report(COMPANY, YEAR, dest_atomic, url=good_url)
+                assert False, "expected interrupted atomic PDF publish to fail"
+            except RuntimeError as e:
+                assert "could not be saved" in str(e).lower(), e
+            assert not (dest_atomic / f"{fetch.slugify(COMPANY)}_{YEAR}.pdf").exists()
+            assert not (dest_atomic / "index.json").exists()
+            assert not list(dest_atomic.glob("*.tmp"))
+
+            # The route turns the storage failure into a bounded, retryable response. It must not
+            # escape as an unhandled 500 (or take the packaged backend down with it).
+            api_library = tmp / "api-store-failure"
+            api_library.mkdir()
+            (api_library / "index.json").write_text("[]", encoding="utf-8")
+            with patch.object(app, "LIBRARY", api_library), patch.object(
+                app.fetch, "fetch_report", side_effect=fetch.ReportStoreError(
+                    "Downloaded report could not be saved and validated; retry download."
+                )
+            ):
+                response = TestClient(app.app, raise_server_exceptions=False).post(
+                    "/api/reports/fetch", json={"company": COMPANY, "year": YEAR, "download_pdf": True}
+                )
+            assert response.status_code == 503, response.text
+            assert "retry download" in response.json()["detail"].lower(), response.json()
+
+            os.environ["LLM_PROVIDER"] = "codex"
 
             # 4. unparseable model reply -> the 404 detail says the search itself failed
             dest2 = tmp / "reports2"
@@ -238,6 +325,15 @@ def demo():
                 assert False, "expected LookupError on a non-JSON model reply"
             except LookupError as e:
                 assert e.args[1] and "model search (codex) failed" in e.args[1], e.args
+
+            # Valid JSON with the wrong top-level type is still a provider failure, not an
+            # AttributeError escaping the route as a 500 (and certainly not a process crash).
+            os.environ["FAKE_WEB_REPLY"] = "[]"
+            try:
+                fetch.fetch_report(COMPANY, YEAR, tmp / "reports-wrong-json-shape")
+                assert False, "expected LookupError on a wrong-shaped model reply"
+            except LookupError as e:
+                assert e.args[1] and "invalid response shape" in e.args[1], e.args
 
             # 5. an unavailable model (here: a 429) reads the same way
             os.environ["FAKE_WEB_REPLY"] = "raise"
