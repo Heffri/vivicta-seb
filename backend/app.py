@@ -1233,9 +1233,10 @@ def review_queue():
     """Every unresolved issue across the whole knowledge base, report by report.
 
     Reads saved extracts the way the whole-KB exports do. Going through kb_extraction instead
-    re-registered every report, hashed its PDF and built a full model system prompt (few-shot
-    examples globbed off disk) per section -- all to compute a `stale` flag no caller here reads.
-    That was ~5 s once nothing narrowed the list; this is ~0.5 s."""
+    built a full model system prompt (few-shot examples globbed off disk) and an extraction
+    identity per section -- all to compute a `stale` flag no caller here reads. Dropping that
+    takes the endpoint from ~4.8 s to ~1.5 s warm once nothing narrows the list. The rest is
+    list_kb(), which still registers each report and hashes its PDF."""
     saved = {schema["name"]: {x["stem"]: x for x in kb_export_extractions(schema["name"])}
              for schema in list_schemas()}
     out = []

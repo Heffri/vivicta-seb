@@ -443,9 +443,11 @@ def search(stems: list[str], query: str, k=8, *, keyword_only=False) -> list[dic
     idxs = {s: _bm25(s) for s in stems}
     n = sum(len(ix["dls"]) for ix in idxs.values()) or 1
     avgdl = sum(sum(ix["dls"]) for ix in idxs.values()) / n or 1.0
-    # Document frequency is a property of the whole query corpus, so compute it once per term.
-    # It used to be recomputed inside the per-stem loop, which made retrieval O(stems^2): fine at
-    # the 11 stems a filtered library showed, 19s cold once every saved report is in scope.
+    # Document frequency is a property of the whole query corpus, so compute it once per term
+    # rather than once per stem. Measured over 212 stems that is worth ~0.03 s on a typical
+    # question and ~0.3 s on a long one -- not the cold cost. The cold cost is the _bm25 call
+    # above building one inverted index per stem: ~17 s for 212 stems, ~1 s once they are cached
+    # for the life of the process. Nothing here touches that.
     idfs = {}
     for t in set(terms):
         df = sum(len(idxs[s2]["postings"][t]) for s2 in stems if t in idxs[s2]["postings"])

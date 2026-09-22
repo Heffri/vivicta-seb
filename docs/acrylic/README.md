@@ -62,10 +62,10 @@ verify — locator, parser, label matching.
   noted — see [`frontend/README.md`](../../frontend/README.md) for the dev-server command itself,
   nothing else to set up.
 
-## What a colleague sees now
+## What a colleague saw when this line of work closed
 
 - **Get it**: Sebastijan's CI-built **`desktop-demo`** release (auto-updating, from team `demo`; the `desktop-main` feed tracks `main`) — double-click, no toolchain; the old **`desktop-0.3.4`** portable/Setup zip is a legacy fallback that cannot update itself (the first bullet of "How a teammate gets it" above).
-- **Data**: a KB of **206 companies**, 105 with a stored `debt_maturity` extraction — the KB page opens on the Wallenberg collection (issue #4), and its Collection switch (Wallenberg / All saved reports, [v112](evidence/v112.md)) exposes the rest without touching that default; every entry stays visible to Ask, Compare and `eval/run.py --stored-kb` regardless.
+- **Data**: a KB of **206 companies**, 105 with a stored `debt_maturity` extraction — the KB page opened on the Wallenberg collection (issue #4), and its Collection switch (Wallenberg / All saved reports, [v112](evidence/v112.md)) exposed the rest without touching that default; every entry stayed visible to Ask, Compare and `eval/run.py --stored-kb` regardless. **That switch and its default were removed afterwards** — every surface now lists all of `data/kb`, so the rows below describing a collection picker are what those versions landed, not what the app does today ([`README.md`](../../README.md)).
 - **Look**: Settings' **Theme** switch (Solid default / Acrylic) — the browser UI flips instantly, the desktop window's real material follows; the rail's tone toggle still picks dark/light within either theme.
 - **Accuracy — two separate claims, kept separate** (re-measured on this tree, zero model calls;
   superseded 86.4% / 81.5%):
@@ -601,7 +601,7 @@ code gates, so they're applied consistently — not yet confirmed:
 
 ```bash
 cd frontend && npm run build && npm run lint           # tsc -b + vite build, then oxlint
-cd frontend && npm run e2e                             # Playwright end-to-end pass — 66 tests
+cd frontend && npm run e2e                             # Playwright end-to-end pass
 
 cd backend  && python -m pipeline.test_confidence      # extract.py's evidence/confidence scoring
 cd backend  && python -m pipeline.test_debt_selection  # page selection vs lease-table regression
@@ -616,7 +616,7 @@ cd backend  && python -m pipeline.test_merge           # EXTRACT_MERGE_RUNS agre
 cd backend  && python -m pipeline.test_parse           # parse.py's row-merge behavior
 cd backend  && python -m pipeline.test_paths           # dev-tree-vs-frozen path resolution self-check
 cd backend  && python -m pipeline.test_runtime         # runtime/config regressions, offline
-cd backend  && python test_collection.py               # collection scope (Wallenberg / SEB Mid Cap / all)
+cd backend  && python test_collection.py               # roster merge into the directory, saved-text reuse
 cd backend  && python test_download_import.py          # browser imports: content check, saved reports kept
 cd backend  && python test_fetch_coverage.py           # report-download regressions, offline
 cd backend  && python test_human_review.py             # review route: citations, components, targeted fill
