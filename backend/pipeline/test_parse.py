@@ -259,6 +259,27 @@ def navigation():
     print('Linked navigation column self-check ok')
 
 
+def duplicated_text_layer():
+    """Intel FY2025 p.66 has an overlaid layer: every statement token is doubled."""
+    raw = (
+        "Consolidated Consolidated Statements Statements of of Operations Operations\n"
+        "Net Net revenue revenue $ $ 52,853 52,853 $ $ 53,101 53,101\n"
+        "Income Income (loss) (loss) before before taxes taxes 1,557 1,557 (11,210) (11,210)\n"
+        "Net Net income income (loss) (loss) 26 26 (19,233) (19,233)\n"
+    )
+    clean = p._dedupe_doubled_tokens(raw)
+    assert clean == (
+        "Consolidated Statements of Operations\n"
+        "Net revenue $ 52,853 $ 53,101\n"
+        "Income (loss) before taxes 1,557 (11,210)\n"
+        "Net income (loss) 26 (19,233)\n"
+    ), clean
+    # An ordinary repeated phrase never reaches the page-wide duplicated-layer threshold.
+    ordinary = "This very very small prose example repeats one word.\n"
+    assert p._dedupe_doubled_tokens(ordinary) == ordinary
+    print("duplicated PDF text-layer self-check ok")
+
+
 if __name__ == "__main__":
     navigation()
     demo()
@@ -266,3 +287,4 @@ if __name__ == "__main__":
     stacking()
     headers()
     named_navigation_link()
+    duplicated_text_layer()
