@@ -10,10 +10,12 @@ Columns: `report_file,section,key,expected_value,expected_page,notes`.
 5. Save as CSV (Excel will prompt — say yes, keep UTF-8).
 
 ## Held-out labels
-`heldout-smallcap-2025.csv` is a frozen, blind held-out measurement set. It must never be copied
-or merged into `labels.csv`, used in prompts or few-shot examples, or used to tune extraction or
-shipping decisions; score it only through its explicit `--labels` path against an isolated stored-KB
-snapshot after the first extraction has completed.
+`heldout-smallcap-2025.csv` (round 1) and `heldout-smallcap-2025-r2.csv` (round 2) are frozen,
+blind measurement sets. Neither may be copied or merged into `labels.csv` or used in prompts or
+few-shot examples; score each only through its explicit `--labels` path against an isolated
+stored-KB snapshot after first extraction. Round 1 was subsequently used for guard/tuning work and
+is historical but remains frozen; round 2 is the current held-out set and must not be used to tune
+extraction or shipping decisions.
 
 ## Running
 - `python eval/run.py --dry-run` — no backend needed, scores against the fixture (sanity check).

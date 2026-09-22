@@ -107,6 +107,21 @@ def save_report(stem: str, meta: dict, texts: list[str]) -> Path:
         return d
 
 
+def fill_ocr_pages(stem: str, updates: dict[int, str]) -> None:
+    """Patch a subset of a saved report's pages after an on-demand OCR top-up (v191: a candidate page
+    the bounded registration pass left ocr_pending, OCR'd just before extraction). sha256/parser/
+    ocr_settings are unchanged, so save_report's own cache guard would skip rewriting pages.jsonl --
+    this always rewrites it, then moves the filled pages from ocr_pending to ocr_pages in meta.json."""
+    with report_lock(stem):
+        d = kb_dir() / stem
+        pages = {**_pages(stem), **updates}
+        atomic_write(d / "pages.jsonl", "".join(json.dumps({"page": n, "text": t}, ensure_ascii=False) + "\n" for n, t in sorted(pages.items())))
+        meta = _meta(stem)
+        meta["ocr_pages"] = sorted(set(meta.get("ocr_pages", [])) | set(updates))
+        meta["ocr_pending"] = sorted(set(meta.get("ocr_pending", [])) - set(updates))
+        atomic_write(d / "meta.json", json.dumps(meta, ensure_ascii=False, indent=2))
+
+
 def save_extraction(stem: str, section: str, extraction: dict) -> Path:
     p = kb_dir() / stem / "extractions" / f"{section}.json"
     p.parent.mkdir(parents=True, exist_ok=True)
@@ -719,13 +734,18 @@ def cached_texts(stem, digest):
     return None
 
 
-def load_texts(stem, path, digest):
-    """Use the same OCR provenance/cache behavior for uploads, library, reopen and CLI."""
+def load_texts(stem, path, digest, ocr="bounded"):
+    """Use the same OCR provenance/cache behavior for uploads, library, reopen and CLI. `ocr`:
+    "bounded" (default, v191) OCRs only the pages a debt-maturity locate pass could reach when a
+    cache miss needs a fresh parse; "full" OCRs every scanned page. The default keeps the exact
+    pre-v191 two-positional-arg call to parse.page_texts, so a caller mocking that function with a
+    plain (path, metadata) signature -- as test_runtime.py's provenance test does -- still works."""
     from .parse import page_texts, ocr_settings
     texts = cached_texts(stem, digest)
-    parsing = {"ocr_pages": _meta(stem).get("ocr_pages", []), "ocr_settings": ocr_settings()}
+    meta = _meta(stem)
+    parsing = {"ocr_pages": meta.get("ocr_pages", []), "ocr_pending": meta.get("ocr_pending", []), "ocr_settings": ocr_settings()}
     if texts is None:
-        texts = page_texts(path, parsing)
+        texts = page_texts(path, parsing) if ocr == "bounded" else page_texts(path, parsing, ocr=ocr)
     return texts, parsing
 
 

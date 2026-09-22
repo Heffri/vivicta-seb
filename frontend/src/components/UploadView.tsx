@@ -155,7 +155,7 @@ export function UploadView({ batch, onSubmit, resultsCount, onViewResults, onDon
 
   // The PDF is always wanted (page images, quote checks): the backend reuses a cached PDF, downloads one
   // when only text is saved, and falls back to that saved text if the download fails.
-  const fetchWithDownload = (company: string, opts: { country?: string | null; url?: string | null } = {}) =>
+  const fetchWithDownload = (company: string, opts: { country?: string | null; url?: string | null; ocr?: 'full' } = {}) =>
     fetchReport(company, Number(yearRef.current), { ...opts, download_pdf: true })
 
   // Stored extraction from the knowledge base (supervisor add-on): no model call, works without the
@@ -183,12 +183,12 @@ export function UploadView({ batch, onSubmit, resultsCount, onViewResults, onDon
       ...(onlyExtra ? [] : picked).map((c) => ({
         label: c.name,
         prep: `Opening ${c.name} annual report ${yearRef.current}…`,
-        getReport: () => fetchWithDownload(c.name),
+        getReport: (opts?: { ocr?: 'full' }) => fetchWithDownload(c.name, opts),
       })),
       ...(onlyExtra ? [] : library)
         .filter((e) => selected.has(e.file))
-        .map((e) => ({ label: e.company, getReport: () => registerLibraryReport(e.file) })),
-      ...(onlyExtra ? [] : files).map((f) => ({ label: f.name, getReport: () => uploadReport(f), fromUpload: true })),
+        .map((e) => ({ label: e.company, getReport: (opts?: { ocr?: 'full' }) => registerLibraryReport(e.file, opts?.ocr) })),
+      ...(onlyExtra ? [] : files).map((f) => ({ label: f.name, getReport: (opts?: { ocr?: 'full' }) => uploadReport(f, opts?.ocr), fromUpload: true })),
     ]
     onSubmit(specs, section, sectionTitle, eta)
   }
@@ -210,7 +210,7 @@ export function UploadView({ batch, onSubmit, resultsCount, onViewResults, onDon
         {
           label: c.legal_name,
           prep: `Opening ${c.legal_name} annual report ${yearRef.current}…`,
-          getReport: () => fetchWithDownload(c.legal_name, { country: c.country, url: c.url }),
+          getReport: (opts?: { ocr?: 'full' }) => fetchWithDownload(c.legal_name, { country: c.country, url: c.url, ...opts }),
         },
       ],
       true,
@@ -356,7 +356,7 @@ export function UploadView({ batch, onSubmit, resultsCount, onViewResults, onDon
           stopRequested={batch.stopRequested}
           resultsCount={resultsCount}
           onStopAfterCurrent={batch.stopAfterCurrent}
-          onRetry={(id) => void batch.retry(id)}
+          onRetry={(id, opts) => void batch.retry(id, opts)}
           onViewResults={onViewResults}
           onNavigate={onNavigate}
         />

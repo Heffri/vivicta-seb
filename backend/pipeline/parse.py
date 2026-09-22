@@ -37,6 +37,7 @@ Next for a teammate: scanned reports need an OCR fallback (pymupdf + tesseract v
 """
 import re
 import os
+import json
 from pathlib import Path
 from . import paths
 
@@ -60,6 +61,10 @@ _PHRASE_GAP = 4.0  # word-to-word gap _phrases treats as ordinary spacing within
 _HEADER_TOL = 2.0  # a header phrase's own right edge must land within this many points of its column's right edge to be adopted: both companies' printers right-align a wrapped header phrase's last word to its column, the same edge the column's own figures right-align to; every real match measured here lands within 0.2pt
 _HEADER_MAX_LINES = 3  # a transposed header is at most this many physical lines above its anchor row (v060: Ework and XANO each wrap at most 2; a 4th line reaching this deep is a different shape, not this one)
 
+OCR_PAGE_BUDGET = int(os.getenv("OCR_PAGE_BUDGET", "40"))  # v191: pages a bounded registration pass may OCR synchronously
+OCR_SECONDS_PER_PAGE = 2.2  # v191: Saab's 231-page scan measured 506s (docs/PERFORMANCE.md) -- for the budget 422's "~N min" estimate only
+FRONT_PAGES = 8  # v191: report front matter always considered, mirrors locate.py's own TOC_PAGES
+
 
 def _dedupe_doubled_tokens(text: str) -> str:
     """Collapse a text layer that prints nearly every adjacent token twice.
@@ -82,19 +87,73 @@ def _dedupe_doubled_tokens(text: str) -> str:
     return text
 
 
-def page_texts(pdf_path, metadata: dict | None = None) -> list[str]:
-    """0-based list; page n (1-based) is texts[n-1]."""
+class OCRBudgetExceeded(RuntimeError):
+    """A bounded registration pass's own candidate set alone needs more pages than OCR_PAGE_BUDGET."""
+
+    def __init__(self, pages_needed: int):
+        self.pages_needed = pages_needed
+        minutes = max(1, round(pages_needed * OCR_SECONDS_PER_PAGE / 60))
+        super().__init__(f"scanned PDF: OCR would take ~{minutes} min for {pages_needed} pages")
+
+
+def _bounded_ocr_keywords() -> list[str]:
+    """The debt_maturity schema's own toc_keywords -- the same words locate.toc_targets already
+    trusts to match a report's table-of-contents/note-index entries against a section, reused here
+    (not reinvented) so a bounded OCR pass targets the pages a debt-maturity locate pass would
+    actually read."""
+    schema = json.loads((paths.schemas_dir() / "debt_maturity.json").read_text(encoding="utf-8"))
+    return [k.lower() for k in schema.get("toc_keywords", [])]
+
+
+def _locator_bound_pages(doc) -> set[int]:
+    """1-based pages a bounded OCR pass will spend its budget on: the report's own front matter
+    (FRONT_PAGES) plus any outline (bookmark) entry whose title hits a debt/maturity/borrowings
+    keyword, +-1 page. Outline titles are PDF metadata, readable with no text layer at all, which is
+    what makes a bounded pass possible before any page has been OCR'd."""
+    n = doc.page_count
+    bound = set(range(1, min(FRONT_PAGES, n) + 1))
+    keywords = _bounded_ocr_keywords()
+    for _level, title, page in doc.get_toc(simple=True):
+        if not (1 <= page <= n) or not any(k in title.lower() for k in keywords):
+            continue
+        bound.update(p for p in (page - 1, page, page + 1) if 1 <= p <= n)
+    return bound
+
+
+def _looks_scanned(page, text: str) -> bool:
+    return len(re.sub(r"\W", "", text)) < 20 and bool(page.get_images() or len(page.get_drawings()) > 100)
+
+
+def page_texts(pdf_path, metadata: dict | None = None, ocr: str = "bounded") -> list[str]:
+    """0-based list; page n (1-based) is texts[n-1]. `ocr="bounded"` (default) synchronously OCRs
+    only the pages a debt-maturity locate pass could actually reach (_locator_bound_pages) when a
+    page has no text layer; other such pages come back "" and are listed in metadata["ocr_pending"]
+    for later, on-demand OCR (app.py's extract path) instead of costing a ten-minute registration
+    request on a long scanned report. Raises OCRBudgetExceeded rather than running it when even that
+    bounded set is bigger than OCR_PAGE_BUDGET. `ocr="full"` OCRs every such page unconditionally
+    (pre-v191 behaviour) -- an explicit opt-in, since only the caller knows the wait is wanted."""
     if metadata is not None:
-        metadata.update(ocr_pages=[], ocr_settings=ocr_settings())
+        metadata.update(ocr_pages=[], ocr_pending=[], ocr_settings=ocr_settings())
     with pymupdf.open(pdf_path) as doc:
-        return [page_text(page, metadata) for page in doc]
+        if ocr == "full":
+            return [page_text(page, metadata) for page in doc]
+        pages = list(doc)
+        scanned = {p.number + 1 for p in pages if _looks_scanned(p, p.get_text())}
+        bound = _locator_bound_pages(doc) if scanned else set()
+        if len(scanned & bound) > OCR_PAGE_BUDGET:
+            raise OCRBudgetExceeded(len(scanned))
+        return [page_text(p, metadata, ocr_allowed=(p.number + 1) in bound) for p in pages]
 
 
-def page_text(page, metadata: dict | None = None) -> str:
+def page_text(page, metadata: dict | None = None, ocr_allowed: bool = True) -> str:
     """Plain text; a text layer that splits table rows (a row label on one line, its figures on the next) gets its
     lines rebuilt so each printed row is one line. Prose-only pages are returned as get_text() wrote them."""
     text = _dedupe_doubled_tokens(page.get_text())
     if len(re.sub(r"\W", "", text)) < 20 and (page.get_images() or len(page.get_drawings()) > 100):
+        if not ocr_allowed:
+            if metadata is not None:
+                metadata.setdefault("ocr_pending", []).append(page.number + 1)
+            return ""
         # PyMuPDF bundles the OCR engine. Language files stay local, no report upload.
         settings = ocr_settings()
         tessdata, language = Path(settings["tessdata"]), settings["language"]

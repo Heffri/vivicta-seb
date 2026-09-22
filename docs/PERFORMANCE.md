@@ -159,32 +159,51 @@ bge-m3 index (1024 dimensions), passage/fact counts, Inspect and Rebuild. Eight 
 update/data-sync tests also passed.
 
 
-## Held-out first extraction (Small Cap, blind labels)
+## Held-out first extraction — round 1 (Small Cap, blind labels; subsequently used for guard tuning)
 
-This is a deliberately small, out-of-sample measurement, not a market-accuracy estimate. The
-fixed sample is ten FY2025 Small Cap reports drawn with `seed=1`; none had appeared in the seed
-sets or `eval/labels.csv`. PDFs, registration, pages and extractions lived in an isolated data
+This historical, deliberately small measurement is not a market-accuracy estimate. Its fixed
+sample was ten FY2025 Small Cap reports drawn with `seed=1`; none had appeared in the seed sets
+or `eval/labels.csv`. PDFs, registration, pages and extractions lived in an isolated data
 directory; the repository KB and label set were neither read as few-shot context nor changed.
-The only copied bootstrap files were the public company catalogue and report index. `FEWSHOT=0`,
-Codex `gpt-5.6-terra` at its normal low reasoning, and all other pipeline switches were left
-unset.
+The human labels were committed before the sealed first-extraction results were opened.
 
-The human labels were committed before the sealed first-extraction results were opened. The
-shipped configuration is **`EXTRACT_MERGE_RUNS=off`**, so its raw output is the primary result:
+The shipped configuration is **`EXTRACT_MERGE_RUNS=off`**, so its raw output was the primary
+round-1 result:
 
 | configuration | model extraction calls | value accuracy | cited-page hit rate | empty misses | non-empty wrong values |
 | --- | ---: | --- | --- | ---: | ---: |
 | default `off` (primary) | 10 | **26/40 (65.0%)** | **8/17 (47.1%)** | 5 | 9 |
 | `majority` (non-default comparison, same frozen labels) | 14 | 27/40 (67.5%) | 8/17 (47.1%) | 5 | 8 |
 
-The two measurements used **24 extraction calls total**, below the 40-call budget. Majority's
+These measurements used **24 extraction calls total**, below their 40-call budget. Majority's
 only value change was to withhold Sedana Medical's false-positive total (lease/acquisition
 liabilities), making that null label correct; it did not improve a cited page. No result caused a
 label, schema, prompt, or pipeline change.
 
-Seven catalogued candidates were skipped while filling the fixed ten: four could not register
-without unavailable OCR language data (SinterCast, Malmbergs Elektriska, BE Group, Wise), Nyorda
-returned 404 without a report, and HAKI Safety plus Cinclus returned plaintext HTTP 500 errors.
-The plaintext handling is a recorded skip rule, not a successful extraction. See
-[v178](acrylic/evidence/v178.md) for the fixed sample, per-company score vectors, configuration,
-and blind-label chronology.
+Round 1 was subsequently inspected to attribute failures and develop the v185/v186 guards. It is
+therefore no longer the current held-out benchmark; it remains a documented historical first-run
+measurement. See [v178](acrylic/evidence/v178.md) for its fixed sample, skips, score vectors,
+configuration, and blind-label chronology.
+
+## Held-out first extraction — round 2 (Small Cap, current held-out)
+
+Round 2 is the current blind held-out measurement. It is a separate ten-report FY2025 Small Cap
+sample drawn with `seed=2`, excluding round 1's 17 extracted-or-skipped companies. Labels in
+`eval/heldout-smallcap-2025-r2.csv` were committed before any extraction output was opened. PDFs,
+registration, pages, raw runs, and snapshots remained under an isolated data directory; the
+repository KB and `labels.csv` were not read or changed. `LLM_PROVIDER=codex`,
+`LLM_MODEL=gpt-5.6-terra`, and `FEWSHOT=0`; the primary run left merge at its shipped `off`
+default.
+
+| configuration | model extraction calls | value accuracy | cited-page hit rate | empty misses | non-empty wrong values |
+| --- | ---: | --- | --- | ---: | ---: |
+| default `off` (primary) | 18 | **36/40 (90.0%)** | **14/17 (82.4%)** | 1 | 3 |
+| `majority` (non-default comparison, same frozen labels) | 22 | 36/40 (90.0%) | 14/17 (82.4%) | 1 | 3 |
+
+Round 2 used **40 extraction calls total**, exactly its cap. Eight majority comparisons matched the
+stored default answer after one run; two needed a second run. The comparison changed no scored
+value or cited page, and no result caused a label, schema, prompt, or pipeline change. The sample
+fill encountered nine fetch skips: eight scan/OCR 422 cases and one non-JSON HTTP 500; round-1
+exclusions are tracked separately. This is an n=10 measurement, not a market-accuracy claim. See
+[v190](acrylic/evidence/v190.md) for the sample, skip handling, frozen-label chronology, snapshots,
+and per-company score vectors.
