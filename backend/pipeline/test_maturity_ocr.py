@@ -114,7 +114,13 @@ def bounded_ocr():
     """v191: registration OCR is bounded to the pages a debt-maturity locate pass could reach, a
     page budget refuses a synchronous pass that is bigger than that, ocr="full" is an unconditional
     opt-in, and a page left ocr_pending can be OCR'd individually later (app.py's on-demand top-up
-    before /extract uses exactly this: a bare parse.page_text() call on the one page it needs)."""
+    before /extract uses exactly this: a bare parse.page_text() call on the one page it needs).
+    Exercises real OCR (not a mocked textpage, unlike main()'s checks above) to prove the recovered
+    text actually lands on the right page -- skipped, not red, on a clone that never ran
+    scripts/setup_ocr.py."""
+    if not parse.ocr_ready():
+        print("bounded OCR self-check skipped: OCR language files missing -- run python scripts/setup_ocr.py")
+        return
     with tempfile.TemporaryDirectory() as root:
         path = _bounded_fixture(Path(root))
 
