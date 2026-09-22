@@ -206,6 +206,16 @@ def _str(v):
     return (str(v).strip() or None) if v is not None else None
 
 
+class NoStandaloneReport(LookupError):
+    """A curated holding is disclosed in its parent report, not as a fetchable issuer report."""
+
+
+def private_report_note(metadata):
+    """User-facing availability fact shared by discover and fetch; never an AI-search failure."""
+    note = f"Private company — reported inside {metadata['reports_in']}'s annual report ({metadata['collection_group']})"
+    return note if metadata.get('report_stem') else note + "; the parent report is not saved locally"
+
+
 def _saved_name_key(name):
     """The report-cache spelling used for an exact saved-report identity -- keep this aligned with the
     filename normalisation in `_name`/`slugify`, rather than treating a search prefix as a company."""
@@ -319,6 +329,13 @@ def discover(company: str, year: int, country: "str | None" = None, hint: "str |
     job_id (v194, optional): reports the directory/model_search stages, the model's own query terms
     and candidate names, and a final done event to pipeline.jobs -- a no-op when job_id is None."""
     dest_dir = Path(dest_dir) if dest_dir is not None else paths.reports_dir()
+    if private := collection.report_metadata(company):
+        # A name occurrence in a parent report is not evidence that the subsidiary issued that
+        # report. Do not let a model turn the parent PDF into a confirmed child-company candidate.
+        note = private_report_note(private)
+        jobs.step(job_id, "directory", note)
+        jobs.step(job_id, "done", "private holding; parent report only")
+        return {"candidates": [], "note": note, "source": "saved", "skipped_web_search": True}
     jobs.step(job_id, "directory", f"checking saved reports for {company} ({year})")
     local = _local_candidates(company, year, dest_dir)
     if local and not force_web:
@@ -973,6 +990,11 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
     job_id is None. See jobs.py's module docstring and docs/API.md's Progress tracking section.
     """
     dest_dir = Path(dest_dir) if dest_dir is not None else paths.reports_dir()
+    if private := collection.report_metadata(company):
+        # This check intentionally precedes URL download, model discovery and legacy feeds.
+        note = private_report_note(private)
+        jobs.step(job_id, "failed", note)
+        raise NoStandaloneReport(note)
     fname = f"{slugify(company)}_{year}.pdf"
     jobs.step(job_id, "directory", f"checking the report cache for {company} ({year})")
     index = _load_index(dest_dir)

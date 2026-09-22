@@ -145,7 +145,7 @@ export function SourcePanel({
             )}
             {askPage !== null ? (
               <p className="text-xs text-muted-foreground">
-                Page {askPage}, cited in an answer. Select a figure to return to its source.
+                Page {askPage}, opened from a linked report. Select a figure to return to its source.
               </p>
             ) : (
               selected?.source && (

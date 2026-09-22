@@ -41,11 +41,11 @@ export default function App() {
 
   useHeadingFocus(tab)
 
-  const done = (rs: Result[]) => {
+  const done = (rs: Result[], initialPage: number | null = null) => {
     setSavedReport(null)
     setResults(rs)
     setDetail(null)
-    setDetailPage(null)
+    setDetailPage(initialPage)
     setTab(rs.length > 1 ? 'compare' : 'results')
   }
   const reset = () => {

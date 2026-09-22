@@ -22,7 +22,7 @@ type Props = {
   onSubmit: (specs: BatchSpec[], section: string, sectionTitle: string, eta: string) => void
   resultsCount: number
   onViewResults: () => void
-  onDone: (results: Result[]) => void // openSample only — a single, instant, zero-model result
+  onDone: (results: Result[], initialPage?: number | null) => void // stored result; private holdings can name a parent-report page
   onNavigate?: (tab: Tab) => void
 }
 
@@ -177,6 +177,22 @@ export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onView
     }
   }
 
+  // A curated private holding is disclosed inside its named parent's report. Open that saved
+  // statement and its portfolio page directly; never send the private company through discovery.
+  const openReportedCompany = async (company: Company) => {
+    if (!company.report_stem) {
+      setError(`${company.reports_in ?? company.name}'s parent report is not saved locally.`)
+      return
+    }
+    setError(null)
+    try {
+      const extraction = await openKbExtraction(company.report_stem, 'income_statement')
+      onDone([{ label: extraction.company ?? company.reports_in ?? company.name, sectionTitle: 'Consolidated income statement', extraction }], company.report_page)
+    } catch (e) {
+      setError((e as Error).message)
+    }
+  }
+
   // Builds the queue and hands it to the App-level batch (v171/consult item 6): submission no
   // longer runs the loop itself, so its progress survives switching away from this tab and back,
   // and the batch doesn't force a tab switch when it ends — see BatchProgress's "View results".
@@ -237,7 +253,7 @@ export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onView
         { value: 'find', label: 'Find a company', icon: FileSearch, count: picked.length, content: <CompanySearch
           collection={collection} query={query} year={year} companies={companies} dirError={dirError} picked={picked} busy={busy} canRun={!!section}
           discovery={discovery} discovering={discovering} trace={trace} onQueryChange={setQuery} onYearChange={setYear} onTogglePick={togglePick}
-          onDiscover={discover} onUseCandidate={useCandidate} /> },
+          onOpenReportedCompany={openReportedCompany} onDiscover={discover} onUseCandidate={useCandidate} /> },
         { value: 'saved', label: 'Saved reports', icon: Files, count: selected.size, content: <CachedReports
           library={library} libraryError={libraryError} selected={selected} busy={busy} onSelectAll={() => setSelected(new Set(library.map(entry => entry.file)))}
           onSelectNone={() => setSelected(new Set())} onToggleTag={toggleAll} onToggleOne={toggleOne} /> },
