@@ -43,7 +43,8 @@ script — the two bundled samples, a three-minute line-by-line, and the demo-da
    [`desktop-demo`](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-demo) prerelease
    is the frozen demo-day build, and the old portable `desktop-0.3.4` zip cannot update itself —
    prefer the latest release. Details: [`desktop/README.md`](desktop/README.md).
-2. **`run.bat` (Windows) / `./run.sh` (macOS/Linux)** from a clone of this repo: first run sets up
+2. **`run.bat` (Windows) / `./run.sh` (macOS/Linux)** from a clone of this repo (needs Python 3.11+
+   and Node 18+ on PATH): first run sets up
    a Python venv, installs dependencies, builds the frontend, and opens the app in your browser on
    one port — about 2–4 minutes; later runs take seconds. Ctrl+C stops it (on Windows,
    `Terminate batch job (Y/N)?` is `cmd.exe`'s own prompt for any batch file — answer `Y`).
