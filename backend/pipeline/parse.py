@@ -48,7 +48,7 @@ _DIGIT_SPACE = re.compile(r" (?=\d)|(?<=\d) ")  # any space touching a digit
 _CHARMAP = str.maketrans({"\u00a0": " ", "\u202f": " ", "\u2013": "-", "\u2212": "-"})  # NBSP, narrow NBSP, en dash, minus
 
 
-PARSER_VERSION = 8  # link-backed navigation gutters must not merge into table rows
+PARSER_VERSION = 9  # v196: collapse a duplicated PDF text layer before locating/rebuilding its rows
 NUMERIC_RUN = 12  # consecutive letterless lines: a column-major text layer (Arion Bank prints every figure first, then every label, in no order)
 _LEADERS = re.compile(r"(?:\s*\.){3,}")
 _PURE_VALUE = re.compile(r"[\s\d.,()\-–—%*]+")  # a figures-only line ("164,155 164,155", " - "), as opposed to a label
@@ -64,6 +64,27 @@ _HEADER_MAX_LINES = 3  # a transposed header is at most this many physical lines
 OCR_PAGE_BUDGET = int(os.getenv("OCR_PAGE_BUDGET", "40"))  # v191: pages a bounded registration pass may OCR synchronously
 OCR_SECONDS_PER_PAGE = 2.2  # v191: Saab's 231-page scan measured 506s (docs/PERFORMANCE.md) -- for the budget 422's "~N min" estimate only
 FRONT_PAGES = 8  # v191: report front matter always considered, mirrors locate.py's own TOC_PAGES
+
+
+def _dedupe_doubled_tokens(text: str) -> str:
+    """Collapse a text layer that prints nearly every adjacent token twice.
+
+    Intel FY2025's statement layer reads ``Net Net income income $ $ 26
+    26``. Repeated words make locator phrases and field synonyms disappear,
+    and repeated numbers turn a three-year row into six columns. Do not rewrite
+    ordinary prose that merely happens to repeat a word: this repair requires at
+    least eight adjacent duplicate pairs across a substantial share of the page,
+    the signature of an overlaid PDF text layer.
+    """
+    tokens = re.findall(r"\S+", text)
+    doubled = sum(a.casefold() == b.casefold() for a, b in zip(tokens, tokens[1:]))
+    if doubled < 8 or doubled * 4 < len(tokens):
+        return text
+    prior = None
+    while text != prior:  # three overlaid copies become one too
+        prior = text
+        text = re.sub(r"(?<!\S)(\S+)(?:[ \t]+\1)(?!\S)", r"\1", text, flags=re.I)
+    return text
 
 
 class OCRBudgetExceeded(RuntimeError):
@@ -127,7 +148,7 @@ def page_texts(pdf_path, metadata: dict | None = None, ocr: str = "bounded") -> 
 def page_text(page, metadata: dict | None = None, ocr_allowed: bool = True) -> str:
     """Plain text; a text layer that splits table rows (a row label on one line, its figures on the next) gets its
     lines rebuilt so each printed row is one line. Prose-only pages are returned as get_text() wrote them."""
-    text = page.get_text()
+    text = _dedupe_doubled_tokens(page.get_text())
     if len(re.sub(r"\W", "", text)) < 20 and (page.get_images() or len(page.get_drawings()) > 100):
         if not ocr_allowed:
             if metadata is not None:
@@ -142,21 +163,21 @@ def page_text(page, metadata: dict | None = None, ocr_allowed: bool = True) -> s
         tp = page.get_textpage_ocr(language=language, dpi=200, full=True, tessdata=str(tessdata))
         if metadata is not None:
             metadata.setdefault("ocr_pages", []).append(page.number + 1)
-        return _words_to_lines([w[:5] for w in page.get_text("words", textpage=tp)])
+        return _dedupe_doubled_tokens(_words_to_lines([w[:5] for w in page.get_text("words", textpage=tp)]))
     navigation = _navigation_columns(page)
     if navigation is not None:
-        return navigation
+        return _dedupe_doubled_tokens(navigation)
     if _numeric_run(text) >= NUMERIC_RUN:
-        return _best_words(page)
+        return _dedupe_doubled_tokens(_best_words(page))
     if not _split_rows(text):
-        return text
+        return _dedupe_doubled_tokens(text)
     merged = _merge_baselines(page)
     leftover = _split_rows(merged)
     if leftover:  # rows still open: their cells sit in separate blocks. Word-level merges those, but a page-wide
         alt = _best_words(page)  # merge also glues columns together -- _best_words cuts them apart when it safely can
         if _split_rows(alt) < leftover:
-            return alt
-    return merged
+            return _dedupe_doubled_tokens(alt)
+    return _dedupe_doubled_tokens(merged)
 
 
 def _navigation_columns(page) -> str | None:
