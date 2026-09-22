@@ -5,7 +5,9 @@
 
 Reads pages.jsonl straight from the already-cached data/kb/<stem>/ -- no PDF, no upload, the same
 corpus eval/labels.csv is scored against (scripts/locate_reach.py uses the same trick to stay
-offline). Needs a real model call either way: LLM_PROVIDER must be configured (see backend/.env.example).
+offline). A real comparison needs a configured model (see backend/.env.example); setting
+LLM_PROVIDER=fixture instead replays the fictional sample extraction for a zero-model smoke test of
+both traversal paths. Fixture scores are deliberately meaningless.
 
 Two extraction calls per company, both through the exact same extract.extract() call, scoring and
 evidence checks:
@@ -35,6 +37,22 @@ os.environ["FEWSHOT"] = "0"  # stable prompts independent of company/run order, 
 from pipeline import extract as extract_mod, llm, locate  # noqa: E402
 
 KB = ROOT / "data" / "kb"
+
+
+def provider_name() -> str:
+    """The application calls an unconfigured setup "fixture" without teaching pipeline.llm about it.
+
+    This script calls extract() directly, so accept that name locally for the required offline path
+    without widening the production provider contract.
+    """
+    return "fixture" if os.getenv("LLM_PROVIDER") == "fixture" else llm.provider()
+
+
+def fixture_reply(_system: str, _user: str, _schema: dict, name: str = "extraction") -> dict:
+    if name != "extraction":
+        return {"pages": [1]} if name == "page_select" else {"fields": []}
+    sample = json.loads((ROOT / "backend" / "fixtures" / "sample_extraction.json").read_text("utf-8"))
+    return {"fields": sample["fields"]}
 
 
 def load_eval_run():
@@ -87,11 +105,16 @@ def run_mode(stem: str, texts: list[str], schema: dict, report_meta: dict, scan_
         os.environ.pop("EXTRACT_SCAN_ALL", None)
     pages = locate.candidate_pages(texts, schema)
     started = time.perf_counter()
+    original_call_llm = extract_mod.call_llm
+    if provider_name() == "fixture":
+        extract_mod.call_llm = fixture_reply
     try:
         result = extract_mod.extract(list(texts), list(pages), schema, report_meta)
     except Exception as e:
         result = {"fields": [], "warnings": [f"error: {type(e).__name__}: {e}"],
                   "timings": {"model": 0.0, "attempts": 0, "validate": round(time.perf_counter() - started, 3)}}
+    finally:
+        extract_mod.call_llm = original_call_llm
     return result
 
 
@@ -149,9 +172,10 @@ def main():
         print(f"cost: {attempts} model calls, {model_s:.1f}s model time across {len(raw[mode])} companies")
 
     if args.out:
-        model = os.getenv("LLM_MODEL") or {"codex": "gpt-5.6-terra", "claude": "claude-sonnet-5"}.get(llm.provider(), "fixture")
+        provider = provider_name()
+        model = os.getenv("LLM_MODEL") or {"codex": "gpt-5.6-terra", "claude": "claude-sonnet-5"}.get(provider, "fixture")
         args.out.write_text(json.dumps({
-            "provider": llm.provider(), "model": model, "section": args.section,
+            "provider": provider, "model": model, "section": args.section,
             "companies": list(raw["targeted"]), "skipped": skipped,
             "modes": {m: {stem: {"fields": r["fields"], "warnings": r["warnings"], "timings": r["timings"]}
                           for stem, r in raw[m].items()} for m in modes},

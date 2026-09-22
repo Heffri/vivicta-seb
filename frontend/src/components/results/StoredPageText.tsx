@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { scrollContent } from '@/components/shell/scrollContent'
 
 type Props = { text: string; quote?: string | null; zoom?: number | null }
 
@@ -17,13 +16,18 @@ export function StoredPageText({ text, quote, zoom = 100 }: Props) {
   const matches = needle ? lines.reduce<number[]>((acc, line, i) => (normalize(line).includes(needle) ? [...acc, i] : acc), []) : []
   const [index, setIndex] = useState(0)
   const activeLine = matches.length ? matches[index % matches.length] : null
+  const textRef = useRef<HTMLPreElement | null>(null)
   const activeRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
-    if (activeLine !== null) scrollContent(activeRef.current, 'smooth')
+    const text = textRef.current
+    const active = activeRef.current
+    if (activeLine !== null && text && active) {
+      text.scrollTo({ top: active.offsetTop - 16, behavior: 'auto' })
+    }
   }, [activeLine, text])
   return (
     <div className="space-y-1.5">
-      <pre style={{ fontSize: `${16 * (zoom ?? 100) / 100}px` }} className="h-[72vh] min-h-96 overflow-x-auto overflow-y-auto whitespace-pre-wrap break-words rounded-lg border bg-background p-5 font-sans leading-relaxed">
+      <pre ref={textRef} style={{ fontSize: `${16 * (zoom ?? 100) / 100}px` }} className="h-[72vh] min-h-96 overflow-x-auto overflow-y-auto whitespace-pre-wrap break-words rounded-lg border bg-background p-5 font-sans leading-relaxed">
         {lines.map((line, i) => (
           <div key={i} ref={i === activeLine ? activeRef : undefined} className={i === activeLine ? 'rounded-[4px] bg-ring/25 px-0.5 ring-1 ring-ring/45' : undefined}>
             {line}
