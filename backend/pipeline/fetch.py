@@ -16,6 +16,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 import threading
 import time
 import unicodedata
@@ -145,6 +146,8 @@ def _model_candidates(company, year, country=None, hint=None, job_id=None):
         user += f"\nHint: {hint}"
     try:
         data = json.loads(llm.web_lookup(SEARCH_SYSTEM, user, SEARCH_SCHEMA, job_id=job_id))
+        if not isinstance(data, dict) or not isinstance(data.get("candidates"), list):
+            raise ValueError("invalid response shape: expected an object with a candidates array")
     except Exception as e:  # the CLI's RuntimeError, a timeout, or bad JSON -- one clear note either way
         print(f"model search failed: {e}")
         return [], f"model search ({llm.provider()}) failed: {str(e)[:200]}"
@@ -176,6 +179,8 @@ def _ir_page_candidates(company, year, country=None, hint=None, job_id=None):
         user += f"\nHint: {hint}"
     try:
         data = json.loads(llm.web_lookup(IR_PAGE_SYSTEM, user, SEARCH_SCHEMA, job_id=job_id))
+        if not isinstance(data, dict) or not isinstance(data.get("candidates"), list):
+            raise ValueError("invalid response shape: expected an object with a candidates array")
     except Exception as e:
         print(f"model IR-page search failed: {e}")
         return [], f"IR-page search ({llm.provider()}) failed: {str(e)[:200]}"
@@ -238,6 +243,8 @@ def _model_discover(query, year, country=None, hint=None, job_id=None):
         user += f"\nHint: {hint}"
     try:
         data = json.loads(llm.web_lookup(DISCOVER_SYSTEM, user, DISCOVER_SCHEMA, job_id=job_id))
+        if not isinstance(data, dict) or not isinstance(data.get("candidates"), list):
+            raise ValueError("invalid response shape: expected an object with a candidates array")
     except Exception as e:  # the CLI's RuntimeError, a timeout, or bad JSON -- one clear note either way
         print(f"model discover failed: {e}")
         return [], f"model search ({llm.provider()}) failed: {str(e)[:200]}"
@@ -630,9 +637,12 @@ def _validate(data, company, year):
         return None, "not a PDF"
     doc = fitz.open(stream=data, filetype="pdf")
     if doc.page_count <= 40:
-        return None, f"only {doc.page_count} pages"
+        pages = doc.page_count
+        doc.close()
+        return None, f"only {pages} pages"
     text = "".join(doc[i].get_text() for i in range(min(20, doc.page_count)))
     if len(text) <= 5000:
+        doc.close()
         return None, "no text layer"
     plain = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
     missing = [t for t in _toks(company) if not re.search(rf"\b{re.escape(t)}", plain)]  # "nibe", "abb", "lundin gold" (not Lundin Mining)
@@ -643,12 +653,16 @@ def _validate(data, company, year):
         # supplier is still somebody else's report (DDG happily returns those).
         acr = _acronym(company)
         if not (acr and re.search(rf"\b{acr}\b", _fold(_head_text(doc)))):
+            doc.close()
             return None, f"issuer mismatch: {missing[0]!r} not in first 20 pages"
     if reason := _year_reason(doc, year):  # v122: the year on the first pages or an accounting period, not "anywhere"
+        doc.close()
         return None, reason
     head = "".join(doc[i].get_text() for i in range(min(3, doc.page_count)))
     if NOT_REPORT.search(head) and not IS_AR.search(head):
-        return None, f"not an annual report: {NOT_REPORT.search(head).group(0)!r} on the cover"
+        reason = f"not an annual report: {NOT_REPORT.search(head).group(0)!r} on the cover"
+        doc.close()
+        return None, reason
     return doc, text
 
 
@@ -796,9 +810,11 @@ def _ir_page_report(seeds, company, year, tried, job_id=None):
             if TITLE_YEAR_MARK in text:  # v122: a cover naming an older year is a finding, not just a miss
                 tried.append(text)
             continue
-        print(f"{url} -> ok ({doc.page_count} pages, {time.time() - t0:.0f}s, IR page crawl)")
-        if not best or doc.page_count > best[3]:
-            best = (url, data, text, doc.page_count)
+        pages = doc.page_count
+        doc.close()
+        print(f"{url} -> ok ({pages} pages, {time.time() - t0:.0f}s, IR page crawl)")
+        if not best or pages > best[3]:
+            best = (url, data, text, pages)
     return best[:3] if best else None
 
 
@@ -820,11 +836,78 @@ def _write_index(dest_dir, index):
 _INDEX_LOCK = threading.Lock()
 
 
+class ReportStoreError(RuntimeError):
+    """A validated download could not be durably published. Safe to show to API callers."""
+
+
 def _upsert_index(dest_dir, entry):
     """Re-read under the lock, then replace the row with the same file: three parallel fetches (the UI's
     pool of 3) each add their own row instead of the last writer dropping the others'."""
     with _INDEX_LOCK:
         _write_index(dest_dir, [e for e in _load_index(dest_dir) if e["file"] != entry["file"]] + [entry])
+
+
+def _drop_index(dest_dir, fname):
+    """Forget one unusable cache row without disturbing parallel writers."""
+    with _INDEX_LOCK:
+        if (dest_dir / "index.json").exists():
+            _write_index(dest_dir, [e for e in _load_index(dest_dir) if e.get("file") != fname])
+
+
+def _readable_pdf(path: Path) -> bool:
+    """A cache hit must be a PDF PyMuPDF can actually open, not merely an existing filename."""
+    try:
+        with fitz.open(path) as doc:
+            return bool(doc.is_pdf and doc.page_count > 0)
+    except Exception:
+        return False
+
+
+def _publish_pdf(dest_dir: Path, fname: str, data: bytes) -> Path:
+    """Durably stage and validate a PDF before atomically making its final name visible.
+
+    The index is updated by the caller only after this returns. An interrupted write or rename
+    therefore leaves no final file for library_index/register_library to mistake for a report.
+    """
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    final = dest_dir / fname
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="wb", dir=dest_dir, prefix=f".{fname}.", suffix=".tmp", delete=False) as tmp:
+            tmp_path = Path(tmp.name)
+            tmp.write(data)
+            tmp.flush()
+            os.fsync(tmp.fileno())
+        if not _readable_pdf(tmp_path):
+            raise ValueError("the staged file is not a readable PDF")
+        os.replace(tmp_path, final)
+        tmp_path = None
+        if not _readable_pdf(final):  # verify the final path too; rename must never publish a ghost
+            final.unlink(missing_ok=True)
+            raise ValueError("the published file is not a readable PDF")
+        return final
+    except Exception as e:
+        if tmp_path is not None:
+            try:
+                tmp_path.unlink(missing_ok=True)
+            except OSError as cleanup_error:
+                print(f"PDF temp cleanup failed ({type(cleanup_error).__name__}): {cleanup_error}")
+        print(f"PDF publish failed ({type(e).__name__}): {e}")
+        raise ReportStoreError("Downloaded report could not be saved and validated; retry download.") from e
+
+
+def _publish_report(dest_dir: Path, entry: dict, data: bytes) -> None:
+    """Commit the PDF first and its index row second; roll the file back if indexing fails."""
+    final = _publish_pdf(dest_dir, entry["file"], data)
+    try:
+        _upsert_index(dest_dir, entry)
+    except Exception as e:
+        try:
+            final.unlink(missing_ok=True)
+        except OSError as cleanup_error:
+            print(f"unindexed PDF cleanup failed ({type(cleanup_error).__name__}): {cleanup_error}")
+        print(f"report index publish failed ({type(e).__name__}): {e}")
+        raise ReportStoreError("Downloaded report could not be indexed; retry download.") from e
 
 
 def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, country: "str | None" = None, hint: "str | None" = None,
@@ -846,8 +929,18 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
     index = _load_index(dest_dir)
     for e in index:  # cache hit
         if e["file"] == fname and (dest_dir / fname).exists():
-            jobs.step(job_id, "done", f"{e['file']} (already cached)")
-            return {**e, "tried": []}
+            if _readable_pdf(dest_dir / fname):
+                jobs.step(job_id, "done", f"{e['file']} (already cached)")
+                return {**e, "tried": []}
+            # A previous interrupted/externally damaged download is not a cache hit. Remove both
+            # halves before retrying so /api/library cannot expose a row PyMuPDF cannot open.
+            jobs.step(job_id, "verify", f"{e['file']} is unreadable; removing it before retry")
+            try:
+                (dest_dir / fname).unlink(missing_ok=True)
+                _drop_index(dest_dir, fname)
+            except OSError as err:
+                print(f"corrupt report cache cleanup failed ({type(err).__name__}): {err}")
+                raise ReportStoreError("The incomplete cached report could not be removed; retry download.") from err
     tried, toks, stub_pages, page_seeds = [], _toks(company), [], []
     model_note = None
     if url:  # the confirmed link first: same download + validation as every other source, then fall through
@@ -863,12 +956,12 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
         else:
             jobs.step(job_id, "verify", _verify_text(url, doc, text))
         if doc:
-            print(f"{url} -> ok ({doc.page_count} pages, {time.time() - t0:.0f}s, confirmed url)")
-            note = "confirmed url" if _is_full_report(url, doc.page_count) else "confirmed url; summary volume"
-            dest_dir.mkdir(parents=True, exist_ok=True)
-            (dest_dir / fname).write_bytes(data)
+            pages = doc.page_count
+            doc.close()
+            print(f"{url} -> ok ({pages} pages, {time.time() - t0:.0f}s, confirmed url)")
+            note = "confirmed url" if _is_full_report(url, pages) else "confirmed url; summary volume"
             entry = _entry(fname, company, year, url, text, note=note)
-            _upsert_index(dest_dir, entry)
+            _publish_report(dest_dir, entry, data)
             jobs.step(job_id, "done", f"{entry['file']} ({note})")
             return {**entry, "tried": tried}
         if text:
@@ -903,26 +996,24 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
                 if not data.startswith(b"%PDF") and url not in page_seeds:  # the model named a page, not a PDF (v080)
                     page_seeds.append(url)
                 continue
-            print(f"{url} -> ok ({doc.page_count} pages, {time.time() - t0:.0f}s)")
-            hits.append((url, data, text, doc.page_count))
+            pages = doc.page_count
+            doc.close()
+            print(f"{url} -> ok ({pages} pages, {time.time() - t0:.0f}s)")
+            hits.append((url, data, text, pages))
         if hits:
             # v081: prefer the complete report over a summary volume when more than one candidate
             # validated; accept a summary only when nothing among them clears the full-report bar
             url, data, text, pages = _best_model_candidate(hits)
             note = f"model search ({p})" if _is_full_report(url, pages) else f"model search ({p}); summary volume"
-            dest_dir.mkdir(parents=True, exist_ok=True)
-            (dest_dir / fname).write_bytes(data)
             entry = _entry(fname, company, year, url, text, note=note, tags=["fetched", "foreign"])
-            _upsert_index(dest_dir, entry)
+            _publish_report(dest_dir, entry, data)
             jobs.step(job_id, "done", f"{entry['file']} ({note})")
             return {**entry, "tried": tried}
     # Follow the official IR pages returned by the model before broad fallback discovery.
     if page_seeds and (found := _ir_page_report(page_seeds, company, year, tried, job_id=job_id)):
         url, data, text = found
-        dest_dir.mkdir(parents=True, exist_ok=True)
-        (dest_dir / fname).write_bytes(data)
         entry = _entry(fname, company, year, url, text, note="IR page crawl", tags=["fetched", "foreign"])
-        _upsert_index(dest_dir, entry)
+        _publish_report(dest_dir, entry, data)
         jobs.step(job_id, "done", f"{entry['file']} (IR page crawl)")
         return {**entry, "tried": tried}
     # One targeted follow-up can find the official archive when direct links fail.
@@ -934,10 +1025,8 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
         new_seeds = [u for u in ir_urls if u not in page_seeds]
         if new_seeds and (found := _ir_page_report(new_seeds, company, year, tried, job_id=job_id)):
             url, data, text = found
-            dest_dir.mkdir(parents=True, exist_ok=True)
-            (dest_dir / fname).write_bytes(data)
             entry = _entry(fname, company, year, url, text, note="IR page crawl", tags=["fetched", "foreign"])
-            _upsert_index(dest_dir, entry)
+            _publish_report(dest_dir, entry, data)
             jobs.step(job_id, "done", f"{entry['file']} (IR page crawl)")
             return {**entry, "tried": tried}
         if ir_note:
@@ -975,19 +1064,17 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
                 candidates += [u for u in _harvest(stub_pages, year) if u not in candidates]
                 stub_pages = []
             continue
-        print(f"{url} -> ok ({doc.page_count} pages, {time.time() - t0:.0f}s)")
-        dest_dir.mkdir(parents=True, exist_ok=True)
-        (dest_dir / fname).write_bytes(data)
+        pages = doc.page_count
+        doc.close()
+        print(f"{url} -> ok ({pages} pages, {time.time() - t0:.0f}s)")
         entry = _entry(fname, company, year, url, text)
-        _upsert_index(dest_dir, entry)
+        _publish_report(dest_dir, entry, data)
         jobs.step(job_id, "done", entry["file"])
         return {**entry, "tried": tried}
     if page_seeds and (found := _ir_page_report(page_seeds, company, year, tried, job_id=job_id)):
         url, data, text = found
-        dest_dir.mkdir(parents=True, exist_ok=True)
-        (dest_dir / fname).write_bytes(data)
         entry = _entry(fname, company, year, url, text, note="IR page crawl")
-        _upsert_index(dest_dir, entry)
+        _publish_report(dest_dir, entry, data)
         jobs.step(job_id, "done", f"{entry['file']} (IR page crawl)")
         return {**entry, "tried": tried}
     jobs.step(job_id, "failed", f"no annual report found for {company} {year}" + (f"; {model_note}" if model_note else ""))
