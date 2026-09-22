@@ -10,6 +10,7 @@ for (const tone of TONES) {
     const errors = trackPageErrors(page)
     await gotoWithTone(page, tone)
 
+    await page.getByRole('button', { name: 'Upload PDF', exact: true }).click()
     await page.setInputFiles('#pdf', [
       { name: 'sample-report-a.pdf', mimeType: 'application/pdf', buffer: makePdf(2) },
       { name: 'sample-report-b.pdf', mimeType: 'application/pdf', buffer: makePdf(3) },
@@ -72,6 +73,7 @@ test('extract: five uploads run three at a time', async ({ page }) => {
     return route.fulfill({ json: path === '/api/schemas' ? [{ name: 'income_statement', title: 'Income statement' }] : path === '/api/config' ? { provider: 'codex', model: 'test' } : path === '/api/kb/maturity-wall' ? emptyMaturityWall : [] })
   })
   await page.goto('/')
+  await page.getByRole('button', { name: 'Upload PDF', exact: true }).click()
   await page.setInputFiles('#pdf', [1, 2, 3, 4, 5].map(i => ({ name: `report-${i}.pdf`, mimeType: 'application/pdf', buffer: makePdf(i) })))
   await page.getByRole('main').getByRole('button', { name: 'Extract 5 reports', exact: true }).click()
   await expect.poll(() => started.length).toBe(3) // the first three start together…

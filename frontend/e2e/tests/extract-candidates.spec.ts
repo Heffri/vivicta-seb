@@ -18,6 +18,7 @@ for (const tone of TONES) {
     const errors = trackPageErrors(page)
     await gotoWithTone(page, tone)
 
+    await page.getByRole('button', { name: 'Upload PDF', exact: true }).click()
     await page.setInputFiles('#pdf', [{ name: 'candidates-report.pdf', mimeType: 'application/pdf', buffer: makePdf(70, DEBT_PAGES) }])
     await expect(page.getByText('1 file selected')).toBeVisible()
 
@@ -60,6 +61,7 @@ for (const tone of TONES) {
     const errors = trackPageErrors(page)
     await gotoWithTone(page, tone)
 
+    await page.getByRole('button', { name: 'Upload PDF', exact: true }).click()
     await page.setInputFiles('#pdf', [{ name: 'not-found-report.pdf', mimeType: 'application/pdf', buffer: makePdf(70, DEBT_PAGES) }])
     await expect(page.getByText('1 file selected')).toBeVisible()
 

@@ -24,7 +24,7 @@ test('human correction carries a checked citation and component evidence', async
     return route.fulfill({ json: path === '/api/kb' ? [entry] : path === '/api/config' ? { provider: 'codex', model: 'test' } : match ? { text: quotes[Number(match[1])], page: Number(match[1]) } : path === '/api/kb/review_test/income_statement' ? extraction : [] })
   })
   await page.goto('/')
-  const open = async () => { await page.getByRole('tab', { name: 'Knowledge base', exact: true }).click(); await page.getByRole('button', { name: 'Open', exact: true }).click(); await page.getByRole('cell', { name: 'Revenue', exact: true }).click() }
+  const open = async () => { await page.getByRole('tab', { name: 'Knowledge base', exact: true }).click(); await page.getByRole('button', { name: 'Open', exact: true }).click(); await page.getByRole('cell', { name: 'Revenue', exact: true }).click(); await page.locator('summary').filter({ hasText: /^Review Revenue$/ }).click() }
   await open()
   const form = page.getByRole('form', { name: 'Review Revenue' })
   await form.getByLabel('Your name').fill('Sebastian')

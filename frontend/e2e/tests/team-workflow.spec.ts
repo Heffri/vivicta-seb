@@ -102,10 +102,11 @@ test('Review groups checks by exact report and statement, retaining filters and 
   const statement = page.getByRole('article', { name: 'ABB 2025 income statement' })
   await statement.getByText('Show outstanding checks', { exact: true }).click()
   for (const key of ['entity', 'period', 'currency']) await expect(statement.getByText(`Confirm ${key}`, { exact: true })).toBeVisible()
-  await page.getByLabel('kind', { exact: true }).selectOption('basis')
+  await page.getByRole('button', { name: 'Reporting basis', exact: true }).click()
   await expect(page.getByRole('article')).toHaveCount(1)
   await expect(page.getByText('Wallenberg collection · 1 statement · 3 outstanding checks', { exact: true })).toBeVisible()
-  await page.getByLabel('company', { exact: true }).selectOption('Acast')
+  await page.getByRole('combobox', { name: 'Company', exact: true }).click()
+  await page.getByRole('option', { name: 'Acast', exact: true }).click()
   await expect(page.getByText('No checks match these filters.')).toBeVisible()
 })
 

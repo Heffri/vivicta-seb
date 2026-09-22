@@ -40,6 +40,7 @@ for (const tone of TONES) {
       await route.fulfill({ response, json })
     })
 
+    await page.getByRole('button', { name: 'Upload PDF', exact: true }).click()
     await page.setInputFiles('#pdf', [{ name: 'locate-report.pdf', mimeType: 'application/pdf', buffer: makePdf(35, LOCATE_PAGES) }])
     await expect(page.getByText('1 file selected')).toBeVisible()
     await page.getByRole('main').getByRole('button', { name: /^Extract/ }).click()
@@ -129,7 +130,7 @@ for (const tone of TONES) {
     await expect(pre).toContainText('Total credit facility undrawn 500 MSEK') // the whole page still renders
 
     // Due after 5 years: OCR evidence is flagged both in the table and at the top of Source.
-    await page.getByRole('row').filter({ has: page.getByRole('cell', { name: 'Due after 5 years', exact: true }) }).click()
+    await page.getByRole('row').filter({ has: page.getByText('Due after 5 years', { exact: true }) }).click()
     await expect(page.getByText('From OCR — check the scanned image', { exact: false })).toHaveCount(2)
 
     expect(errors).toEqual([])

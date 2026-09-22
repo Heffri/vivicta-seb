@@ -94,6 +94,11 @@ export function SourcePanel({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {selected && askPage === null && <div className="text-sm" aria-live="polite">
+          <p className="font-medium">{selected.label}: {fieldVerification(selected, notReported).label}</p>
+          <p className="mt-1 text-muted-foreground">{fieldVerification(selected, notReported).detail}</p>
+          {selected.evidence?.includes('ocr_text') && <p className="mt-1 font-medium text-warning">From OCR — check the scanned image.</p>}
+        </div>}
         {page !== null && <div className="flex flex-wrap items-center gap-1 rounded-lg border bg-background p-1" aria-label="Source zoom">
           <Button size="icon-sm" variant="ghost" aria-label="Zoom out source" disabled={zoom !== null && zoom <= 75} onClick={() => setZoom(Math.max(75, (zoom ?? 100) - 25))}><Minus /></Button>
           <span className="min-w-12 text-center text-xs tabular-nums" role="status">{zoom === null ? 'Fit width' : `${zoom}%`}</span>
@@ -109,6 +114,31 @@ export function SourcePanel({
           </p>
         ) : (
           <>
+            {askPage === null && selected?.source && (
+              <div>
+                <p className="mb-1.5 text-xs text-muted-foreground">
+                  {selected.label}
+                  {selected.raw_label && selected.raw_label !== selected.label && (
+                    <> · printed as “{selected.raw_label}”</>
+                  )}
+                </p>
+                <pre className="whitespace-pre-wrap break-words rounded-lg border bg-background/70 p-3 font-mono text-xs leading-relaxed">
+                  {highlightQuote(selected.source.quote, selected.value).map((run, i) =>
+                    run.hit ? (
+                      <mark
+                        key={i}
+                        className="rounded-[4px] bg-ring/25 px-0.5 text-foreground ring-1 ring-ring/45"
+                      >
+                        {run.text}
+                      </mark>
+                    ) : (
+                      run.text
+                    ),
+                  )}
+                </pre>
+                {onUseSource && !stem && page === selected.source.page && <Button type="button" variant="outline" size="xs" className="mt-2" onClick={() => onUseSource(selected.source!)}>Use this line as citation</Button>}
+              </div>
+            )}
             {!pdfAvailable ? (
               <div className="space-y-2">
                 <p className="text-xs text-muted-foreground">Saved page text. The original PDF is not available on this device.</p>
@@ -147,33 +177,7 @@ export function SourcePanel({
               <p className="text-xs text-muted-foreground">
                 Page {askPage}, opened from a linked report. Select a figure to return to its source.
               </p>
-            ) : (
-              selected?.source && (
-                <div>
-                  <p className="mb-1.5 text-xs text-muted-foreground">
-                    {selected.label}
-                    {selected.raw_label && selected.raw_label !== selected.label && (
-                      <> · printed as “{selected.raw_label}”</>
-                    )}
-                  </p>
-                  <pre className="whitespace-pre-wrap break-words rounded-lg border bg-background/70 p-3 font-mono text-xs leading-relaxed">
-                    {highlightQuote(selected.source.quote, selected.value).map((run, i) =>
-                      run.hit ? (
-                        <mark
-                          key={i}
-                          className="rounded-[4px] bg-ring/25 px-0.5 text-foreground ring-1 ring-ring/45"
-                        >
-                          {run.text}
-                        </mark>
-                      ) : (
-                        run.text
-                      ),
-                    )}
-                  </pre>
-                  {onUseSource && !stem && page === selected.source.page && <Button type="button" variant="outline" size="xs" className="mt-2" onClick={() => onUseSource(selected.source!)}>Use this line as citation</Button>}
-                </div>
-              )
-            )}
+            ) : null}
             {onFillField && selected?.value === null && page !== null && (
               <Button type="button" variant="outline" size="xs" disabled={fillingField} onClick={() => onFillField(page)}>
                 {fillingField ? 'Reading selected page…' : `Fill ${selected.label} from this page`}
@@ -182,11 +186,6 @@ export function SourcePanel({
             {onUseSource && savedPage?.page === page && savedPage.stem === stem && <details open className="rounded-lg border p-3"><summary className="cursor-pointer text-xs font-medium">Choose a saved page line for the review citation</summary><div className="mt-2 max-h-44 space-y-1 overflow-y-auto">{savedPage.text.split(/\r?\n/).map((line, index) => line.trim() && <button key={index} type="button" aria-label="Use this line as citation" className="block w-full rounded px-2 py-1 text-left text-xs hover:bg-muted" onClick={() => onUseSource({ page, quote: line.trim() })}><span className="mr-2 font-medium text-primary">Use this line as citation</span>{line.trim()}</button>)}</div></details>}
           </>
         )}
-        {selected && askPage === null && <div className="text-sm" aria-live="polite">
-          <p className="font-medium">{selected.label}: {fieldVerification(selected, notReported).label}</p>
-          <p className="mt-1 text-muted-foreground">{fieldVerification(selected, notReported).detail}</p>
-          {selected.evidence?.includes('ocr_text') && <p className="mt-1 font-medium text-warning">From OCR — check the scanned image.</p>}
-        </div>}
       </CardContent>
     </Card>
   )

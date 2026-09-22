@@ -4213,7 +4213,7 @@ def test_fixed_pages_skip_selection():
 
 
 def test_scan_all_is_separate_and_opt_in():
-    """m02: brute-force comparison scans never replace fixed-page fills or page selection."""
+    """m02: brute-force comparison scans stay opt-in and never replace fixed-page fills."""
     import json
     import os
     import pathlib
@@ -4236,8 +4236,7 @@ def test_scan_all_is_separate_and_opt_in():
 
         calls.clear()
         os.environ["EXTRACT_SCAN_ALL"] = "1"
-        os.environ["EXTRACT_TWO_PASS"] = "1"
-        x._select_pages = lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("scan-all must not invoke page selection"))
+        os.environ.pop("EXTRACT_TWO_PASS", None)
         x.extract(texts, [2, 3, 4], schema, {"fiscal_year": 2025})
         assert len(calls) == 4 and any("=== PAGE 5 ===" in user for user in calls), calls
 
@@ -4246,6 +4245,15 @@ def test_scan_all_is_separate_and_opt_in():
         assert len(calls) == 1, calls
         assert "=== PAGE 2 ===" in calls[0] and "=== PAGE 3 ===" in calls[0], calls[0]
         assert "=== PAGE 1 ===" not in calls[0] and "=== PAGE 5 ===" not in calls[0], calls[0]
+
+        # Preserve c7f7d59's original interaction: if both experimental switches are set,
+        # EXTRACT_TWO_PASS still selects and replaces the scan queue rather than being suppressed.
+        calls.clear()
+        os.environ["EXTRACT_TWO_PASS"] = "1"
+        x._select_pages = lambda *args, **kwargs: [2, 3]
+        out = x.extract(texts, [2, 3, 4], schema, {"fiscal_year": 2025})
+        assert len(calls) == 1 and "=== PAGE 2 ===" in calls[0] and "=== PAGE 3 ===" in calls[0], calls
+        assert any(w.startswith("two_pass:") for w in out["warnings"]), out
     finally:
         x.call_llm, x._select_pages = old_call, old_select
         for key, value in (("EXTRACT_SCAN_ALL", old_scan), ("EXTRACT_TWO_PASS", old_two_pass)):
