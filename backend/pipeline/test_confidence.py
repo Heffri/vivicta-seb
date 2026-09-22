@@ -510,7 +510,9 @@ def demo():
         {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
     out = x.extract([leases, acast], [1, 2], dm, {"fiscal_year": 2025})
     got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
-    assert got == {"total_debt": (135382, 0.9), "due_within_1_year": (None, 0.0), "due_1_to_5_years": (None, 0.0), "due_after_5_years": (None, 0.0)}, (got, out["warnings"])
+    # w203: "Total lease Liability" is now a total_debt row_synonym (coverage_check's real acast_2025 p.67
+    # row this fixture already transcribes), so label_known joins the evidence set and confidence reaches 1.0.
+    assert got == {"total_debt": (135382, 1.0), "due_within_1_year": (None, 0.0), "due_1_to_5_years": (None, 0.0), "due_after_5_years": (None, 0.0)}, (got, out["warnings"])
     assert any("exceed its own total 45414" in w for w in out["warnings"]), out["warnings"]  # the column reading is rejected outright, not one field silently "fixed"
     # v040: Nelly Group (seed 2, real Note text) -- the model correctly reads due_within_1_year from its own
     # "Kortfristiga" (current) row, but the schema has no bare "kortfristiga" synonym (only the compound
@@ -4432,6 +4434,58 @@ def test_fulltext_sweep_ranks_hit_count_then_page_and_caps_three():
     assert swept["hits"] == {1: 1, 2: 2, 3: 1, 4: 1}, swept
 
 
+def test_fulltext_sweep_finds_current_and_noncurrent_lease_liability_rows():
+    """w203: coverage_check's 12 label pages with no numeric synonym row (docs/acrylic/evidence/w203.md).
+    smartcraft_2025 p.58: the company's whole interest-bearing debt is its lease liabilities (p.32
+    prose: no bank loans), and Note 24's roll-forward prints the current/1-5y split as bare
+    'Current lease liabilities' / 'Non-current lease liabilit(y/ies)' rows -- the bucket-window
+    synonyms ('within 1 year', 'mellan 1 och 5 år', ...) never appear. The stem row_synonym
+    ('non-current lease liabilit', no 'y'/'ies' suffix) also survives the source PDF's own typo,
+    'Non-current lease liabilites' (missing the second 'i')."""
+    import json
+    import pathlib
+    dm = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
+    fields = {f["key"]: f for f in dm["fields"]}
+    texts = ["Lease liabilities\n"
+             "Amounts in NOK (thousands) 31 Dec 2025 31 Dec 2024\n"
+             "Current lease liabilities 13 439 12 886\n"
+             "Non-current lease liabilites 14 809 23 281\n"]  # p.58's own spelling, one 'i' short of "liabilities"
+    within = x.sweep_pages(texts, fields["due_within_1_year"])
+    to_5y = x.sweep_pages(texts, fields["due_1_to_5_years"])
+    assert within["pages"] == [1] and within["hits"] == {1: 1}, within
+    assert to_5y["pages"] == [1] and to_5y["hits"] == {1: 1}, to_5y
+
+
+def test_fulltext_sweep_finds_interest_bearing_loans_row():
+    """w203: dynavox_2025 p.133's Note 23 financial-instruments-by-category table carries the group's
+    borrowings total as 'Interest-bearing loans' -- a wording total_debt's prior synonyms
+    ('borrowings', 'bank loan(s)', 'interest-bearing liabilities') do not prefix-match."""
+    import json
+    import pathlib
+    dm = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
+    total_debt = next(f for f in dm["fields"] if f["key"] == "total_debt")
+    texts = ["Financial liabilities\nAt amortized cost:\n"
+             "Accounts payable 110.8 110.8 139.2 139.2\n"
+             "Interest-bearing loans 24 896.2 896.2 691.5 691.5\n"]
+    swept = x.sweep_pages(texts, total_debt)
+    assert swept["pages"] == [1] and swept["hits"] == {1: 1}, swept
+
+
+def test_fulltext_sweep_finds_total_lease_liability_row():
+    """w203: acast_2025 p.67's Note 29 leases table is the group's only interest-bearing debt (prose:
+    no significant loans) and sums current+non-current to 'Total lease Liability' -- capitalised
+    mid-phrase exactly as printed, and not a prefix match on the existing 'lease liabilit(y/ies)'
+    row_synonyms (which do not start with 'total')."""
+    import json
+    import pathlib
+    dm = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
+    total_debt = next(f for f in dm["fields"] if f["key"] == "total_debt")
+    texts = ["Lease liabilities\nCurrent 32,052 23,443\nNon-current 103,330 117,709\n"
+             "Total lease Liability 135,382 141,152\n"]
+    swept = x.sweep_pages(texts, total_debt)
+    assert swept["pages"] == [1] and swept["hits"] == {1: 1}, swept
+
+
 def _second_pass_result(schema, keys):
     return {
         "report_id": "second-pass-test", "company": "Second Pass Test", "fiscal_year": 2025,
@@ -4620,6 +4674,9 @@ if __name__ == "__main__":
     test_missing_reasons_for_honest_debt_nulls()
     test_fulltext_sweep_finds_numeric_synonym_rows_and_skips_tried_or_ocr_pages()
     test_fulltext_sweep_ranks_hit_count_then_page_and_caps_three()
+    test_fulltext_sweep_finds_current_and_noncurrent_lease_liability_rows()
+    test_fulltext_sweep_finds_interest_bearing_loans_row()
+    test_fulltext_sweep_finds_total_lease_liability_row()
     test_second_pass_fills_required_field_from_full_candidate_pages()
     test_second_pass_retries_a_locator_miss_on_fulltext_sweep_pages()
     test_second_pass_rejects_a_quote_not_on_its_page()
