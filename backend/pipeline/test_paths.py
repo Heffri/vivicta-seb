@@ -22,7 +22,7 @@ def demo():
 
     backend = Path(__file__).resolve().parent.parent
     repo = backend.parent
-    saved = _clear("ARP_DATA_DIR", "KB_DIR")
+    saved = _clear("ARP_DATA_DIR", "KB_DIR", "TESSDATA_PREFIX")
     try:
         # dev tree, no env overrides: matches the pre-v030 hardcoded HERE-relative paths byte for byte
         assert not getattr(sys, "frozen", False)
@@ -31,6 +31,7 @@ def demo():
         assert paths.fixture_path() == backend / "fixtures" / "sample_extraction.json", paths.fixture_path()
         assert paths.schemas_dir().is_dir() and paths.fixture_path().exists()  # actually bundled, not just computed
         assert paths.data_dir() == (repo / "data").resolve(), paths.data_dir()
+        assert paths.tessdata_dir() == (repo / "data" / "tessdata").resolve(), paths.tessdata_dir()
         assert paths.reports_dir() == (repo / "data" / "reports").resolve(), paths.reports_dir()
         assert paths.companies_path() == (repo / "data" / "companies.json").resolve(), paths.companies_path()
         assert paths.kb_dir() == (repo / "data" / "kb").resolve(), paths.kb_dir()  # default "../data/kb" relative to backend/
@@ -42,6 +43,7 @@ def demo():
             assert paths.reports_dir() == Path(tmp).resolve() / "reports"
             assert paths.companies_path() == Path(tmp).resolve() / "companies.json"
             assert paths.kb_dir() == Path(tmp).resolve() / "kb"
+            assert paths.tessdata_dir() == Path(tmp).resolve() / "tessdata"
             u = paths.uploads_dir()
             assert u == Path(tmp).resolve() / "uploads" and u.is_dir()  # auto-mkdir
             del os.environ["ARP_DATA_DIR"]
@@ -60,15 +62,20 @@ def demo():
         with tempfile.TemporaryDirectory() as tmp:
             internal = Path(tmp) / "backend" / "_internal"
             internal.mkdir(parents=True)
+            bundled_tessdata = Path(tmp) / "tessdata"
+            bundled_tessdata.mkdir()
             sys.frozen, sys._MEIPASS = True, str(internal)
             try:
                 assert paths.resource_dir() == internal
                 assert paths.schemas_dir() == internal / "schemas"
+                assert paths.tessdata_dir() == bundled_tessdata.resolve()
                 assert paths.data_dir() == (Path(tmp) / "backend" / "data").resolve()  # beside the exe, not inside _internal
                 assert paths.reports_dir() == (Path(tmp) / "backend" / "data" / "reports").resolve()
                 os.environ["ARP_DATA_DIR"] = str(Path(tmp) / "custom")
                 assert paths.data_dir() == (Path(tmp) / "custom").resolve()  # still overridable when frozen
-                del os.environ["ARP_DATA_DIR"]
+                os.environ["TESSDATA_PREFIX"] = str(Path(tmp) / "custom-tessdata")
+                assert paths.tessdata_dir() == (Path(tmp) / "custom-tessdata").resolve()
+                del os.environ["ARP_DATA_DIR"], os.environ["TESSDATA_PREFIX"]
             finally:
                 del sys.frozen, sys._MEIPASS
     finally:
