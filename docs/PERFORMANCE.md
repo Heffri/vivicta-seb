@@ -199,6 +199,7 @@ default.
 | --- | ---: | --- | --- | ---: | ---: |
 | default `off` (primary) | 18 | **36/40 (90.0%)** | **14/17 (82.4%)** | 1 | 3 |
 | `majority` (non-default comparison, same frozen labels) | 22 | 36/40 (90.0%) | 14/17 (82.4%) | 1 | 3 |
+| `EXTRACT_SECOND_PASS=1` (w211 decision run, same frozen labels) | 41 (16 first-pass + 25 follow-up) | 29/40 (72.5%) | 12/17 (70.6%) | 3 | 8 |
 
 Round 2 used **40 extraction calls total**, exactly its cap. Eight majority comparisons matched the
 stored default answer after one run; two needed a second run. The comparison changed no scored
@@ -207,3 +208,11 @@ fill encountered nine fetch skips: eight scan/OCR 422 cases and one non-JSON HTT
 exclusions are tracked separately. This is an n=10 measurement, not a market-accuracy claim. See
 [v190](acrylic/evidence/v190.md) for the sample, skip handling, frozen-label chronology, snapshots,
 and per-company score vectors.
+
+The w211 decision run used the current pipeline with merge off and every other optional extraction
+switch unset. The follow-up cost averaged **+2.5 model calls and +18.4 model seconds per report**.
+Model variation made that run's pre-follow-up answer score 31/40 values and 12/17 pages; applying
+the second pass to the same answers then reduced the score to 29/40 by adding two non-empty wrong
+values and no correct fill. It therefore failed the rule that values must not fall and non-empty
+wrong values must not rise. `EXTRACT_SECOND_PASS` remains **off by default**; see
+[w211](acrylic/evidence/w211.md).
