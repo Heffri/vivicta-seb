@@ -38,8 +38,10 @@ without label access and was scored afterwards:
 - 28 remaining value-miss stems: 23/69 → **31/69** fields, pages 17/62 → 23/62
   ([`docs/acrylic/evidence/v160.md`](acrylic/evidence/v160.md))
 
-**3) What the errors are.** Of the 40 debt value misses in the stored library: **34 are empty**
-(the field was not read, or was honestly declined) and **6 are non-empty but wrong**. An audit of
+**3) What the errors are.** Of the 40 debt value misses in the stored library: **33 are empty**
+(the field was not read, or was honestly declined) and **7 are non-empty but wrong**
+(`python scripts/eval_breakdown.py --stored-kb data\kb --section debt_maturity`: A 28 + D 5 stored
+nulls vs B 5 + D 2 — dynavox 896.3 joined the wrong side after v166's republish). An audit of
 the disputed label candidates found **0 label errors**, **2 report-internal disagreements** (the
 report itself prints two inconsistent totals — Green Landscaping, Volati) and **7 hard cases**
 where the label is right and a named, bounded mechanism gap blocked the read

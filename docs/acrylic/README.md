@@ -87,8 +87,9 @@ verify — locator, parser, label matching.
     scored **36/40 (90.0%)** values, **14/17 (82.4%)** pages (1 empty, 3 non-empty-wrong) for both
     shipped-default `off` and non-default `majority`; small n, no market extrapolation
     ([v178](evidence/v178.md), [v190](evidence/v190.md)).
-  - **Error nature** (stored debt misses, each named): of 40 value misses, **34 empty** (not read /
-    declined) vs **6 non-empty wrong**; the label audit found **0 label errors**, **2
+  - **Error nature** (stored debt misses, each named): of 40 value misses, **33 empty** (not read /
+    declined) vs **7 non-empty wrong** (per today's `eval_breakdown.py`; v167 measured 34/6 before
+    v166's republish gave dynavox a derived total); the label audit found **0 label errors**, **2
     report-internal disagreements** (Green Landscaping, Volati — the report itself prints two
     inconsistent totals) and **7 hard cases** blocked by named mechanism gaps
     ([v154](evidence/v154.md)); Kristian-dependent scope calls are disclosed per company, not
@@ -601,7 +602,7 @@ code gates, so they're applied consistently — not yet confirmed:
 
 ```bash
 cd frontend && npm run build && npm run lint           # tsc -b + vite build, then oxlint
-cd frontend && npm run e2e                             # Playwright end-to-end pass — 66 tests
+cd frontend && npm run e2e                             # Playwright end-to-end suite — 96 tests
 
 cd backend  && python -m pipeline.test_confidence      # extract.py's evidence/confidence scoring
 cd backend  && python -m pipeline.test_debt_selection  # page selection vs lease-table regression
