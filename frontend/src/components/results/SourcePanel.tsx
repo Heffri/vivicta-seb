@@ -142,7 +142,7 @@ export function SourcePanel({
             )}
             {askPage !== null ? (
               <p className="text-xs text-muted-foreground">
-                Page {askPage}, cited in an answer below. Click a row to go back to a field.
+                Page {askPage}, opened from a linked report. Click a row to go back to a field.
               </p>
             ) : (
               selected?.source && (

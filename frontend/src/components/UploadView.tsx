@@ -21,7 +21,7 @@ type Props = {
   onSubmit: (specs: BatchSpec[], section: string, sectionTitle: string, eta: string) => void
   resultsCount: number
   onViewResults: () => void
-  onDone: (results: Result[]) => void // openSample only — a single, instant, zero-model result
+  onDone: (results: Result[], initialPage?: number | null) => void // stored result; private holdings can name a parent-report page
   onNavigate?: (tab: Tab) => void
 }
 
@@ -175,6 +175,23 @@ export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onView
     }
   }
 
+  // A curated private holding is not a missing issuer waiting for AI to find it: its facts are
+  // disclosed in the named parent report.  Open that already-saved result and hand its portfolio
+  // page to Results' source pane; this path never calls /discover, /fetch or /extract.
+  const openReportedCompany = async (company: Company) => {
+    if (!company.report_stem) {
+      setError(`${company.reports_in ?? company.name}'s parent report is not saved locally.`)
+      return
+    }
+    setError(null)
+    try {
+      const extraction = await openKbExtraction(company.report_stem, 'income_statement')
+      onDone([{ label: extraction.company ?? company.reports_in ?? company.name, sectionTitle: 'Consolidated income statement', extraction }], company.report_page)
+    } catch (e) {
+      setError((e as Error).message)
+    }
+  }
+
   // Builds the queue and hands it to the App-level batch (v171/consult item 6): submission no
   // longer runs the loop itself, so its progress survives switching away from this tab and back,
   // and the batch doesn't force a tab switch when it ends — see BatchProgress's "View results".
@@ -284,6 +301,7 @@ export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onView
             onQueryChange={setQuery}
             onYearChange={setYear}
             onTogglePick={togglePick}
+            onOpenReportedCompany={openReportedCompany}
             onDiscover={discover}
             onUseCandidate={useCandidate}
           />

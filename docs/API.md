@@ -17,7 +17,7 @@ Backend runs on `http://localhost:8000`, frontend dev server proxies `/api` to i
 | `GET`  | `/api/reports/{report_id}/pages/{n}/locate` | `?quote=<verbatim text>` | `{ page, width, height, matched: "quote"\|"line"\|"value"\|"none", rects: [[x0,y0,x1,y1], ...], occurrences }` — zero-model (v179): where `quote` sits on page `n`, in page-point coordinates (the same top-down space `pages/{n}.png` renders, so a box scales directly against the image's rendered width/height). Tries `quote` verbatim, then its own longest line (a citation that never prints as one contiguous run), then the longest digit run inside it. `rects` holds one box per *printed line* a hit touches — a match spanning two lines (an ordinary wrapped citation) reports two adjacent rects the same way a genuine second occurrence would add two more, so `occurrences` divides that back out by the searched text's own line count: a wrapped citation reports `occurrences: 1` (still with 2 rects to draw), a truly repeated line reports 2+. `matched: "none"`, empty `rects`, `occurrences: 0` when nothing was found. 404 if `n` is out of range, 409 if the PDF is no longer cached (`require_pdf`, same as the other page endpoints) |
 | `GET`  | `/api/reports/{report_id}/extraction.csv` | – | last extraction for this report as CSV (one row per field). 404 if none |
 | `GET`  | `/api/reports/{report_id}/pdf` | – | the PDF itself, `Content-Disposition: inline`, so `<iframe src=".../pdf#page=64">` opens the browser's own viewer on that page |
-| `GET`  | `/api/companies?q=<text>&collection_name=wallenberg\|midcap\|all` | – | `Company[]` — the listed-company directory (`data/companies.json`, Nasdaq Stockholm), filtered by collection then name/ticker substring; max 50. Empty `q` = first 50. `midcap` is the 132 companies whose `market` is `Mid Cap` |
+| `GET`  | `/api/companies?q=<text>&collection_name=wallenberg\|midcap\|all` | – | `Company[]` — the listed-company directory (`data/companies.json`, Nasdaq Stockholm), filtered by collection then name/ticker substring; max 50. Empty `q` = first 50. `midcap` is the 132 companies whose `market` is `Mid Cap`. A curated private holding has `no_standalone_report: true` and names the parent report it is covered by; clients open that saved parent report rather than searching or fetching a child-company PDF. |
 | `POST` | `/api/reports/discover` | `{ "company": "<typed query>", "year": 2025, "country"?, "hint"?, "job_id"? }` | `{ candidates: Candidate[], note: string \| null }` — which legal entities the query could mean, for the user to confirm one **before** anything is downloaded. Saved reports for that year first (`saved: true`, no model call), then one model web-search ask for up to 5 distinct entities with their official report PDF `url` when known; capped at 5, deduped on the normalized legal name. Without a codex/claude provider only saved matches come back and `note` says why; a failed model call is a `note` too. Nothing is downloaded. `job_id` (v194, optional) — see Progress tracking below |
 | `POST` | `/api/reports/fetch` | `{ "company": "<Candidate.legal_name or Company.name>", "year": 2025, "country"?, "hint"?, "url"?, "download_pdf"?: true, "ocr"?: "bounded"\|"full", "job_id"? }` | `Report` — finds the company's annual report for that year on the web, downloads it into the cache (`data/reports/`), registers it like an upload. 10–90 s. `download_pdf` defaults to **true** (the PDF is always wanted); `false` is the text-only reuse of a saved report for API callers (409 when nothing is saved). When the download fails but page text is saved, the saved report is returned instead of a 404. Any company name is accepted — not just directory entries; `country`/`hint` are optional context for the model search (v074). `url` (a confirmed `/discover` candidate's link) is downloaded and validated **first**, before any source of the backend's own, and falls through to them when it fails. `404` with `{detail, tried: string[]}` when nothing usable was found (a failed model search says so in `detail`). Cached = instant. `ocr` (v191, default `bounded`): see "Bounded OCR" below. `job_id` (v194, optional) — see Progress tracking below |
 | `GET`  | `/api/jobs/{job_id}` | – | `Job` — progress trail for a `job_id` passed to `/discover` or `/fetch` (v194). `404` once unknown or expired (1 h TTL). See Progress tracking below |
@@ -53,6 +53,14 @@ type Company = {
   sector: string | null;    // ICB sector text
   isin: string | null;
   cached_years: number[];   // years already present in the report cache, e.g. [2025]
+  // Present only for curated private holdings that have no standalone annual report. `report_stem`
+  // and `report_page` identify the already-saved parent report and its relevant portfolio section;
+  // when no parent report is saved yet, they are null. Do not start AI/web discovery for these rows.
+  no_standalone_report?: true;
+  reports_in?: string;      // e.g. "Investor AB"
+  collection_group?: string; // e.g. "Patricia Industries"
+  report_stem?: string | null;
+  report_page?: number | null;
 };
 
 type Candidate = {          // one entity POST /api/reports/discover proposes; identity fields are model-reported unless saved
@@ -124,6 +132,7 @@ type KbEntry = {
   indexed: boolean;         // embeddings cached
   sector: string | null;    // company directory sector, exact normalized name match; unknown stays null
   pdf_available: boolean;   // whether the source PDF currently exists
+  reported_members: { name: string; collection_group: string }[]; // curated private roster members disclosed inside this parent report
   text_available: boolean;  // at least one nonempty saved page; empty catalog entries are excluded from Ask
   figures_available: boolean; // at least one non-null field in a saved extraction, not merely a section file
 };

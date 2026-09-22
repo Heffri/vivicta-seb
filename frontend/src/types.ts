@@ -15,6 +15,13 @@ export type Company = {
   sector: string | null;    // ICB sector text
   isin: string | null;
   cached_years: number[];   // years already present in the report cache, e.g. [2025]
+  // Curated private holdings are disclosed in this parent report, not fetchable as an issuer PDF.
+  // `report_page` is the parent report's relevant portfolio section when saved page text can find it.
+  no_standalone_report?: true;
+  reports_in?: string;
+  collection_group?: string;
+  report_stem?: string | null;
+  report_page?: number | null;
 };
 
 export type Candidate = {          // one entity POST /api/reports/discover proposes; identity fields are model-reported unless saved
@@ -98,6 +105,7 @@ export type KbEntry = {
   built_at: string | null;
   sector: string | null;
   pdf_available: boolean;
+  reported_members?: { name: string; collection_group: string }[]; // curated private holdings covered inside this parent report
 };
 
 export type Source = {
