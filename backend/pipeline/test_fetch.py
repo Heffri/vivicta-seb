@@ -142,7 +142,7 @@ def _url(base, path):
 
 
 def demo():
-    env_keys = ("LLM_PROVIDER", "FAKE_WEB_REPLY", "FAKE_WEB_REPLY_IR_PAGE")
+    env_keys = ("LLM_PROVIDER", "FAKE_WEB_REPLY", "FAKE_WEB_REPLY_IR_PAGE", "KB_DIR")
     saved = {k: os.environ.get(k) for k in env_keys}
     patched = {}
     server = None
@@ -530,6 +530,88 @@ def demo():
                                  filler_pages=45)
             doc, text = fetch._validate(abb_path.read_bytes(), "Asea Brown Boveri", 2025)
             assert doc is None and "issuer mismatch" in text, text
+
+            # 27. discover, model path: one DISCOVER_SYSTEM ask, identity fields kept per candidate, an
+            #     interim-named link nulled (the entity stays), a candidate without a legal name dropped,
+            #     dedupe on collection.identity ("Nestle Ltd" is the same entity as the saved "Nestle"),
+            #     local first, capped at MAX_DISCOVER_CANDIDATES. `dest` holds nestle_2025.pdf from case 2.
+            os.environ["LLM_PROVIDER"] = "codex"
+            os.environ["KB_DIR"] = str(tmp / "kb-empty")
+            calls_before_27 = len(fake.calls)
+            os.environ["FAKE_WEB_REPLY"] = _reply([
+                {"legal_name": "Nestle Ltd", "ticker": "NESN", "exchange": "SIX", "country": "CH", "org_number_or_lei": None,
+                 "fiscal_year_end": "Dec", "document_title": "Annual Report 2025", "document_type": "Annual Report", "url": good_url, "reason": "the Swiss parent"},
+                {"legal_name": "Nestle India Limited", "ticker": "NESTLEIND", "exchange": "NSE", "country": "IN", "org_number_or_lei": "L15202MH1959PLC011311",
+                 "fiscal_year_end": "Mar", "document_title": "Annual Report 2024-25", "document_type": "annual report", "url": INTERIM_URL, "reason": "listed subsidiary"},
+                {"legal_name": "", "url": good_url, "reason": "no name"},
+                {"legal_name": "Nestle Nigeria Plc", "url": "ftp://nope", "reason": "not http"},
+                {"legal_name": "Nestle Malaysia Berhad", "reason": "a"},
+                {"legal_name": "Nestle Pakistan Limited", "reason": "b"},
+                {"legal_name": "Nestle Lanka PLC", "reason": "c"},
+            ])
+            found = fetch.discover("nestle", YEAR, country="Switzerland", hint="the parent", dest_dir=dest)
+            assert len(fake.calls) == calls_before_27 + 1 and fake.calls[-1]["system"] == fetch.DISCOVER_SYSTEM, fake.calls[-1]
+            assert "Query: nestle" in fake.calls[-1]["user"] and "Country: Switzerland" in fake.calls[-1]["user"] and "Hint: the parent" in fake.calls[-1]["user"]
+            assert found["note"] is None, found
+            names = [c["legal_name"] for c in found["candidates"]]
+            assert names == ["Nestle", "Nestle India Limited", "Nestle Nigeria Plc", "Nestle Malaysia Berhad", "Nestle Pakistan Limited"], names
+            saved_c, india = found["candidates"][:2]
+            assert saved_c["saved"] is True and saved_c["stem"] == "nestle_2025" and saved_c["url"] == good_url, saved_c
+            assert saved_c["reason"] == "saved PDF in the report cache" and saved_c["document_type"] == "annual report", saved_c
+            assert india["saved"] is False and india["stem"] is None and india["url"] is None, india  # interim link nulled, entity kept
+            assert india["ticker"] == "NESTLEIND" and india["exchange"] == "NSE" and india["country"] == "IN", india
+            assert india["org_number_or_lei"] == "L15202MH1959PLC011311" and india["fiscal_year_end"] == "Mar", india
+            assert india["document_title"] == "Annual Report 2024-25" and india["document_type"] == "annual report" and india["reason"] == "listed subsidiary", india
+            assert found["candidates"][2]["url"] is None, found["candidates"][2]  # ftp:// is not a link we would download
+            assert set(found["candidates"][0]) == {"legal_name", "ticker", "exchange", "country", "org_number_or_lei", "fiscal_year_end",
+                                                   "document_title", "document_type", "url", "reason", "saved", "stem"}
+
+            # 28. discover, saved matches: a text-only data/kb stem counts (saved: true, its stem), only
+            #     for the asked year, and the roster alias resolves ("seb" finds the bank); no model call
+            #     without a search provider, the note says why; a failed model call is a note too
+            kb = tmp / "kb"
+            (kb / "nestle_2024").mkdir(parents=True)
+            (kb / "nestle_2024" / "meta.json").write_text(json.dumps({"company": "Nestle", "fiscal_year": 2024, "source_url": None}), encoding="utf-8")
+            (kb / "seb_2025").mkdir()
+            (kb / "seb_2025" / "meta.json").write_text(json.dumps({"company": "Skandinaviska Enskilda Banken AB (publ)", "fiscal_year": 2025}), encoding="utf-8")
+            os.environ["KB_DIR"] = str(kb)
+            os.environ.pop("LLM_PROVIDER", None)
+            calls_before_28 = len(fake.calls)
+            found = fetch.discover("Nestle", 2024, dest_dir=dest)
+            assert len(fake.calls) == calls_before_28, "no search provider: web_lookup must not run"
+            assert [(c["legal_name"], c["saved"], c["stem"]) for c in found["candidates"]] == [("Nestle", True, "nestle_2024")], found
+            assert found["note"] and "codex or claude" in found["note"], found
+            assert fetch.discover("Nestle", 2023, dest_dir=dest)["candidates"] == []
+            assert [c["stem"] for c in fetch.discover("seb", 2025, dest_dir=dest)["candidates"]] == ["seb_2025"]
+            assert fetch.discover("", 2025, dest_dir=dest)["candidates"] == []
+            os.environ["LLM_PROVIDER"] = "codex"
+            os.environ["FAKE_WEB_REPLY"] = "raise"
+            found = fetch.discover("Nestle", YEAR, dest_dir=dest)
+            assert [c["stem"] for c in found["candidates"]] == ["nestle_2025"] and "429" in found["note"], found
+
+            # 29. fetch_report(url=...): the confirmed link is downloaded and validated first -- no model
+            #     call at all when it holds -- and lands with its own note; the cache filename still follows
+            #     the (confirmed legal) name
+            dest13 = tmp / "reports13"
+            calls_before_29 = len(fake.calls)
+            os.environ["FAKE_WEB_REPLY"] = "raise"
+            entry13 = fetch.fetch_report(COMPANY, YEAR, dest13, url=good_url)
+            assert len(fake.calls) == calls_before_29, "a confirmed url that validates must not cost a model call"
+            assert entry13["source_url"] == good_url and entry13["note"] == "confirmed url" and entry13["tried"] == [good_url], entry13
+            assert entry13["file"] == "nestle_2025.pdf" and entry13["tags"] == ["fetched"] and (dest13 / "nestle_2025.pdf").exists(), entry13
+            review13 = fetch.fetch_report(COMPANY, YEAR, tmp / "reports13b", url=review_shape_url)
+            assert review13["note"] == "confirmed url; summary volume", review13
+
+            # 30. ...and falls through when it fails: a dead link (404) and somebody else's report (issuer
+            #     mismatch) each land on the tried list, then the model's own candidate is taken as before
+            dest14 = tmp / "reports14"
+            os.environ["FAKE_WEB_REPLY"] = _reply([{"url": good_url, "title": "Annual Report 2025", "reason": "official IR pdf"}])
+            entry14 = fetch.fetch_report(COMPANY, YEAR, dest14, url=gone_url)
+            assert entry14["source_url"] == good_url and entry14["note"] == "model search (codex)", entry14
+            assert entry14["tried"] == [gone_url, good_url], entry14["tried"]
+            other_url = _url(base, "/unrelated-with-mtg-in-body.pdf")
+            entry15 = fetch.fetch_report(COMPANY, YEAR, tmp / "reports15", url=other_url)
+            assert entry15["source_url"] == good_url and entry15["tried"] == [other_url, good_url], entry15["tried"]
     finally:
         for k, v in saved.items():
             if v is None:

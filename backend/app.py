@@ -115,12 +115,21 @@ class AskBody(BaseModel):
     report_stems: list[str] | None = None
 
 
-class FetchBody(BaseModel):
-    download_pdf: bool = False
+class DiscoverBody(BaseModel):
     company: str
     year: int
     country: str | None = None  # v074: optional context for the model search when the directory has no hit ("Switzerland")
     hint: str | None = None     # v074: free-text hint for the model search ("FY ends 30 June", the report's exact title)
+
+
+class FetchBody(DiscoverBody):
+    download_pdf: bool = True   # the PDF is always wanted (page images, quote checks); false = text-only reuse for API callers syncing KB text
+    url: str | None = None      # a confirmed /discover candidate's PDF link: fetch_report tries it before its own sources
+
+
+def check_query(body: DiscoverBody):
+    if not (1990 <= body.year <= 2100) or not body.company.strip() or len(body.company) > 100 or (body.country and len(body.country) > 60) or (body.hint and len(body.hint) > 300):
+        raise HTTPException(400, "bad company/year")
 
 
 def pdf_path(report_id: str) -> Path:
@@ -298,25 +307,35 @@ def list_companies(q: str = "", collection_name: Literal["all", "wallenberg", "m
     return [c | {"cached_years": sorted(set(cached.get(collection.identity(c["name"]), [])))} for c in hits[:50]]
 
 
+@app.post("/api/reports/discover")
+def discover_companies(body: DiscoverBody):
+    """Which legal entities the typed query could mean: saved reports first (no model call), then one
+    web-search ask. Nothing is downloaded; the user confirms a candidate and /fetch takes its url first."""
+    check_query(body)
+    return fetch.discover(body.company, body.year, body.country, body.hint, LIBRARY)
+
+
 @app.post("/api/reports/fetch")
 def fetch_report(body: FetchBody):
-    if not (1990 <= body.year <= 2100) or len(body.company) > 100 or (body.country and len(body.country) > 60) or (body.hint and len(body.hint) > 300):
-        raise HTTPException(400, "bad company/year")
+    check_query(body)
+    if body.url and (len(body.url) > 2000 or not body.url.startswith(("http://", "https://"))):
+        raise HTTPException(400, "bad url")
     slug = fetch.slugify(body.company)
-    if not body.download_pdf:
-        saved = [e for e in kb.entries() if e.get("fiscal_year") == body.year and collection.identity(e.get("company")) == collection.identity(body.company)]
-        if saved:
-            saved.sort(key=lambda e: (e["stem"] != f"{slug}_{body.year}", e["stem"]))
-            return get_report(saved_report_id(saved[0]["stem"]))
+    saved = [e for e in kb.entries() if e.get("fiscal_year") == body.year and collection.identity(e.get("company")) == collection.identity(body.company)]
+    saved.sort(key=lambda e: (e["stem"] != f"{slug}_{body.year}", e["stem"]))
+    if saved and not body.download_pdf:
+        return get_report(saved_report_id(saved[0]["stem"]))
     entry = next((e for e in library_index() if e["fiscal_year"] == body.year and collection.identity(e["company"]) == collection.identity(body.company)), None)
     if not entry:
         if not body.download_pdf:
             raise HTTPException(409, "No saved report text or local PDF for this company and year. Enable PDF download explicitly or upload your own report.")
         t0 = time.time()
         try:
-            # The connected model searches official sources first; feeds are fallback discovery.
-            entry = fetch.fetch_report(body.company, body.year, LIBRARY, body.country, body.hint)
+            # A confirmed candidate's url is tried first; then the connected model searches official sources; feeds are fallback discovery.
+            entry = fetch.fetch_report(body.company, body.year, LIBRARY, body.country, body.hint, url=body.url)
         except LookupError as e:
+            if saved:  # the PDF is wanted but unreachable: the git-synced page text still extracts; the Source panel says the PDF is missing
+                return get_report(saved_report_id(saved[0]["stem"]))
             detail = f"no annual report found for {body.company} {body.year}"
             if len(e.args) > 1 and e.args[1]:  # v074: a failed model search says so, with why
                 detail += f"; {e.args[1]}"
@@ -393,7 +412,7 @@ def report_candidates(report_id: str, section: str = Query(min_length=1)):
     texts = report_texts(report_id)
     stripped = locate.strip_boilerplate(texts)
     return [{"page": page, "heading": " ".join(stripped[page - 1].split())[:80]}
-            for page in locate.candidate_pages(texts, schema)]
+            for page in locate.candidate_pages(texts, schema, fiscal_year=report.get("fiscal_year"))]
 
 
 @app.post("/api/reports/{report_id}/extract")
@@ -427,7 +446,7 @@ def _run_extract(report_id: str, body: ExtractBody):
         result = json.loads(FIXTURE.read_text(encoding="utf-8")) | {"report_id": report_id, "section": body.section}
     else:
         texts = report_texts(report_id)
-        pages = locate.candidate_pages(texts, schema)
+        pages = locate.candidate_pages(texts, schema, fiscal_year=report.get("fiscal_year"))
         print(f"[extract] {report_id} {body.section}: candidate pages {pages}")
         if not pages:
             raise HTTPException(422, "No candidate pages found for this section")
@@ -918,7 +937,7 @@ def extraction_csv(report_id: str, section: str | None = None, previous_stem: st
     for f in x["fields"]:
         src = f.get("source") or {}
         w.writerow([x["report_id"], x["company"], x["fiscal_year"], x["section"], f["key"], f["label"], f["value"],
-                    f["unit"], f["period"], f["raw_label"], src.get("page"), src.get("quote"), f["confidence"], *[(f.get("human_review") or {}).get(k, "") for k in ("decision", "reviewer", "at", "note")], *human_evidence_csv(f), x.get("ready", False), json.dumps(x.get("basis", {})), json.dumps(x.get("issues", [])), json.dumps(x.get("comparison", {})), json.dumps(f.get("review_history", [])), json.dumps(x.get("basis_history", [])), json.dumps(x.get("check_history", []))])
+                    f["unit"], f["period"], f["raw_label"], src.get("page"), src.get("quote"), f["confidence"], *[(f.get("human_review") or {}).get(k, "") for k in ("decision", "reviewer", "at", "note")], *human_evidence_csv(f), x.get("ready", False), json.dumps(x.get("basis", {})), json.dumps(x.get("issues", []) + x.get("basis_issues", [])), json.dumps(x.get("comparison", {})), json.dumps(f.get("review_history", [])), json.dumps(x.get("basis_history", [])), json.dumps(x.get("check_history", []))])
     return Response(buf.getvalue(), media_type="text/csv; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="{report_id}_{x["section"]}.csv"'})
 
@@ -987,12 +1006,10 @@ def saved_extraction(report_id: str, section: str | None = None):
 
 
 def extraction_identity(report, schema, prompt):
-    from pipeline import merge
-    pipeline = [Path(__file__), *[Path(m.__file__) for m in (extract_mod, locate, parse, llm, merge, workbench)]]
-    return kb.fingerprint({"report": kb._meta(report["stem"]), "schema": schema,
-                           "pipeline": [kb.sha256(p.read_bytes()) if p.is_file() else "packaged-cache-v1" for p in pipeline],
+    # ponytail: EXTRACT_VERSION instead of hashing 7 source files -- a comment edit no longer re-runs every section
+    return kb.fingerprint({"report": kb._meta(report["stem"]), "schema": schema, "pipeline": extract_mod.EXTRACT_VERSION,
                            "model": os.getenv("LLM_MODEL") or {"codex": "gpt-5.6-terra", "claude": "claude-sonnet-5"}.get(llm.provider(), "fixture"), "provider": llm.provider(), "prompt": prompt,
-                           "settings": {k: os.getenv(k) for k in ("LLM_BASE_URL", "LLM_REASONING", "LLM_THINK", "LLM_NUM_CTX", "LLM_TIMEOUT", "LLM_STRICT_SCHEMA", "DEBT_BASIS", "EXTRACT_MERGE_RUNS", "EXTRACT_TWO_PASS", "FEWSHOT")}})
+                           "settings": {k: os.getenv(k) for k in ("LLM_BASE_URL", "LLM_REASONING", "LLM_THINK", "LLM_NUM_CTX", "LLM_STRICT_SCHEMA", "DEBT_BASIS", "EXTRACT_MERGE_RUNS", "EXTRACT_TWO_PASS", "FEWSHOT")}})
 
 
 @app.post("/api/knowledge/{stem}/open")

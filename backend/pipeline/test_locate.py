@@ -6,6 +6,8 @@ pages[:4]); every top_n-scored page stays in the list for two-pass page selectio
 oversized page is demoted past the window, never dropped (the ctt/humana shape: label page ranked #2-#3
 cut by a whole-list trim no full-text reader was ever going to read).
 """
+import json
+import pathlib
 import sys
 
 from . import locate
@@ -77,12 +79,33 @@ def test_parent_and_summary_balance_sheets_not_companions():
     check(3 not in pages and 5 not in pages, f"parent/summary BS pages must not join the window, got {pages}")
 
 
+def test_no_bare_liability_class_keywords():
+    # v163: b29c4b0 added the bare keyword "financial liabilities" to the debt schema. It heads
+    # every fair-value and financial-instruments note, so those pages crowded the real maturity
+    # note out of the first windows. Measured over the 106 labelled debt reports, the labelled
+    # page sat in the top 4 of the candidates for 80 of them before that keyword and 72 after;
+    # narrowing it to the phrase "maturity of financial liabilities" scores 83.
+    #
+    # A page-ranking fixture cannot catch this -- the crowding is competition among a real
+    # report's hundred-odd pages, and any three-page fixture ranks the maturity note first
+    # whichever keyword is in the list (tried, it passed with the bad keyword in place). So the
+    # guard is on the vocabulary itself: these terms name a balance-sheet line item, not a
+    # maturity table, and belong in a phrase or not at all.
+    bare = {"financial liabilities", "lease liabilities", "maturity", "thereafter", "liabilities"}
+    for schema_name in ("debt_maturity",):
+        kws = {k.lower() for k in json.loads(
+            (pathlib.Path(__file__).resolve().parents[1] / "schemas" / f"{schema_name}.json").read_text(
+                encoding="utf-8"))["keywords"]}
+        check(not (kws & bare), f"{schema_name}: bare keyword(s) {sorted(kws & bare)} -- use a phrase")
+
+
 def main():
     test_companion_is_second()
     test_no_scored_page_dropped_for_budget()
     test_window_prefix_fits_budget_unless_two()
     test_balance_sheet_page_joins_last()
     test_parent_and_summary_balance_sheets_not_companions()
+    test_no_bare_liability_class_keywords()
     print("locate self-check ok")
 
 

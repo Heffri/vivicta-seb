@@ -99,7 +99,9 @@ test('one statement card keeps sourced basis hints, categories, reviewer and fil
 for (const tone of ['light', 'dark']) test(`review queue, basis and saved comparison [${tone}]`, async ({ page }) => {
   const entry = { stem: 'atlas_2025', report_id: 'lib-atlas_2025', company: 'Atlas Copco', fiscal_year: 2025, sections: ['income_statement'], pages: 1, pdf_available: false, indexed: false }
   const previous = { ...entry, stem: 'atlas_2024', fiscal_year: 2024 }
-  let extraction: any = { ...entry, section: 'income_statement', currency: 'MSEK', fields: [{ key: 'revenue', label: 'Revenue', value: 120, unit: 'MSEK', period: '2025', raw_label: 'Revenue', source: { page: 1, quote: 'Revenue 120' }, confidence: 0, evidence: [] }], checks: [], warnings: [], issues: [{ kind: 'basis', key: 'entity', detail: 'Confirm reporting entity' }], ready: false }
+  // The queue lists the unverified revenue row; the unconfirmed basis sits beside it (basis_issues) with a prefill and never queues.
+  const suggested = { entity: 'Atlas Copco', consolidation: 'Group', period: '2025', currency: 'SEK', scale: 'Millions', source: 'Annual report', restatement: 'As reported' }
+  let extraction: any = { ...entry, section: 'income_statement', currency: 'MSEK', fields: [{ key: 'revenue', label: 'Revenue', value: 120, unit: 'MSEK', period: '2025', raw_label: 'Revenue', source: { page: 1, quote: 'Revenue 120' }, confidence: 0, evidence: [] }], checks: [], warnings: [], issues: [{ kind: 'field', key: 'revenue', detail: 'Revenue: verify value, unit, period and source' }], basis_issues: [{ kind: 'basis', key: 'entity', detail: 'Confirm entity' }], basis_suggested: suggested, not_reported: [], ready: false }
   let downloads = 0
   const errors: string[] = []
   page.on('pageerror', e => errors.push(e.message))
@@ -110,7 +112,8 @@ for (const tone of ['light', 'dark']) test(`review queue, basis and saved compar
     if (path.endsWith('/basis')) {
       const body = route.request().postDataJSON()
       expect(body.expected).toEqual(extraction.basis ?? {})
-      extraction = { ...extraction, basis: { values: body.values, reviewer: body.reviewer, note: body.note, at: '2026-09-18T12:00:00Z' }, issues: [], ready: true }
+      expect(body.values).toEqual({ ...suggested, entity: 'Atlas Copco AB', source: 'Page 1, group statement' })
+      extraction = { ...extraction, basis: { values: body.values, reviewer: body.reviewer, note: body.note, at: '2026-09-18T12:00:00Z' }, basis_issues: [] }
       return route.fulfill({ json: extraction })
     }
     const json = path === '/api/review-queue' ? extraction.issues.map((i: any) => ({ ...i, report: entry, section: 'income_statement' }))
@@ -124,19 +127,21 @@ for (const tone of ['light', 'dark']) test(`review queue, basis and saved compar
   await page.getByRole('tab', { name: 'Review', exact: true }).click()
   await expect(page.getByText('Wallenberg collection · 1 statement · 1 outstanding check', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Review statement' }).click()
+  await expect(page.getByText('1 need a human', { exact: true })).toBeVisible()
   const basis = page.locator('#basis-review')
+  await expect(basis).toContainText('Basis not confirmed')
+  await basis.locator('summary').click()
   await expect(basis).toHaveAttribute('open', '')
+  // prefilled from the extraction: only the entity's legal form and the source reference are the analyst's to add
+  await expect(basis.getByLabel('Reporting entity', { exact: true })).toHaveValue('Atlas Copco')
+  await expect(basis.getByLabel('Scale', { exact: true })).toHaveValue('Millions')
   await basis.getByLabel('Reporting entity', { exact: true }).fill('Atlas Copco AB')
-  await basis.getByLabel('Group or parent').selectOption('Group')
-  await basis.getByLabel('Fiscal period').fill('2025')
-  await basis.getByLabel('Currency', { exact: true }).fill('SEK')
-  await basis.getByLabel('Scale', { exact: true }).selectOption('Millions')
   await basis.getByLabel('Source references').fill('Page 1, group statement')
-  await basis.getByLabel('Restatement status').selectOption('As reported')
   await basis.getByLabel('Basis reviewer').fill('Sebastian')
   await basis.getByLabel('Basis review note').fill('Checked the statement heading and units')
   await basis.getByRole('button', { name: 'Save basis review' }).click()
-  await expect(basis).toContainText('Ready for analyst use')
+  await expect(basis).toContainText('Basis confirmed')
+  await expect(page.getByText('1 need a human', { exact: true })).toBeVisible() // a confirmed basis resolves no figure
   const comparison = page.getByRole('region', { name: 'Prior-year comparison' })
   await expect(comparison).toContainText('2024 → 2025')
   await expect(comparison.getByRole('cell', { name: '20', exact: true })).toHaveCount(2)
@@ -144,7 +149,8 @@ for (const tone of ['light', 'dark']) test(`review queue, basis and saved compar
   await comparison.scrollIntoViewIfNeeded()
   await page.screenshot({ path: `e2e/test-results/workbench-${tone}.png` })
   await page.getByRole('button', { name: 'Back to reports' }).click()
-  await expect(page.getByText('Wallenberg collection · 0 statements · 0 outstanding checks', { exact: true })).toBeVisible()
+  // basis confirmation never touched `issues`, so the revenue field issue is still outstanding on remount
+  await expect(page.getByText('Wallenberg collection · 1 statement · 1 outstanding check', { exact: true })).toBeVisible()
   expect(downloads).toBe(0)
   expect(errors).toEqual([])
 })

@@ -12,20 +12,16 @@ const choices: Record<string, string[]> = { consolidation: ['Group', 'Parent'], 
 export function BasisPanel({ extraction: x, onUpdated }: { extraction: Extraction; onUpdated: (x: Extraction) => void }) {
   const keys = ['entity', 'consolidation', 'period', 'currency', 'scale', 'source', 'restatement', ...(x.section === 'debt_maturity' ? ['debt_basis', 'leases', 'bucket_mapping'] : [])]
   const suggestions = new Map((x.basis_suggestions ?? []).map(suggestion => [suggestion.key, suggestion]))
-  const [values, setValues] = useState<Record<string, string>>(() => {
-    const suggested = Object.fromEntries([...suggestions].map(([key, suggestion]) => [key, suggestion.value]))
-    // A reviewer’s existing nonempty value always wins over a fresh hint; an old empty value is
-    // still unknown, so let the source-backed suggestion make the form useful on reopen.
-    for (const [key, value] of Object.entries(x.basis?.values ?? {})) if (value.trim()) suggested[key] = value
-    return suggested
-  })
+  // Saved values if a human confirmed a basis, else the backend's suggestion (read from the extraction, never saved by it).
+  const [values, setValues] = useState<Record<string, string>>(x.basis?.values ?? x.basis_suggested ?? {})
+  const unconfirmed = x.basis_issues ? x.basis_issues.length > 0 : !x.basis?.reviewer
   const [reviewer, setReviewer] = useState('')
   const [note, setNote] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   return <details className="rounded-xl border bg-card p-4" id="basis-review">
-    <summary className="cursor-pointer font-semibold">Basis of figures · {x.ready ? 'Ready for analyst use' : `${x.issues?.filter(issue => issue.kind === 'basis').length ?? 'Unresolved'} definitions to confirm`}</summary>
-    <p className="my-3 text-sm text-muted-foreground">Unknown definitions remain unresolved. Enter definitions from the source and explain assumptions in your note. Human confirmation is separate from automated evidence.</p>
+    <summary className="cursor-pointer font-semibold">Basis of figures · {unconfirmed ? 'Basis not confirmed' : 'Basis confirmed'}</summary>
+    <p className="my-3 text-sm text-muted-foreground">{!x.basis && x.basis_suggested && 'Prefilled from the report; nothing is confirmed until you save. '}Unknown definitions remain unresolved. Enter definitions from the source and explain assumptions in your note. Human confirmation is separate from automated evidence, and does not hold up the review of figures.</p>
     {x.basis && <p className="mb-3 text-sm">Last confirmed by {x.basis.reviewer} · {x.basis.at} · {x.basis.note}</p>}
     <form className="space-y-3" onSubmit={async e => { e.preventDefault(); setBusy(true); setError(''); try { onUpdated(await saveBasis(x.report_id, { section: x.section, expected: x.basis ?? {}, values, reviewer, note })) } catch (err) { setError((err as Error).message) } finally { setBusy(false) } }}>
       <div className="grid gap-3 md:grid-cols-2">{keys.map(k => {

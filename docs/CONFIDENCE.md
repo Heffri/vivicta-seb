@@ -13,7 +13,7 @@ From now on it is **computed by the backend from evidence the backend can verify
 | `value_in_quote` | the printed number is inside that verified quote (`168 343`, `168,343`, `168343`, `-7 246`, `(7 246)` all count) | 0.20 | regex over digit groups |
 | `value_derived` | *instead of* `value_in_quote`, never both: the printed number is unreadable (Röko's text layer says `Profit before tax 1,01 923`) and a schema check failed, but the 2–6 rows printed right above sum to the value in the fiscal-year column **and** to the printed figures in every other column, and the check passes with it. The quote becomes those addend rows | 0.20 | `extract._derived_value` |
 | `arith_ok` | no schema check that references this key failed; a check with a missing operand (`gross_profit` in a by-nature statement) is n/a, not a failure. Optional rows (`profit_discontinued`, schema `default: 0`) count as 0 | 0.20 | `checks[]` |
-| `label_known` | `raw_label` matches one of the field's `synonyms` (sv + en, case-insensitive, prefix match) and none of its `exclude_labels` patterns (an adjusted / diluted / continuing-operations variant of the row is not the row); a sub-row under a known heading counts as `heading: sub-row` | 0.10 | `synonyms` + `exclude_labels` per schema field |
+| `label_known` | `raw_label` matches one of the field's `synonyms` (sv + en, case-insensitive, prefix match) and none of its `exclude_labels` patterns (an adjusted / diluted / continuing-operations variant of the row is not the row); a sub-row under a known heading counts as `heading: sub-row`. Also granted by the identity marker `identity_all_columns` (weight 0): an unknown row label whose identity holds in every column, and — debt maturity — a buckets-as-columns row (`Total 197 22 1,377 9 1,605`, `Borrowing …`, `Lease liabilities …`) whose bucket columns sum to its own total within the check's ±2, for every field read from or quoted on that row. A bare `Total` is no synonym of anything; its arithmetic is the proof. A row that does not close earns nothing | 0.10 | `synonyms` + `exclude_labels` per schema field; `extract._fill_bucket_columns` |
 | `period_ok` | `period` equals the report's fiscal year | 0.05 | `Report.fiscal_year` (curated for library reports) |
 | `page_is_statement` | `source.page` is the locator's best page or the one after it (statements span two pages; the locator scores heading keywords, field-synonym coverage and digit density, and penalises multi-year / quarterly / parent-company headings) | 0.05 | `locate.candidate_pages` |
 | `unit_ok` | `unit` equals the section currency; for per-share fields the currency without scale must match (`SEK` vs `MSEK` / `SEKm` / `SEK million`) | 0.05 | string compare |
@@ -111,6 +111,12 @@ type Field = { ...; confidence: number; evidence: string[] }  // e.g. ["quote_on
 ```
 
 The UI shows the missing codes in the confidence badge's tooltip. `eval/run.py` prints mean confidence next to accuracy.
+
+## When a field needs no human (`workbench.decorate`)
+
+A field is resolved without a reviewer when `quote_on_page`, `label_known`, `period_ok`, `page_is_statement` and `unit_ok` are all present, it has a `source`, and the value is tied to the quote by `value_in_quote` **or exactly one** stand-in: `value_derived` (a proven sum of printed rows), `stated_zero` (the report says 0 in words) or `printed_nil` (the row's own cell prints a dash). Two stand-ins at once, or none, is a review task. This is the same rule the score encodes (the stand-ins carry `value_in_quote`'s weight, never both); it does not let a number through without a verified quote on its page.
+
+A null on a schema field marked `optional` (income statement `cost_of_sales`, `gross_profit` — absent in a by-nature statement — and `profit_discontinued`, `default: 0`) is *not reported*, listed in the extraction's `not_reported`, not an issue: the report simply has no such row. It stays null (a check with that operand is `unavailable`, never computed with 0 outside the schema default) and a reviewer can still mark it unresolved. Every other null is a task. Debt maturity keeps all four fields required (`require_explicit_values`).
 
 ## What it does *not* mean
 

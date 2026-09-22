@@ -18,7 +18,8 @@ Backend runs on `http://localhost:8000`, frontend dev server proxies `/api` to i
 | `GET`  | `/api/reports/{report_id}/extraction.csv` | – | last extraction for this report as CSV (one row per field). 404 if none |
 | `GET`  | `/api/reports/{report_id}/pdf` | – | the PDF itself, `Content-Disposition: inline`, so `<iframe src=".../pdf#page=64">` opens the browser's own viewer on that page |
 | `GET`  | `/api/companies?q=<text>&collection_name=wallenberg\|midcap\|all` | – | `Company[]` — the listed-company directory (`data/companies.json`, Nasdaq Stockholm), filtered by collection then name/ticker substring; max 50. Empty `q` = first 50. `midcap` is the 132 companies whose `market` is `Mid Cap` |
-| `POST` | `/api/reports/fetch` | `{ "company": "<Company.name>", "year": 2025, "country"?, "hint"? }` | `Report` — finds the company's annual report for that year on the web, downloads it into the cache (`data/reports/`), registers it like an upload. 10–90 s. Any company name is accepted — not just directory entries; `country`/`hint` are optional context for the model search (v074). `404` with `{detail, tried: string[]}` when nothing usable was found (a failed model search says so in `detail`). Cached = instant |
+| `POST` | `/api/reports/discover` | `{ "company": "<typed query>", "year": 2025, "country"?, "hint"? }` | `{ candidates: Candidate[], note: string \| null }` — which legal entities the query could mean, for the user to confirm one **before** anything is downloaded. Saved reports for that year first (`saved: true`, no model call), then one model web-search ask for up to 5 distinct entities with their official report PDF `url` when known; capped at 5, deduped on the normalized legal name. Without a codex/claude provider only saved matches come back and `note` says why; a failed model call is a `note` too. Nothing is downloaded |
+| `POST` | `/api/reports/fetch` | `{ "company": "<Candidate.legal_name or Company.name>", "year": 2025, "country"?, "hint"?, "url"?, "download_pdf"?: true }` | `Report` — finds the company's annual report for that year on the web, downloads it into the cache (`data/reports/`), registers it like an upload. 10–90 s. `download_pdf` defaults to **true** (the PDF is always wanted); `false` is the text-only reuse of a saved report for API callers (409 when nothing is saved). When the download fails but page text is saved, the saved report is returned instead of a 404. Any company name is accepted — not just directory entries; `country`/`hint` are optional context for the model search (v074). `url` (a confirmed `/discover` candidate's link) is downloaded and validated **first**, before any source of the backend's own, and falls through to them when it fails. `404` with `{detail, tried: string[]}` when nothing usable was found (a failed model search says so in `detail`). Cached = instant |
 | `GET`  | `/api/library?collection_name=wallenberg\|midcap\|all` | – | `LibraryEntry[]` — the report **cache** in `data/reports/` (only files present on disk), filtered by the requested collection. Populated by `/fetch`; hand-curated entries also live in `index.json` |
 | `POST` | `/api/reports/{report_id}/index` | – | `IndexStatus` — chunk + embed the report into the knowledge base (idempotent, cached on disk). ~10–30 s per report locally |
 | `POST` | `/api/ask` | `{ "question": string, "report_ids"?: string[], "report_stems"?: string[] }` | `Answer` — omit both scopes to search all saved reports. Explicit scopes must be non-empty and mutually exclusive; unknown entries fail rather than widening the search. Global retrieval uses BM25 with bounded context, without embedding the entire library |
@@ -50,6 +51,21 @@ type Company = {
   sector: string | null;    // ICB sector text
   isin: string | null;
   cached_years: number[];   // years already present in the report cache, e.g. [2025]
+};
+
+type Candidate = {          // one entity POST /api/reports/discover proposes; identity fields are model-reported unless saved
+  legal_name: string;       // registered name, e.g. "Intel Corporation" — never the typed fragment
+  ticker: string | null;    // "INTC"
+  exchange: string | null;  // "NASDAQ"
+  country: string | null;   // ISO 3166-1 alpha-2, "US"
+  org_number_or_lei: string | null;
+  fiscal_year_end: string | null;  // month the fiscal year ends, "Dec"
+  document_title: string | null;   // the report's own title for that year
+  document_type: string | null;    // "annual report" | "10-K" | "20-F" | "annual and sustainability report" | other
+  url: string | null;       // official report PDF for that year when known; /fetch tries it first
+  reason: string;
+  saved: boolean;           // already in the report cache or knowledge base for that year: no download needed
+  stem: string | null;      // data/kb/<stem> when saved
 };
 
 type LibraryEntry = {
@@ -278,17 +294,28 @@ One row per field. UTF-8, comma-separated, quotes escaped per RFC 4180. JSON exp
 Reports are **not** bundled. `data/companies.json` supplies local directory suggestions;
 `POST /api/reports/fetch` accepts any company name, including companies outside that directory.
 
-**AI-first discovery.** Existing saved text is reused without downloading. For a missing report,
-an explicit PDF-download request first uses the connected Codex/Claude model's live web-search tool.
-It looks for official annual-report PDFs or investor-relations pages for the requested fiscal year.
-The UI exposes this action for every non-empty company query, independently of the local collection
-or whether directory matches exist. A web-search action runs only that query, not other queued picks.
+**Discover, then confirm.** Typing a query and pressing Enter (or the search button) calls
+`POST /api/reports/discover`, which resolves the query to concrete legal entities — a fragment like
+"intel" comes back as "Intel Corporation, INTC, NASDAQ, US, FY ends Dec" with the report's title and
+PDF `url` when known — saved reports first, then one model web-search call. The UI renders one card
+per candidate (`saved` badge when the report is already local) and the user confirms one ("Use this
+company") or refines with a free-text hint ("None of these" re-runs discover with `hint`). Nothing is
+downloaded until a candidate is confirmed. The confirmed card's `legal_name` becomes the `company`
+sent to `/fetch` (so the cache filename and index entry carry the legal name, not the typed text) and
+its `url` is tried first. A search runs only that query, not other queued picks.
+
+**AI-first fetch.** Existing saved text is reused without downloading. For a missing report,
+a PDF-download request first tries the confirmed `url`, then the connected Codex/Claude model's live
+web-search tool, looking for official annual-report PDFs or investor-relations pages for the
+requested fiscal year.
 
 A report search makes at most two model calls: official report links, then a targeted IR/archive
-follow-up if needed. Discovered IR pages may be followed to their PDF links. Every downloaded PDF
-still passes issuer, fiscal-year, report-type and text-layer checks, with complete reports preferred
- over summary volumes. Model results retain `note: "model search (<provider>)"` and the legacy
-`tags: ["fetched", "foreign"]`; IR-page results use `note: "IR page crawl"`.
+follow-up if needed. Discovered IR pages may be followed to their PDF links. Every downloaded PDF —
+the confirmed `url` included — still passes issuer, fiscal-year, report-type and text-layer checks,
+with complete reports preferred over summary volumes. Confirmed-url results carry
+`note: "confirmed url"` (`"; summary volume"` appended under 80 pages); model results retain
+`note: "model search (<provider>)"` and the legacy `tags: ["fetched", "foreign"]`; IR-page results
+use `note: "IR page crawl"`.
 
 MFN/Cision, Nasdaq and traditional web discovery are fallback sources if model search is unavailable
 or cannot retrieve a valid report. This is public-web discovery, not guaranteed access to every site.
@@ -379,18 +406,18 @@ Returns the updated Extraction. Requires a saved extraction. Stale fields return
 `POST /api/reports/{report_id}/fill?section=<schema name>` is a controlled retry for an analyst who has already found one or two evidence pages for an **empty** field. Its body is `{field, pages}`. It uses the normal section schema, configured model, provenance and scope guards, but its extraction window is exactly those supplied pages: it does not run locator ranking or the optional page-selection pass. It returns only the requested `candidate` plus warnings; `candidate` is `null` if the target remains empty, has no source, or cites a page outside the supplied set. It never writes `data/kb`, changes the stored extraction, or changes another field. A human must explicitly accept the candidate through the review endpoint, so the ordinary expected-snapshot and citation checks still apply. Sections with any prior human review return 409, matching re-extraction protection. Fixture/demo mode returns 422 (`Demo mode does not support targeted field fill`), rather than presenting synthetic evidence as a candidate.
 
 
-### Collections and opt-in PDFs
+### Collections, discovery, and always-on PDFs
 The desktop UI defaults to `collection_name=wallenberg` on GET `/api/companies`, `/api/library`, and `/api/kb`; `all` remains available. `midcap` is the SEB Mid Cap universe: every company in `data/companies.json` whose `market` is `Mid Cap` (132 at publication), normalized with the same identity matching as the Wallenberg roster. The Collection switch includes SEB Mid Cap and carries its choice through the directory, saved reports, Ask's explicit report stems, and whole-KB exports. GET `/api/review-queue` also accepts `collection_name=wallenberg|midcap|all` and defaults to Wallenberg. The Wallenberg roster is defined in `pipeline/collection.py`, sourced from Investor and FAM; it is a curated holdings collection, not an exhaustive ownership graph.
-POST `/api/reports/fetch` defaults `download_pdf` to false. It reuses saved text or an existing PDF and returns 409 if neither exists, without making a web request. Only `download_pdf: true` permits a download. POST `/api/reports/{id}/extract` accepts `reuse_saved: true` to return the saved extraction before calling a model, preserving human reviews. A new extraction can use saved page text without a PDF.
+POST `/api/reports/discover` resolves a typed query to concrete legal entities before anything downloads; the UI renders the candidates as cards and the user confirms one (or refines with a hint) rather than the typed fragment becoming the company identity. POST `/api/reports/fetch` defaults `download_pdf` to **true**: a cached PDF is reused as-is, otherwise the report is downloaded, and if the download fails while page text is saved, that saved report is returned (the Source panel says the PDF is missing). `download_pdf: false` is the text-only path for API callers: reuse saved text or an existing PDF, 409 if neither exists, never a web request. The UI has no download checkbox — every directory pick and confirmed candidate sends one request with `download_pdf: true`, and a confirmed candidate's `url` is downloaded and validated before any source of the backend's own. POST `/api/reports/{id}/extract` accepts `reuse_saved: true` to return the saved extraction before calling a model, preserving human reviews. A new extraction can use saved page text without a PDF.
 
 
 ### Analyst workbench
-Extractions gain optional `basis`, `basis_history`, `check_history`, `issues`, and derived `ready`. Basis records entity, consolidation, period, currency, scale, source page, restatement status and (debt only) debt basis, leases and bucket mapping. Values are analyst-confirmed, never inferred as confirmed from legacy data. GET `/api/review-queue` returns unresolved issues for its requested collection (Wallenberg by default). POST `/api/reports/{id}/basis` accepts section, expected basis, values, reviewer and note, returning the updated extraction. Existing field reviews recalculate deterministic checks and archive previous checks. GET `/api/kb/{stem}/{section}/comparison?previous_stem=...` returns compatible saved-report deltas or reasons why unavailable. Exports accept optional section and previous_stem to bind the exact statement and comparison. Missing values never implicitly become zero. No endpoint in this workflow downloads PDFs.
+Extractions gain optional `basis`, `basis_history`, `check_history`, `issues`, `basis_issues`, `basis_suggested`, `not_reported`, and derived `ready`. Basis records entity, consolidation, period, currency, scale, source page, restatement status and (debt only) debt basis, leases and bucket mapping. Values are analyst-confirmed, never inferred as confirmed from legacy data: `basis_suggested` is a prefill for the form (entity = report company, consolidation `Group`, period = fiscal year, currency + scale read from the section's unit, source `Annual report`, restatement `As reported`; debt adds `debt_basis` from `maturity_basis`, empty `leases` and `bucket_mapping` — nothing extracted says whether leases are in). A bare currency code as unit (`SEK`) prefills the currency and leaves `scale` empty, shown only until a human saves. GET `/api/review-queue` returns unresolved field and check issues for the Wallenberg collection. POST `/api/reports/{id}/basis` accepts section, expected basis, values, reviewer and note, returning the updated extraction. Existing field reviews recalculate deterministic checks and archive previous checks. GET `/api/kb/{stem}/{section}/comparison?previous_stem=...` returns compatible saved-report deltas or reasons why unavailable. Exports accept optional section and previous_stem to bind the exact statement and comparison. Missing values never implicitly become zero. No endpoint in this workflow downloads PDFs.
 
 
 `basis` is `{values: Record<string,string>, reviewer, note, at}`. Shared value keys: `entity`, `consolidation`, `period`, `currency`, `scale`, `source`, `restatement`. Debt adds `debt_basis`, `leases`, `bucket_mapping`. Empty values remain unknown. `basis_suggestions` is a separate optional list of `{key, value, source}` generated deterministically from report metadata and already-cited field evidence: it may suggest entity, period, a unanimous parsed unit's currency/scale, a complete cited-page list, debt measurement, and an exact standard maturity-bucket mapping. It never suggests consolidation, leases, or restatement; a missing citation means no suggestion. Suggestions prefill the client only and do not make a basis confirmed or a result ready. Basis review accepts `{section, expected: previousBasisOrEmptyObject, values, reviewer, note}` and rejects stale snapshots with 409. `basis_history` records each prior basis. `check_history` records previous checks when recalculation changes them.
 
-Checks include `status: passed|failed|unavailable`. Reconciliation requires every operand to be explicit and use the same nonempty unit and period — except a bucket whose evidence marks it `absent_in_table` (the report's maturity table prints no column for that window): it joins the reconciliation as 0. Source evidence remains distinct from arithmetic and human review. `issues` contains `{kind: basis|field|check, key, detail}`. `ready` requires no unresolved issues, including missing figures even when a human confirmed their absence; an `absent_in_table` bucket is not an issue (a reviewer marking it unresolved re-opens it). Queue entries add `report: KbEntry` and `section`.
+Checks include `status: passed|failed|unavailable`. Reconciliation requires every operand to be explicit and use the same nonempty unit and period — except a bucket whose evidence marks it `absent_in_table` (the report's maturity table prints no column for that window): it joins the reconciliation as 0. Source evidence remains distinct from arithmetic and human review. `issues` contains `{kind: field|check, key, detail}`: a field is an issue unless a human confirmed or corrected it, or the backend verified its quote on the page, its value in that quote (or exactly one stand-in: `value_derived`, `stated_zero`, `printed_nil` — see docs/CONFIDENCE.md), label, period, statement page and unit, with a source; a check is an issue only when it `failed` (`unavailable` means an operand is missing, which is already a field issue or not reported); an `absent_in_table` bucket is not an issue (a reviewer marking it unresolved re-opens it). A null on a schema field marked `optional` (income statement `cost_of_sales`, `gross_profit`, `profit_discontinued`) is listed in `not_reported` instead of `issues` — it is still null, never zero — unless a reviewer marked it unresolved, or an optional peer in the same identity check has a value (`cost_of_sales` present with `gross_profit` null is a miss). A null optional field with a schema `default` (`profit_discontinued`: 0) counts as that default in the checks, as in extraction, so `net_profit_arith` evaluates without it. PPT footers and the CSV `unresolved` column list field, check and basis issues together. `label_known` is re-derived on every decorate from the field's own label, synonyms and row synonyms (debt: "Borrowings", "Interest-bearing liabilities"), so saved extractions scored before that vocabulary resolve without re-extraction; a bare "Total" stays a task unless the closing-row marker identified it. `basis_issues` holds `{kind: basis, key, detail}` entries, one per unconfirmed definition. `ready` = no `issues`; an unconfirmed basis does not block it. Queue entries add `report: KbEntry` and `section`.
 
 Comparison responses include saved `candidates`, `previous_stem`, `current_year`, `previous_year`, `reasons`, and per-field `rows` with current/previous values, delta, percent, sign-change flag, sources and human reviews. Missing immediate prior years and duplicate sources require explicit selection. Definitions must be confirmed and compatible before calculating changes. Period formats must match after replacing each fiscal year. A zero previous value gives a null percentage, never infinity. Alternate intervals and declared restatements remain explicit. Export query parameters `section` and `previous_stem` select the saved statement and comparison, regardless of the last statement opened.
 

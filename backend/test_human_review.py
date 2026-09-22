@@ -24,6 +24,9 @@ with tempfile.TemporaryDirectory() as tmp:
     confirmed = save(copy.deepcopy(f), 'confirmed')
     assert confirmed['fields'][0]['human_review']['decision'] == 'confirmed'
     assert 'source_verified' not in confirmed['fields'][0]['human_review']
+    # One confirmed figure, no basis saved, its check unavailable: nothing left for a human, the basis form is only suggested
+    assert confirmed['ready'] and confirmed['issues'] == [] and confirmed['checks'][0]['status'] == 'unavailable'
+    assert confirmed['basis_issues'] and confirmed['basis_suggested']['entity'] == 'Test' and 'basis' not in confirmed
     try:
         save(f, 'unresolved')
         raise AssertionError('stale write accepted')
@@ -68,6 +71,7 @@ with tempfile.TemporaryDirectory() as tmp:
     assert reopened['fields'][0]['human_review']['decision'] == 'unresolved'
     assert reopened['fields'][0]['source'] == {'page': 2, 'quote': 'Current debt 40'}
     assert len(reopened['fields'][0]['review_history']) == 4
+    assert not reopened['ready'] and [i['kind'] for i in reopened['issues']] == ['field']
     try:
         app.run_extract(x['report_id'], app.ExtractBody(section='income_statement'))
         raise AssertionError('review overwritten by extraction')

@@ -26,10 +26,77 @@ def statement(section, year=2025):
 for section in ('income_statement', 'debt_maturity'):
     x = statement(section)
     schema = app.load_schema(section)
-    assert workbench.decorate(x, schema)['ready']
+    assert workbench.decorate(x, schema)['ready'] and x['issues'] == [] and x['basis_issues'] == [] and x['not_reported'] == []
     x['fields'][0]['value'] = None
     workbench.decorate(x, schema)
     assert not x['ready'] and any(c['status'] == 'unavailable' for c in x['checks'])
+    assert [i['kind'] for i in x['issues']] == ['field']  # an unavailable check is a missing operand, already listed; only a failed check is a task
+    # An unconfirmed basis is a form to fill, not a blocker: it lives in basis_issues with a prefill, and never counts against ready.
+    x = statement(section)
+    x.pop('basis')
+    x.update(maturity_basis='carrying')
+    workbench.decorate(x, schema)
+    assert x['ready'] and x['issues'] == [] and [i['key'] for i in x['basis_issues']] == workbench.required(section)
+    expected = dict(entity='Atlas Copco AB', consolidation='Group', period='2025', currency='SEK', scale='Millions', source='Annual report', restatement='As reported')
+    assert x['basis_suggested'] == expected | (dict(debt_basis='Carrying amounts', leases='', bucket_mapping='') if section == 'debt_maturity' else {}), x['basis_suggested']
+    assert x['basis_suggested'].get('debt_basis', '') in workbench.CHOICES['debt_basis'] | {''}
+    # Automated evidence resolves a field only with value_in_quote or exactly one stand-in for it, plus every other code and a source.
+    x = statement(section)
+    del x['fields'][0]['human_review']
+    for evidence, ok in ((['quote_on_page', 'value_in_quote', 'label_known', 'period_ok', 'page_is_statement', 'unit_ok'], True),
+                         (['quote_on_page', 'value_derived', 'label_known', 'period_ok', 'page_is_statement', 'unit_ok'], True),
+                         (['quote_on_page', 'stated_zero', 'label_known', 'period_ok', 'page_is_statement', 'unit_ok'], True),
+                         (['quote_on_page', 'printed_nil', 'label_known', 'period_ok', 'page_is_statement', 'unit_ok'], True),
+                         (['quote_on_page', 'value_derived', 'stated_zero', 'label_known', 'period_ok', 'page_is_statement', 'unit_ok'], False),
+                         (['quote_on_page', 'label_known', 'period_ok', 'page_is_statement', 'unit_ok'], False)):
+        x['fields'][0]['evidence'] = evidence
+        assert workbench.decorate(x, schema)['ready'] == ok, evidence
+    # label_known is re-derived from the field's own label/synonyms/row synonyms (saved fields predate that vocabulary); an unknown label stays a task
+    x['fields'][0].update(evidence=['quote_on_page', 'value_in_quote', 'period_ok', 'page_is_statement', 'unit_ok'], raw_label='Total')
+    assert not workbench.decorate(x, schema)['ready']
+    x['fields'][0]['raw_label'] = schema['fields'][0]['label']
+    assert workbench.decorate(x, schema)['ready']
+    x['fields'][0].update(evidence=['quote_on_page', 'value_in_quote', 'label_known', 'period_ok', 'page_is_statement', 'unit_ok'], source=None)
+    assert not workbench.decorate(x, schema)['ready']
+    if section == 'debt_maturity':
+        # One printed row answers all four fields (Karnell p.106: "Liabilities to credit institutions
+        # 43.5 353.7 - 397.2", one label over four columns). The report labels it once, for the total's
+        # vocabulary, so every bucket inherits a label its own field cannot name and gets flagged though
+        # the very same quote is already trusted. The buckets summing to the total is what proves the row
+        # is really shared, so the grant is gated on that identity -- break it and the tasks come back.
+        x = statement(section)
+        row = {'page': 1, 'quote': 'Liabilities to credit institutions 20 50 30 100'}
+        for f in x['fields']:
+            f.pop('human_review')
+            f.update(raw_label='Liabilities to credit institutions', source=dict(row),
+                     evidence=['quote_on_page', 'value_in_quote', 'period_ok', 'page_is_statement', 'unit_ok'])
+        assert workbench.decorate(x, schema)['ready'], x['issues']
+        x['fields'][0]['value'] = 999  # the buckets no longer sum to the total: nothing proves the shared row
+        assert [i['key'] for i in workbench.decorate(x, schema)['issues'] if i['kind'] == 'field'] == \
+            ['due_within_1_year', 'due_1_to_5_years', 'due_after_5_years'], x['issues']
+        x = statement(section)  # a bucket citing its OWN row is not covered by the total's label
+        for f in x['fields']:
+            f.pop('human_review')
+            f.update(raw_label='Liabilities to credit institutions', source=dict(row),
+                     evidence=['quote_on_page', 'value_in_quote', 'period_ok', 'page_is_statement', 'unit_ok'])
+        x['fields'][1].update(raw_label='Förfaller', source={'page': 1, 'quote': 'Förfaller 20'})
+        assert [i['key'] for i in workbench.decorate(x, schema)['issues']] == ['due_within_1_year'], x['issues']
+    # A null on a schema-optional line (income statement cost of sales, gross profit, discontinued operations) is "not reported",
+    # never an issue and never a zero; every other null stays a task. A reviewer marking it unresolved makes it one again.
+    x = statement(section)
+    optional = [f['key'] for f in schema['fields'] if f.get('optional')]
+    assert optional == (['cost_of_sales', 'gross_profit', 'profit_discontinued'] if section == 'income_statement' else [])
+    for f in x['fields']:
+        if f['key'] in optional:
+            f['value'] = None
+            del f['human_review']
+    workbench.decorate(x, schema)
+    assert x['ready'] and x['not_reported'] == optional and not any(i['kind'] == 'field' for i in x['issues']), x['issues']
+    if optional:
+        assert any(c['status'] == 'unavailable' for c in x['checks']) and not any(i['kind'] == 'check' for i in x['issues'])
+        x['fields'][1]['human_review'] = {'decision': 'unresolved', 'reviewer': 'Analyst', 'at': 'now', 'note': 'Which row?'}
+        workbench.decorate(x, schema)
+        assert not x['ready'] and x['issues'][0]['key'] == 'cost_of_sales' and x['not_reported'] == ['gross_profit', 'profit_discontinued']
     x = statement(section)
     x['fields'][0]['unit'] = 'EUR'
     assert any(c['status'] == 'unavailable' for c in workbench.checks(x, schema))
@@ -226,6 +293,11 @@ assert wall['rows'] == [] and wall['coverage']['total'] == 0
 
 print('maturity_wall: baseline share, basis/evidence gates, zero debt, unit scale and currency, entity/lease transparency, partial buckets, sort order, coverage')
 
+for unit, expected in (('MSEK', ('SEK', 'Millions')), ('SEK million', ('SEK', 'Millions')), ('SEKm', ('SEK', 'Millions')), ('Mkr', ('SEK', 'Millions')), ('€m', ('EUR', 'Millions')), ('MUSD', ('USD', 'Millions')),
+                       ('KSEK', ('SEK', 'Thousands')), ('SEK thousand', ('SEK', 'Thousands')), ('USD IN THOUSANDS', ('USD', 'Thousands')), ("EUR’000", ('EUR', 'Thousands')), ('SEK 000', ('SEK', 'Thousands')),
+                       ('Mdkr', ('SEK', 'Billions')), ('kr', ('SEK', 'Units')), ('SEK', ('SEK', '')), ('%', ('', '')), (None, ('', ''))):
+    assert workbench._unit_basis(unit) == expected, (unit, workbench._unit_basis(unit))
+
 with tempfile.TemporaryDirectory() as tmp, patch('pipeline.fetch.fetch_report', side_effect=AssertionError('PDF download forbidden')):
     os.environ['KB_DIR'] = tmp
     for year in (2025, 2024, 2023):
@@ -237,19 +309,19 @@ with tempfile.TemporaryDirectory() as tmp, patch('pipeline.fetch.fetch_report', 
         for section in ('income_statement', 'debt_maturity'):
             kb.save_extraction(stem, section, workbench.decorate(statement(section, year), app.load_schema(section)))
     x = app.kb_extraction('test_2025', 'debt_maturity')
-    assert x['ready'] and not x['pdf_available']
-    assert app.review_queue() == []
+    assert x['ready'] and not x['pdf_available'] and x['basis_suggested']['entity'] == 'Atlas Copco AB'
+    assert app.review_queue() == []  # a confirmed statement; and an unconfirmed basis never queues either (basis_issues, not issues)
     assert app.comparison('test_2025', 'debt_maturity')['previous_year'] == 2024
     assert app.comparison('test_2025', 'debt_maturity', 'test_2023')['previous_year'] == 2023
     field = copy.deepcopy(x['fields'][0])
     changed = app.review_field(x['report_id'], app.ReviewBody(section=x['section'], key=field['key'], expected=field, decision='corrected', reviewer='Tester', note='Page 1 correction', value=200, unit='MSEK', period='2025'))
     assert changed['checks'][0]['status'] == 'failed' and changed['check_history'][-1]['previous'][0]['passed']
-    assert any(i['kind'] == 'check' for i in app.review_queue())
+    assert {i['kind'] for i in app.review_queue()} == {'check'}
     corrected = app.review_field(x['report_id'], app.ReviewBody(section=x['section'], key=field['key'], expected=changed['fields'][0], decision='corrected', reviewer='Tester', note='Rechecked page 1', value=100, unit='MSEK', period='2025'))
     assert corrected['ready']
     body = app.BasisBody(section=x['section'], expected=x['basis'], values={**x['basis']['values'], 'leases': 'Excluded'}, reviewer='Tester', note='Debt excludes leases, note 12')
     updated = app.review_basis(x['report_id'], body)
-    assert updated['basis_history'][-1]['previous']['values']['leases'] == 'Included'
+    assert updated['basis_history'][-1]['previous']['values']['leases'] == 'Included' and updated['ready'] and updated['basis_issues'] == []
     try:
         app.review_basis(x['report_id'], body)
         raise AssertionError('stale basis accepted')

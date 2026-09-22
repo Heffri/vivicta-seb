@@ -1,4 +1,4 @@
-import type { ChunkPage, Answer, Company, Extraction, FieldFill, IndexStatus, KbEntry, LibraryEntry, MaturityWall, Report, ReviewComponent, Schema } from './types'
+import type { ChunkPage, Answer, Company, Discovery, Extraction, FieldFill, IndexStatus, KbEntry, LibraryEntry, MaturityWall, Report, ReviewComponent, Schema } from './types'
 import type { Collection } from './hooks/useCollection'
 
 export type ApiError = Error & { status: number; tried?: string[] }
@@ -35,8 +35,16 @@ export const registerLibraryReport = (file: string) =>
 
 export const getCompanies = (q: string, collection: Collection = 'wallenberg') => request<Company[]>(`/api/companies?q=${encodeURIComponent(q)}&collection_name=${collection}`)
 
-// country/hint provide optional context for AI-first report discovery.
-export const fetchReport = (company: string, year: number, opts?: { country?: string; hint?: string; download_pdf?: boolean }) =>
+// Which legal entities a typed query could mean (saved first, then one model web search); downloads nothing.
+export const discoverCompanies = (company: string, year: number, opts?: { country?: string; hint?: string }) =>
+  request<Discovery>('/api/reports/discover', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ company, year, ...opts }),
+  })
+
+// country/hint provide optional context for AI-first report discovery; url (a confirmed candidate's link) is tried first.
+export const fetchReport = (company: string, year: number, opts?: { country?: string | null; hint?: string; url?: string | null; download_pdf?: boolean }) =>
   request<Report>('/api/reports/fetch', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
