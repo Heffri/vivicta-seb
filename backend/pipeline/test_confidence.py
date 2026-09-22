@@ -4487,7 +4487,7 @@ def test_second_pass_skips_optional_nulls():
 
 
 def test_second_pass_caps_required_nulls_and_off_switch_makes_zero_calls():
-    """w197: at most three required keys retry, and the route's explicit off switch calls none."""
+    """w197: at most three keys retry; default/off make no calls and an explicit opt-in does."""
     import os
     import app
 
@@ -4522,7 +4522,14 @@ def test_second_pass_caps_required_nulls_and_off_switch_makes_zero_calls():
         assert stats == {"calls": 0, "seconds": 0.0, "model": 0.0, "validate": 0.0}, stats
         assert off_result["timings"]["second_pass_calls"] == 0 and off_result["timings"]["second_pass"] == 0.0, off_result["timings"]
 
-        os.environ.pop("EXTRACT_SECOND_PASS")  # default-on route accounting is separate from extract's zero-model stub above
+        os.environ.pop("EXTRACT_SECOND_PASS")
+        app.extract_mod.second_pass = lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("default-off switch called"))
+        default_result = _second_pass_result(schema, {"first"})
+        stats = app.apply_second_pass(default_result, [page], [1], schema, {"fiscal_year": 2025, "stem": "second-pass-test"})
+        assert stats == {"calls": 0, "seconds": 0.0, "model": 0.0, "validate": 0.0}, stats
+        assert default_result["timings"]["second_pass_calls"] == 0 and default_result["timings"]["second_pass"] == 0.0, default_result["timings"]
+
+        os.environ["EXTRACT_SECOND_PASS"] = "1"
         route_calls = []
         app.extract_mod.second_pass = lambda *args, **kwargs: route_calls.append(args) or {
             "calls": 2, "seconds": 3.25, "model": 3.0, "validate": 0.25}

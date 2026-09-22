@@ -550,8 +550,8 @@ def _run_extract(report_id: str, body: ExtractBody):
 def apply_second_pass(result: dict, texts: list[str], pages: list[int], schema: dict, report: dict) -> dict:
     """Route-level policy and accounting for w197's bounded required-field retry.
 
-    The default is on because the measured route is expected to add only calls for honest required
-    nulls.  Setting ``EXTRACT_SECOND_PASS=0`` is the explicit kill switch; its zero timings make that
+    The default is off: the bounded live validation did not produce a net-positive correction.
+    Set ``EXTRACT_SECOND_PASS=1`` to opt in; the zero timings make the default or an explicit off
     choice observable in the normal extraction response.
     """
     # A normal extract always records timings and accepts fixed_pages. Treat a malformed/synthetic
@@ -561,7 +561,7 @@ def apply_second_pass(result: dict, texts: list[str], pages: list[int], schema: 
         fixed_pages_supported = "fixed_pages" in inspect.signature(extract_mod.extract).parameters
     except (TypeError, ValueError):
         fixed_pages_supported = False
-    enabled = os.getenv("EXTRACT_SECOND_PASS", "1") == "1" and isinstance(result.get("timings"), dict) and fixed_pages_supported
+    enabled = os.getenv("EXTRACT_SECOND_PASS", "0") == "1" and isinstance(result.get("timings"), dict) and fixed_pages_supported
     stats = extract_mod.second_pass(result, texts, pages, schema, report) \
         if enabled else {"calls": 0, "seconds": 0.0, "model": 0.0, "validate": 0.0}
     timings = result.setdefault("timings", {})
@@ -1070,7 +1070,7 @@ def extraction_identity(report, schema, prompt):
     return kb.fingerprint({"report": kb._meta(report["stem"]), "schema": schema, "pipeline": extract_mod.EXTRACT_VERSION,
                            "model": os.getenv("LLM_MODEL") or {"codex": "gpt-5.6-terra", "claude": "claude-sonnet-5"}.get(llm.provider(), "fixture"), "provider": llm.provider(), "prompt": prompt,
                            "settings": {k: os.getenv(k) for k in ("LLM_BASE_URL", "LLM_REASONING", "LLM_THINK", "LLM_NUM_CTX", "LLM_STRICT_SCHEMA", "DEBT_BASIS", "EXTRACT_MERGE_RUNS", "EXTRACT_TWO_PASS", "FEWSHOT")}
-                           | {"EXTRACT_SECOND_PASS": os.getenv("EXTRACT_SECOND_PASS", "1")}})
+                           | {"EXTRACT_SECOND_PASS": os.getenv("EXTRACT_SECOND_PASS", "0")}})
 
 
 @app.post("/api/knowledge/{stem}/open")
