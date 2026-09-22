@@ -34,9 +34,12 @@ async function stageTessdata(dataDir) {
     const source = path.join(sourceDir, name)
     const dest = path.join(destDir, name)
     if (fs.existsSync(source)) {
+      // w214: these three files are committed to the repo, so this is the normal path on every
+      // clone/CI machine and the build is deterministic and offline.
       await fsp.copyFile(source, dest)
       continue
     }
+    // Fallback only for a damaged checkout missing a committed file.
     const response = await fetch(tessdataBaseUrl + name, { signal: AbortSignal.timeout(120_000) })
     if (!response.ok) throw new Error(`could not download OCR resource ${name}: HTTP ${response.status}`)
     const temp = `${dest}.tmp`
@@ -77,9 +80,9 @@ async function main() {
       return rel === '' || !shouldSkipDataEntry(rel)
     },
   })
-  // w204: every distributable carries the two languages the parser requests by default. Prefer
-  // an already-downloaded developer copy; a clean CI/build machine fetches the official fast
-  // models during packaging instead of shipping an app that tells users to run a repo script.
+  // w204: every distributable carries the two languages the parser requests by default. Since
+  // w214 they are committed under data/tessdata, so packaging copies the repo copy (offline,
+  // deterministic); the download inside stageTessdata only covers a damaged checkout.
   await stageTessdata(dataDir)
 
   console.log(`[prepare-resources] staged resources at ${stageDir}`)
