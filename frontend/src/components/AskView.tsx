@@ -1,15 +1,21 @@
 import { useEffect, useState } from 'react'
+import { Library, MessageCircle, Search } from 'lucide-react'
 import { getKb } from '@/api'
 import { AskPanel } from '@/components/AskPanel'
 import { CollectionPicker } from '@/components/CollectionPicker'
 import { useCollection } from '@/hooks/useCollection'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { PageHeader, Workspace } from '@/components/ui/workspace'
+import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
 import { ErrorBlock, LoadingLine } from '@/components/ui/state'
 import type { KbEntry } from '@/types'
 
 type Props = { initialCompany?: string }
 
 export function AskView({ initialCompany }: Props) {
+  const [view, setView] = useState<'ask' | 'coverage'>('ask')
+  const [query, setQuery] = useState('')
   const [collection, setCollection] = useCollection()
   const [catalog, setCatalog] = useState<KbEntry[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -20,18 +26,21 @@ export function AskView({ initialCompany }: Props) {
     return () => { alive = false }
   }, [retry, collection])
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-5"><div>
-        <p className="text-xs text-muted-foreground uppercase tracking-wide">Ask</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Ask your saved reports</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Compare figures, explore risks, and follow every answer back to its source.</p>
-        </div><CollectionPicker value={collection} onChange={value => { if (value !== collection) { setCatalog(null); setError(null); setCollection(value) } }} />
-      </header>
+    <div className="space-y-6">
+      <PageHeader eyebrow="Ask" title="Ask your saved reports" description="Explore figures and risks. Follow every answer back to its source." actions={<CollectionPicker value={collection} onChange={value => { if (value !== collection) { setCatalog(null); setError(null); setCollection(value) } }} />} />
       {error ? <div className="space-y-2"><ErrorBlock>Could not load saved reports: {error}</ErrorBlock><Button onClick={() => { setError(null); setCatalog(null); setRetry((n) => n + 1) }}>Retry</Button></div>
         : catalog === null ? <LoadingLine>Loading saved reports…</LoadingLine>
-        : <><p className="text-sm text-muted-foreground" role="status">{catalog.filter(e => e.text_available !== false).length} reports with saved text · {catalog.filter(e => e.figures_available ?? e.sections.length > 0).length} with extracted figures · {catalog.filter(e => e.pdf_available).length} PDFs downloaded</p>
-          {catalog.some(e => e.text_available === false) && <p className="text-xs text-muted-foreground">{catalog.filter(e => e.text_available === false).length} catalog entries have no readable page text and are excluded from Ask.</p>}
-          <AskPanel key={collection} reports={[]} catalog={catalog.filter(e => e.text_available !== false)} initialCompany={initialCompany} /></>}
+        : <Workspace label="Ask workspace" value={view} onChange={setView} pages={[
+          { value: 'ask', label: 'Conversation', icon: MessageCircle, content: <div className="mx-auto max-w-4xl"><AskPanel key={collection} reports={[]} catalog={catalog.filter(e => e.text_available !== false)} initialCompany={initialCompany} /></div> },
+          { value: 'coverage', label: 'Available reports', icon: Library, count: catalog.length, content: <>
+            <div className="flex flex-wrap items-center gap-3"><Input icon={<Search />} aria-label="Search available reports" placeholder="Search companies…" value={query} onChange={e => setQuery(e.target.value)} /><p className="text-xs text-muted-foreground" role="status">{catalog.filter(e => e.text_available !== false).length} reports with saved text · {catalog.filter(e => e.figures_available ?? e.sections.length > 0).length} with extracted figures · {catalog.filter(e => e.pdf_available).length} PDFs downloaded</p></div>
+            {catalog.some(e => e.text_available === false) && <p className="text-xs text-muted-foreground">{catalog.filter(e => e.text_available === false).length} catalog entries have no readable page text and are excluded from Ask.</p>}
+            <Table><TableHeader><TableRow><TableHead>Company</TableHead><TableHead>Year</TableHead><TableHead>Available to Ask</TableHead><TableHead>Original PDF</TableHead></TableRow></TableHeader><TableBody>
+              {catalog.filter(e => (e.company ?? e.stem).toLowerCase().includes(query.trim().toLowerCase())).map(e => <TableRow key={e.stem}><TableCell className="font-medium">{e.company ?? e.stem}</TableCell><TableCell>{e.fiscal_year ?? '—'}</TableCell><TableCell>{e.text_available !== false ? 'Saved text' : 'No readable text'}</TableCell><TableCell>{e.pdf_available ? 'Downloaded' : 'Not downloaded'}</TableCell></TableRow>)}
+            </TableBody></Table>
+            {!catalog.some(e => (e.company ?? e.stem).toLowerCase().includes(query.trim().toLowerCase())) && <p className="text-sm text-muted-foreground">No reports match your search.</p>}
+          </> },
+        ]} />}
     </div>
   )
 }

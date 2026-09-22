@@ -1,4 +1,5 @@
-import { Download } from 'lucide-react'
+import { Columns3, Download, MessageCircle } from 'lucide-react'
+import { useState } from 'react'
 import { csvUrl } from '@/api'
 import { AskPanel } from '@/components/AskPanel'
 import { MaturityBar } from '@/components/compare/MaturityBar'
@@ -9,6 +10,7 @@ import { fieldVerification, NEEDS_HUMAN } from '@/components/results/verificatio
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { PageHeader, Workspace } from '@/components/ui/workspace'
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { KbEntry, Result } from '@/types'
 
@@ -22,6 +24,7 @@ type Props = {
 }
 
 export function CompareView({ results, onSelect, onReset, onOpenReport }: Props) {
+  const [view, setView] = useState<'figures' | 'ask'>('figures')
   // Row order = first successful extraction's schema order; all reports share the section so keys line up.
   const first = results.find((r) => r.extraction)?.extraction
   const rows = first?.fields ?? []
@@ -41,20 +44,11 @@ export function CompareView({ results, onSelect, onReset, onOpenReport }: Props)
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4 border-b pb-5">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Comparison</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Comparison</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {results[0].sectionTitle} · {ok} of {results.length} reports extracted
-          </p>
-        </div>
-        <Button onClick={onReset}>New report</Button>
-      </header>
-
-      {/* v174: the saved-collection-wide list, independent of the `results` columns below it. */}
+      <PageHeader eyebrow="Compare" title="Compare reports" description={`${results[0]?.sectionTitle ?? 'Statements'} · ${ok} of ${results.length} reports extracted`} actions={<Button onClick={onReset}>New report</Button>} />
+      <Workspace label="Comparison workspace" value={view} onChange={setView} pages={[
+      { value: 'figures', label: 'Side by side', icon: Columns3, content: <div className="space-y-5">
+      {/* v174: the saved-collection-wide list, independent of the result columns below it. */}
       <MaturityWall onOpenReport={onOpenReport} />
-
       <Card className="overflow-x-auto py-0">
         <Table>
           <TableHeader>
@@ -159,8 +153,8 @@ export function CompareView({ results, onSelect, onReset, onOpenReport }: Props)
             </TableRow>
           </TableFooter>
         </Table>
-      </Card>
-
+      </Card></div> },
+      { value: 'ask', label: 'Ask reports', icon: MessageCircle, content:
       <AskPanel
         reports={reports}
         onCitation={(id, page) => {
@@ -168,6 +162,8 @@ export function CompareView({ results, onSelect, onReset, onOpenReport }: Props)
           if (i >= 0) onSelect(i, page)
         }}
       />
+      },
+      ]} />
     </div>
   )
 }

@@ -12,6 +12,7 @@ for (const tone of TONES) {
     const errors = trackPageErrors(page)
     await gotoWithTone(page, tone)
 
+    await page.getByRole('button', { name: 'Upload PDF', exact: true }).click()
     await page.setInputFiles('#pdf', [{ name: 'sample-report.pdf', mimeType: 'application/pdf', buffer: makePdf(70) }])
     const extractButton = page.getByRole('main').getByRole('button', { name: /^Extract/ })
     await expect(extractButton).toHaveText('Extract') // single file: no "N reports" suffix
@@ -21,6 +22,7 @@ for (const tone of TONES) {
     await page.getByRole('main').getByRole('button', { name: /^View results/ }).click({ timeout: 20000 })
     await expect(page.getByRole('heading', { name: 'Nordic Industrials', exact: false })).toBeVisible()
 
+    await page.getByRole('navigation', { name: 'Report workspace' }).getByRole('button', { name: 'Ask report', exact: true }).click()
     const askBox = page.getByPlaceholder(/Ask about these reports/)
     await askBox.fill('Which page is the income statement on?')
     await askBox.press('Enter')

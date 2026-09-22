@@ -4132,11 +4132,18 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
     basis = debt_basis()  # v089: which maturity table total_debt and the buckets are read from
     system, warnings, raw = system_prompt(schema, report_meta.get("stem")), [], []
     nonnull = lambda fs: sum(isinstance(f, dict) and f.get("value") is not None for f in fs)
+    # jev c7f7d59 comparison mode: brute-force every page instead of trusting locate.py's
+    # candidates. Never for a fixed-page (analyst / second-pass) call: that window is the contract.
     # An analyst-directed fill supplies its complete evidence window. It must not be replaced by
     # locator ranking, pass-one selection or a timeout fallback to a different window.
+    full_scan = not fixed_pages and os.getenv("EXTRACT_SCAN_ALL") == "1"
     windows = [tuple(pages if fixed_pages else pages[:2])]  # the ordinary statement spread starts quick (four pages timed out on NOBA / Nordnet)
+    if full_scan:
+        chunks = [tuple(range(n, min(n + 2, len(texts) + 1))) for n in range(1, len(texts) + 1, 2)]
+        queue = [tuple(pages[:2])] + [c for c in chunks if c != tuple(pages[:2])]
+        windows = list(reversed(queue))  # popped back-to-front below, so reverse to try the candidate pages first
     two_pass_pages = None  # pass 1's own pick, if EXTRACT_TWO_PASS is on and it succeeded -- also stands in for
-    if not fixed_pages and os.getenv("EXTRACT_TWO_PASS") == "1" and len(pages) >= 2:  # pages[:2] below wherever that means "the statement", not "cast a wider net"
+    if not fixed_pages and os.getenv("EXTRACT_TWO_PASS") == "1" and len(pages) >= 2:
         selected = _select_pages(schema, pages, texts, page_select_hints)
         if selected:
             warnings.append(f"two_pass: page {selected} selected from candidates {pages}")
@@ -4166,6 +4173,10 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
         model_seconds += time.perf_counter() - call_started
         if nonnull(got) > nonnull(raw):
             raw = got
+        if full_scan:
+            if nonnull(raw) == len(schema["fields"]):
+                windows = []  # all fields filled: stop burning comparison-mode calls
+            continue
         # v157: and for debt, widen when the identity comes back with two or more holes in it. Two
         # answered fields of four passes the test above, and it is exactly the shape of a confidently
         # read wrong table: BTS p.93's NOTE 21 is non-current borrowings only, so the model answered a

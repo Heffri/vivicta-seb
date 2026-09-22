@@ -24,6 +24,7 @@ test('extract: switching tabs mid-batch and back keeps progress, and the finish 
     await route.continue()
   })
 
+  await page.getByRole('button', { name: 'Upload PDF', exact: true }).click()
   await page.setInputFiles('#pdf', [
     { name: 'switch-a.pdf', mimeType: 'application/pdf', buffer: makePdf(2) },
     { name: 'switch-b.pdf', mimeType: 'application/pdf', buffer: makePdf(3) },
@@ -50,10 +51,10 @@ test('extract: switching tabs mid-batch and back keeps progress, and the finish 
   await expect(rowB.getByText('Done', { exact: true })).toBeVisible({ timeout: 20000 })
   const viewResults = page.getByRole('button', { name: /^View results/ })
   await expect(viewResults).toBeVisible()
-  await expect(page.getByText('Pick reports, get source-linked numbers')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Extract report data', exact: true })).toBeVisible()
 
   await viewResults.click()
-  await expect(page.getByRole('heading', { name: 'Comparison' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Compare reports', exact: true })).toBeVisible()
 
   expect(errors).toEqual([])
 })
@@ -72,6 +73,7 @@ test('extract: one of two reports fails with a provider error, retry only re-run
     await route.continue()
   })
 
+  await page.getByRole('button', { name: 'Upload PDF', exact: true }).click()
   await page.setInputFiles('#pdf', [
     { name: 'retry-a.pdf', mimeType: 'application/pdf', buffer: makePdf(2) },
     { name: 'retry-b.pdf', mimeType: 'application/pdf', buffer: makePdf(3) },
@@ -114,6 +116,7 @@ test('extract: Stop after current lets the active three finish and leaves later 
     await route.continue()
   })
 
+  await page.getByRole('button', { name: 'Upload PDF', exact: true }).click()
   await page.setInputFiles('#pdf', [
     { name: 'stop-a.pdf', mimeType: 'application/pdf', buffer: makePdf(2) },
     { name: 'stop-b.pdf', mimeType: 'application/pdf', buffer: makePdf(3) },
@@ -168,6 +171,7 @@ test('extract: a scanned PDF over the OCR page budget offers "Run OCR anyway", w
     route.fulfill({ status: 200, json: { report_id: 'up-mock191', section: 'debt_maturity', company: null, fiscal_year: null, currency: null, fields: [], checks: [], warnings: [] } }),
   )
 
+  await page.getByRole('button', { name: 'Upload PDF', exact: true }).click()
   await page.setInputFiles('#pdf', { name: 'scan-191.pdf', mimeType: 'application/pdf', buffer: makePdf(2) })
   await page.getByRole('main').getByRole('button', { name: /^Extract/ }).click()
 

@@ -8,7 +8,7 @@ zero model calls to set up, and the main show is **stored real results**, not a 
 
 | What | Value |
 |---|---|
-| Branch / commit demoed | `acrylic` at delivery: commit `fba373d` (re-run `git rev-parse --short=7 origin/acrylic` after a final fetch and update this row if it moved) |
+| Branch / commit demoed | m02 delivery app tree: commit `fca5051` (the following commit adds evidence/docs only; re-run `git rev-parse --short=7 HEAD` after a final fetch and use the delivered branch) |
 | Windows installer feed | [`desktop-demo`](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-demo) (auto-updating, CI-built from the team `demo` branch) — install the Setup exe once; it updates itself. [`desktop-main`](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-main) is the equivalent feed for `main` |
 | Not the installer? | Clone the repo and run `run.bat` (Windows) or `./run.sh` (macOS/Linux) — first run ~2–4 min, later runs seconds |
 | The old portable exe | `desktop-0.3.4` (portable/Setup zip) **cannot update itself** — do not demo from it; use the auto-updating installer above or a fresh `run.bat` checkout |
@@ -57,21 +57,21 @@ after everything below has already succeeded.
   base → Collection: All → search "karnell" → Open**.
 - **0:20–1:00 — the evidence chain.** In Results, click the **Due 1–5 years** row: the source panel
   shows **page 106** and the verbatim quote `Liabilities to credit institutions 43.5 353.7 - 397.2`
-  with the value highlighted. Point at the maturity chart, then at the check: 43.5 + 353.7 + 0 =
+  with the value highlighted. Open **Maturity profile** and point at the chart, then open **Checks & review** and point at the check: 43.5 + 353.7 + 0 =
   397.2, the identity closes — and the 0 is explicit because the table prints a `>3 years` column
   with a dash, proven by the arithmetic, not guessed. Name the basis: carrying amount, MSEK,
   group — and say the caveat: *a verified quote means we read the report faithfully, not that the
   report is right.*
 - **1:00–1:35 — a real incomplete case.** Open **Ericsson**. Two real figures, two nulls. "The
   report prints no >5-year bucket. We show 'not read / not printed' — **null is not zero**, and a
-  non-current split is not a 1–5-year bucket." Show the check row saying `missing: due_1_to_5_years`
+  non-current split is not a 1–5-year bucket." Open **Checks & review** and show the check row saying `missing: due_1_to_5_years`
   — the app refuses to bless an identity it cannot prove, and that is the deliverable: an honest
   to-do for an analyst, not a fabricated table.
-- **1:35–2:15 — a real human confirmation.** In Results, pick a figure, walk the **Review** form:
+- **1:35–2:15 — a real human confirmation.** In Results, pick a figure, open **Review <figure>** under the table, then walk the form:
   check the source, enter a name, save the decision — the original value and previous decisions
   stay in the history. Leave the record **Draft** afterwards (or use a sample you genuinely
   reviewed before stage); never imply review mass-confirms everything.
-- **2:15–2:40 — the deliverable.** **Export PPTX**: one slide — totals, buckets, the source page
+- **2:15–2:40 — the deliverable.** **Export** → **Export PPTX**: one slide — totals, buckets, the source page
   numbers on it, Draft/ready status and the open items visible. Mention CSV/JSON as the downstream
   system interface in one sentence; do not narrate the tech stack.
 - **2:40–3:00 — the numbers and the boundary.** "The stored library of 105 saved debt extractions

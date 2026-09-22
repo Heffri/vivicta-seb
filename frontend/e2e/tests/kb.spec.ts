@@ -40,6 +40,7 @@ test('kb: building poll backs off, then stops for good once a listing has no bui
 
   await page.goto('/')
   await railTab(page, 'Knowledge base').click()
+  await page.getByRole('button', { name: 'Search index', exact: true }).click()
   const row = page.locator('tbody tr').first()
   await expect(row).toBeVisible()
   await expect(row.getByText('building', { exact: true })).toBeVisible()
@@ -79,6 +80,7 @@ for (const tone of TONES) {
 
     await rows.first().getByRole('button', { name: 'Open' }).click()
     await expect(page.getByRole('heading', { name: 'Atlas Copco', exact: false })).toBeVisible({ timeout: 20000 })
+    await page.getByRole('navigation', { name: 'Report workspace' }).getByRole('button', { name: 'Export', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Export JSON' })).toBeVisible()
 
     expect(errors).toEqual([])
@@ -91,7 +93,7 @@ for (const tone of TONES) {
     await railTab(page, 'Knowledge base').click()
     await expect(page.getByRole('heading', { name: /reports/ })).toBeVisible()
     const rows = page.locator('tbody tr')
-    await expect(rows).toHaveCount(11)
+    await expect(rows).toHaveCount(11, { timeout: 20000 })
 
     const collection = page.getByRole('group', { name: 'Collection' })
     await collection.getByRole('button', { name: 'All', exact: true }).click()
@@ -104,10 +106,10 @@ for (const tone of TONES) {
     // default Extract tab, so go back to Knowledge base before reading the header.
     await page.reload()
     await railTab(page, 'Knowledge base').click()
-    await expect(page.getByRole('heading', { name: /reports/ })).toContainText('all saved reports', { timeout: 20000 })
+    await expect(collection.getByRole('button', { name: 'All', exact: true })).toHaveAttribute('aria-pressed', 'true', { timeout: 20000 })
 
     await collection.getByRole('button', { name: 'Wallenberg', exact: true }).click()
-    await expect(page.getByRole('heading', { name: /reports/ })).toContainText('Wallenberg collection', { timeout: 20000 })
+    await expect(collection.getByRole('button', { name: 'Wallenberg', exact: true })).toHaveAttribute('aria-pressed', 'true', { timeout: 20000 })
     await expect(rows).toHaveCount(11)
 
     expect(errors).toEqual([])

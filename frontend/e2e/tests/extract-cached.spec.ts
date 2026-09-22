@@ -17,6 +17,7 @@ for (const tone of TONES) {
     const errors = trackPageErrors(page)
     await gotoWithTone(page, tone)
 
+    await page.getByRole('button', { name: 'Saved reports', exact: true }).click()
     const checkbox = page.getByRole('checkbox', { name: /Atlas Copco/ })
     await checkbox.waitFor()
     await checkbox.check()
@@ -27,6 +28,7 @@ for (const tone of TONES) {
 
     // v171: a finished batch never forces a tab switch (BatchProgress's own "View results" does).
     await page.getByRole('main').getByRole('button', { name: /^View results/ }).click({ timeout: 20000 })
+    await page.getByRole('navigation', { name: 'Report workspace' }).getByRole('button', { name: 'Export', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Export JSON' })).toBeVisible()
 
     expect(errors).toEqual([])

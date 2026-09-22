@@ -31,3 +31,8 @@ desktop/icons/icon.png
 data/tessdata/
 backend/uploads/
 data/kb/*/index.json
+
+# experiments: keep the comparison scripts/writeups, not the model weights/PDFs/regenerable cache
+experiments/laya/.hf_cache/
+experiments/docling/pdfs/
+experiments/docling/cache/

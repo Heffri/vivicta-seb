@@ -127,7 +127,7 @@ export function AskPanel({ reports, catalog, initialCompany, onCitation }: Props
   return (
     <section aria-label={global ? 'Ask saved reports' : 'Ask the reports'} className="space-y-6">
         {!turns.length && <div className={`flex flex-col items-center text-center ${global ? 'py-7' : 'py-2'}`}>
-          <ThinkingOrb className={global ? 'size-32' : 'size-20'} />
+          <BookOpen className="size-8 text-muted-foreground" aria-hidden />
           <h2 className="mt-4 text-xl font-medium tracking-tight">What would you like to understand?</h2>
           <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">{global ? `Search saved report text across ${companies.length} companies, or mention a company to narrow your question. Original PDFs are only available where downloaded.` : 'Ask about these statements and inspect the source behind each answer.'}</p>
         </div>}

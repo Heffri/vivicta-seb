@@ -25,6 +25,7 @@ test('an analyst-directed page candidate only populates the ordinary correction 
   await page.getByRole('tab', { name: 'Knowledge base', exact: true }).click()
   await page.getByRole('button', { name: 'Open', exact: true }).click()
   await page.getByRole('cell', { name: 'Revenue', exact: true }).click()
+  await page.locator('summary').filter({ hasText: /^Review Revenue$/ }).click()
   const form = page.getByRole('form', { name: 'Review Revenue' })
   const fill = page.getByRole('button', { name: 'Fill Revenue from this page', exact: true })
   await expect(fill).toBeVisible()

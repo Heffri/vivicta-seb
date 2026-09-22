@@ -10,6 +10,7 @@ for (const tone of TONES) {
     const errors = trackPageErrors(page)
     await gotoWithTone(page, tone)
 
+    await page.getByRole('button', { name: 'Upload PDF', exact: true }).click()
     await page.setInputFiles('#pdf', [
       { name: 'sample-report-a.pdf', mimeType: 'application/pdf', buffer: makePdf(2) },
       { name: 'sample-report-b.pdf', mimeType: 'application/pdf', buffer: makePdf(3) },
@@ -28,7 +29,7 @@ for (const tone of TONES) {
     const viewResults = page.getByRole('main').getByRole('button', { name: 'View results (2)' })
     await expect(viewResults).toBeVisible({ timeout: 20000 })
     await viewResults.click()
-    await expect(page.getByRole('heading', { name: 'Comparison' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Compare reports', exact: true })).toBeVisible()
     await expect(page.getByText('2 of 2 reports extracted')).toBeVisible()
     await expect(page.locator('table thead th')).toHaveCount(3) // Field + 2 report columns
 
@@ -72,13 +73,14 @@ test('extract: five uploads run three at a time', async ({ page }) => {
     return route.fulfill({ json: path === '/api/schemas' ? [{ name: 'income_statement', title: 'Income statement' }] : path === '/api/config' ? { provider: 'codex', model: 'test' } : path === '/api/kb/maturity-wall' ? emptyMaturityWall : [] })
   })
   await page.goto('/')
+  await page.getByRole('button', { name: 'Upload PDF', exact: true }).click()
   await page.setInputFiles('#pdf', [1, 2, 3, 4, 5].map(i => ({ name: `report-${i}.pdf`, mimeType: 'application/pdf', buffer: makePdf(i) })))
   await page.getByRole('main').getByRole('button', { name: 'Extract 5 reports', exact: true }).click()
   await expect.poll(() => started.length).toBe(3) // the first three start together…
   expect(inFlight).toBe(3)
   await expect.poll(() => started.length).toBe(5) // …the rest only as slots free up
   await page.getByRole('button', { name: 'View results (5)', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Comparison', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Compare reports', exact: true })).toBeVisible()
   await expect(page.getByText('5 of 5 reports extracted')).toBeVisible()
   expect(peak).toBe(3)
   await expect(page.locator('table thead th')).toHaveCount(6) // Field + 5 report columns, queue order

@@ -100,7 +100,7 @@ export default function App() {
       <div className="flex min-h-0 flex-1">
         <Rail active={tab} enabled={enabled} compareCount={results.length} onSelect={(next) => { setAskCompany(undefined); setTab(next) }} tone={tone} onToneChange={setTone} />
         <main id="content" tabIndex={-1} className="min-w-0 flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-6xl px-6 py-10">
+          <div className={`mx-auto w-full px-4 sm:px-6 lg:px-8 ${tab === 'results' ? 'py-4' : 'py-8'} ${tab === 'results' || tab === 'compare' ? 'max-w-[1680px]' : 'max-w-6xl'}`}>
             {tab === 'extract' && (
               <UploadView batch={batch} reportSearch={reportSearch} onSubmit={submitBatch} resultsCount={results.filter((r) => r.extraction).length} onViewResults={viewResults} onDone={done} onNavigate={setTab} />
             )}

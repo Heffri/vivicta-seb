@@ -18,6 +18,7 @@ for (const tone of TONES) {
     const errors = trackPageErrors(page)
     await gotoWithTone(page, tone)
 
+    await page.getByRole('button', { name: 'Upload PDF', exact: true }).click()
     await page.setInputFiles('#pdf', [{ name: 'candidates-report.pdf', mimeType: 'application/pdf', buffer: makePdf(70, DEBT_PAGES) }])
     await expect(page.getByText('1 file selected')).toBeVisible()
 
@@ -34,6 +35,7 @@ for (const tone of TONES) {
 
     // v171: a finished batch never forces a tab switch (BatchProgress's own "View results" does).
     await page.getByRole('main').getByRole('button', { name: /^View results/ }).click({ timeout: 30000 })
+    await page.getByRole('navigation', { name: 'Report workspace' }).getByRole('button', { name: 'Export', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Export JSON' })).toBeVisible()
     expect(errors).toEqual([])
   })
@@ -51,6 +53,7 @@ for (const tone of TONES) {
     // knowledge base — real figures on Results without a single /extract, fixture mode or not.
     await page.getByRole('button', { name: /Open a real debt sample/ }).click()
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Karnell/, { timeout: 15000 })
+    await page.getByRole('navigation', { name: 'Report workspace' }).getByRole('button', { name: 'Export', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Export JSON' })).toBeVisible()
     expect(extractCalls).toEqual([])
     expect(errors).toEqual([])
@@ -60,6 +63,7 @@ for (const tone of TONES) {
     const errors = trackPageErrors(page)
     await gotoWithTone(page, tone)
 
+    await page.getByRole('button', { name: 'Upload PDF', exact: true }).click()
     await page.setInputFiles('#pdf', [{ name: 'not-found-report.pdf', mimeType: 'application/pdf', buffer: makePdf(70, DEBT_PAGES) }])
     await expect(page.getByText('1 file selected')).toBeVisible()
 
@@ -80,6 +84,7 @@ for (const tone of TONES) {
 
     // The banner's entry lands on the manual review form of the first not-found figure.
     await banner.getByRole('button', { name: 'Fill in below' }).click()
+    await page.locator('summary').filter({ hasText: /^Review / }).click()
     await expect(page.getByRole('form', { name: /^Review / })).toBeVisible()
     expect(errors).toEqual([])
   })

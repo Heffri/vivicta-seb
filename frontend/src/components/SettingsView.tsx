@@ -1,4 +1,4 @@
-import { Loader2 } from 'lucide-react'
+import { Cpu, Loader2, Palette, SlidersHorizontal } from 'lucide-react'
 import type { InputHTMLAttributes, ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import { getConfig, type Config } from '@/api'
@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { PageHeader, Workspace } from '@/components/ui/workspace'
 import { ErrorBlock, LoadingLine } from '@/components/ui/state'
 import { ProviderCard } from '@/components/settings/ProviderCard'
 
@@ -306,10 +307,6 @@ function SubscriptionCliFields({
   apiKey,
   onBaseUrlChange,
   onApiKeyChange,
-  twoPass,
-  onTwoPassChange,
-  maturityBasis,
-  onMaturityBasisChange,
   info,
 }: {
   cliName: string
@@ -320,10 +317,6 @@ function SubscriptionCliFields({
   apiKey: string
   onBaseUrlChange: (value: string) => void
   onApiKeyChange: (value: string) => void
-  twoPass: boolean
-  onTwoPassChange: (value: boolean) => void
-  maturityBasis: DesktopConfig['maturityBasis']
-  onMaturityBasisChange: (value: DesktopConfig['maturityBasis']) => void
   info: TestConnectionResult | null
 }) {
   return (
@@ -342,8 +335,6 @@ function SubscriptionCliFields({
           </SelectContent>
         </Select>
       </Field>
-      <TwoPassToggle checked={twoPass} onChange={onTwoPassChange} />
-      <MaturityBasisSelect value={maturityBasis} onChange={onMaturityBasisChange} />
       <TextField caption="Base URL (optional)" value={baseUrl} onChange={(e) => onBaseUrlChange(e.target.value)} placeholder="http://127.0.0.1:11434/v1" />
       <p className="text-xs text-muted-foreground">Without a base URL, Ask retrieves with keyword search (BM25) instead of embeddings — Extract still works.</p>
       {baseUrl.trim() && (
@@ -367,6 +358,7 @@ function SubscriptionCliFields({
 // Read-only mirror of GET /api/config for a plain browser tab — no window.arp there (main.tsx), so
 // nothing is editable; a desktop double-click is the only way to change provider/model.
 function ReadOnlySettings() {
+  const [view, setView] = useState<'provider' | 'appearance'>('provider')
   const [status, setStatus] = useState<Config | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -377,16 +369,17 @@ function ReadOnlySettings() {
   }, [])
 
   return (
-    <div className="max-w-xl space-y-5">
-      <header className="border-b border-border pb-5">
-        <p className="text-xs text-muted-foreground uppercase tracking-wide">Settings</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Model provider</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Model settings are edited in the desktop app or via backend/.env; theme is local to this browser.</p>
-      </header>
-      {error && <ErrorBlock>{error}</ErrorBlock>}
-      {!status && !error && <LoadingLine>Loading…</LoadingLine>}
-      <ThemeSelect />
-      {status && <StatusRow status={status} error={error} />}
+    <div className="space-y-6">
+      <PageHeader eyebrow="Settings" title="Settings" description="Manage your model connection and workspace appearance." />
+      <Workspace label="Settings workspace" value={view} onChange={setView} pages={[
+        { value: 'provider', label: 'Model provider', icon: Cpu, content: <div className="max-w-2xl space-y-5">
+          <p className="text-sm text-muted-foreground">Model settings are edited in the desktop app or via backend/.env.</p>
+          {error && <ErrorBlock>{error}</ErrorBlock>}
+          {!status && !error && <LoadingLine>Loading…</LoadingLine>}
+          {status && <StatusRow status={status} error={error} />}
+        </div> },
+        { value: 'appearance', label: 'Appearance', icon: Palette, content: <div className="max-w-xl"><ThemeSelect /></div> },
+      ]} />
     </div>
   )
 }
@@ -402,6 +395,7 @@ export function SettingsView({ onConfigChange }: { onConfigChange?: (config: Con
 }
 
 function DesktopSettings({ api, onConfigChange }: { api: ArpSettingsApi; onConfigChange?: (config: Config) => void }) {
+  const [view, setView] = useState<'provider' | 'extraction' | 'appearance'>('provider')
   const [loaded, setLoaded] = useState(false)
   const [form, setForm] = useState<DesktopConfig>(DEFAULT_CONFIG)
   const [status, setStatus] = useState<Config | null>(null)
@@ -511,23 +505,16 @@ function DesktopSettings({ api, onConfigChange }: { api: ArpSettingsApi; onConfi
   }
 
   return (
-    <div className="max-w-2xl space-y-5">
-      <header className="border-b border-border pb-5">
-        <p className="text-xs text-muted-foreground uppercase tracking-wide">Settings</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Model provider</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Pick where Extract and Ask get their answers from. Saving restarts the backend with the new settings.
-        </p>
-      </header>
-
-      <StatusRow status={status} error={statusError} twoPass={twoPassStatus} />
-
-      <ThemeSelect onThemeChange={(t) => update({ theme: t })} />
+    <div className="space-y-6">
+      <PageHeader eyebrow="Settings" title="Settings" description="Manage your model connection, extraction preferences and workspace appearance." />
 
       {!loaded ? (
         <LoadingLine>Loading current settings…</LoadingLine>
       ) : (
         <>
+          <Workspace label="Settings workspace" value={view} onChange={setView} pages={[
+          { value: 'provider', label: 'Model provider', icon: Cpu, content: <div className="max-w-2xl space-y-5">
+          <StatusRow status={status} error={statusError} twoPass={twoPassStatus} />
           <div className="space-y-3">
             <ProviderCard
               value="ollama"
@@ -539,7 +526,6 @@ function DesktopSettings({ api, onConfigChange }: { api: ArpSettingsApi; onConfi
               <TextField caption="Base URL" value={form.baseUrl} onChange={(e) => update({ baseUrl: e.target.value })} placeholder="http://127.0.0.1:11434/v1" />
               <TextField caption="Model" value={form.model} onChange={(e) => update({ model: e.target.value })} placeholder="qwen3:8b" />
               <TextField caption="Embed model" value={form.embedModel} onChange={(e) => update({ embedModel: e.target.value })} placeholder="bge-m3" />
-              <MaturityBasisSelect value={form.maturityBasis} onChange={(v) => update({ maturityBasis: v })} />
             </ProviderCard>
 
             <ProviderCard
@@ -553,8 +539,6 @@ function DesktopSettings({ api, onConfigChange }: { api: ArpSettingsApi; onConfi
               <TextField caption="Model" value={form.model} onChange={(e) => update({ model: e.target.value })} placeholder="gpt-4o-mini" />
               <TextField caption="API key" type="password" autoComplete="off" value={form.apiKey} onChange={(e) => update({ apiKey: e.target.value })} placeholder="sk-…" />
               <TextField caption="Embed model (optional, for Ask)" value={form.embedModel} onChange={(e) => update({ embedModel: e.target.value })} placeholder="bge-m3" />
-              <TwoPassToggle checked={form.extractTwoPass} onChange={(v) => update({ extractTwoPass: v })} />
-              <MaturityBasisSelect value={form.maturityBasis} onChange={(v) => update({ maturityBasis: v })} />
             </ProviderCard>
 
             <ProviderCard
@@ -573,10 +557,6 @@ function DesktopSettings({ api, onConfigChange }: { api: ArpSettingsApi; onConfi
                 apiKey={form.apiKey}
                 onBaseUrlChange={(v) => update({ baseUrl: v })}
                 onApiKeyChange={(v) => update({ apiKey: v })}
-                twoPass={form.extractTwoPass}
-                onTwoPassChange={(v) => update({ extractTwoPass: v })}
-                maturityBasis={form.maturityBasis}
-                onMaturityBasisChange={(v) => update({ maturityBasis: v })}
                 info={codexInfo}
               />
             </ProviderCard>
@@ -597,18 +577,11 @@ function DesktopSettings({ api, onConfigChange }: { api: ArpSettingsApi; onConfi
                 apiKey={form.apiKey}
                 onBaseUrlChange={(v) => update({ baseUrl: v })}
                 onApiKeyChange={(v) => update({ apiKey: v })}
-                twoPass={form.extractTwoPass}
-                onTwoPassChange={(v) => update({ extractTwoPass: v })}
-                maturityBasis={form.maturityBasis}
-                onMaturityBasisChange={(v) => update({ maturityBasis: v })}
                 info={claudeInfo}
               />
             </ProviderCard>
           </div>
 
-          {/* v140: one model-independent control for the two-run merge, not one per card -- the
-              provider cards above each carry the basis select; this is panel-level like the theme. */}
-          <MergeRunsControl value={form.mergeRuns} onChange={(v) => update({ mergeRuns: v })} />
 
           <p className="text-xs text-muted-foreground">
             {form.provider === 'fixture' ? (
@@ -620,7 +593,15 @@ function DesktopSettings({ api, onConfigChange }: { api: ArpSettingsApi; onConfi
             )}
           </p>
 
-          <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
+          </div> },
+          { value: 'extraction', label: 'Extraction', icon: SlidersHorizontal, content: <div className="max-w-xl space-y-5">
+            <div><h2 className="text-base font-semibold">Extraction preferences</h2><p className="mt-1 text-sm text-muted-foreground">These settings apply to new extractions. Save to restart the backend.</p></div>
+            {form.provider !== 'fixture' && form.provider !== 'ollama' && <TwoPassToggle checked={form.extractTwoPass} onChange={v => update({ extractTwoPass: v })} />}
+            <MaturityBasisSelect value={form.maturityBasis} onChange={v => update({ maturityBasis: v })} />
+            <MergeRunsControl value={form.mergeRuns} onChange={v => update({ mergeRuns: v })} />
+          </div> },
+          { value: 'appearance', label: 'Appearance', icon: Palette, content: <div className="max-w-xl"><ThemeSelect onThemeChange={t => update({ theme: t })} /></div> },
+          ]} footer={view !== 'appearance' && <>
             <Button variant="outline" onClick={test} disabled={testing || saving || form.provider === 'fixture'}>
               {testing && <Loader2 className="animate-spin" />}
               Test connection
@@ -634,7 +615,7 @@ function DesktopSettings({ api, onConfigChange }: { api: ArpSettingsApi; onConfi
                 Saved — backend restarted.
               </p>
             )}
-          </div>
+          </>} />
 
           {testing && <LoadingLine>Testing…</LoadingLine>}
           {!testing && testResult && <TestOutcome result={testResult} />}
