@@ -8,7 +8,7 @@ zero model calls to set up, and the main show is **stored real results**, not a 
 
 | What | Value |
 |---|---|
-| Branch / commit demoed | `acrylic` at delivery: commit `fba373d` (re-run `git rev-parse --short=7 origin/acrylic` after a final fetch and update this row if it moved) |
+| Branch / commit demoed | m02 delivery app tree: commit `fca5051` (the following commit adds evidence/docs only; re-run `git rev-parse --short=7 HEAD` after a final fetch and use the delivered branch) |
 | Windows installer feed | [`desktop-demo`](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-demo) (auto-updating, CI-built from the team `demo` branch) — install the Setup exe once; it updates itself. [`desktop-main`](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-main) is the equivalent feed for `main` |
 | Not the installer? | Clone the repo and run `run.bat` (Windows) or `./run.sh` (macOS/Linux) — first run ~2–4 min, later runs seconds |
 | The old portable exe | `desktop-0.3.4` (portable/Setup zip) **cannot update itself** — do not demo from it; use the auto-updating installer above or a fresh `run.bat` checkout |
