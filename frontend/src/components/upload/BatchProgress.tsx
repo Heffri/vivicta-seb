@@ -11,6 +11,7 @@ type Props = {
   stopRequested: boolean
   resultsCount: number
   onStopAfterCurrent: () => void
+  onExtractAgain: () => void
   onRetry: (id: string, opts?: RegisterOpts) => void
   onViewResults: () => void
   onNavigate?: (tab: Tab) => void
@@ -85,7 +86,7 @@ const ACTIVE_STAGES: BatchItem['stage'][] = ['registering', 'candidates', 'extra
 // stage, a stopwatch, whether it reused a cached result, and — for failures — which next step
 // applies. Lives below the action bar as its own bordered step of the one glass pane (DESIGN.md);
 // survives switching tabs and back because the state itself lives in App, not here.
-export function BatchProgress({ items, busy, stopRequested, resultsCount, onStopAfterCurrent, onRetry, onViewResults, onNavigate }: Props) {
+export function BatchProgress({ items, busy, stopRequested, resultsCount, onStopAfterCurrent, onExtractAgain, onRetry, onViewResults, onNavigate }: Props) {
   // The stopwatch: like UploadView's own (v164), the elapsed string is read off `now` — a state
   // value refreshed inside the interval — never off a bare Date.now()/performance.now() call made
   // directly during render, so render stays pure.
@@ -113,6 +114,11 @@ export function BatchProgress({ items, busy, stopRequested, resultsCount, onStop
             <Button variant="outline" size="xs" onClick={onViewResults}>
               View results ({resultsCount})
               <ChevronRight className="size-3" />
+            </Button>
+          )}
+          {!busy && remainingCount === 0 && (
+            <Button variant="outline" size="xs" onClick={onExtractAgain}>
+              Extract again
             </Button>
           )}
           {busy && remainingCount > 0 && (
