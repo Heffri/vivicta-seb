@@ -176,7 +176,7 @@ evidence is recorded in `docs/acrylic/evidence/w206.md` (five renderer captures)
   our own labels.
 - **Confidence is not an accuracy probability** — it is a 0–1 score over named evidence checks
   (quote on page, value in quote, arithmetic, units). See `docs/CONFIDENCE.md`.
-- **89.1% is the curated library's score, not a first-pass or market rate.** The 105 labelled
+- **89.1% is the curated library's score, not a first-pass or market rate.** The 106 labelled
   companies were used repeatedly to debug the pipeline; the stored library is republished under a
   "nothing loses on the labels" gate. First-pass numbers are lower and are reported separately.
 - **Fixture/demo mode output is fictional.** Without a configured model, uploads return a canned

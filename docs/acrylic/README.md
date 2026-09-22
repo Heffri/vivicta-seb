@@ -70,7 +70,7 @@ verify — locator, parser, label matching.
 - **Accuracy — two separate claims, kept separate** (re-measured on this tree, zero model calls;
   superseded 86.4% / 81.5%):
   - **Stored library (curated)**: `eval/run.py --stored-kb data/kb` — values **328/368 (89.1%)**
-    over 368 scored rows (272 hand-verified `debt_maturity` labels across 105 companies, plus 96
+    over 368 scored rows (272 hand-verified `debt_maturity` labels across 106 companies, plus 96
     income rows); pages **263/313 (84.0%)** — pages scored only where a value is cited: a null
     label answered null has no citation, hence no page to score ([v132](evidence/v132.md)). Debt
     section alone: values **232/272 (85.3%)**, pages **171/221 (77.4%)**; income 96/96 and 92/92.
@@ -99,7 +99,7 @@ verify — locator, parser, label matching.
     wordlist fixes add 4 more, combined **268/276 (97.1%)**; the remaining 8 are named
     table-structure shapes (column-major ladder/bridge tables, duplicate bare labels, one true
     null), not vocabulary gaps ([w198](evidence/w198.md), [w203](evidence/w203.md)).
-  - **Boundary**: the 105 labelled companies have been used repeatedly for debugging — none of
+  - **Boundary**: the 106 labelled companies have been used repeatedly for debugging — none of
     this is presented as a market-accuracy claim.
   - The three-minute demo and its frozen samples: [`../DEMO.md`](../DEMO.md).
 
