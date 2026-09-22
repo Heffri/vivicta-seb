@@ -30,7 +30,11 @@ desktop/icons/icon.png
 .DS_Store
 *.log
 
-data/tessdata/
+# the two OCR language files and their license are committed (tessdata_fast, Apache-2.0);
+# anything else in data/tessdata (caches, extra languages fetched locally) stays ignored
+data/tessdata/*
+!data/tessdata/*.traineddata
+!data/tessdata/LICENSE
 backend/uploads/
 data/kb/*/index.json
 

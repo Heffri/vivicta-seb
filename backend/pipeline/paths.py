@@ -41,9 +41,12 @@ def tessdata_dir() -> Path:
 
     The desktop bundle places them at ``resources/tessdata``.  A frozen backend lives two
     directories below that (``resources/backend/_internal``), while source checkouts keep the
-    optional developer copy under ``data/tessdata``. The explicit override is authoritative; an
-    automatic package candidate only wins when it contains every requested language file. Refresh
-    builds made before w209 could otherwise hide a complete copy already in writable user data.
+    optional developer copy under ``data/tessdata``. Since w214 that copy is committed to the
+    repository (tessdata_fast, Apache-2.0), so in a source checkout the writable candidate below
+    *is* the repo's own language packs -- no download step. The explicit override is
+    authoritative; an automatic package candidate only wins when it contains every requested
+    language file. Refresh builds made before w209 could otherwise hide a complete copy already
+    in writable user data.
     """
     env = Path(os.environ["TESSDATA_PREFIX"]).resolve() if os.getenv("TESSDATA_PREFIX") else None
     if env is not None:  # a user-supplied override remains authoritative, including for diagnostics

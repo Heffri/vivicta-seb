@@ -96,9 +96,11 @@ after everything below has already succeeded.
   stage-by-stage trail (e.g. "resolving which company you mean" → the model's actual query terms →
   candidates found) instead of a bare spinner, and the trail survives a tab switch. Still prefer the
   saved-KB path for the main line — this only matters if the encore needs a fresh company.
-- **OCR languages ship with the app.** `desktop/scripts/prepare-resources.js` copies an existing
-  developer `data/tessdata` or downloads the official fast English/Swedish files while packaging,
-  then places them in `resources/tessdata`. A clean installed app does not need repository scripts.
+- **OCR languages ship with the repo and the app.** The English/Swedish fast language files and
+  their Apache-2.0 license are committed under `data/tessdata` — a clone already has them, no
+  download step. `desktop/scripts/prepare-resources.js` copies that repo copy into the installer
+  (`resources/tessdata`; network only as a fallback), so a clean installed app does not need
+  repository scripts either.
 - **One redistributable real PDF, prepared.** Karnell's is a public `storage.mfn.se` link recorded
   in its own `meta.json`. Download it once, verify the sha256 against the meta, keep it on the demo
   machine and a spare stick. Other companies are fine as saved text.

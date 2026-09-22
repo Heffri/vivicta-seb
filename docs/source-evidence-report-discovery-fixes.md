@@ -104,7 +104,7 @@ Before merging into the final version:
 
 1. Integrate with the latest target branch and resolve overlaps in `backend/app.py`, the fetch pipeline, Ask, and the batch UI. The fixes were developed from commit `4b95dc0`; the target has newer changes.
 2. Rerun the focused checks above against the merged tree, then verify an available report, a missing-original-PDF citation, and an unavailable-company result in the desktop app.
-3. Build the frontend and restart the desktop backend to load the Python encoding configuration. Image-only reports require OCR language files installed with `python scripts/setup_ocr.py`; those downloaded files are not committed.
+3. Build the frontend and restart the desktop backend to load the Python encoding configuration. Image-only reports need the OCR language files, which are committed under `data/tessdata` (tessdata_fast, Apache-2.0) since w214; `python scripts/setup_ocr.py` remains as the repair fallback.
 4. Keep API credentials, downloaded PDFs, runtime caches, local quarantine files, and audit logs out of the release commit. Source URLs and the audit summary are included.
 
 Knowledge-base refresh/filter UI edits in `App.tsx`, `KbView.tsx`, `useCollection.ts`, and `kb-new-reports.spec.ts` were outside the original branch's commit and are included in the latest follow-up branch.
