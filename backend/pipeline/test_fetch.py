@@ -20,7 +20,7 @@ import pymupdf as fitz
 from fastapi.testclient import TestClient
 
 import app
-from . import fetch, jobs
+from . import collection, fetch, jobs
 
 COMPANY, YEAR = "Nestle", 2025
 GOOD_PATH, GONE_PATH = "/nestle-annual-report-2025.pdf", "/deleted.pdf"
@@ -874,7 +874,54 @@ def demo_saved_first_discovery():
     print("fetch saved-first discovery self-check ok")
 
 
+def demo_private_holding_guard():
+    """A parent report mentioning a roster subsidiary must never become that subsidiary's PDF."""
+    metadata = collection.report_metadata("Sarnova")
+    assert metadata == {
+        "reports_in": "Investor AB", "collection_group": "Patricia Industries",
+        "report_stem": "investor_2025", "no_standalone_report": True,
+    }, metadata
+    # The generic issuer check is evidence-based, not an ownership graph: a parent report that
+    # names its subsidiary repeatedly in the first 20 pages can satisfy it. This reproduces that
+    # precondition without a model or network, proving the guard belongs before URL validation.
+    with tempfile.TemporaryDirectory() as tmp:
+        parent_pdf = Path(tmp) / "investor-mentions-sarnova.pdf"
+        doc = fitz.open()
+        for page_number in range(50):
+            page = doc.new_page()
+            page.insert_text((72, 72), "Investor AB Annual Report 2025")
+            if page_number < 20:
+                for line in range(12):
+                    page.insert_text((72, 96 + line * 14), "Patricia Industries subsidiary Sarnova is reported by Investor AB.")
+        doc.save(parent_pdf)
+        doc.close()
+        validated, reason = fetch._validate(parent_pdf.read_bytes(), "Sarnova", YEAR)
+        assert validated is not None, reason
+        validated.close()
+    with patch.object(fetch, "_get", side_effect=AssertionError("private holding must not download a URL")), \
+            patch.object(fetch, "_candidates", side_effect=AssertionError("private holding must not search feeds")), \
+            patch.object(fetch, "_model_discover", side_effect=AssertionError("private holding must not search with AI")):
+        found = fetch.discover("Sarnova", YEAR, job_id="job-private-discover")
+        assert found == {
+            "candidates": [],
+            "note": "Private company — reported inside Investor AB's annual report (Patricia Industries)",
+            "source": "saved", "skipped_web_search": True,
+        }, found
+        job = jobs.get("job-private-discover")
+        assert job and job["done"] and job["stage"] == "done", job
+        try:
+            fetch.fetch_report("Sarnova", YEAR, Path(tempfile.gettempdir()) / "private-holding", url="https://example.com/investor.pdf",
+                               job_id="job-private-fetch")
+            assert False, "expected a no-standalone-report guard"
+        except fetch.NoStandaloneReport as error:
+            assert "Investor AB" in str(error) and "Patricia Industries" in str(error), error
+        job = jobs.get("job-private-fetch")
+        assert job and job["done"] and job["stage"] == "failed", job
+    print("private holding no-standalone-report guard ok")
+
+
 if __name__ == "__main__":
     demo()
     demo_candidates_events()
     demo_saved_first_discovery()
+    demo_private_holding_guard()
