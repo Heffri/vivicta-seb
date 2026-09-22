@@ -2421,11 +2421,35 @@ _PARENT_NOTES_CONTINUATION = re.compile(
 )
 _SEC_HEADING_SUFFIX = re.compile(r"(?i)\s*[,;:]?\s*(?:msek|sek\s*m|sekm|sek|meur|eur\s*m|usd\s*m|cad\s*m|"
                                  r"gbp\s*m|mkr|mdkk|dkk|nok|isk|tkr|ksek|kkr|million|milljoner|mn)\s*$")
-_REFUSED_SCOPES = ("undiscounted", "all_liabilities", "non_debt", "parent", "cash_flow")  # v103's two refusals + v111's two + v155's cash-flow movement table
+_REFUSED_SCOPES = ("undiscounted", "all_liabilities", "non_debt", "parent", "cash_flow", "lease_only")
+# v103's two refusals + v111's two + v155's cash-flow movement table + v186's unmarked lease schedule
 _CASH_FLOW_STATEMENT = re.compile(r"(?i)\b(?:consolidated\s+)?statement\s+of\s+cash\s+flows?\b|\bcash\s+flow\s+statement\b")
 _FINANCING_ACTIVITY_MOVEMENT = re.compile(r"(?i)\bchanges?\s+in\s+(?:financing|financial)\s+activities\b")
 _GROSS_VALUE_MATURITY = re.compile(r"(?i)\bgross\s+values?\b")
 _GROSS_VALUE_BLOCK_YEAR = re.compile(r"(?i)^\s*(20\d\d)\b.*\bmaturity\b")
+_LEASE_ONLY_CONTEXT = re.compile(
+    r"(?i)\b(?:leased premises|lease liabilities?|leasing liabilit(?:y|ies)|leaseskulder|leasingskulder|leasingavtal)\b"
+)
+_BORROWING_CONTEXT = re.compile(
+    r"(?i)\b(?:borrowings?|loans?|bank debt|debt|interest[ -]bearing|räntebärande|upplåning|"
+    r"liabilities to credit institutions?|skulder till kreditinstitut|carrying (?:amount|value)s?|"
+    r"redovisat värde|bokfört värde)\b"
+)
+_GENERIC_MATURITY_ROW = re.compile(
+    r"(?i)^(?:total|summa|totalt|amount)$|"
+    r"\b(?:within|less than|under|after|more than|later than|over)\s+(?:one|five|\d+)\s*(?:months?|years?)\b|"
+    r"\bbetween\s+(?:one|\d+)\s+and\s+(?:one|five|\d+)\s+(?:months?|years?)\b|"
+    r"\b\d+\s*[-–]\s*\d+\s*(?:months?|years?)\b|"
+    r"\b(?:inom|mindre än|under|efter|senare än|över)\s+(?:ett|en|fem|\d+)\s*(?:månader|år)\b|"
+    r"\bmellan\s+(?:ett|en|\d+)\s+och\s+(?:ett|en|fem|\d+)\s+(?:månader|år)\b"
+)
+_MATURITY_BUCKET_PHRASE = re.compile(
+    r"(?i)\b(?:within|less than|under|after|more than|later than|over)\s+(?:one|five|\d+)\s*(?:months?|years?)\b|"
+    r"\bbetween\s+(?:one|\d+)\s+and\s+(?:one|five|\d+)\s+(?:months?|years?)\b|"
+    r"(?:^|\s)[<>]\s*\d+\s*(?:months?|years?)\b|\b\d+\s*[-–]\s*\d+\s*(?:months?|years?)\b|"
+    r"\b(?:inom|mindre än|under|efter|senare än|över)\s+(?:ett|en|fem|\d+)\s*(?:månader|år)\b|"
+    r"\bmellan\s+(?:ett|en|\d+)\s+och\s+(?:ett|en|fem|\d+)\s+(?:månader|år)\b"
+)
 
 
 def _debt_subject_words(schema: dict) -> list[str]:
@@ -2510,6 +2534,35 @@ def _parent_notes_continuation(rows: list[str], i: int, parent_words: list[str])
             continue
         return rows[j]
     return None
+
+
+def _lease_only_maturity_context(rows: list[str], i_header: int | None, i_total: int) -> str | None:
+    """v186: lease-context row proving a generic maturity row belongs to an unmarked lease schedule.
+
+    G5 p.92 tears the titleless schedule directly onto a ``Movement of leased premises`` roll-forward.
+    It has generic Total/interval rows but no borrowing, debt or carrying row. Require all three facts:
+    a lease marker in this table's bounded local zone, at least two maturity-bucket phrases around the
+    candidate, and a generic Total/bucket candidate with no borrowing/carrying signal. Thus an ordinary
+    Group borrowings table which happens to include leases remains readable, and Sedana's lease-liability
+    balance-sheet Total (no bucket ladder) remains outside this predicate.
+    """
+    if not (0 <= i_total < len(rows)):
+        return None
+    label = " ".join(_row_label(rows[i_total]).translate(_DASHES).strip(" ,;:|-").split())
+    if not _GENERIC_MATURITY_ROW.search(label):
+        return None
+    title, body = _scope_zone(rows, i_header, i_total)
+    local = [*title, *body, rows[i_total]]
+    if any(" ".join(row.translate(_DASHES).lower().strip(" ,;:|-").split()) in _GROUP_SECTION_WORDS
+           for row in local):
+        return None  # an explicit Group section owns its lease schedule (Rusta p.115)
+    lease_row = next((row for row in local if _LEASE_ONLY_CONTEXT.search(row)), None)
+    if lease_row is None or any(_BORROWING_CONTEXT.search(row) for row in local):
+        return None
+    nearby = rows[max(0, i_total - 25):min(len(rows), i_total + 3)]
+    if sum(len(_MATURITY_BUCKET_PHRASE.findall(_row_label(row))) for row in nearby) < 2:
+        return None
+    return lease_row
 
 
 def _scope_zone(rows: list[str], i_header: int | None, i_total: int) -> tuple[list[str], list[str]]:
@@ -2599,6 +2652,10 @@ def _table_scope(rows: list[str], i_header: int | None, i_total: int, basis: str
          Moderbolaget column headers are one table's two column groups, not section headings, and keep
          their own read. v186 additionally recognises only an exact page-boundary Parent Company-notes
          running heading (Balco p.101), still closed by a new Group heading;
+     "lease_only" -- v186: a generic Total/bucket row belongs to an otherwise unmarked lease maturity
+         schedule: its bounded local context names leases, prints at least two maturity buckets, and has
+         no borrowing/debt/carrying row. Refused under both bases (G5 p.92); a normal Group borrowings
+         table which includes a lease row and a lease balance-sheet Total without a bucket ladder stay;
      "cash_flow" -- v155: the cited row itself names a cash-flow statement, or its own short table
          title jointly names a financing-activities movement and cash flow. A movement closing balance
          is not a carrying debt or maturity figure, even when it looks plausible; a navigation/sidebar
@@ -2643,6 +2700,8 @@ def _table_scope(rows: list[str], i_header: int | None, i_total: int, basis: str
                          or _parent_notes_continuation(rows, i_total, parent_words) is not None):
         return "parent"  # the parent's own table: wrong entity for the Group's total, either basis
     if not any(w in tlow for w in und_words):
+        if _lease_only_maturity_context(rows, i_header, i_total) is not None:
+            return "lease_only"  # unmarked generic maturity rows from a local lease-only schedule
         return "unknown"  # no title/header marker inside the walk's reach: nothing provable to refuse on
     if basis == "undiscounted" and (debt_scoped or not any(w in blow for w in all_words)):
         return "unknown"  # v089's own table: the debt-scoped read of it is the basis's legitimate read
@@ -2674,6 +2733,9 @@ def _scope_reason(rows: list[str], i_header: int | None, i_total: int, scope_wor
         return f"table {frag!r} is a non-debt subject table"
     if scope == "cash_flow":
         return f"row {rows[i_total].strip()!r} is in a cash-flow statement"
+    if scope == "lease_only":
+        hit = _lease_only_maturity_context(rows, i_header, i_total)
+        return f"generic row {rows[i_total].strip()!r} belongs to a lease-only maturity schedule ({(hit or '').strip()!r}; no borrowing/carrying row)"
     hit = next((r for r in title if any(w in r.translate(_DASHES).lower() for w in und_words)), None)
     frag = (hit if hit is not None else (title[0] if title else rows[i_total])).strip()
     if scope != "all_liabilities":
@@ -2731,8 +2793,8 @@ def _scope_missing_reason(rows: list[str], i_header: int | None, i_total: int, s
             "detail": "Only the Parent Company section was found; it is not the Group borrowing schedule.",
             "quote": quote,
         }
-    if scope == "undiscounted":
-        quote = next((r for r in (*title, *body) if _BS_LEASE.search(r)), None)
+    if scope in ("undiscounted", "lease_only"):
+        quote = next((r for r in (*title, *body) if _BS_LEASE.search(r) or _LEASE_ONLY_CONTEXT.search(r)), None)
         if quote:
             return {
                 "code": "lease_table_only",
