@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('arp', {
   material,
   platform: process.platform,
   version: process.versions.electron,
+  downloadReport: (listing) => ipcRenderer.invoke('arp:report:download', listing),
   // v033: the Settings view's only way to read/write <userData>/config.json and restart the
   // backend -- all four are ipcMain.handle()'d in main.js, invoke()/handle() (not send()/on()) since
   // every one of these is a request that needs an answer, unlike arp:tone-changed's fire-and-forget.

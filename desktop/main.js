@@ -820,6 +820,22 @@ async function main() {
   ipcMain.handle('arp:settings:codex-status', () => testCodex())
   ipcMain.handle('arp:settings:claude-status', () => testClaude())
 
+  let reportDownloadPending = false
+  ipcMain.handle('arp:report:download', async (event, request) => {
+    if (event.sender !== mainWindow?.webContents || event.senderFrame !== mainWindow.webContents.mainFrame ||
+        new URL(event.senderFrame.url).origin !== new URL(isDev ? 'http://127.0.0.1:5173' : `http://127.0.0.1:${currentBackend.port}`).origin) {
+      return { ok: false, error: 'Report downloads must be opened from the application.' }
+    }
+    if (reportDownloadPending) return { ok: false, error: 'Finish or close the open report download window first.' }
+    reportDownloadPending = true
+    try {
+      return await require('./report-browser').openReportBrowser({
+        BrowserWindow, session: require('electron').session, parent: mainWindow,
+        tempDir: app.getPath('temp'), request, port: currentBackend.port,
+      })
+    } finally { reportDownloadPending = false }
+  })
+
   const shellUrl = isDev ? 'http://127.0.0.1:5173' : `http://127.0.0.1:${backend.port}/`
   mainWindow.loadURL(shellUrl)
   require('./updates').startUpdates(app, require('electron-updater').autoUpdater, {

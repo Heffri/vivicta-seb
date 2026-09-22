@@ -777,6 +777,40 @@ def demo():
             before = len(jobs._jobs)
             fetch.fetch_report(COMPANY, YEAR, tmp / "reports18", url=good_url)
             assert len(jobs._jobs) == before, "a job_id-less call must not create a job"
+
+            # m03/w213: a bare fiscal-year phrase buried in another report is not evidence that
+            # the document itself is for that year. The old fallback accepted this exact shape,
+            # then the longest-report selector could cache a silent wrong-year result. Keep the
+            # verify event too: the analyst's progress trail must expose why the PDF was refused.
+            stray_path = tmp / "public" / "nestle-annual-report-stray-year.pdf"
+            _pdf_from_page_texts(stray_path,
+                                 ["Nestle", "Annual Report", "Contents",
+                                  "Nestle revenue, operating profit and financial statements.",
+                                  "In fiscal year 2023, Nestle exited a sanctioned market."],
+                                 filler_lines=["Nestle revenue, operating profit and financial statements."] * 4,
+                                 filler_pages=45)
+            stray_url = _url(base, "/nestle-annual-report-stray-year.pdf")
+            fetch._candidates = lambda company, year, job_id=None: []
+            os.environ.pop("LLM_PROVIDER", None)
+            try:
+                fetch.fetch_report(COMPANY, 2023, tmp / "reports19", url=stray_url, job_id="job-bare-year-rejection")
+                assert False, "a buried bare fiscal-year phrase must not publish a wrong-year report"
+            except LookupError:
+                pass
+            job = jobs.get("job-bare-year-rejection")
+            verify = [event["text"] for event in job["events"] if event["stage"] == "verify"]
+            assert any("2023 not on the first 3 pages and no accounting period for it" in text for text in verify), verify
+
+            dated_path = tmp / "public" / "nestle-annual-report-dated-period.pdf"
+            _pdf_from_page_texts(dated_path,
+                                 ["Nestle", "Annual Report", "Contents",
+                                  "Nestle revenue, operating profit and financial statements.",
+                                  "Auditor's report for the financial year 2023-04-01-2024-03-31."],
+                                 filler_lines=["Nestle revenue, operating profit and financial statements."] * 4,
+                                 filler_pages=45)
+            doc, text = fetch._validate(dated_path.read_bytes(), COMPANY, 2023)
+            assert doc is not None, text
+            doc.close()
     finally:
         for k, v in saved.items():
             if v is None:
@@ -879,11 +913,9 @@ def demo_private_holding_guard():
     metadata = collection.report_metadata("Sarnova")
     assert metadata == {
         "reports_in": "Investor AB", "collection_group": "Patricia Industries",
-        "report_stem": "investor_2025", "no_standalone_report": True,
+        "report_stem": "investor_2025", "no_standalone_report": False,
     }, metadata
-    # The generic issuer check is evidence-based, not an ownership graph: a parent report that
-    # names its subsidiary repeatedly in the first 20 pages can satisfy it. This reproduces that
-    # precondition without a model or network, proving the guard belongs before URL validation.
+    # Repeated subsidiary mentions must not validate an explicitly titled parent report.
     with tempfile.TemporaryDirectory() as tmp:
         parent_pdf = Path(tmp) / "investor-mentions-sarnova.pdf"
         doc = fitz.open()
@@ -896,28 +928,15 @@ def demo_private_holding_guard():
         doc.save(parent_pdf)
         doc.close()
         validated, reason = fetch._validate(parent_pdf.read_bytes(), "Sarnova", YEAR)
-        assert validated is not None, reason
-        validated.close()
-    with patch.object(fetch, "_get", side_effect=AssertionError("private holding must not download a URL")), \
-            patch.object(fetch, "_candidates", side_effect=AssertionError("private holding must not search feeds")), \
-            patch.object(fetch, "_model_discover", side_effect=AssertionError("private holding must not search with AI")):
-        found = fetch.discover("Sarnova", YEAR, job_id="job-private-discover")
-        assert found == {
-            "candidates": [],
-            "note": "Private company — reported inside Investor AB's annual report (Patricia Industries)",
-            "source": "saved", "skipped_web_search": True,
-        }, found
-        job = jobs.get("job-private-discover")
-        assert job and job["done"] and job["stage"] == "done", job
-        try:
-            fetch.fetch_report("Sarnova", YEAR, Path(tempfile.gettempdir()) / "private-holding", url="https://example.com/investor.pdf",
-                               job_id="job-private-fetch")
-            assert False, "expected a no-standalone-report guard"
-        except fetch.NoStandaloneReport as error:
-            assert "Investor AB" in str(error) and "Patricia Industries" in str(error), error
-        job = jobs.get("job-private-fetch")
-        assert job and job["done"] and job["stage"] == "failed", job
-    print("private holding no-standalone-report guard ok")
+        assert validated is None and "issuer mismatch" in reason, reason
+    with tempfile.TemporaryDirectory() as tmp, \
+            patch.object(fetch, 'websearch_provider', return_value='codex'), \
+            patch.object(fetch, '_model_discover', return_value=([], None)) as search:
+        for company in ('Sarnova', 'Atlas Antibodies AB', 'The Grand Group AB'):
+            found = fetch.discover(company, YEAR, dest_dir=Path(tmp))
+            assert not found['skipped_web_search'] and found['source'] == 'web', found
+        assert search.call_count == 3
+    print("private holdings remain searchable; parent PDFs rejected by issuer validation")
 
 
 if __name__ == "__main__":

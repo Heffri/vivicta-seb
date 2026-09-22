@@ -34,6 +34,7 @@ export default function App() {
   const [detailPage, setDetailPage] = useState<number | null>(null) // page a citation chip asked for, if any
   const [askCompany, setAskCompany] = useState<string | undefined>()
   const [config, setConfig] = useState<Config | null>(null)
+  const [kbRevision, setKbRevision] = useState(0)
 
   useEffect(() => {
     getConfig().then(setConfig).catch(() => {})
@@ -64,7 +65,7 @@ export default function App() {
   // read a failed item's next step or click Retry. Results are already visible incrementally via
   // onSettle; "View results" (BatchProgress) is the only way there, unconditionally.
   const batch = useBatch({
-    onSettle: (rs) => setResults(rs),
+    onSettle: (rs) => { setResults(rs); setKbRevision(value => value + 1) },
   })
   // v194: same lift as batch above -- query/discovery/progress-trace state lives here so switching
   // away from Extract and back doesn't drop a search or the fetch that follows confirming a candidate.
@@ -131,7 +132,7 @@ export default function App() {
             )}
             {tab === 'ask' && <AskView key={askCompany ?? 'global'} initialCompany={askCompany} />}
             {tab === 'review' && <ReviewQueue filters={reviewFilters} onFiltersChange={setReviewFilters} onOpen={(report, section, key) => { setReviewTarget({ section, key }); setSavedReport(report); setReportOrigin('review'); setTab('results') }} />}
-            {tab === 'kb' && <KbView onOpen={done} onOpenReport={report => { setSavedReport(report); setReportOrigin('kb'); setTab('results') }} />}
+            {tab === 'kb' && <KbView revision={kbRevision} onOpen={done} onOpenReport={report => { setSavedReport(report); setReportOrigin('kb'); setTab('results') }} />}
             {tab === 'map' && <KnowledgeMap onOpenReport={report => { setSavedReport(report); setReportOrigin('map'); setTab('results') }} onAsk={(company) => { setAskCompany(company); setTab('ask') }} />}
             {/* v065: a Save restarts the backend, leaving this mount-time `config` stale until
                 relaunch (v061 §6-5) -- SettingsView hands the post-restart config back so StatusBar

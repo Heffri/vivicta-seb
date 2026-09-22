@@ -1,7 +1,7 @@
 """Find and validate a company's annual report PDF, then cache it locally.
 
 A cached PDF is reused first. With a Codex/Claude provider, the connected model's
-live web search finds official report links or IR pages before any feed scraping.
+live web search finds report links, IR pages or registry listings before feed scraping.
 A targeted IR-page follow-up is allowed (at most two model searches). Every PDF
 must pass issuer, fiscal-year and report-type checks; complete reports are preferred.
 MFN/Nasdaq and traditional web discovery remain fallback sources when AI search
@@ -27,7 +27,7 @@ from pathlib import Path
 
 import pymupdf as fitz
 
-from . import collection, jobs, llm, paths
+from . import collection, jobs, llm, paths, report_listing, report_period
 
 UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36"}
 MAX_TRIES = 6
@@ -38,6 +38,7 @@ class FetchAttempts(list):
     def __init__(self):
         super().__init__()
         self.failures = []
+        self.listings = []
 
 
 def _failure(tried, url, reason, kind="rejected"):
@@ -49,7 +50,11 @@ def failure_response(company, year, error):
     tried = error.args[0] if error.args else []
     note = error.args[1] if len(error.args) > 1 else None
     failures = getattr(tried, "failures", [])
-    if note:
+    listings = getattr(tried, "listings", [])
+    if listings:
+        code, status = "report_listed", 409
+        detail = f"An annual report for {company} {year} is listed online, but its PDF could not be downloaded and verified automatically. Open the report listing to obtain the PDF, then upload it."
+    elif note:
         code, status = "search_unavailable", 502
         detail = f"Report search could not complete for {company} {year}. {note}"
     elif any(f["kind"] == "download" for f in failures):
@@ -57,8 +62,8 @@ def failure_response(company, year, error):
         detail = f"No report could be downloaded and verified for {company} {year}. Some source sites failed or blocked access; this does not mean the report is unpublished."
     else:
         code, status = "report_unavailable", 404
-        detail = f"No verified public annual-report PDF was found for {company} {year}. The company may publish through a registry or require you to obtain its report directly."
-    return status, {"detail": detail, "code": code, "tried": tried, "attempts": failures}
+        detail = f"Automatic lookup did not find a verified annual-report PDF or listing for {company} {year}. This does not establish whether the company publishes an annual report."
+    return status, {"detail": detail, "code": code, "tried": tried, "attempts": failures, "listings": listings}
 
 
 NOT_AR = re.compile(r"general meeting|st[äa]mma|notice|kallelse|nomination|valberedning|20-f|interim|delårs|quarter", re.I)
@@ -80,11 +85,14 @@ SEARCH_SYSTEM = (
     "You are locating a company's official annual report PDF using web search. Reply with JSON only, no prose: "
     '{"candidates": [{"url": "https://...", "title": "...", "reason": "..."}]}. '
     "Rules: at most 3 candidates, best first; every URL must be a direct link to the annual report PDF itself for "
-    "the stated fiscal year, hosted on the company's own investor-relations site or an official regulatory filing "
-    "repository; exclude ESEF/xBRL zip packages, interim or quarterly reports, sustainability, remuneration, "
+    "the stated fiscal year. Prefer the company's own investor-relations site or an official regulatory filing "
+    "repository; reputable registry mirrors are also acceptable. Exclude ESEF/xBRL zip packages, interim or quarterly reports, sustainability, remuneration, "
     "governance or capital-markets reports, and press releases. Prefer the complete annual report (the full "
     "document), not a summary, highlights, at-a-glance, or annual review excerpt. If you cannot find a direct PDF "
-    "link, a URL for the company's investor-relations or annual-report page is also acceptable."
+    "link, a URL for the company's investor-relations or annual-report page is also acceptable. "
+    "Also search reputable company-information services and registry mirrors for this exact legal entity's "
+    "annual accounts. A company-specific listing page for the requested year is useful even if downloading "
+    "requires browser verification, login or payment. Return that listing URL; never invent a direct PDF URL."
 )
 # ---- second ask (v081): only after every fourth-source candidate and the fifth source's generic IR-path
 # guesses have both failed -- ask once more, this time only for the IR/annual-report-archive page itself ----
@@ -92,9 +100,12 @@ MAX_IR_PAGE_CANDIDATES = 2
 IR_PAGE_SYSTEM = (
     "A direct link to the company's official annual report PDF could not be found or downloaded. Reply with JSON "
     'only, no prose: {"candidates": [{"url": "https://...", "title": "...", "reason": "..."}]}. '
-    "Rules: at most 2 candidates, best first; every URL must be an HTML page, never a PDF, on the company's own "
-    "site -- its investor-relations page or its annual-report archive/library page -- from which the official "
-    "annual report PDF for the stated fiscal year can be reached."
+    "Rules: at most 2 candidates, best first; every URL must be an HTML page, never a PDF. Search the company's "
+    "own report archive AND reputable registry/company-information services (for example Hitta or a country's "
+    "corporate filing service). Prefer a company-specific page explicitly listing the requested year's annual "
+    "report or statutory accounts. Include listings even when downloading requires browser verification, login "
+    "or payment. Check the legal entity, not its parent or a similarly named subsidiary. Do not infer that no "
+    "report exists just because there is no direct PDF link."
 )
 # the complete-report preference (v081): Nestle's real Annual Review is 67p, well under this floor; a summary/
 # highlights/at-a-glance/short/in-brief excerpt is accepted only when nothing among the candidates clears it
@@ -130,12 +141,31 @@ DISCOVER_SYSTEM = (
     "alpha-2 code; org_number_or_lei the registration number or LEI; fiscal_year_end the month the fiscal year "
     "ends (Dec); document_title the report's own title for the stated fiscal year; document_type one of "
     '"annual report", "10-K", "20-F", "annual and sustainability report". url is a direct link to that '
-    "document's PDF, hosted on the company's own investor-relations site or an official regulatory filing "
-    "repository, or null when not known; exclude ESEF/xBRL zip packages, interim or quarterly reports, "
+    "document's PDF, preferably hosted on the company's own investor-relations site or an official regulatory filing "
+    "repository; reputable registry mirrors are also acceptable. Use null when no source is known; exclude ESEF/xBRL zip packages, interim or quarterly reports, "
     "sustainability, remuneration, governance or capital-markets reports, and press releases. Prefer the complete "
     "annual report, not a summary, highlights, at-a-glance, or annual review excerpt. Unknown fields are null, "
-    "never guessed."
+    "never guessed. If no direct PDF is found, url may instead be the exact company's annual-account listing "
+    "on a reputable registry or company-information service; explain that it is a listing in reason."
 )
+
+
+HISTORICAL_SEARCH = (
+    " Treat the requested year as the FISCAL period, not the publication/filing year. "
+    "Search historical archives and financial-results pages, including filings published the following year. "
+    "Recognize Form 10-K, 20-F and 40-F, including PDF links with numeric filenames. "
+    "Use alternate official issuer-hosted copies when a regulator blocks downloads. "
+    "Prefer that year's standalone annual report. If it does not exist (for example before an IPO), "
+    "a registration statement (S-1/F-1 or prospectus) containing this exact issuer's audited annual "
+    "balance sheet AND income statement for the requested year is an acceptable fallback. "
+    "Label that fallback explicitly as a registration statement with historical audited accounts in "
+    "the title/reason/document_type, never as an annual report. Do not use reserve attestations, "
+    "interim accounts, another entity's accounts, or assume a year exists merely from comparisons. "
+    "Failure to find or download a source does not prove it was never published."
+)
+SEARCH_SYSTEM += HISTORICAL_SEARCH
+DISCOVER_SYSTEM += HISTORICAL_SEARCH
+IR_PAGE_SYSTEM += HISTORICAL_SEARCH
 
 
 def websearch_provider() -> "str | None":
@@ -174,7 +204,7 @@ def _collection_context(company):
         return ""
     context = f"\nCompany context: {member[0]} in the Wallenberg collection ({member[1]}). "
     if metadata := collection.report_metadata(company):
-        context += (f"This holding has no standalone report and is reported inside "
+        context += (f"This holding is also discussed inside "
                     f"{metadata['reports_in']}'s annual report. ")
     return context + "Find this entity's own accounts, not a similarly named business or the owner's report."
 
@@ -184,7 +214,9 @@ def _candidate_clear(url, title):
     # A search result's explicit title lets it reach content validation, never bypass it.
     combined = re.search(r"annual\s+(?:and|&)\s+sustainability\s+report", title, re.I)
     hard_topic = re.search(r"interim|q[1-4]\b|quarter|delars|half-?year|pillar|prospect|agm|stamma", urllib.parse.unquote(url), re.I)
-    return _filename_clear(url, BAD_URL) or bool(combined and not hard_topic)
+    registration = re.search(r"registration statement|prospectus|\b[SF]-1\b", title, re.I)
+    registration_url = re.sub("prospect", "", url, flags=re.I) if registration else url
+    return _filename_clear(registration_url, BAD_URL) or bool(combined and not hard_topic)
 
 
 def _model_candidates(company, year, country=None, hint=None, job_id=None):
@@ -222,7 +254,7 @@ def _model_candidates(company, year, country=None, hint=None, job_id=None):
 def _ir_page_candidates(company, year, country=None, hint=None, job_id=None):
     """The second model ask (v081): (urls, note) like _model_candidates, but only ever called once
     every fourth-source candidate and the fifth source's own generic IR-path guesses have already
-    failed, asking this time only for the company's IR/annual-report-archive page -- never a PDF --
+    failed, asking for an issuer archive or company-specific registry listing -- never a PDF --
     so v080's crawl (_ir_page_report) has a page the model actually named instead of only a guessed
     generic path. At most MAX_IR_PAGE_CANDIDATES URLs; a candidate that is itself a PDF is dropped,
     since that is exactly what the first ask already tried and failed at. job_id: see _model_candidates."""
@@ -334,7 +366,8 @@ def _local_candidates(query, year, dest_dir):
         if fy != year or not key or key in seen or not (query_name == key or query_identifier in identifiers):
             continue
         seen.add(key)
-        out.append(_candidate(company, ticker=ticker, document_type="annual report", url=url, reason=reason, saved=True, stem=stem))
+        out.append(_candidate(company, ticker=ticker, document_type=row.get("document_type") or "annual report", url=url,
+                              reason=row.get("source_notice") or reason, saved=True, stem=stem))
     return out
 
 
@@ -383,7 +416,7 @@ def discover(company: str, year: int, country: "str | None" = None, hint: "str |
     job_id (v194, optional): reports the directory/model_search stages, the model's own query terms
     and candidate names, and a final done event to pipeline.jobs -- a no-op when job_id is None."""
     dest_dir = Path(dest_dir) if dest_dir is not None else paths.reports_dir()
-    if private := collection.report_metadata(company):
+    if (private := collection.report_metadata(company)) and private.get("no_standalone_report"):
         # A name occurrence in a parent report is not evidence that the subsidiary issued that
         # report. Do not let a model turn the parent PDF into a confirmed child-company candidate.
         note = private_report_note(private)
@@ -436,7 +469,7 @@ def _best_model_candidate(hits):
     Rank by (clears the full-report bar, a clean filename, page count) and take the first -- a
     summary volume is only kept when nothing in `hits` clears the bar (Nestle's real Annual Review,
     67p with an otherwise clean filename, is exactly that case)."""
-    return max(hits, key=lambda h: (h[3] >= FULL_REPORT_MIN_PAGES, _label_clean(h[0]), h[3]))
+    return max(hits, key=lambda h: (getattr(h[2], "metadata", {}).get("document_type") != "registration_statement", h[3] >= FULL_REPORT_MIN_PAGES, _label_clean(h[0]), h[3]))
 
 
 DOWNLOAD_CHUNK = 65536      # bytes read per socket call once job_id opts into progress events
@@ -542,9 +575,12 @@ def _period_re(year):
         rf"|\bräkenskapsåret {y}\b", re.I)
 
 
-def _head_text(doc):
+_BARE_PERIOD_PHRASE = re.compile(r"^(?:financial|fiscal) year \d{4}$|^räkenskapsåret \d{4}$", re.I)
+
+
+def _head_text(doc, page_texts=None):
     """The first three pages -- cover, title page, contents: where a report names its own year."""
-    return "".join(doc[i].get_text() for i in range(min(3, doc.page_count)))
+    return "".join(page_texts[:3]) if page_texts is not None else "".join(doc[i].get_text() for i in range(min(3, doc.page_count)))
 
 
 def _title_year(head, year):
@@ -558,24 +594,38 @@ def _title_year(head, year):
     return str(max(older)) if older else None
 
 
-def _year_ok(doc, year):
+def _year_ok(doc, year, page_texts=None):
     """v122: is this plausibly the fiscal-`year` report? The year itself -- or the split-year
     "2024/25" / "2024/2025" cover shape -- must sit on the first three pages (cover, title page,
     contents), or an accounting period ending in the year must be stated anywhere in the text.
     A mere mention on some later page no longer passes: MTG's FY2021 report slipped through the
-    old year-anywhere check on six forward-looking "2025" target mentions."""
-    if _fiscal_year_re(year).search(_head_text(doc)):
+    old year-anywhere check on six forward-looking "2025" target mentions. A bare "fiscal year Y"
+    in body prose is likewise insufficient unless it is immediately followed by the period dates;
+    otherwise a report merely describing an earlier year can be silently cached as that year."""
+    declared = report_period.declared_year(_head_text(doc, page_texts))
+    if declared is not None:
+        return declared == year
+    if _fiscal_year_re(year).search(_head_text(doc, page_texts)):
         return True
-    return bool(_period_re(year).search("".join(doc[i].get_text() for i in range(doc.page_count))))
+    full = "".join(page_texts) if page_texts is not None else "".join(doc[i].get_text() for i in range(doc.page_count))
+    match = _period_re(year).search(full)
+    if not match:
+        return False
+    if _BARE_PERIOD_PHRASE.match(match.group(0)) and not re.match(r"-\d{2}-\d{2}", full[match.end():match.end() + 6]):
+        return False
+    return True
 
 
-def _year_reason(doc, year):
+def _year_reason(doc, year, page_texts=None):
     """The v122 rejection reason for a PDF _year_ok refused (None when it passes). When the first
     three pages title the report with an earlier year, the reason names it: that is a corpus-defect
     finding worth keeping on the tried list, not just another candidate miss."""
-    if _year_ok(doc, year):
+    declared = report_period.declared_year(_head_text(doc, page_texts))
+    if declared is not None and declared != year:
+        return f"fiscal-year mismatch: requested {year}, document reports {declared}" + TITLE_YEAR_MARK + str(declared)
+    if _year_ok(doc, year, page_texts):
         return None
-    ty = _title_year(_head_text(doc), year)
+    ty = _title_year(_head_text(doc, page_texts), year)
     return f"{year} not on the first 3 pages and no accounting period for it" + (TITLE_YEAR_MARK + ty if ty else "")
 
 
@@ -711,12 +761,12 @@ def _harvest(pages, year):
 
 
 def _crawl(company, year):
-    """Search without filetype:, then harvest annual-report PDF links from the company's own pages among the top hits
+    """Search without filetype:, then harvest PDFs and retain issuer/registry listing pages among the top hits
     (the press release "X has published its annual report 2025", the IR reports page). Nordea's report is not found by
     a filetype:pdf search but is linked from both. Also tries any company-domain page an MFN release itself links to
     (Lundin Gold's release attaches only its own 2-page release text; the report lives one click away on its IR site) —
     useful even when DDG's bot challenge blocks the search below."""
-    toks, name = _toks(company), _name(company)
+    name = _name(company)
     pages = list(_mfn_pages(company, year))
     for q in (f"{name} annual report {year}", f"{name} årsredovisning {year}"):
         try:
@@ -726,9 +776,11 @@ def _crawl(company, year):
             continue
         for m in re.findall(r'uddg=([^&"]+)', s):
             u = urllib.parse.unquote(m)
-            if ".pdf" not in u.lower() and any(t in urllib.parse.urlparse(u).netloc for t in toks) and u not in pages:
+            if report_listing.http_url(u, u) and ".pdf" not in u.lower() and u not in pages:
                 pages.append(u)
-    return _harvest(pages, year)
+    # Keep listing pages for issuer/year inspection, including registry mirrors whose
+    # domain does not contain the company's name. Bound the crawl as before.
+    return list(dict.fromkeys(_harvest(pages, year) + pages[:MAX_CRAWL_SEEDS]))
 
 
 def _candidates(company, year, job_id=None):
@@ -753,7 +805,7 @@ def find_report(company: str, year: int) -> list[str]:
     return list(_candidates(company, year))
 
 
-def _validate(data, company, year):
+def _validate(data, company, year, page_texts=None):
     """(doc, text) if this is a real text-layer annual report *of this company*, else (None, reason)."""
     if not data.startswith(b"%PDF"):
         return None, "not a PDF"
@@ -762,11 +814,14 @@ def _validate(data, company, year):
         pages = doc.page_count
         doc.close()
         return None, f"only {pages} pages"
-    text = "".join(doc[i].get_text() for i in range(min(20, doc.page_count)))
+    if page_texts is not None and len(page_texts) != doc.page_count:
+        doc.close()
+        raise ValueError("Page text count does not match the PDF")
+    text = "".join(page_texts[:20]) if page_texts is not None else "".join(doc[i].get_text() for i in range(min(20, doc.page_count)))
     if len(text.strip()) < 200:
         doc.close()
         return None, "no text layer"
-    head = _head_text(doc)
+    head = _head_text(doc, page_texts)
     key = collection.identity(company)
     aliases = {key, *(alias for alias, target in collection.ALIASES.items() if target == key)}
     normalized_head = collection.normalize(head)
@@ -776,7 +831,17 @@ def _validate(data, company, year):
         name = re.sub(r"\b(?:a/s|a s|as|holding|holdings|corporation|corp|limited)\b", "", _fold(name), flags=re.I)
         return collection.identity(name)
     wanted = issuer_key(company)
-    for line in doc[0].get_text().splitlines():
+    # Parent coverage is context, not a ban on a subsidiary's own accounts. Reject
+    # an explicitly titled parent PDF even if the subsidiary is mentioned repeatedly.
+    if parent := collection.report_metadata(company):
+        owner = issuer_key(parent["reports_in"])
+        cover = page_texts[0] if page_texts is not None else doc[0].get_text()
+        for line in cover.splitlines()[:12]:
+            title_name = IS_AR.split(line, maxsplit=1)[0].strip(" -:|")
+            if issuer_key(title_name) == owner:
+                doc.close()
+                return None, f"issuer mismatch: cover names parent {parent['reports_in']!r}, not {company!r}"
+    for line in (page_texts[0] if page_texts is not None else doc[0].get_text()).splitlines():
         label = " ".join(line.split())
         if len(label) < 100 and re.search(r"\b(?:AB|A/S|Ltd\.?|plc|Inc\.?|Oyj)(?:\s*\(publ\))?$", label, re.I):
             claimed = issuer_key(label)
@@ -796,7 +861,7 @@ def _validate(data, company, year):
         # An acronym in the body alone accepts nothing: an unrelated report naming "ABB" as a
         # supplier is still somebody else's report (DDG happily returns those).
         acr = _acronym(company)
-        if not cover_alias and not (acr and re.search(rf"\b{acr}\b", _fold(_head_text(doc)))):
+        if not cover_alias and not (acr and re.search(rf"\b{acr}\b", _fold(head))):
             doc.close()
             return None, f"issuer mismatch: {missing[0]!r} not in first 20 pages"
     # Portfolio-company names in the body of an owner's report are not issuer evidence.
@@ -807,7 +872,14 @@ def _validate(data, company, year):
         if missing_head and not cover_alias and not (acr and re.search(rf"\b{acr}\b", _fold(head))):
             doc.close()
             return None, "issuer mismatch: company is mentioned in the body but not identified on the first pages"
-    if reason := _year_reason(doc, year):  # v122: the year on the first pages or an accounting period, not "anywhere"
+    if report_period.REGISTRATION.search(head):
+        all_texts = page_texts if page_texts is not None else [page.get_text() for page in doc]
+        metadata = report_period.historical_accounts(all_texts, company, year)
+        if not metadata:
+            doc.close()
+            return None, f"registration statement lacks verified audited annual accounts for {company} FY{year}"
+        return doc, report_period.ValidatedText(text, **metadata)
+    if reason := _year_reason(doc, year, page_texts):  # v122: the year on the first pages or an accounting period, not "anywhere"
         doc.close()
         return None, reason
     if NOT_REPORT.search(head) and not IS_AR.search(head):
@@ -817,7 +889,7 @@ def _validate(data, company, year):
     if doc.page_count <= 40:
         # Small private-company statutory accounts are often much shorter than listed reports.
         # Accept their content, while still rejecting notices, brochures and topic-only reports.
-        full = _fold(" ".join(page.get_text() for page in doc))
+        full = _fold(" ".join(page_texts) if page_texts is not None else " ".join(page.get_text() for page in doc))
         title = re.search(r"annual[\w\s&-]*report|arsredovisning|annual accounts|financial statements", _fold(head))
         income = re.search(r"income statement|statement of (?:comprehensive )?income|profit and loss|resultatrakning|rapport over (?:total)?resultat", full)
         balance = re.search(r"balance sheet|statement of financial position|balansrakning|rapport over finansiell stallning", full)
@@ -875,25 +947,57 @@ def _host_guesses(url, toks):
 
 
 def _ir_links(page_url, html, year):
-    """.pdf links on a page that pass the same IS_AR/BAD_URL/NOT_REPORT gate as every other source, scored by
+    """PDF/download links passing the same IS_AR/BAD_URL/NOT_REPORT gate as every other source, scored by
     year + annual-report wording + same-domain-as-the-page (issuers usually host the PDF next to the page that
     links it). Page count -- what actually separates a summary volume from the full report -- only exists once
     a candidate is downloaded; the caller compares that across every harvested survivor."""
     domain = urllib.parse.urlparse(page_url).netloc
     out = {}
-    for href, text in re.findall(r'href="([^"]+)"[^>]*>(.*?)</a>', html, re.I | re.S):
-        if ".pdf" not in href.lower():
+    document = report_listing.Document(html)
+    parents = {id(child): parent for parent in document.nodes for child in parent.parts if isinstance(child, report_listing.Node)}
+    section_year = None
+    for node in document.nodes:
+        if re.fullmatch(r"h[1-6]", node.tag) and len(node.text()) < 120:
+            if heading_year := re.search(r"\b(?:19|20)\d{2}\b", node.text()):
+                section_year = int(heading_year[0])
+        if node.tag != "a" or not (href := node.attrs.get("href")):
             continue
-        u = urllib.parse.urljoin(page_url, href)
-        label = (u + " " + re.sub(r"<[^>]+>", " ", text)).lower()
-        if not IS_AR.search(label) or not _filename_clear(label, BAD_URL, NOT_REPORT):
+        u = report_listing.http_url(page_url, href)
+        if not u:
             continue
-        out[u] = 2 * (str(year) in label) + bool(re.search(r"annual report|annual review|rsredovisning", label)) \
+        text = " ".join(filter(None, (node.text(), node.attrs.get("aria-label"), node.attrs.get("title"))))
+        # Ordinary publisher download endpoints need not end in .pdf. Never run
+        # JavaScript buttons or manufacture authenticated/challenge download URLs.
+        downloadable = ".pdf" in href.lower() or "download" in node.attrs or node.attrs.get("type") == "application/pdf" or re.search(r"(?:download|attachment|document|/media/)", href, re.I)
+        if not downloadable:
+            continue
+        label = (u + " " + text).lower()
+        # A common filing row labels the HTML link "10-K" and the adjacent PDF
+        # merely "PDF". Use its small containing row, never the whole archive.
+        if not re.search(r"annual|[åa]rsredovisning|\b(?:10-K|20-F|40-F)\b", label, re.I) and re.fullmatch(r"\s*(?:PDF|Download|View)\s*", text, re.I):
+            parent = parents.get(id(node))
+            if parent and len(parent.text()) < 300:
+                label += " " + parent.text().lower()
+        annual = re.search(r"annual|[åa]rsredovisning|\b(?:10-K|20-F|40-F)\b", label, re.I)
+        registration = re.search(r"registration statement|prospectus|\b(?:S-1|F-1)\b", label, re.I)
+        allowed = _candidate_clear(u, text) if registration else _filename_clear(label, BAD_URL, NOT_REPORT)
+        if not (annual or registration) or not allowed:
+            continue
+        out[u] = 6 * (str(year) in label or section_year == year) + bool(re.search(r"annual report|annual review|rsredovisning", label)) \
             + (urllib.parse.urlparse(u).netloc == domain)
     return out
 
 
-def _crawl_ir_page(start_url, year, deadline):
+def _record_listing(url, html, company, year, tried):
+    if company and isinstance(tried, FetchAttempts):
+        listing = report_listing.inspect(url, html, company, year)
+        # Mirrors often link the same report through a slug, a numeric URL, a
+        # decoded URL and #reports. Offer one verified listing per source host.
+        if listing and not any(urllib.parse.urlsplit(row["url"]).hostname == urllib.parse.urlsplit(url).hostname for row in tried.listings):
+            tried.listings.append(listing)
+
+
+def _crawl_ir_page(start_url, year, deadline, company=None, tried=None):
     """Links scored for a single page, then -- only when the page itself carries nothing -- one hop into
     same-domain sub-pages that read like a reports/investor-relations index (a landing page one click above
     the actual per-year report link)."""
@@ -902,16 +1006,22 @@ def _crawl_ir_page(start_url, year, deadline):
         html = _get(start_url, timeout=CRAWL_TIMEOUT).decode("utf-8", "ignore")
     except Exception as e:
         return {}, f"IR page crawl {start_url} -> {e}"
+    _record_listing(start_url, html, company, year, tried)
     found = _ir_links(start_url, html, year)
     if found or time.time() > deadline:
         return found, None
     hops = []
-    for href, text in re.findall(r'href="([^"]+)"[^>]*>(.*?)</a>', html, re.I | re.S):
-        u = urllib.parse.urljoin(start_url, href)
-        if ".pdf" in u.lower() or urllib.parse.urlparse(u).netloc != domain or u in hops:
+    for node in report_listing.Document(html).nodes:
+        if node.tag != "a" or not (href := node.attrs.get("href")):
             continue
-        if re.search(r"annual.?report|investor|\bir\b|rsredovisning", u + " " + text, re.I):
+        u = report_listing.http_url(start_url, href)
+        if not u or ".pdf" in u.lower() or urllib.parse.urlparse(u).netloc != domain or u in hops:
+            continue
+        if urllib.parse.urldefrag(u)[0] == urllib.parse.urldefrag(start_url)[0]:
+            continue
+        if re.search(r"annual.?report|investor|\bir\b|rsredovisning|financial.?results|financial.?reports|sec.?filings|archive", u + " " + node.text(), re.I):
             hops.append(u)
+    hops.sort(key=lambda u: -bool(re.search(r"financial.?results|annual.?reports?|archive", u, re.I)))
     for page in hops[:3]:
         if time.time() > deadline:
             break
@@ -920,6 +1030,7 @@ def _crawl_ir_page(start_url, year, deadline):
         except Exception as e:
             print(f"IR page crawl hop {page} -> {e}")
             continue
+        _record_listing(page, html2, company, year, tried)
         found.update(_ir_links(page, html2, year))
     return found, None
 
@@ -944,7 +1055,7 @@ def _ir_page_report(seeds, company, year, tried, job_id=None):
         if time.time() > deadline:
             break
         jobs.step(job_id, "ir_page", f"reading {page}")
-        found, err = _crawl_ir_page(page, year, deadline)
+        found, err = _crawl_ir_page(page, year, deadline, company, tried)
         if err:
             print(err)
             _failure(tried, page, err, "download")
@@ -980,7 +1091,7 @@ def _ir_page_report(seeds, company, year, tried, job_id=None):
         pages = doc.page_count
         doc.close()
         print(f"{url} -> ok ({pages} pages, {time.time() - t0:.0f}s, IR page crawl)")
-        if not best or pages > best[3]:
+        if not best or _best_model_candidate([best, (url, data, text, pages)])[0] == url:
             best = (url, data, text, pages)
     return best[:3] if best else None
 
@@ -989,7 +1100,8 @@ def _entry(fname, company, year, url, text, note=None, tags=("fetched",)):
     low = text.lower()
     return {"file": fname, "company": company, "fiscal_year": year,
             "language": "sv" if low.count("årsredovisning") > low.count("annual report") else "en",
-            "source_url": url, "tags": list(tags), "note": note, "fetched_at": dt.date.today().isoformat()}
+            "source_url": url, "tags": list(tags), "note": note, "fetched_at": dt.date.today().isoformat(),
+            **getattr(text, "metadata", {})}
 
 
 def _write_index(dest_dir, index):
@@ -1077,6 +1189,37 @@ def _publish_report(dest_dir: Path, entry: dict, data: bytes) -> None:
         raise ReportStoreError("Downloaded report could not be indexed; retry download.") from e
 
 
+def _listing_sources(dest_dir, company, year):
+    try:
+        rows = json.loads((dest_dir / "report-listings.json").read_text(encoding="utf-8"))
+        return [row for row in rows if isinstance(row, dict) and row.get("fiscal_year") == year
+                and collection.identity(row.get("company")) == collection.identity(company)
+                and isinstance(row.get("url"), str) and report_listing.http_url(row["url"], row["url"])]
+    except (OSError, ValueError, TypeError):
+        return []
+
+
+def _remember_listings(dest_dir, company, year, listings):
+    """Remember source URLs, not report contents. Every reuse must recheck live HTML."""
+    if not listings:
+        return
+    try:
+        with _INDEX_LOCK:
+            path = dest_dir / "report-listings.json"
+            try:
+                rows = json.loads(path.read_text(encoding="utf-8"))
+                rows = rows if isinstance(rows, list) else []
+            except (OSError, ValueError):
+                rows = []
+            rows = [row for row in rows if isinstance(row, dict) and not (row.get("fiscal_year") == year and collection.identity(row.get("company")) == collection.identity(company))]
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            temporary = path.with_suffix(".json.tmp")
+            temporary.write_text(json.dumps(rows + listings, ensure_ascii=False, indent=2), encoding="utf-8")
+            os.replace(temporary, path)
+    except OSError as exc:
+        print(f"Could not remember report listings: {exc}")
+
+
 def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, country: "str | None" = None, hint: "str | None" = None,
                  url: "str | None" = None, job_id: "str | None" = None) -> dict:
     """Reuse cached PDFs, then ask the connected model to search official sources.
@@ -1091,7 +1234,7 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
     job_id is None. See jobs.py's module docstring and docs/API.md's Progress tracking section.
     """
     dest_dir = Path(dest_dir) if dest_dir is not None else paths.reports_dir()
-    if private := collection.report_metadata(company):
+    if (private := collection.report_metadata(company)) and private.get("no_standalone_report"):
         # This check intentionally precedes URL download, model discovery and legacy feeds.
         note = private_report_note(private)
         jobs.step(job_id, "failed", note)
@@ -1121,6 +1264,20 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
             url = known["source_url"]
     tried, toks, stub_pages, page_seeds = FetchAttempts(), _toks(company), [], []
     model_note = None
+    # A verified listing is a reusable discovery source across aliases. Recheck
+    # its page each time: the publisher may add a direct download or remove it.
+    known_listings = _listing_sources(dest_dir, company, year) if not url else []
+    if known_listings:
+        if found := _ir_page_report([row["url"] for row in known_listings][:MAX_CRAWL_SEEDS], company, year, tried, job_id=job_id):
+            source, data, text = found
+            entry = _entry(fname, company, year, source, text, note="verified listing source")
+            _publish_report(dest_dir, entry, data)
+            jobs.step(job_id, "done", f"{entry['file']} (verified listing source)")
+            return {**entry, "tried": tried}
+        if tried.listings:
+            _remember_listings(dest_dir, company, year, tried.listings)
+            # A listing is evidence of publication, not a downloaded report.
+            # Continue discovery: another source may offer a normal PDF link.
     if url:  # the confirmed link first: same download + validation as every other source, then fall through
         tried.append(url)
         t0 = time.time()
@@ -1202,7 +1359,8 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
     # At most two model searches per uncached report.
     if p:
         jobs.step(job_id, "ir_page", "asking the connected model for the investor-relations page")
-        ir_urls, ir_note = _ir_page_candidates(company, year, country, hint, job_id=job_id)
+        feedback = "Previous attempts failed: " + "; ".join(f"{f['url']}: {f['reason']}" for f in tried.failures[-6:])
+        ir_urls, ir_note = _ir_page_candidates(company, year, country, "\n".join(filter(None, [hint, feedback])), job_id=job_id)
         jobs.step(job_id, "ir_page", f"model suggested {len(ir_urls)} page(s)" if ir_urls else (ir_note or "model suggested no pages"), urls=ir_urls)
         new_seeds = [u for u in ir_urls if u not in page_seeds]
         if new_seeds and (found := _ir_page_report(new_seeds, company, year, tried, job_id=job_id)):
@@ -1261,6 +1419,7 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
         _publish_report(dest_dir, entry, data)
         jobs.step(job_id, "done", f"{entry['file']} (IR page crawl)")
         return {**entry, "tried": tried}
+    _remember_listings(dest_dir, company, year, tried.listings)
     jobs.step(job_id, "failed", f"no annual report found for {company} {year}" + (f"; {model_note}" if model_note else ""))
     raise LookupError(tried, model_note)
 

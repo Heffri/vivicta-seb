@@ -8,6 +8,7 @@ files:
   - settings.js
   - updates.js
   - data-sync.js
+  - report-browser.js
   - icons/icon.ico
   - package.json
 extraResources:
