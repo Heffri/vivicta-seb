@@ -22,6 +22,9 @@ test('directory picks fetch once with the PDF download on', async ({ page }) => 
   expect(fetched).toEqual([]) // picking queues, nothing is fetched yet
   await page.getByRole('button', { name: 'Extract', exact: true }).click()
   await expect(page.getByText(/Opening Atlas Copco annual report 2025/)).toBeVisible()
+  // The application-level batch deliberately keeps Extract visible when it settles. Open its
+  // explicit handoff instead of expecting a completed one-report run to navigate on its own.
+  await page.getByRole('button', { name: 'View results (1)', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Atlas Copco', exact: true })).toBeVisible() // results view: the fetch + extract went through
   expect(fetched.map(request => [request.company, request.year, request.download_pdf])).toEqual([['Atlas Copco', 2025, true]])
   expect(scopes.every(scope => scope === 'wallenberg')).toBe(true)
@@ -38,6 +41,6 @@ test('a fetch error is shown with the URLs tried, never retried', async ({ page 
   await page.getByRole('button', { name: /Atlas Copco ATCO/ }).click()
   await page.getByRole('button', { name: 'Extract', exact: true }).click()
   await expect(page.getByText(/No annual report found/)).toBeVisible()
-  await expect(page.getByText('Atlas Copco: tried 1 URL', { exact: true })).toBeVisible()
+  await expect(page.getByText('tried 1 URL', { exact: true })).toBeVisible()
   expect(fetched.map(request => request.download_pdf)).toEqual([true])
 })

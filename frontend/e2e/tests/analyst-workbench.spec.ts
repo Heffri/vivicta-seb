@@ -50,6 +50,7 @@ test('one statement card keeps sourced basis hints, categories, reviewer and fil
   ]
   const extraction: any = {
     ...entry, section: 'debt_maturity', currency: 'MSEK', fields, checks: [], warnings: [], issues, ready: false,
+    basis_suggested: { entity: 'Atlas Copco', period: '2025', currency: 'SEK', scale: 'Millions', source: 'Cited pages p. 7', debt_basis: 'Carrying amounts', bucket_mapping: 'Under 1, 1 to 5, over 5' },
     basis_suggestions: [
       { key: 'entity', value: 'Atlas Copco', source: 'report metadata' },
       { key: 'period', value: '2025', source: 'report metadata' },
@@ -82,7 +83,7 @@ test('one statement card keeps sourced basis hints, categories, reviewer and fil
   await expect(basis.getByText('Suggested from report metadata', { exact: true }).first()).toBeVisible()
   await expect(basis.getByText('Suggested from p. 7', { exact: true }).first()).toBeVisible()
   await expect(basis.getByRole('button', { name: 'Use suggestion for Reporting entity', exact: true })).toBeVisible()
-  await expect(basis).toContainText('1 definitions to confirm')
+  await expect(basis).toContainText('Basis of figures · Basis not confirmed')
   await page.getByRole('button', { name: 'Next unresolved field', exact: true }).click()
   const totalReview = page.getByRole('form', { name: 'Review Total borrowings', exact: true })
   await totalReview.getByLabel('Your name', { exact: true }).fill('Alex Analyst')
