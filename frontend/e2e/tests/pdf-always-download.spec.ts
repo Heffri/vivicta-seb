@@ -41,6 +41,9 @@ test('a fetch error is shown with the URLs tried, never retried', async ({ page 
   await page.getByRole('button', { name: /Atlas Copco ATCO/ }).click()
   await page.getByRole('button', { name: 'Extract', exact: true }).click()
   await expect(page.getByText(/No annual report found/)).toBeVisible()
-  await expect(page.getByText('Atlas Copco: tried 1 URL', { exact: true })).toBeVisible()
+  // The batch row keeps the attempted URLs beside the failed item; expand it to prove the
+  // backend's diagnostic survives without an automatic retry or a forced tab switch.
+  await page.getByText('tried 1 URL', { exact: true }).click()
+  await expect(page.getByText('https://example.com/a.pdf', { exact: true })).toBeVisible()
   expect(fetched.map(request => request.download_pdf)).toEqual([true])
 })
