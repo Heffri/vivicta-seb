@@ -33,6 +33,29 @@ QUARTER = re.compile(r"\bq[1-4]\b|quarter|kvartal")
 GROUP = re.compile(r"\b(group|koncern|consolidated)")
 ENTITY = re.compile(r"moderbolag|parent")  # exclude_keywords naming the other entity, as opposed to a table type (segment, five-year)
 BOILERPLATE_SHARE = 0.10  # a line on >10% of pages is a running header/footer/nav, not content
+NUMBERED_MATURITY_TITLE = re.compile(r"(?im)^\s*\d{1,2}:\d+\s+maturity\s*$")
+DEBT_NOTE_SUBJECT = re.compile(r"\bbond loans?\b|\bother loans?\b|\bborrowings?\b", re.I)
+
+
+def numbered_debt_maturity_table(text: str, fiscal_year) -> bool:
+    """A note-numbered debt maturity table whose rows start after the current year.
+
+    Volvo's loan note labels the table only ``22:2 Maturity``.  It therefore matched none of the
+    section's phrase keywords, while a management-summary chart titled ``maturity structure`` won
+    the locator.  Treat the numbered title as table evidence only when its local block also names
+    loans, prints at least two future calendar years and closes with a Total row.  The shape is
+    intentionally stronger than the generic word ``maturity`` (which would promote lease, parent
+    company and credit-facility tables).
+    """
+    if not fiscal_year:
+        return False
+    match = NUMBERED_MATURITY_TITLE.search(text)
+    if not match:
+        return False
+    block = text[match.start():match.start() + 1800]
+    years = {int(year) for year in YEARS.findall(block) if int(year) > int(fiscal_year)}
+    return bool(DEBT_NOTE_SUBJECT.search(block) and len(years) >= 2
+                and re.search(r"(?im)^\s*total\s+[\d ,.'\u00a0]+", block))
 
 
 def strip_boilerplate(texts: list[str]) -> list[str]:
@@ -177,7 +200,8 @@ def scored_pages(texts: list[str], schema: dict, fiscal_year=None) -> list[tuple
         low = " ".join(text.lower().split())  # ABB breaks "Income / Statements" across lines; it must still match "income statement"
         head = low[:HEADING_CHARS]
         distinct = sum(k in low for k in keywords)
-        if not distinct:
+        numbered_maturity = shape_ok and numbered_debt_maturity_table(texts[i], fiscal_year)
+        if not distinct and not numbered_maturity:
             continue
         heading = any(k in head for k in keywords)
         fields = sum(s in low for s in synonyms)  # the statement names most of its rows; a currency note or a liabilities table does not
@@ -191,7 +215,11 @@ def scored_pages(texts: list[str], schema: dict, fiscal_year=None) -> list[tuple
         # years, so `fields` scores 0 and the page carries no shape evidence at all -- ABB's p.89 lost to the
         # instrument table on p.90 for exactly that reason. Worth 2: enough to pass a same-keyword neighbour,
         # not enough to beat a heading (+5). Measured: one labelled page moves, bts_2025 p.92, rank 10 -> 2.
-        shape = 2 if shape_ok and extract.year_row_table(texts[i], fiscal_year, schema) else 0
+        # A numbered loan-maturity table is more specific than a heading hit: it must outrank a
+        # prose/chart page carrying the broad phrase ``maturity structure`` so pass 1 reads the
+        # actual note.  Generic fiscal+1 ladders keep their measured +2 weight.
+        shape = (7 if numbered_maturity else
+                 2 if shape_ok and extract.year_row_table(texts[i], fiscal_year, schema) else 0)
         scored.append(((distinct + 5 * heading + fields + shape + 5 * (i + 1 in toc)) * (1 + 5 * density) * penalty, i + 1))
     scored.sort(key=lambda s: (-s[0], s[1]))
     return scored
