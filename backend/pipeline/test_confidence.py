@@ -3745,6 +3745,29 @@ def test_confidence_never_exceeds_one():
     print("confidence clamp ok")
 
 
+def test_scale_only_model_unit_gets_statement_currency():
+    """w208: ``In millions`` plus dollar rows becomes USD millions, never per-character USD."""
+    page = ("Consolidated Statements of Operations\nYear Ended\n"
+            "December 27, 2025 December 28, 2024\n(In millions)\n"
+            "Net revenue $ 34,639 $ 25,785\n")
+    schema = {"name": "income_statement", "title": "Income statement", "description": "",
+              "value_convention": "", "fields": [
+                  {"key": "revenue", "label": "Revenue", "description": "",
+                   "synonyms": ["net revenue"], "unit_hint": "currency_millions"}], "checks": []}
+    old = x.call_llm
+    try:
+        for model_unit in ("millions", "In millions"):
+            x.call_llm = lambda *args, u=model_unit, **kwargs: {"fields": [
+                {"key": "revenue", "value": 34639, "unit": u, "period": "2025",
+                 "raw_label": "Net revenue",
+                 "source": {"page": 1, "quote": "Net revenue $ 34,639 $ 25,785"}}
+            ]}
+            out = x.extract([page], [1], schema, {"fiscal_year": 2025})
+            assert out["currency"] == "USD millions" and out["fields"][0]["unit"] == "USD millions", out
+    finally:
+        x.call_llm = old
+
+
 def test_torn_bucket_headers():
     """v151: torn CTT bucket labels and BICO's orphan year rows are rejoined conservatively."""
     import json
@@ -4537,6 +4560,101 @@ def test_fulltext_sweep_finds_total_lease_liability_row():
     assert swept["pages"] == [1] and swept["hits"] == {1: 1}, swept
 
 
+def test_fulltext_sweep_finds_us_gaap_due_in_rows():
+    """w208: the bounded second pass can discover NVIDIA's US-GAAP maturity schedule."""
+    import json
+    import pathlib
+    dm = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
+    fields = {field["key"]: field for field in dm["fields"]}
+    text = ("Outstanding Indebtedness\nOur aggregate debt maturities by year payable are as follows:\n"
+            "Due in one year $ —\nDue in one to five years 2,250\n"
+            "Due in five to ten years 2,750\nDue in greater than ten years 3,500\n"
+            "Net long-term carrying amount $ 8,463\n")
+    assert x.sweep_pages([text], fields["total_debt"])["pages"] == [1]
+    # The within-one-year cell is a printed dash. sweep_pages intentionally requires a numeric
+    # tail and therefore does not manufacture a zero; the locator reaches the page via its title.
+    assert x.sweep_pages([text], fields["due_within_1_year"])["pages"] == []
+    assert x.sweep_pages([text], fields["due_1_to_5_years"])["pages"] == [1]
+    after = x.sweep_pages([text], fields["due_after_5_years"])
+    assert after["pages"] == [1] and after["hits"] == {1: 2}, after
+
+
+def test_us_gaap_due_in_schedule_fills_only_closed_shape():
+    """w208: four explicit US-GAAP rows may safely form the three product buckets."""
+    import json
+    import pathlib
+    dm = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
+    page = (
+        "Outstanding Indebtedness and Commercial Paper Program\n"
+        "Our aggregate debt maturities as of January 26, 2025, by year payable, are as follows:\n"
+        "(In millions)\nDue in one year $ —\nDue in one to five years 2,250\n"
+        "Due in five to ten years 2,750\nDue in greater than ten years 3,500\n"
+        "Unamortized debt discount and issuance costs (37)\n"
+        "Net long-term carrying amount $ 8,463\n"
+    )
+    old = x.call_llm
+    try:
+        x.call_llm = lambda *args, **kwargs: {"fields": [
+            {"key": "total_debt", "value": 8463, "unit": "In millions", "period": "2025",
+             "raw_label": "Net long-term carrying amount",
+             "source": {"page": 1, "quote": "Net long-term carrying amount $ 8,463"}},
+            *({"key": key, "value": None, "unit": None, "period": None,
+               "raw_label": None, "source": None}
+              for key in ("due_within_1_year", "due_1_to_5_years", "due_after_5_years"))
+        ]}
+        out = x.extract([page], [1], dm, {"fiscal_year": 2025})
+    finally:
+        x.call_llm = old
+    got = {field["key"]: field for field in out["fields"]}
+    assert {key: field["value"] for key, field in got.items()} == {
+        "total_debt": 8463, "due_within_1_year": 0,
+        "due_1_to_5_years": 2250, "due_after_5_years": 6250,
+    }, (got, out["warnings"])
+    assert "printed_nil" in got["due_within_1_year"]["evidence"], got["due_within_1_year"]
+    assert "value_derived" in got["due_after_5_years"]["evidence"], got["due_after_5_years"]
+    # The carrying balance differs from gross principal by printed issuance costs, so the maturity
+    # identity must fail honestly rather than pretending that 8,500 equals 8,463.
+    assert not out["checks"][0]["passed"], out["checks"]
+
+
+def test_numbered_noncurrent_ladder_joins_current_loans():
+    """w208: a fiscal+2 non-current ladder closes with the note's current loan rows."""
+    import json
+    import pathlib
+    dm = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
+    page = (
+        "22 Liabilities\n22:1 Non-current bond loans and other loans\n"
+        "Currency Dec 31, 2025 Dec 31, 2024\n"
+        "B/S Bond loans 82,620 109,031\nB/S Other loans 54,614 50,824\n"
+        "Non-current loans of SEK 13,346 M were secured by assets pledged.\n"
+        "22:2 Maturity\nBond loans and current credit facilities\n"
+        "Year other loans facilities\n2027 73,682 10,509\n2028 26,379 6,398\n"
+        "2029 19,108 1,080\n2030 14,637 43,187\n2031 1,119 –\n"
+        "2032 or later 2,310 –\nTotal 137,234 61,174\n"
+        "22:3 Current bond loans and other loans\nCurrency Dec 31, 2025 Dec 31, 2024\n"
+        "B/S Bond loans 64,960 45,460\nOther loans 43,513 54,887\n"
+        "Lease liabilities 2,111 2,104\nRevaluation of derivatives 242 1,301\n"
+        "B/S Other loans 45,866 58,292\n"
+    )
+    old = x.call_llm
+    try:
+        x.call_llm = lambda *args, **kwargs: {"fields": [
+            {"key": key, "value": None, "unit": None, "period": None,
+             "raw_label": None, "source": None}
+            for key in ("total_debt", "due_within_1_year", "due_1_to_5_years", "due_after_5_years")
+        ]}
+        out = x.extract([page], [1], dm, {"fiscal_year": 2025})
+    finally:
+        x.call_llm = old
+    got = {field["key"]: field for field in out["fields"]}
+    assert {key: field["value"] for key, field in got.items()} == {
+        "total_debt": 248060, "due_within_1_year": 110826,
+        "due_1_to_5_years": 133806, "due_after_5_years": 3429,
+    }, (got, out["warnings"])
+    assert out["currency"] == "SEK M" and all(field["unit"] == "SEK M" for field in got.values()), out
+    assert out["checks"][0]["passed"] and all("value_derived" in field["evidence"] for field in got.values()), out
+
+
 def _second_pass_result(schema, keys):
     return {
         "report_id": "second-pass-test", "company": "Second Pass Test", "fiscal_year": 2025,
@@ -4714,6 +4832,7 @@ def test_second_pass_caps_required_nulls_and_off_switch_makes_zero_calls():
 if __name__ == "__main__":
     test_bucket_row_label_known()
     test_confidence_never_exceeds_one()
+    test_scale_only_model_unit_gets_statement_currency()
     test_torn_bucket_headers()
     test_financial_liabilities_rollforward_total()
     test_cash_flow_citation_refusal()
@@ -4729,6 +4848,9 @@ if __name__ == "__main__":
     test_fulltext_sweep_finds_current_and_noncurrent_lease_liability_rows()
     test_fulltext_sweep_finds_interest_bearing_loans_row()
     test_fulltext_sweep_finds_total_lease_liability_row()
+    test_fulltext_sweep_finds_us_gaap_due_in_rows()
+    test_us_gaap_due_in_schedule_fills_only_closed_shape()
+    test_numbered_noncurrent_ladder_joins_current_loans()
     test_second_pass_fills_required_field_from_full_candidate_pages()
     test_second_pass_retries_a_locator_miss_on_fulltext_sweep_pages()
     test_second_pass_rejects_a_quote_not_on_its_page()

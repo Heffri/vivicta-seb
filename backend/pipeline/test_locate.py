@@ -130,6 +130,48 @@ def test_amd_item_8_statement_beats_supplementary_label():
     check(11 in pages, f"AMD Item 8 statement was excluded from candidates: {pages}")
 
 
+def test_nvidia_us_gaap_debt_maturities_beat_instrument_decoys():
+    """NVIDIA FY2025's aggregate maturity schedule must precede its debt-instrument note.
+
+    The schedule says ``debt maturities`` and labels rows ``Due in ...``; neither wording was in
+    the IFRS-oriented locator/field vocabulary, so the real PDF page 136 was unscored while Note 11,
+    marketable debt securities and the balance sheet became the complete candidate list.
+    """
+    schema = json.loads((pathlib.Path(__file__).resolve().parents[1] / "schemas" / "debt_maturity.json").read_text(
+        encoding="utf-8"))
+    schedule = (
+        "Liquidity\nOutstanding Indebtedness and Commercial Paper Program\n"
+        "Our aggregate debt maturities as of January 26, 2025, by year payable, are as follows:\n"
+        "(In millions)\nDue in one year $ —\nDue in one to five years 2,250\n"
+        "Due in five to ten years 2,750\nDue in greater than ten years 3,500\n"
+        "Unamortized debt discount and issuance costs (37)\nNet long-term carrying amount $ 8,463\n"
+    )
+    decoys = [
+        "Note 11 - Debt\nLong-Term Debt\n3.20% Notes Due 2026 1.6 3.31% 1,000 1,000",
+        "Purchase obligations\n2031 and thereafter 218\nTotal 45,079",
+        "Total debt securities with fair value changes recorded in other comprehensive income 25,724",
+        "Long-term debt 8,463 8,459",
+    ]
+    pages = locate.candidate_pages([schedule, *decoys], schema, fiscal_year=2025)
+    check(pages and pages[0] == 1, f"NVIDIA aggregate debt maturity page did not rank first: {pages}")
+
+
+def test_numbered_loan_maturity_table_beats_summary_chart():
+    """w208: Volvo's bare ``22:2 Maturity`` title is the loan table, not an unscored page."""
+    schema = json.loads((pathlib.Path(__file__).resolve().parents[1] / "schemas" / "debt_maturity.json").read_text(
+        encoding="utf-8"))
+    summary = ("Net financial position\nSEK bn\nRead more in Note 22 Liabilities, regarding the maturity "
+               "structure on credit facilities.\n2021 2022 2023 2024 2025\n")
+    note = (
+        "22 Liabilities\nAccounting policies\nLoans are measured at amortized cost.\n"
+        "22:2 Maturity\nBond loans and other loans\nYear\n"
+        "2027 73,682\n2028 26,379\n2029 19,108\n2030 14,637\n"
+        "2031 1,119\n2032 or later 2,310\nTotal 137,234\n"
+    )
+    pages = locate.candidate_pages([summary, note], schema, fiscal_year=2025)
+    check(pages and pages[0] == 2, f"numbered loan maturity table did not beat summary chart: {pages}")
+
+
 def main():
     test_companion_is_second()
     test_no_scored_page_dropped_for_budget()
@@ -138,6 +180,8 @@ def main():
     test_parent_and_summary_balance_sheets_not_companions()
     test_no_bare_liability_class_keywords()
     test_amd_item_8_statement_beats_supplementary_label()
+    test_nvidia_us_gaap_debt_maturities_beat_instrument_decoys()
+    test_numbered_loan_maturity_table_beats_summary_chart()
     print("locate self-check ok")
 
 

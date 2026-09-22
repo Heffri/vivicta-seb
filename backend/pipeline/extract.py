@@ -575,7 +575,7 @@ def _check(check: dict, values: dict, texts: list[str] | None = None, pages: lis
     return out
 
 
-EXTRACT_VERSION = "2026-09-22-w198"  # bump when a pipeline change should invalidate saved extractions; the cache key used to hash 7 source files, so every commit re-ran every section (27 s each)
+EXTRACT_VERSION = "2026-09-22-w208"  # bump when a pipeline change should invalidate saved extractions; the cache key used to hash 7 source files, so every commit re-ran every section (27 s each)
 
 WEIGHTS = {"quote_on_page": 0.35, "value_in_quote": 0.20, "arith_ok": 0.20, "label_known": 0.10,
            "period_ok": 0.05, "page_is_statement": 0.05, "unit_ok": 0.05,  # docs/CONFIDENCE.md; sums to 1.0
@@ -1034,6 +1034,27 @@ def _ccy(unit) -> str:
     if len(c) == 4 and c[-1] in "MKT":
         c = c[:-1]
     return c
+
+
+_SCALE_ONLY_UNIT = re.compile(r"(?i)(?:in\s+)?(m|mn|million|millions|thousand|thousands|bn|billion|k)")
+
+
+def _unit_with_currency(unit, currency: str) -> str:
+    """Replace a model unit's currency, or attach one to a scale-only unit.
+
+    A US statement may head its table only ``(In millions)`` and print ``$`` on selected rows.
+    Models then legitimately return ``millions`` / ``In millions`` as the unit.  ``_ccy`` is empty
+    for those strings; passing that empty string to ``re.sub`` inserts the replacement between every
+    character (``USDMUSDI...``).  Keep the scale, strip the grammatical ``In``, and attach the
+    statement currency instead.  Unknown currency-less prose falls back to the proven currency
+    rather than being rewritten character by character.
+    """
+    raw = " ".join(str(unit or "").translate(_SYMBOLS).split())
+    old = _ccy(raw)
+    if old:
+        return re.sub(re.escape(old), currency, raw.upper())
+    scale = _SCALE_ONLY_UNIT.fullmatch(raw)
+    return f"{currency} {scale.group(1).lower()}" if scale else currency
 
 
 _SYMBOLS = str.maketrans({"€": "EUR ", "$": "USD ", "£": "GBP "})
@@ -4092,6 +4113,226 @@ def _year_ladder_fill(fields: list[dict], sfs: list[dict], schema: dict, texts: 
         return
 
 
+_US_DUE_ROWS = (
+    (re.compile(r"(?i)^due in one year\s+\$?\s*(.+)$"), "due_within_1_year"),
+    (re.compile(r"(?i)^due in one to five years\s+\$?\s*(.+)$"), "due_1_to_5_years"),
+    (re.compile(r"(?i)^due in five to ten years\s+\$?\s*(.+)$"), "due_after_5_years"),
+    (re.compile(r"(?i)^due in greater than ten years\s+\$?\s*(.+)$"), "due_after_5_years"),
+)
+_US_CARRYING_ROW = re.compile(r"(?i)^net (?:long-term )?carrying amount\s+\$?\s*(.+)$")
+
+
+def _us_debt_schedule_fill(fields: list[dict], schema: dict, texts: list[str], pages: list[int], fiscal_year,
+                           warnings: list[str], values: dict, filled: set, stated_zeros: set) -> None:
+    """Read NVIDIA's exact US-GAAP aggregate-debt schedule without guessing a missing value.
+
+    This is not the bare calendar-year ladder: the page prints four ``Due in ...`` rows, with two
+    separate rows wholly beyond five years, followed by unamortized issuance costs and a net carrying
+    amount. A model-computed >5-year sum is normally dropped because it is not printed as one figure.
+    Keep that sum only for this closed shape: the four rows occur once, in order, under an
+    ``aggregate debt maturities ... by year payable`` statement; the page prints its own net carrying
+    amount; and gross principal is no smaller than carrying debt and within the same 10% allowance as
+    `_year_ladder_fill` (the difference is the explicitly printed discount/cost row). Only a literal
+    dash is read as zero.
+    """
+    if schema.get("name") != "debt_maturity" or not fiscal_year:
+        return
+    total = values.get("total_debt")
+    if not isinstance(total, (int, float)) or isinstance(total, bool) or total <= 0:
+        return
+    by_key = {field["key"]: field for field in fields}
+
+    def figure(row: str, token: str):
+        token = token.strip().translate(_TORN_DASHES)
+        if token == "-":
+            return 0
+        got = _row_amounts(row, 1, nil=None)
+        return got[0] if len(got) == 1 and got[0] is not None else None
+
+    for page in pages[:4]:
+        if not 0 < page <= len(texts):
+            continue
+        text = texts[page - 1]
+        low = " ".join(text.lower().split())
+        if "aggregate debt maturities" not in low or "by year payable" not in low:
+            continue
+        rows = _page_rows(text)
+        for start in range(max(0, len(rows) - len(_US_DUE_ROWS) + 1)):
+            items = []
+            for offset, (pattern, key) in enumerate(_US_DUE_ROWS):
+                match = pattern.fullmatch(rows[start + offset])
+                value = figure(rows[start + offset], match.group(1)) if match else None
+                if match is None or value is None:
+                    items = []
+                    break
+                label = rows[start + offset][:match.start(1)].rstrip(" $ ")
+                items.append((key, value, rows[start + offset], label))
+            if not items:
+                continue
+            carry = None
+            for index in range(start + len(items), min(len(rows), start + len(items) + 4)):
+                match = _US_CARRYING_ROW.fullmatch(rows[index])
+                amount = figure(rows[index], match.group(1)) if match else None
+                if match and amount is not None:
+                    carry = (index, amount)
+                    break
+            if carry is None or abs(carry[1] - total) > 2:
+                continue
+            gross = round(sum(item[1] for item in items), 2)
+            if gross < total or abs(gross - total) > _LADDER_SUBSET_GAP * total:
+                continue
+            scope_words = schema.get("table_scope_words")
+            if scope_words and _table_scope(rows, None, carry[0], "carrying", scope_words,
+                                            debt_words=_debt_subject_words(schema)) in _REFUSED_SCOPES:
+                continue
+            grouped: dict[str, list[tuple[float, str, str]]] = {key: [] for key in _DATE_BUCKET_KEYS}
+            for key, value, row, label in items:
+                grouped[key].append((value, row, label))
+            for key, parts in grouped.items():
+                value = round(sum(part[0] for part in parts), 2)
+                current = by_key[key]
+                if current.get("value") not in (None, value) or \
+                        (current.get("value") == value and "quote_on_page" in current.get("evidence", [])):
+                    continue
+                quote = " ".join(part[1] for part in parts)
+                if len(parts) > 1 and not quote_on_page(quote, text):
+                    continue
+                evidence = ["quote_on_page", "value_derived"] if len(parts) > 1 else ["quote_on_page"]
+                if len(parts) == 1 and value == 0:
+                    evidence.append("printed_nil")
+                    stated_zeros.add(key)
+                label = " + ".join(part[2] for part in parts)
+                current.update(value=value, period=str(fiscal_year), raw_label=label,
+                               source={"page": page, "quote": quote}, evidence=evidence)
+                values[key] = value
+                filled.add(key)
+                warnings.append(f"{key}: aggregate debt maturity schedule on page {page} reads "
+                                f"{len(parts)} explicit row(s) as {value:g}")
+            return
+
+
+_NUMBERED_MATURITY_ROW = re.compile(
+    r"\b(20\d\d)(?:\s+or\s+later)?\s+(\d[\d,.'\u00a0]*)\s+(?:\d[\d,.'\u00a0]*|[-\u2013\u2014])(?=\s|$)", re.I)
+_NUMBERED_NOTE_TITLE = re.compile(r"(?i)^\d{1,2}:\d+\s+maturity$")
+_NONCURRENT_LOAN_TITLE = re.compile(r"(?i)^\d{1,2}:\d+\s+non-current bond loans and other loans$")
+_CURRENT_LOAN_TITLE = re.compile(r"(?i)^\d{1,2}:\d+\s+current bond loans and other loans$")
+
+
+def _numbered_noncurrent_ladder_fill(fields: list[dict], schema: dict, texts: list[str], pages: list[int],
+                                     fiscal_year, warnings: list[str], values: dict, filled: set) -> None:
+    """Read a numbered loan note whose maturity ladder contains non-current debt only.
+
+    Volvo's ``22:2 Maturity`` begins at fiscal+2 because fiscal+1 debt is classified in the later
+    ``Current bond loans and other loans`` table.  Its PDF text also folds five visual year rows into
+    one line.  This reader is deliberately closed around that exact disclosure structure: the
+    non-current B/S bond and other-loan rows must sum to the maturity table's own Total; the current
+    table must print the same two B/S rows; the future years must be consecutive and end in ``or
+    later``; and the four product answers must close.  Thus neither a credit-facility column nor a
+    lease-only / parent-company maturity table can supply an answer.
+    """
+    if schema.get("name") != "debt_maturity" or not fiscal_year:
+        return
+    by_key = {field["key"]: field for field in fields}
+
+    def amount(token: str):
+        token = token.replace("\u00a0", "").replace(" ", "").replace(",", "").replace("'", "")
+        return int(token) if token.isdigit() else None
+
+    def bs_pair(rows: list[str], start: int, end: int):
+        got = []
+        for label in (r"(?i)^B/S Bond loans", r"(?i)^B/S Other loans"):
+            hit = next(((i, row) for i, row in enumerate(rows[start:end], start) if re.search(label, row)), None)
+            if not hit:
+                return None
+            amounts = _row_amounts(hit[1], 2, nil=None)
+            if len(amounts) != 2 or not isinstance(amounts[0], (int, float)):
+                return None
+            got.append((hit[0], amounts[0], hit[1]))
+        return got
+
+    for page in pages[:4]:
+        if not 0 < page <= len(texts):
+            continue
+        text, rows = texts[page - 1], _page_rows(texts[page - 1])
+        title = next((i for i, row in enumerate(rows) if _NUMBERED_NOTE_TITLE.fullmatch(row)), None)
+        if title is None:
+            continue
+        noncurrent_title = next((i for i in range(title - 1, -1, -1)
+                                 if _NONCURRENT_LOAN_TITLE.fullmatch(rows[i])), None)
+        current_title = next((i for i in range(title + 1, len(rows))
+                              if _CURRENT_LOAN_TITLE.fullmatch(rows[i])), None)
+        total_row = next((i for i in range(title + 1, min(title + 12, len(rows)))
+                          if re.match(r"(?i)^Total\s+", rows[i])), None)
+        if noncurrent_title is None or current_title is None or total_row is None or total_row >= current_title:
+            continue
+        noncurrent = bs_pair(rows, noncurrent_title + 1, title)
+        current = bs_pair(rows, current_title + 1, min(current_title + 18, len(rows)))
+        if not noncurrent or not current:
+            continue
+        schedule_totals = _row_amounts(rows[total_row], 2, nil=None)
+        if len(schedule_totals) != 2 or not isinstance(schedule_totals[0], (int, float)):
+            continue
+        schedule_total = schedule_totals[0]  # second column is unused credit facilities, not debt
+        if abs(sum(part[1] for part in noncurrent) - schedule_total) > 2:
+            continue
+
+        entries: list[tuple[int, int, str]] = []
+        for row in rows[title + 1:total_row]:
+            for match in _NUMBERED_MATURITY_ROW.finditer(row):
+                value = amount(match.group(2))
+                if value is not None:
+                    entries.append((int(match.group(1)), value, row))
+        # One debt value per year, beginning at fiscal+2; the last year absorbs every later year.
+        years = [entry[0] for entry in entries]
+        if not entries or years != list(range(int(fiscal_year) + 2, years[-1] + 1)) \
+                or "or later" not in entries[-1][2].lower() or years[-1] <= int(fiscal_year) + 5 \
+                or abs(sum(entry[1] for entry in entries) - schedule_total) > 2:
+            continue
+        within = round(sum(part[1] for part in current), 2)
+        middle = round(sum(value for year, value, _ in entries if year <= int(fiscal_year) + 5), 2)
+        after = round(sum(value for year, value, _ in entries if year > int(fiscal_year) + 5), 2)
+        total = round(schedule_total + within, 2)
+        if not middle or not after or abs(within + middle + after - total) > 2:
+            continue
+        scope_words = schema.get("table_scope_words")
+        if scope_words and _table_scope(rows, None, total_row, "carrying", scope_words,
+                                        debt_words=_debt_subject_words(schema)) in _REFUSED_SCOPES:
+            continue
+
+        schedule_quote = " ".join(rows[title:total_row + 1])
+        current_quote = " ".join(rows[current[0][0]:current[1][0] + 1])
+        total_quote = " ".join(rows[noncurrent[0][0]:current[1][0] + 1])
+        if not all(quote_on_page(quote, text) for quote in (schedule_quote, current_quote, total_quote)):
+            continue
+        # This note omits a standalone unit header but states amounts as e.g. ``SEK 13,346 M`` in
+        # its own footnotes/prose.  Keep that explicit local convention; do not borrow the SEK bn
+        # unit from the management-summary page that the old locator selected.
+        unit_match = re.search(r"\b(SEK|EUR|USD|NOK|DKK|GBP|CHF)\s+\d[\d,.'\u00a0 ]*\s+(M|mn|million|millions|bn|billion)\b",
+                               " ".join(text.split()), re.I)
+        unit = f"{unit_match.group(1).upper()} {unit_match.group(2)}" if unit_match else None
+        answers = {
+            "total_debt": (total, "Non-current and current B/S bond loans and other loans", total_quote),
+            "due_within_1_year": (within, "Current B/S bond loans and other loans", current_quote),
+            "due_1_to_5_years": (middle, " + ".join(str(year) for year, _, _ in entries
+                                                    if year <= int(fiscal_year) + 5), schedule_quote),
+            "due_after_5_years": (after, " + ".join(str(year) for year, _, _ in entries
+                                                    if year > int(fiscal_year) + 5), schedule_quote),
+        }
+        for key, (value, label, quote) in answers.items():
+            old = by_key[key].get("value")
+            if isinstance(old, (int, float)) and not isinstance(old, bool) and abs(old - value) > 2:
+                warnings.append(f"{key}: {old:g} disagrees with the numbered loan note's closed current/non-current "
+                                f"maturity structure on page {page}; read as {value:g}")
+            by_key[key].update(value=value, unit=unit, period=str(fiscal_year), raw_label=label,
+                               source={"page": page, "quote": quote},
+                               evidence=["quote_on_page", "value_derived"])
+            values[key] = value
+            filled.add(key)
+        warnings.append(f"debt maturity: numbered non-current ladder plus current loan table on page {page} "
+                        f"closes at {total:g}")
+        return
+
+
 def _buckets_by_year_fill(schema: dict, texts: list[str], fiscal_year, bucket_pick: dict, values: dict,
                           basis: str = "carrying") -> dict | None:
     """(v109) The report's own calendar-year maturity columns as top-level `buckets_by_year` metadata --
@@ -4643,6 +4884,8 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
     _subtotal_pair_fill(fields, sfs, schema, texts, pages, fiscal_year, warnings, values, filled, basis, missing_events)  # v110: non-current + current section subtotals, no printed grand total (NOTE Not 19)
     _window_rows_derive(fields, schema, texts, fiscal_year, pages, scope_words, basis, warnings, values, filled)  # v156: a null bucket derived from its window's printed rows when they close on the total (v126's family, on null)
     _year_ladder_fill(fields, sfs, schema, texts, pages, fiscal_year, bucket_pick, warnings, values, filled)  # v157: all three buckets null and the note is a bare calendar-year ladder (ABB p.89)
+    _us_debt_schedule_fill(fields, schema, texts, pages, fiscal_year, warnings, values, filled, stated_zeros)  # w208: exact US "Due in ..." schedule, guarded against its carrying amount
+    _numbered_noncurrent_ladder_fill(fields, schema, texts, pages, fiscal_year, warnings, values, filled)  # w208: numbered maturity table starts at fiscal+2; current loans print below it
     _normalize_sign(fields, sfs, schema, texts, warnings, values)  # v101: liabilities-negative printed totals/buckets record their magnitude; the identity below closes on carrying positives
     if schema.get("name") == "debt_maturity" and fiscal_year:
         total = next((field for field in fields if field["key"] == "total_debt"), None)
@@ -4680,6 +4923,9 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
             if len(own) == header[1] and own[header[0]] == f["value"] and all(_check(sc, {**others[k], f["key"]: own[k]})["passed"] for k in range(header[1])):
                 warnings.append(f"{f['key']}: {f['raw_label']!r} is not a known {sf['label'].lower()} label, but {c['name']} holds with that row in every column")
                 f["evidence"].append("identity_all_columns")
+    # Deterministic readers above may add a unit from their closed local table after the initial
+    # model-response vote was built; include it in the final vote.
+    units = Counter(f["unit"] for f in fields if f.get("unit"))
     currency = units.most_common(1)[0][0] if units else (_page_unit(texts[pages[0] - 1]) if pages else None)
     if not currency and schema.get("name") == "debt_maturity":
         declared = _declared_report_unit(texts)
@@ -4692,7 +4938,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
         if spread and _ccy(currency) not in spread and doc and doc.most_common(1)[0][0] in spread:
             new = doc.most_common(1)[0][0]
             warnings.append(f"currency: the model says {currency}, but the statement names only {'/'.join(sorted(spread))} and the report mostly {new}; {new} it is")
-            swap = lambda u: re.sub(re.escape(_ccy(u)), new, str(u).translate(_SYMBOLS).upper()) if _ccy(u) == _ccy(currency) else u
+            swap = lambda u: _unit_with_currency(u, new) if _ccy(u) == _ccy(currency) else u
             for f in fields:
                 f["unit"] = swap(f["unit"]) if f["unit"] else f["unit"]
             currency = swap(currency)
