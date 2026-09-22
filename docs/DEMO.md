@@ -116,9 +116,12 @@ after everything below has already succeeded.
   correct fill, and averaged +2.5 calls / +18.4 model seconds per report. The
   full-report scan alone can run 77–110 model calls per report/section and stays an offline
   diagnostic tool, never a production default. How to confirm: `EXTRACT_MERGE_RUNS` shows on the
-  Settings page's status row and in `GET /api/config`'s `merge_runs` field; `EXTRACT_SECOND_PASS`
-  and `EXTRACT_SCAN_ALL` have no Settings toggle or `/api/config` field — confirm those two by
-  checking the demo machine's own environment has neither variable set.
+  Settings page's status row and in `GET /api/config`'s `merge_runs` field; since w212
+  `EXTRACT_SECOND_PASS` is the Settings **Deep search for missing figures** switch (Extraction
+  page, Off by default) and `GET /api/config`'s `second_pass` field — check it reads Off there;
+  `EXTRACT_SCAN_ALL` still has no Settings toggle by design, but `GET /api/config`'s `scan_all`
+  field now echoes it (`false`) — confirm it reads `false` (or that the demo machine's environment
+  has neither variable set).
 - **Collection on stage.** The KB page defaults to the Wallenberg collection; switch to **All**
   (or pre-filter) before the audience sees it, so nobody thinks the Mid Cap companies are missing.
   Stable packaged ports mean this choice — and the light/dark tone — now survive an in-demo app

@@ -34,6 +34,13 @@ const DEFAULTS = {
   // saved extraction and skips the second run entirely when the first matches it; 'off' (default)
   // is the byte-identical single-run route.
   mergeRuns: 'off',
+  // w212: w197's bounded second pass (EXTRACT_SECOND_PASS) + w198's full-text sweep as a user
+  // option ("Deep search for missing figures"). Default off: w197's live measurement did not
+  // justify an always-on cost (docs/acrylic/evidence/w197.md) -- the same call as two-pass and
+  // merge-runs. Unlike two-pass there is no hosted-only caveat: the retry rides the same
+  // fixed_pages seam as the analyst fill, so every non-fixture provider passes it through,
+  // Ollama included.
+  secondPass: false,
   // v100: visual theme for the whole app -- 'solid' (default: the 09-18 opaque surfaces) or
   // 'acrylic' (the v001-v006b glass + this shell's real Windows material). Like maturityBasis a
   // plain config key, but unlike it never an env var: main.js reads it when building the window,
@@ -56,6 +63,7 @@ function sanitize(raw) {
     // Only the three values merge.mode() reads; anything else (a typo, an older config) falls back
     // to off -- the same "a typo can never silently turn the second run on" rule as the backend's.
     mergeRuns: ['off', 'union', 'majority'].includes(cfg.mergeRuns) ? cfg.mergeRuns : DEFAULTS.mergeRuns,
+    secondPass: typeof cfg.secondPass === 'boolean' ? cfg.secondPass : DEFAULTS.secondPass,
     theme: ['solid', 'acrylic'].includes(cfg.theme) ? cfg.theme : DEFAULTS.theme,
   }
 }
@@ -99,9 +107,10 @@ function envForConfig(clean) {
         EXTRACT_TWO_PASS: '0',
         DEBT_BASIS: clean.maturityBasis, // v089: basis is model-independent -- Ollama passes it through, unlike two-pass
         EXTRACT_MERGE_RUNS: clean.mergeRuns, // v140: the merge runs are rules over the two answers, not model work -- Ollama passes them through too
+        EXTRACT_SECOND_PASS: clean.secondPass ? '1' : '0', // w212: the bounded retry rides the fixed_pages seam -- Ollama passes it through too
       }
     case 'openai': {
-      const env = { EXTRACT_TWO_PASS: clean.extractTwoPass ? '1' : '0', DEBT_BASIS: clean.maturityBasis, EXTRACT_MERGE_RUNS: clean.mergeRuns }
+      const env = { EXTRACT_TWO_PASS: clean.extractTwoPass ? '1' : '0', DEBT_BASIS: clean.maturityBasis, EXTRACT_MERGE_RUNS: clean.mergeRuns, EXTRACT_SECOND_PASS: clean.secondPass ? '1' : '0' }
       if (clean.baseUrl) env.LLM_BASE_URL = clean.baseUrl
       if (clean.model) env.LLM_MODEL = clean.model
       if (clean.apiKey) env.LLM_API_KEY = clean.apiKey
@@ -115,7 +124,7 @@ function envForConfig(clean) {
       // See docs/acrylic/evidence/v033.md, v034.md.
       // An API key here is optional and only ever reaches that same base URL (embeddings/Ask) --
       // never the codex CLI call itself, which authenticates via `codex login`, not an env var.
-      const env = { LLM_PROVIDER: 'codex', LLM_MODEL: clean.codexModel, EXTRACT_TWO_PASS: clean.extractTwoPass ? '1' : '0', DEBT_BASIS: clean.maturityBasis, EXTRACT_MERGE_RUNS: clean.mergeRuns }
+      const env = { LLM_PROVIDER: 'codex', LLM_MODEL: clean.codexModel, EXTRACT_TWO_PASS: clean.extractTwoPass ? '1' : '0', DEBT_BASIS: clean.maturityBasis, EXTRACT_MERGE_RUNS: clean.mergeRuns, EXTRACT_SECOND_PASS: clean.secondPass ? '1' : '0' }
       if (clean.baseUrl) env.LLM_BASE_URL = clean.baseUrl
       if (clean.apiKey) env.LLM_API_KEY = clean.apiKey
       if (clean.embedModel) env.EMBED_MODEL = clean.embedModel
@@ -126,7 +135,7 @@ function envForConfig(clean) {
       // ever reaches that base URL, never the CLI call" rule (Claude Code CLI authenticates via
       // `claude login`/an already-signed-in CLI). LLM_PROVIDER=claude landed in backend/pipeline/llm.py
       // (v039) while this lane was in flight -- merged in, see docs/acrylic/evidence/v033.md.
-      const env = { LLM_PROVIDER: 'claude', LLM_MODEL: clean.claudeModel, EXTRACT_TWO_PASS: clean.extractTwoPass ? '1' : '0', DEBT_BASIS: clean.maturityBasis, EXTRACT_MERGE_RUNS: clean.mergeRuns }
+      const env = { LLM_PROVIDER: 'claude', LLM_MODEL: clean.claudeModel, EXTRACT_TWO_PASS: clean.extractTwoPass ? '1' : '0', DEBT_BASIS: clean.maturityBasis, EXTRACT_MERGE_RUNS: clean.mergeRuns, EXTRACT_SECOND_PASS: clean.secondPass ? '1' : '0' }
       if (clean.baseUrl) env.LLM_BASE_URL = clean.baseUrl
       if (clean.apiKey) env.LLM_API_KEY = clean.apiKey
       if (clean.embedModel) env.EMBED_MODEL = clean.embedModel

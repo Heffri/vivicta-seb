@@ -142,6 +142,8 @@ export type Config = {
   retrieval?: 'hybrid' | 'bm25' | 'fixture'
   maturity_basis?: 'carrying' | 'undiscounted' // v089: the backend's live DEBT_BASIS; absent on older backends
   merge_runs?: 'off' | 'union' | 'majority' // v140: the backend's live EXTRACT_MERGE_RUNS; absent on older backends
+  second_pass?: boolean // w212: the backend's live EXTRACT_SECOND_PASS (w197's bounded retry); absent on older backends
+  scan_all?: boolean // w212: the backend's live EXTRACT_SCAN_ALL (m02's offline scan, env-only by design); absent on older backends
 }
 export const getConfig = () => request<Config>('/api/config')
 // The KB page's collection switch. Wallenberg remains the UI default; midcap is the 132-company
