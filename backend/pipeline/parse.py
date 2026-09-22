@@ -668,3 +668,13 @@ class OCRUnavailable(RuntimeError):
 def ocr_settings():
     return {"language": os.getenv("OCR_LANGUAGE", "eng+swe"),
             "tessdata": str(Path(os.getenv("TESSDATA_PREFIX") or paths.data_dir() / "tessdata").resolve())}
+
+
+def ocr_ready() -> bool:
+    """True when every language the current ocr_settings() would need is already downloaded --
+    the same per-language check page_text makes before raising OCRUnavailable, exposed standalone
+    so a caller (tests exercising real OCR, not a mocked textpage) can skip instead of hitting that
+    exception on a fresh clone that never ran scripts/setup_ocr.py."""
+    settings = ocr_settings()
+    tessdata = Path(settings["tessdata"])
+    return all((tessdata / f"{lang}.traineddata").is_file() for lang in settings["language"].split("+"))

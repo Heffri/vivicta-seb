@@ -220,8 +220,11 @@ class RuntimeChecks(unittest.TestCase):
     def test_upload_over_budget_422_then_ocr_full_retry(self):
         """v191(a)(b): a scanned upload whose bounded candidate set alone exceeds OCR_PAGE_BUDGET is
         refused with a structured 422 naming how many pages full OCR needs; the same bytes with
-        ocr=full run it unconditionally, no budget check."""
+        ocr=full run it unconditionally, no budget check. The ocr=full half exercises real OCR (not
+        a mocked textpage) -- skipped, not red, on a clone that never ran scripts/setup_ocr.py."""
         from . import parse
+        if not parse.ocr_ready():
+            self.skipTest("OCR language files missing -- run python scripts/setup_ocr.py")
         doc = pymupdf.open()
         _text_page(doc, "Cover page")
         _text_page(doc, "Second page")
@@ -244,7 +247,12 @@ class RuntimeChecks(unittest.TestCase):
     def test_extract_fills_pending_candidate_page_on_demand(self):
         """v191(b): a candidate page the bounded registration pass left ocr_pending (it sits past
         the front matter, with no outline hit) is OCR'd individually, right before the model call
-        that needs it -- extract_mod.extract never sees a blank page for a page it was told to read."""
+        that needs it -- extract_mod.extract never sees a blank page for a page it was told to read.
+        The on-demand top-up runs real OCR -- skipped, not red, on a clone that never ran
+        scripts/setup_ocr.py."""
+        from . import parse
+        if not parse.ocr_ready():
+            self.skipTest("OCR language files missing -- run python scripts/setup_ocr.py")
         doc = pymupdf.open()
         _text_page(doc, "Cover page")
         for n in range(2, 10):
