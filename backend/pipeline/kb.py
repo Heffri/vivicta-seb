@@ -34,6 +34,7 @@ from . import llm, paths
 from .parse import normalize_ws
 
 CHUNK, OVERLAP, BATCH = 800, 100, 64
+TABLE_CONTEXT_MAX = 4000  # one retrieved statement table can carry its adjacent rows without unbounding global Ask
 ASK_SYSTEM = ("You answer questions about annual reports using ONLY the excerpts. Each excerpt is labelled "
               "[Company FY p.N; report_stem=...]. Cite every number/claim inline as [Company FY p.N]. For each citation give "
               "the exact report_stem, fiscal_year, and a short verbatim quote from that excerpt. Never combine years. "
@@ -362,6 +363,56 @@ def _minmax(xs: list[float]) -> list[float]:
     return [(x - lo) / (hi - lo) if hi > lo else 0.0 for x in xs]  # flat signal -> no fake spread
 
 
+def _table_chunk(text: str) -> bool:
+    """Whether a page window contains enough complete numeric rows to be a report table.
+
+    `_page_rows` is the extractor's canonical repair for a PDF layer that puts a
+    label and its figures on separate lines.  Import it here, at retrieval time,
+    rather than duplicating that repair or changing the persisted chunk format.
+    """
+    from .extract import _page_rows  # local: extract imports kb for few-shot examples
+    rows = _page_rows(text)
+    return sum(bool(re.search(r"[^\W\d_]", row)) and bool(re.search(r"\d", row)) for row in rows) >= 3
+
+
+def _table_context(stem: str, row: dict, rows: list[dict]) -> tuple[str, bool]:
+    """Return a selected table window with its contiguous table neighbours.
+
+    A character-window boundary can fall between ``Other income`` and ``Net
+    income`` in a long 10-K statement.  BM25 still ranks the original 800-char
+    windows, but Ask receives the whole bounded run of adjacent `_page_rows`
+    windows once one is selected.  Facts and prose windows stay byte-for-byte
+    unchanged, and global Ask keeps its normal 1600-character cap for them.
+    """
+    if row.get("start", -1) < 0 or not _table_chunk(row["text"]):
+        return row["text"], False
+    page_rows = sorted((r for r in rows if r.get("page") == row.get("page") and r.get("start", -1) >= 0),
+                       key=lambda r: r["start"])
+    try:
+        left = right = next(i for i, candidate in enumerate(page_rows) if candidate is row)
+    except StopIteration:
+        return row["text"], False
+
+    # Prefer the following rows: an income-statement question often matches a
+    # heading/subtotal while the requested net result is the closing row below.
+    def span(a: int, b: int) -> tuple[int, int]:
+        return page_rows[a]["start"], max(r["start"] + len(r["text"]) for r in page_rows[a:b + 1])
+
+    while right + 1 < len(page_rows) and _table_chunk(page_rows[right + 1]["text"]):
+        start, end = span(left, right + 1)
+        if end - start > TABLE_CONTEXT_MAX:
+            break
+        right += 1
+    while left and _table_chunk(page_rows[left - 1]["text"]):
+        start, end = span(left - 1, right)
+        if end - start > TABLE_CONTEXT_MAX:
+            break
+        left -= 1
+    start, end = span(left, right)
+    text = _pages(stem).get(row["page"], "")[start:end]
+    return (text, True) if text else (row["text"], False)
+
+
 def search(stems: list[str], query: str, k=8, *, keyword_only=False) -> list[dict]:
     """BM25 over the chunks of the named stems; with embeddings (hybrid mode) blended 0.6/0.4 with
     min-max-normalised cosine. Replaces the old 0.15 * token-share rerank (kept as the before-baseline
@@ -418,8 +469,16 @@ def search(stems: list[str], query: str, k=8, *, keyword_only=False) -> list[dic
         for stem in stems:  # Two matching facts per selected report keep statement figures alongside prose.
             facts = (x for x in scored if x[1] == stem and x[2]["start"] == -1 and x[3] > 0)
             top += [x for x in nlargest(2, facts, key=lambda x: x[0]) if id(x[2]) not in seen]
-    return [{"stem": s, "page": r["page"], "text": r["text"][:1600] if keyword_only else r["text"], "score": round(sc, 4)}
-            for sc, s, r, _ in sorted(top, key=lambda x: -x[0])]
+    out = []
+    for sc, s, r, _ in sorted(top, key=lambda x: -x[0]):
+        text, expanded = _table_context(s, r, idxs[s]["rows"])
+        # Global Ask normally clips prose/fact excerpts at 1600 chars.  A bounded
+        # table expansion intentionally keeps the closing rows that the matching
+        # chunk would otherwise cut away.
+        if keyword_only and not expanded:
+            text = text[:1600]
+        out.append({"stem": s, "page": r["page"], "text": text, "score": round(sc, 4)})
+    return out
 
 
 def _norm_name(s: str) -> str:
