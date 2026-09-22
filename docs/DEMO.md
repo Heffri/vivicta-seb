@@ -8,7 +8,7 @@ zero model calls to set up, and the main show is **stored real results**, not a 
 
 | What | Value |
 |---|---|
-| Branch / commit demoed | m02 delivery app tree: commit `fca5051` (the following commit adds evidence/docs only; re-run `git rev-parse --short=7 HEAD` after a final fetch and use the delivered branch) |
+| Branch / commit demoed | `origin/acrylic` @ `0dff6d1` (2026-09-22) — the m01 (source-evidence fixes) + m02 (Sebastijan's workspace shell; `EXTRACT_SCAN_ALL` landed as an offline-only diagnostic tool) merge. Re-run `git rev-parse --short=7 origin/acrylic` after a final fetch if demoing later than this freeze. |
 | Windows installer feed | [`desktop-demo`](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-demo) (auto-updating, CI-built from the team `demo` branch) — install the Setup exe once; it updates itself. [`desktop-main`](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-main) is the equivalent feed for `main` |
 | Not the installer? | Clone the repo and run `run.bat` (Windows) or `./run.sh` (macOS/Linux) — first run ~2–4 min, later runs seconds |
 | The old portable exe | `desktop-0.3.4` (portable/Setup zip) **cannot update itself** — do not demo from it; use the auto-updating installer above or a fresh `run.bat` checkout |
@@ -92,6 +92,10 @@ after everything below has already succeeded.
 - **No dependence on web search or full-report OCR.** Do not demo the foreign-company web fetch or
   any scanned report. Saab's English PDF has no text layer — its OCR pass took **506 seconds**;
   never on stage.
+- **If a live company search does happen, its trace is visible now.** The search panel shows a live
+  stage-by-stage trail (e.g. "resolving which company you mean" → the model's actual query terms →
+  candidates found) instead of a bare spinner, and the trail survives a tab switch. Still prefer the
+  saved-KB path for the main line — this only matters if the encore needs a fresh company.
 - **OCR languages ship with the app.** `desktop/scripts/prepare-resources.js` copies an existing
   developer `data/tessdata` or downloads the official fast English/Swedish files while packaging,
   then places them in `resources/tessdata`. A clean installed app does not need repository scripts.
@@ -105,10 +109,23 @@ after everything below has already succeeded.
 - **Settings before stage.** Provider "Test" should show the CLI logged in — or stay deliberately
   in fixture mode and say so; fixture output is a fictional company ("Nordic Industrials AB
   (fictional fixture)") and must be labelled as demo data, never passed off as a real extraction.
-  Keep `EXTRACT_MERGE_RUNS=off` for the encore (union/majority doubles the wait). Ask on BM25 alone
-  is fine; only hybrid retrieval needs an embeddings endpoint indexed in advance.
+  Ask on BM25 alone is fine; only hybrid retrieval needs an embeddings endpoint indexed in advance.
+- **Extraction switches off for demo day.** `EXTRACT_SECOND_PASS` unset, `EXTRACT_SCAN_ALL` unset,
+  `EXTRACT_MERGE_RUNS=off` (keep it off for the encore too — union/majority doubles the wait). The
+  full-report scan alone can run 77–110 model calls per report/section and stays an offline
+  diagnostic tool, never a production default. How to confirm: `EXTRACT_MERGE_RUNS` shows on the
+  Settings page's status row and in `GET /api/config`'s `merge_runs` field; `EXTRACT_SECOND_PASS`
+  and `EXTRACT_SCAN_ALL` have no Settings toggle or `/api/config` field — confirm those two by
+  checking the demo machine's own environment has neither variable set.
 - **Collection on stage.** The KB page defaults to the Wallenberg collection; switch to **All**
   (or pre-filter) before the audience sees it, so nobody thinks the Mid Cap companies are missing.
+  Stable packaged ports mean this choice — and the light/dark tone — now survive an in-demo app
+  restart, so there is no need to redo it after a relaunch.
+- **Private-roster members open straight to the parent.** If the directory or Company map shows a
+  private holding with no standalone annual report (e.g. Sarnova under the Wallenberg/Investor
+  collection), say so before clicking: "this company doesn't file its own annual report — we go
+  straight to the parent's report, at the page that covers it." Opening that row lands on the saved
+  parent record (Investor AB, page 41) with zero AI search triggered.
 - **Package sanity, if demoing the installer.** Launch the packaged exe once the morning of,
   hit `GET /api/kb` / open a KB record, confirm the window survives (a fresh single-instance lock
   conflict closes the second copy silently).
