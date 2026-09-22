@@ -55,6 +55,7 @@ for (const tone of TONES) {
 test('extract: five uploads run three at a time', async ({ page }) => {
   let inFlight = 0, peak = 0
   const started: string[] = []
+  const emptyMaturityWall = { rows: [], coverage: { total: 0, comparable: 0, missing_total: 0, missing_w1y: 0, basis_unconfirmed: 0 }, sectors: [] }
   await page.route('**/api/**', async route => {
     const path = new URL(route.request().url()).pathname
     if (path === '/api/reports' && route.request().method() === 'POST') {
@@ -68,7 +69,7 @@ test('extract: five uploads run three at a time', async ({ page }) => {
       inFlight--
       return route.fulfill({ json: { report_id: id, company: id.replace('up-', '').replace('.pdf', ''), fiscal_year: 2025, section: 'income_statement', fields: [], checks: [], warnings: [] } })
     }
-    return route.fulfill({ json: path === '/api/schemas' ? [{ name: 'income_statement', title: 'Income statement' }] : path === '/api/config' ? { provider: 'codex', model: 'test' } : [] })
+    return route.fulfill({ json: path === '/api/schemas' ? [{ name: 'income_statement', title: 'Income statement' }] : path === '/api/config' ? { provider: 'codex', model: 'test' } : path === '/api/kb/maturity-wall' ? emptyMaturityWall : [] })
   })
   await page.goto('/')
   await page.setInputFiles('#pdf', [1, 2, 3, 4, 5].map(i => ({ name: `report-${i}.pdf`, mimeType: 'application/pdf', buffer: makePdf(i) })))
@@ -76,6 +77,8 @@ test('extract: five uploads run three at a time', async ({ page }) => {
   await expect.poll(() => started.length).toBe(3) // the first three start together…
   expect(inFlight).toBe(3)
   await expect.poll(() => started.length).toBe(5) // …the rest only as slots free up
+  await page.getByRole('button', { name: 'View results (5)', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Comparison', exact: true })).toBeVisible()
   await expect(page.getByText('5 of 5 reports extracted')).toBeVisible()
   expect(peak).toBe(3)
   await expect(page.locator('table thead th')).toHaveCount(6) // Field + 5 report columns, queue order
