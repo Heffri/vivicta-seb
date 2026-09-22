@@ -75,7 +75,9 @@ for (const tone of TONES) {
 
     await page.getByLabel('Filter reports').fill('atlas')
     const rows = page.locator('tbody tr')
-    await expect(rows).toHaveCount(1)
+    // The filter input renders before GET /api/kb lands, and that takes seconds cold for 200+
+    // stems -- the same allowance the sibling cases below already make.
+    await expect(rows).toHaveCount(1, { timeout: 20000 })
     await expect(rows.first()).toContainText('Atlas Copco')
 
     await rows.first().getByRole('button', { name: 'Open' }).click()
@@ -122,10 +124,10 @@ for (const tone of TONES) {
     expect(errors).toEqual([])
   })
 
-  // The KB page's "Maturity wall" card — one bar per company grouped by sector. On the seed
-  // KB the default collection's single debt report (Ericsson) has buckets that do not reconcile,
-  // so the card must show one group, its count line, and the honest grey "buckets incomplete" mark.
-  test(`kb: maturity wall card groups the collection by sector [${tone}]`, async ({ page }) => {
+  // The KB page's "Maturity wall" card — one bar per company, grouped by sector, across every
+  // saved debt report. Ericsson's buckets do not reconcile, so the card must show its sector group,
+  // a count line, and the honest grey "buckets incomplete" mark.
+  test(`kb: maturity wall card groups every saved debt report by sector [${tone}]`, async ({ page }) => {
     test.skip(!existsSync(ERICSSON_DEBT), WALL_REASON)
     const errors = trackPageErrors(page)
     await gotoWithTone(page, tone)
@@ -140,11 +142,11 @@ for (const tone of TONES) {
     await page.getByRole('button', { name: 'Maturity wall' }).click()
     const card = page.getByRole('region', { name: 'Maturity wall' })
     await expect(card).toBeVisible()
-    await expect(card.getByText(/share of debt due within 1 year · 0 of 1 companies with complete buckets/)).toBeVisible()
+    await expect(card.getByText(/share of debt due within 1 year · \d+ of \d+ companies with complete buckets/)).toBeVisible()
 
-    const sectors = card.getByRole('heading', { name: /^Sector / })
-    await expect(sectors).toHaveCount(1)
-    await expect(sectors.first()).toContainText('Telecommunications')
+    // The counts move every time a report is saved; what must hold is that rows are grouped by
+    // sector and that Ericsson's group is one of them.
+    await expect(card.getByRole('heading', { name: /^Sector Telecommunications/ })).toHaveCount(1)
     // svg text, not getByText: the row's hidden <title> tooltip carries the same words
     await expect(card.locator('svg text').filter({ hasText: 'buckets incomplete' }).first()).toBeVisible()
 

@@ -37,7 +37,7 @@ for (const tone of TONES) {
     // two uploaded fixture reports above it -- a pool wide enough to prove the threshold filter
     // actually removes rows.
     await expect(page.getByRole('heading', { name: 'Upcoming maturities', exact: false })).toBeVisible({ timeout: 20000 })
-    await expect(page.getByText(/comparable$|comparable ·/)).toBeVisible()
+    await expect(page.getByText(/^\d+ of \d+ comparable/)).toBeVisible()
     const wallRows = page.getByRole('table').filter({ has: page.getByRole('columnheader', { name: 'Share' }) }).locator('tbody tr')
     await expect.poll(async () => wallRows.count(), { timeout: 20000 }).toBeGreaterThan(5)
     const beforeFilter = await wallRows.count()
