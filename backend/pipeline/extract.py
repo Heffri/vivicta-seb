@@ -2415,6 +2415,10 @@ _DEBT_SUBJECT_WORDS = ("interest-bearing", "interest bearing", "räntebärande",
 # title or rows name borrowings, leases or interest-bearing debt is a debt table whatever else it says.
 _GROUP_SECTION_WORDS = ("group", "koncernen", "koncern", "koncernens", "consolidated", "the group")  # the
 # section-heading families that re-open the Group's own tables after a Parent Company block
+_PARENT_NOTES_CONTINUATION = re.compile(
+    r"(?i)^(?:(?:the\s+)?parent company(?:'s)? notes|notes to the parent company|"
+    r"moder(?:bolagets|företagets) noter|noter till moder(?:bolaget|företaget))(?:\s+(?:continued|forts\.?))?$"
+)
 _SEC_HEADING_SUFFIX = re.compile(r"(?i)\s*[,;:]?\s*(?:msek|sek\s*m|sekm|sek|meur|eur\s*m|usd\s*m|cad\s*m|"
                                  r"gbp\s*m|mkr|mdkk|dkk|nok|isk|tkr|ksek|kkr|million|milljoner|mn)\s*$")
 _REFUSED_SCOPES = ("undiscounted", "all_liabilities", "non_debt", "parent", "cash_flow")  # v103's two refusals + v111's two + v155's cash-flow movement table
@@ -2479,6 +2483,32 @@ def _nearest_entity_section(rows: list[str], i: int, parent_words: list[str], ma
                     if _row_year_column(rows, i, int(years[0])) is not None:
                         return "group"
             return got
+    return None
+
+
+def _parent_notes_continuation(rows: list[str], i: int, parent_words: list[str]) -> str | None:
+    """v186: the exact page-boundary Parent Company-notes running heading holding rows[i].
+
+    Balco p.101 repeats ``THE PARENT COMPANY'S NOTES`` at the physical page boundary, but PDF text
+    order leaves it as the terminal row after the table, outside v111's upward section walk. Only an
+    exact notes heading among the first/last two page rows extends that scope. A subsequent explicit
+    Group/Koncernen/Consolidated section heading closes it, just as it closes v111's ordinary Parent
+    Company block; a generic occurrence of "parent" in prose remains insufficient.
+    """
+    if not rows or not (0 <= i < len(rows)):
+        return None
+    boundary = sorted(set(range(min(2, len(rows)))) |
+                      set(range(max(0, len(rows) - 2), len(rows))))
+    for j in boundary:
+        heading = " ".join(rows[j].translate(_DASHES).strip(" ,;:|-").split())
+        if not _PARENT_NOTES_CONTINUATION.fullmatch(heading):
+            continue
+        # A boundary marker after the candidate is a repeated running heading in PDF text order.
+        # In either ordering, any explicit Group heading before the candidate re-opens Group scope.
+        start = j + 1 if j < i else 0
+        if any(_section_heading(rows[k], parent_words) == "group" for k in range(start, i)):
+            continue
+        return rows[j]
     return None
 
 
@@ -2561,13 +2591,14 @@ def _table_scope(rows: list[str], i_header: int | None, i_total: int, basis: str
         liabilities", whose "Within 1 year 87" the column-order repair wrote over the model's own
         correct current-total 192 with). A debt word anywhere in the table's title or own rows
         rescues it -- debt words win;
-     "parent" -- v111: the table sits in a Parent Company / Moderbolaget / Moderföretaget section
-        (the nearest entity section heading above it, _nearest_entity_section) that no Group/
-        Koncernen/Consolidated heading has since closed: the Group's total must not take buckets from
-        the parent's own table -- refused under both bases (Momentum p.111's parent lease maturity
-        "Within 1 year 2" against the Group's 622 balance-sheet total). v052's paired Koncernen|
-         Moderbolaget column headers are one table's two column groups, not section headings, and
-         keep their own read;
+     "parent" -- v111/v186: the table sits in a Parent Company / Moderbolaget / Moderföretaget section
+         (the nearest entity section heading above it, _nearest_entity_section) that no Group/
+         Koncernen/Consolidated heading has since closed: the Group's total must not take buckets from
+         the parent's own table -- refused under both bases (Momentum p.111's parent lease maturity
+         "Within 1 year 2" against the Group's 622 balance-sheet total). v052's paired Koncernen|
+         Moderbolaget column headers are one table's two column groups, not section headings, and keep
+         their own read. v186 additionally recognises only an exact page-boundary Parent Company-notes
+         running heading (Balco p.101), still closed by a new Group heading;
      "cash_flow" -- v155: the cited row itself names a cash-flow statement, or its own short table
          title jointly names a financing-activities movement and cash flow. A movement closing balance
          is not a carrying debt or maturity figure, even when it looks plausible; a navigation/sidebar
@@ -2608,7 +2639,8 @@ def _table_scope(rows: list[str], i_header: int | None, i_total: int, basis: str
             and not any(w in tlow for w in (debt_words or ())) \
             and not any(w in blow for w in (debt_words or ())):
         return "non_debt"  # the table's own subject is not debt; a borrowing word in title or rows rescues it
-    if parent_words and _nearest_entity_section(rows, i_total, parent_words) == "parent":
+    if parent_words and (_nearest_entity_section(rows, i_total, parent_words) == "parent"
+                         or _parent_notes_continuation(rows, i_total, parent_words) is not None):
         return "parent"  # the parent's own table: wrong entity for the Group's total, either basis
     if not any(w in tlow for w in und_words):
         return "unknown"  # no title/header marker inside the walk's reach: nothing provable to refuse on
@@ -2631,6 +2663,8 @@ def _scope_reason(rows: list[str], i_header: int | None, i_total: int, scope_wor
     parent_words = [w.lower() for w in words.get("parent_company", [])]
     title, body = _scope_zone(rows, i_header, i_total)
     if scope == "parent":
+        if hit := _parent_notes_continuation(rows, i_total, parent_words):
+            return f"the Parent Company notes continuation {hit.strip()!r} holds this table"
         for j in range(i_total - 1, max(0, i_total - 25) - 1, -1):
             if _section_heading(rows[j], parent_words) == "parent":
                 return f"the Parent Company section {rows[j].strip()!r} holds this table"
@@ -2689,8 +2723,9 @@ def _scope_missing_reason(rows: list[str], i_header: int | None, i_total: int, s
     title, body = _scope_zone(rows, i_header, i_total)
     if scope == "parent":
         words = [w.lower() for w in (scope_words or {}).get("parent_company", [])]
-        quote = next((r for r in reversed(rows[max(0, i_total - 25):i_total])
-                      if _section_heading(r, words) == "parent"), None)
+        quote = _parent_notes_continuation(rows, i_total, words) or next(
+            (r for r in reversed(rows[max(0, i_total - 25):i_total])
+             if _section_heading(r, words) == "parent"), None)
         return {
             "code": "parent_only",
             "detail": "Only the Parent Company section was found; it is not the Group borrowing schedule.",
