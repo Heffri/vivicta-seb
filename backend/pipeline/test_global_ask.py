@@ -64,6 +64,10 @@ def check():
             # Opening saved text before fetching the exact source must not prevent the PDF path
             # from being published. Matching saved evidence is deliberately not reparsed or changed.
             assert app.report_texts("lib-acme_2024")[0].startswith("Revenue")
+            # A KB-only report gets locator candidates from pages.jsonl; a missing source PDF must
+            # not turn its saved text into an empty candidate list (w209 regression guard).
+            candidates = client.get("/api/reports/lib-acme_2024/candidates?section=income_statement")
+            assert candidates.status_code == 200 and candidates.json(), candidates.text
             (library / "acme_2024.pdf").write_bytes(fetched_pdf)
             fresh = "Revenue 100 MSEK. Operating profit 20 MSEK. Fresh PDF text."
             with patch.object(app.parse, "page_texts", return_value=[fresh]) as parser:

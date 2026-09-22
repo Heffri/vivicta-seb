@@ -68,13 +68,24 @@ def demo():
             try:
                 assert paths.resource_dir() == internal
                 assert paths.schemas_dir() == internal / "schemas"
-                assert paths.tessdata_dir() == bundled_tessdata.resolve()
                 assert paths.data_dir() == (Path(tmp) / "backend" / "data").resolve()  # beside the exe, not inside _internal
                 assert paths.reports_dir() == (Path(tmp) / "backend" / "data" / "reports").resolve()
-                os.environ["ARP_DATA_DIR"] = str(Path(tmp) / "custom")
-                assert paths.data_dir() == (Path(tmp) / "custom").resolve()  # still overridable when frozen
-                os.environ["TESSDATA_PREFIX"] = str(Path(tmp) / "custom-tessdata")
-                assert paths.tessdata_dir() == (Path(tmp) / "custom-tessdata").resolve()
+                custom = Path(tmp) / "custom"
+                data_tessdata = custom / "tessdata"
+                data_tessdata.mkdir(parents=True)
+                for language in ("eng", "swe"):
+                    (data_tessdata / f"{language}.traineddata").write_bytes(b"test")
+                os.environ["ARP_DATA_DIR"] = str(custom)
+                assert paths.data_dir() == custom.resolve()  # still overridable when frozen
+                # w209: an empty/missing package resource must fall through to the writable data
+                # copy. The desktop shell used to point TESSDATA_PREFIX at that empty package path,
+                # hiding complete language files already installed under userData/data/tessdata.
+                assert paths.tessdata_dir() == data_tessdata.resolve()
+                for language in ("eng", "swe"):
+                    (bundled_tessdata / f"{language}.traineddata").write_bytes(b"test")
+                assert paths.tessdata_dir() == bundled_tessdata.resolve()
+                os.environ["TESSDATA_PREFIX"] = str(Path(tmp) / "missing-explicit-tessdata")
+                assert paths.tessdata_dir() == (Path(tmp) / "missing-explicit-tessdata").resolve()
                 del os.environ["ARP_DATA_DIR"], os.environ["TESSDATA_PREFIX"]
             finally:
                 del sys.frozen, sys._MEIPASS

@@ -728,12 +728,18 @@ async function main() {
   backendLogStream.write(`${syncLogLine(sync)}\n`)
   const dataDir = sync.dataDir
   const frontendDistDir = isDev ? path.join(repoRoot, 'frontend', 'dist') : path.join(process.resourcesPath, 'frontend-dist')
+  const bundledTessdataDir = isDev ? path.join(bundledDataDir, 'tessdata') : path.join(process.resourcesPath, 'tessdata')
+  const bundledTessdataReady = ['eng', 'swe'].every((language) =>
+    fs.existsSync(path.join(bundledTessdataDir, `${language}.traineddata`)),
+  )
+  // An explicit override stays authoritative. Do not synthesize one for an absent package
+  // resource: leaving it unset lets the frozen backend fall through to userData/data/tessdata,
+  // where setup/repair and older refreshed apps may already have a complete copy (w209).
+  const tessdataDir = process.env.TESSDATA_PREFIX || (bundledTessdataReady ? bundledTessdataDir : null)
 
   backendBaseEnv = {
     ARP_DATA_DIR: dataDir,
-    TESSDATA_PREFIX:
-      process.env.TESSDATA_PREFIX ||
-      (isDev ? path.join(bundledDataDir, 'tessdata') : path.join(process.resourcesPath, 'tessdata')),
+    ...(tessdataDir ? { TESSDATA_PREFIX: tessdataDir } : {}),
     // Pipes inherit the Windows code page otherwise; logging a name such as Mölnlycke
     // must never turn an otherwise successful report download into an HTTP 500.
     PYTHONIOENCODING: 'utf-8',
