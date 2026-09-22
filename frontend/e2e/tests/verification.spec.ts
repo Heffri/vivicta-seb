@@ -43,6 +43,7 @@ for (const tone of ['dark', 'light']) {
       return route.fulfill({json:data})
     })
     await page.goto('/')
+    await page.getByRole('button', {name:'Saved reports', exact:true}).click()
     await page.getByRole('checkbox', {name:/Example company/}).check()
     await page.getByRole('main').getByRole('button', {name:/^Extract/}).click()
     // v171: a finished batch never forces a tab switch (BatchProgress's own "View results" does).
@@ -53,6 +54,7 @@ for (const tone of ['dark', 'light']) {
     await page.getByRole('row').filter({has:page.getByRole('cell',{name:'EPS, basic',exact:true})}).click()
     await expect(page.getByText('EPS, basic: Not checked', {exact:true})).toBeVisible()
     await expect(page.getByRole('button', {name:'Which page is the income statement on?'})).toHaveCount(0)
+    await page.getByRole('navigation', {name:'Report workspace'}).getByRole('button', {name:/Checks & review/}).click()
     await page.getByText('Do the numbers add up?', {exact:true}).scrollIntoViewIfNeeded()
     await expect(page.getByText('Gross profit: Adds up', {exact:true})).toBeVisible()
     await expect(page.getByText(/Check whether this figure is basic or diluted/)).toBeVisible()
@@ -62,10 +64,10 @@ for (const tone of ['dark', 'light']) {
   })
 }
 
-for (const [passed, detail, expected] of [
-  [true, '100 = 100', 'Repayments add up to total debt (within rounding)'],
-  [false, '100 != 110', 'Repayments do not add up to total debt'],
-  [false, 'missing: total_debt', 'Not enough data to check the total'],
+for (const [passed, detail, expected, visibleStatus] of [
+  [true, '100 = 100', 'Repayments add up to total debt (within rounding)', 'Debt repayments: Adds up'],
+  [false, '100 != 110', 'Repayments do not add up to total debt', 'Debt repayments: Needs review'],
+  [false, 'missing: total_debt', 'Not enough data to check the total', 'Debt repayments: Not checked'],
 ] as const) {
   test(`maturity check: ${expected}`, async ({page}) => {
     const extraction = { ...fixture, section:'debt_maturity', warnings:[],
@@ -80,10 +82,12 @@ for (const [passed, detail, expected] of [
         : path === '/api/config' ? {provider:'fixture', model:'fixture'} : []})
     })
     await page.goto('/')
+    await page.getByRole('button', {name:'Saved reports', exact:true}).click()
     await page.getByRole('checkbox', {name:/Example company/}).check()
     await page.getByRole('main').getByRole('button', {name:/^Extract/}).click()
     // v171: a finished batch never forces a tab switch (BatchProgress's own "View results" does).
     await page.getByRole('main').getByRole('button', {name:/^View results/}).click({timeout: 20000})
-    await expect(page.getByText(expected, {exact:true})).toBeVisible()
+    await page.getByRole('navigation', {name:'Report workspace'}).getByRole('button', {name:/Checks & review/}).click()
+    await expect(page.getByText(visibleStatus, {exact:true})).toBeVisible()
   })
 }

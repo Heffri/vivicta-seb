@@ -103,6 +103,7 @@ test('one statement card keeps independent basis prefill, source hints, reviewer
   await expect(totalReview.getByRole('alert')).toContainText('The field changed')
   await expect(totalReview.getByLabel('Your name', { exact: true })).toHaveValue('Alex Analyst')
   await page.getByRole('button', { name: 'Next unresolved field', exact: true }).click()
+  await page.locator('summary').filter({ hasText: /^Review Due within 1 year$/ }).click()
   const nextReview = page.getByRole('form', { name: 'Review Due within 1 year', exact: true })
   await expect(nextReview.getByLabel('Your name', { exact: true })).toHaveValue('Alex Analyst')
   await page.getByRole('button', { name: 'Back to reports', exact: true }).click()

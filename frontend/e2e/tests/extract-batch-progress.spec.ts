@@ -51,10 +51,10 @@ test('extract: switching tabs mid-batch and back keeps progress, and the finish 
   await expect(rowB.getByText('Done', { exact: true })).toBeVisible({ timeout: 20000 })
   const viewResults = page.getByRole('button', { name: /^View results/ })
   await expect(viewResults).toBeVisible()
-  await expect(page.getByText('Pick reports, get source-linked numbers')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Extract report data', exact: true })).toBeVisible()
 
   await viewResults.click()
-  await expect(page.getByRole('heading', { name: 'Comparison' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Compare reports', exact: true })).toBeVisible()
 
   expect(errors).toEqual([])
 })

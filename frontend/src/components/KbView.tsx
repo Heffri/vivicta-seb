@@ -79,7 +79,9 @@ export function KbView({ onOpen, onOpenReport }: Props) {
   useEffect(() => {
     // React dev Strict Mode immediately cleans up the first effect. Keep its list response: otherwise
     // the second full-KB listing waits behind it and the page remains on Loading long after it is ready.
-    getKb(collection).then(setEntries).catch((e: Error) => setError(e.message))
+    let stale = false
+    getKb(collection).then((rows) => { if (!stale) setEntries(rows) }).catch((e: Error) => { if (!stale) setError(e.message) })
+    return () => { stale = true }
   }, [collection])
 
   useEffect(() => {

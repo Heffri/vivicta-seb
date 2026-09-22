@@ -52,7 +52,9 @@ test('global Ask sends only SEB Mid Cap stems after the collection changes', asy
   await page.goto('/')
   await page.getByRole('tab', { name: 'Ask', exact: true }).click()
   await page.getByRole('group', { name: 'Collection' }).getByRole('button', { name: 'SEB Mid Cap (132)', exact: true }).click()
+  await page.getByRole('button', { name: /Available reports/ }).click()
   await expect(page.getByText('1 reports with saved text · 1 with extracted figures · 0 PDFs downloaded', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Conversation', exact: true }).click()
 
   const question = page.getByRole('combobox', { name: 'Question', exact: true })
   await question.fill('@Aca')

@@ -29,7 +29,7 @@ for (const tone of TONES) {
     const viewResults = page.getByRole('main').getByRole('button', { name: 'View results (2)' })
     await expect(viewResults).toBeVisible({ timeout: 20000 })
     await viewResults.click()
-    await expect(page.getByRole('heading', { name: 'Comparison' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Compare reports', exact: true })).toBeVisible()
     await expect(page.getByText('2 of 2 reports extracted')).toBeVisible()
     await expect(page.locator('table thead th')).toHaveCount(3) // Field + 2 report columns
 
@@ -80,7 +80,7 @@ test('extract: five uploads run three at a time', async ({ page }) => {
   expect(inFlight).toBe(3)
   await expect.poll(() => started.length).toBe(5) // …the rest only as slots free up
   await page.getByRole('button', { name: 'View results (5)', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Comparison', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Compare reports', exact: true })).toBeVisible()
   await expect(page.getByText('5 of 5 reports extracted')).toBeVisible()
   expect(peak).toBe(3)
   await expect(page.locator('table thead th')).toHaveCount(6) // Field + 5 report columns, queue order
