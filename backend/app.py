@@ -127,6 +127,7 @@ class DiscoverBody(BaseModel):
     country: str | None = None  # v074: optional context for the model search when the directory has no hit ("Switzerland")
     hint: str | None = None     # v074: free-text hint for the model search ("FY ends 30 June", the report's exact title)
     job_id: str | None = Field(default=None, max_length=100)  # v194: frontend-generated uuid; GET /api/jobs/{id} polls its progress
+    force_web: bool = False     # w200: an analyst explicitly asks to search despite a deterministic saved report
 
 
 class FetchBody(DiscoverBody):
@@ -337,10 +338,11 @@ def list_companies(q: str = "", collection_name: Literal["all", "wallenberg", "m
 
 @app.post("/api/reports/discover")
 def discover_companies(body: DiscoverBody):
-    """Which legal entities the typed query could mean: saved reports first (no model call), then one
-    web-search ask. Nothing is downloaded; the user confirms a candidate and /fetch takes its url first."""
+    """Which legal entities the typed query could mean: a deterministic saved report returns before any
+    model call, unless force_web explicitly asks to search anyway. Nothing is downloaded; the user confirms
+    a candidate and /fetch takes its url first."""
     check_query(body)
-    return fetch.discover(body.company, body.year, body.country, body.hint, LIBRARY, job_id=body.job_id)
+    return fetch.discover(body.company, body.year, body.country, body.hint, LIBRARY, job_id=body.job_id, force_web=body.force_web)
 
 
 @app.post("/api/reports/fetch")

@@ -201,28 +201,71 @@ def _str(v):
     return (str(v).strip() or None) if v is not None else None
 
 
-def _local_candidates(query, year, dest_dir):
-    """Saved reports for `year` whose company matches the query -- collection.identity on both sides (casefolded,
-    legal suffixes off, roster aliases resolved: "seb" finds Skandinaviska Enskilda Banken) -- the report cache
-    first, then data/kb text-only stems. No model call; saved: true + stem is what lets the UI reuse them."""
-    q = collection.identity(query)
-    if not q:
+def _saved_name_key(name):
+    """The report-cache spelling used for an exact saved-report identity -- keep this aligned with the
+    filename normalisation in `_name`/`slugify`, rather than treating a search prefix as a company."""
+    return slugify(_name(str(name))) if name else ""
+
+
+def _identifier(value):
+    """Case/format-insensitive exact comparison for ticker, ISIN, or a stored legal identifier."""
+    return re.sub(r"[^a-z0-9]", "", str(value).casefold()) if value else ""
+
+
+def _directory_identifiers():
+    """Directory identifiers keyed by its own normalised name and collection identity. Reports/index.json
+    predates ticker/ISIN fields, so the company catalogue supplies them for an otherwise bare saved entry."""
+    try:
+        rows = json.loads(paths.companies_path().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
         return []
-    rows = [(Path(e["file"]).stem, e.get("company"), e.get("fiscal_year"), e.get("source_url"), "saved PDF in the report cache")
+    out = []
+    for row in rows if isinstance(rows, list) else []:
+        if not isinstance(row, dict) or not row.get("name"):
+            continue
+        ids = {_identifier(row.get(k)) for k in ("ticker", "isin", "org_number_or_lei")}
+        out.append((_saved_name_key(row["name"]), collection.identity(row["name"]), ids - {""}, _str(row.get("ticker"))))
+    return out
+
+
+def _saved_identifiers(company, row, directory):
+    """Identifiers written with the saved row plus matching directory metadata. The collection identity
+    bridge is only to look up a catalogued ticker/ISIN (for example the bank's long legal name -> SEB),
+    never a fuzzy query match."""
+    name_key, identity = _saved_name_key(company), collection.identity(company or "")
+    identifiers = {_identifier(row.get(k)) for k in ("ticker", "isin", "org_number_or_lei")}
+    ticker = _str(row.get("ticker"))
+    for directory_name, directory_identity, directory_ids, directory_ticker in directory:
+        if directory_name == name_key or directory_identity == identity:
+            identifiers.update(directory_ids)
+            ticker = ticker or directory_ticker
+    return identifiers - {""}, ticker
+
+
+def _local_candidates(query, year, dest_dir):
+    """Deterministic saved reports for `year`: normalised company name equality, or exact ticker/ISIN.
+    The report cache comes first, then data/kb text-only stems. A prefix is intentionally not a match:
+    ambiguity must continue to model-backed web discovery unless the user explicitly overrides a saved hit."""
+    query_name, query_identifier = _saved_name_key(query), _identifier(query)
+    if not query_name and not query_identifier:
+        return []
+    rows = [(Path(e["file"]).stem, e.get("company"), e.get("fiscal_year"), e.get("source_url"), "saved PDF in the report cache", e)
             for e in _load_index(dest_dir) if (dest_dir / e["file"]).exists()]
     for p in sorted(paths.kb_dir().glob("*/meta.json")):
         try:
             m = json.loads(p.read_text(encoding="utf-8"))
         except Exception:
             continue
-        rows.append((p.parent.name, m.get("company"), m.get("fiscal_year"), m.get("source_url"), "saved page text in the knowledge base"))
+        rows.append((p.parent.name, m.get("company"), m.get("fiscal_year"), m.get("source_url"), "saved page text in the knowledge base", m))
+    directory = _directory_identifiers()
     out, seen = [], set()
-    for stem, company, fy, url, reason in rows:
-        key = collection.identity(company or "")
-        if fy != year or not key or key in seen or not (q == key or (len(q) >= 3 and any(t.startswith(q) for t in key.split()))):  # "sca" must not surface Scandic
+    for stem, company, fy, url, reason, row in rows:
+        key = _saved_name_key(company)
+        identifiers, ticker = _saved_identifiers(company, row, directory)
+        if fy != year or not key or key in seen or not (query_name == key or query_identifier in identifiers):
             continue
         seen.add(key)
-        out.append(_candidate(company, document_type="annual report", url=url, reason=reason, saved=True, stem=stem))
+        out.append(_candidate(company, ticker=ticker, document_type="annual report", url=url, reason=reason, saved=True, stem=stem))
     return out
 
 
@@ -257,19 +300,25 @@ def _model_discover(query, year, country=None, hint=None, job_id=None):
 
 
 def discover(company: str, year: int, country: "str | None" = None, hint: "str | None" = None, dest_dir: "Path | None" = None,
-            job_id: "str | None" = None) -> dict:
+            job_id: "str | None" = None, force_web: bool = False) -> dict:
     """{"candidates": [...], "note": str | None}: which legal entities a typed query could mean, for the user to
-    confirm one before any download. Saved reports first (no model call), then one web-search ask for up to
-    MAX_DISCOVER_CANDIDATES distinct entities with their official report PDF URL for the year when known; an
-    openai/fixture backend has no search tool and gets the saved matches plus a note saying so. Dedupe is
-    collection.identity, not a bare casefold, so a saved "ABB" and the model's "ABB Ltd" are one card.
+    confirm one before any download. A deterministic saved report (normalised name equality or exact
+    ticker/ISIN) returns immediately with no model call. `force_web=True` is the analyst's explicit
+    override; otherwise an uncertain/missing local match gets one web-search ask for up to
+    MAX_DISCOVER_CANDIDATES distinct entities with their official report PDF URL for the year when known.
+    Dedupe is collection.identity, not a bare casefold, so a saved "ABB" and the model's "ABB Ltd"
+    are one card.
 
     job_id (v194, optional): reports the directory/model_search stages, the model's own query terms
     and candidate names, and a final done event to pipeline.jobs -- a no-op when job_id is None."""
     dest_dir = Path(dest_dir) if dest_dir is not None else paths.reports_dir()
     jobs.step(job_id, "directory", f"checking saved reports for {company} ({year})")
     local = _local_candidates(company, year, dest_dir)
-    jobs.step(job_id, "directory", f"{len(local)} saved match(es)" if local else "no saved match")
+    if local and not force_web:
+        jobs.step(job_id, "directory", f"{len(local)} saved match(es); saved report found, web search skipped")
+        jobs.step(job_id, "done", f"{len(local)} saved candidate(s)")
+        return {"candidates": local, "note": None, "source": "saved", "skipped_web_search": True}
+    jobs.step(job_id, "directory", f"{len(local)} saved match(es); searching the web anyway" if local else "no saved match")
     found, note = [], None
     if websearch_provider():
         jobs.step(job_id, "model_search", "asking the connected model to search the web")
@@ -288,7 +337,7 @@ def discover(company: str, year: int, country: "str | None" = None, hint: "str |
         out.append(c)
     out = out[:MAX_DISCOVER_CANDIDATES]
     jobs.step(job_id, "done", f"{len(out)} candidate(s)")
-    return {"candidates": out, "note": note}
+    return {"candidates": out, "note": note, "source": "web", "skipped_web_search": False}
 
 
 def _label_clean(url):
