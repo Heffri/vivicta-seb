@@ -23,6 +23,7 @@ import pymupdf
 import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Query
+from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -49,7 +50,13 @@ FIXTURE = paths.fixture_path()
 COMPANIES = json.loads(paths.companies_path().read_text(encoding="utf-8"))  # Nasdaq Stockholm, data/companies_build.py
 CSV_HEADER = "report_id,company,fiscal_year,section,key,label,value,unit,period,raw_label,page,quote,confidence".split(",")
 
-app = FastAPI(title="vivicta backend")
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    kb.warm()  # at serve time, not import time: the test modules import this file
+    yield
+
+
+app = FastAPI(title="vivicta backend", lifespan=_lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"], allow_methods=["*"], allow_headers=["*"])
 
 reports: dict[str, dict] = {}      # ponytail: in-memory, add sqlite if restarts must survive

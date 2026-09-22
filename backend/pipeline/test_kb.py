@@ -6,7 +6,7 @@ ranking, stop-word neutrality, the Swedish prefix stemmer, table-continuation co
 scores; the retrieval three-state and EMBED_MODEL invalidation; Ask -- the empty-retrieval
 short-circuit and citation verification; the entries() catalog -- content-availability flags, the
 fingerprint cache, and status="building" only while a write really holds the lock, including under
-concurrent listings; KB open with no cached PDF; and the FastAPI gates.
+concurrent listings; the startup warm-up; KB open with no cached PDF; and the FastAPI gates.
 
 Run: python -m pipeline.test_kb"""
 import json
@@ -442,6 +442,32 @@ def test_app_gates():
 
 # ---- KB open without the cached PDF ---------------------------------------------------------
 
+def test_warm_builds_every_index_before_the_first_question():
+    """warm() must fill the same cache the query path fills, and must stay out of fixture mode --
+    where /ask answers from a canned string and warming would be pure cost."""
+    from . import kb
+    with tempfile.TemporaryDirectory() as tmp:
+        _seed(kb, tmp)
+        with _env(LLM_PROVIDER="codex", LLM_BASE_URL=None):
+            assert kb.retrieval_mode() == "bm25", kb.retrieval_mode()
+            kb._bm25_cache.clear()
+            t = kb.warm()
+            t.join(60)
+            assert not t.is_alive(), "warm-up thread did not finish"
+            assert set(kb._bm25_cache) == {"acme_2025"}, sorted(kb._bm25_cache)
+            # Warm means warm: the query path must reuse the index, not rebuild it.
+            before = id(kb._bm25_cache["acme_2025"][1])
+            assert kb.search(["acme_2025"], "net sales", keyword_only=True)
+            assert id(kb._bm25_cache["acme_2025"][1]) == before
+
+        with _env(LLM_PROVIDER="openai", LLM_BASE_URL=None):
+            assert kb.retrieval_mode() == "fixture", kb.retrieval_mode()
+            kb._bm25_cache.clear()
+            assert kb.warm() is None
+            assert not kb._bm25_cache
+    print("kb warm-up fills every index off the query path ok")
+
+
 def test_kb_open_without_pdf():
     """GET /api/kb/{stem}/{section} with no cached PDF serves the stored extraction on the saved
     report id (lib-<stem>, meta from meta.json, no PDF path -- get_report's lazy registration):
@@ -675,6 +701,7 @@ if __name__ == "__main__":
     test_bm25_all_zero_returns_no_hits()
     test_ask_empty_retrieval_skips_model()
     test_embed_model_invalidation()
+    test_warm_builds_every_index_before_the_first_question()
     test_kb_open_without_pdf()
     test_app_gates()
     print("kb self-check ok")

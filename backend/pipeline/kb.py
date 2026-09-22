@@ -21,6 +21,7 @@ import re
 import time
 import threading
 from datetime import datetime, timezone
+from array import array
 from collections import Counter
 from heapq import nlargest
 from functools import lru_cache
@@ -348,13 +349,22 @@ def retrieval_mode() -> str:
     return "fixture"
 
 
+# ponytail: unbounded, one entry per saved report, never evicted -- ~3.5 MB per report, so ~750 MB
+# at the 212 reports here and linear from there. Bound it (LRU, or postings on disk) if a library
+# gets large enough that the process footprint matters more than the warm search it buys.
 _bm25_cache: dict[str, tuple[tuple, dict]] = {}  # stem -> ((pages.jsonl mtime, newest extraction mtime), index)
 
 
 def _bm25(stem: str) -> dict:
-    """Inverted index over chunks(stem) for BM25: term -> [(chunk i, term frequency)], plus per-chunk
-    token counts and the chunk rows themselves. In memory only, invalidated by the same mtimes as the
-    embeddings file -- zero disk output, so bm25 mode never touches embeddings.jsonl."""
+    """Inverted index over chunks(stem) for BM25: term -> array('i') of flat (chunk i, term frequency)
+    pairs, plus per-chunk token counts and the chunk rows themselves. In memory only, invalidated by
+    the same mtimes as the embeddings file -- zero disk output, so bm25 mode never touches
+    embeddings.jsonl.
+
+    The postings are a flat array rather than a list of tuples because they dominated the cache: over
+    the 212-report library that is ~9.6 M pairs, and a 56-byte tuple each made them 771 MB of a
+    1.37 GB cache. As 4-byte ints they are 240 MB and the whole cache is 757 MB. Scoring got faster
+    too -- a warm search over every report went from ~1.0 s to ~0.44 s. Rankings are unchanged."""
     d = kb_dir() / stem
     pages = d / "pages.jsonl"
     exs = _section_files(stem)
@@ -362,16 +372,43 @@ def _bm25(stem: str) -> dict:
     if stem in _bm25_cache and _bm25_cache[stem][0] == key:
         return _bm25_cache[stem][1]
     rows = chunks(stem)
-    postings: dict[str, list[tuple[int, int]]] = {}
+    postings: dict[str, array] = {}
     dls: list[int] = []
     for i, r in enumerate(rows):
         bag = _bag(r["text"])
         dls.append(sum(bag.values()))
         for t, f in bag.items():
-            postings.setdefault(t, []).append((i, f))
+            postings.setdefault(t, array("i")).extend((i, f))
     idx = {"rows": rows, "postings": postings, "dls": dls}
     _bm25_cache[stem] = (key, idx)
     return idx
+
+
+def warm() -> threading.Thread | None:
+    """Build every saved report's BM25 index on a background thread at startup.
+
+    `search` builds one inverted index per stem it is given. That is ~0.09 s each, invisible for the
+    two reports a Compare names and ~18 s for the whole library -- which is now what a global Ask
+    always asks for, since no collection narrows it any more. The work and the memory are identical
+    either way; this only moves them off the first question, which drops from ~18 s to ~1 s.
+
+    Skipped without a model: fixture mode answers /ask from a canned string and never searches, so
+    warming there would only slow the dev server and the e2e suite down."""
+    if retrieval_mode() == "fixture":
+        return None
+
+    def run() -> None:
+        for e in entries():
+            try:
+                _bm25(e["stem"])
+            except Exception:  # a report can be deleted or rewritten mid-warm; the query path rebuilds
+                pass
+
+    # ponytail: no lock. _bm25_cache[stem] = ... is one dict store, so a query racing the warm-up
+    # either sees the finished index or builds its own -- duplicated work, never a partial read.
+    t = threading.Thread(target=run, daemon=True, name="bm25-warm")
+    t.start()
+    return t
 
 
 def _minmax(xs: list[float]) -> list[float]:
@@ -446,11 +483,12 @@ def search(stems: list[str], query: str, k=8, *, keyword_only=False) -> list[dic
     # Document frequency is a property of the whole query corpus, so compute it once per term
     # rather than once per stem. Measured over 212 stems that is worth ~0.03 s on a typical
     # question and ~0.3 s on a long one -- not the cold cost. The cold cost is the _bm25 call
-    # above building one inverted index per stem: ~17 s for 212 stems, ~1 s once they are cached
-    # for the life of the process. Nothing here touches that.
+    # above building one inverted index per stem: ~18 s for 212 stems, ~0.44 s once they are cached
+    # for the life of the process. warm() pays that ~18 s at startup instead of on the first
+    # question. Nothing here touches either.
     idfs = {}
     for t in set(terms):
-        df = sum(len(idxs[s2]["postings"][t]) for s2 in stems if t in idxs[s2]["postings"])
+        df = sum(len(idxs[s2]["postings"][t]) // 2 for s2 in stems if t in idxs[s2]["postings"])
         idfs[t] = math.log(1.0 + (n - df + 0.5) / (df + 0.5))
     cand: list[tuple[float, float, float, str, dict]] = []  # (cosine raw, BM25 raw, share, stem, row)
     for s in stems:
@@ -461,7 +499,8 @@ def search(stems: list[str], query: str, k=8, *, keyword_only=False) -> list[dic
             if not pl:
                 continue
             idf = idfs[t]
-            for i, f in pl:
+            pairs = iter(pl)
+            for i, f in zip(pairs, pairs):
                 hits[i] = hits.get(i, 0) + 1  # distinct query terms on this chunk -> the share/ride-along rule
                 part[i] = part.get(i, 0.0) + idf * f * (BM25_K1 + 1.0) / (f + BM25_K1 * (1.0 - BM25_B + BM25_B * dls[i] / avgdl))
         vecs = [r["vec"] for r in _rows(s)] if mode == "hybrid" else ()
