@@ -575,7 +575,7 @@ def _check(check: dict, values: dict, texts: list[str] | None = None, pages: lis
     return out
 
 
-EXTRACT_VERSION = "2026-09-22"  # bump when a pipeline change should invalidate saved extractions; the cache key used to hash 7 source files, so every commit re-ran every section (27 s each)
+EXTRACT_VERSION = "2026-09-22-w198"  # bump when a pipeline change should invalidate saved extractions; the cache key used to hash 7 source files, so every commit re-ran every section (27 s each)
 
 WEIGHTS = {"quote_on_page": 0.35, "value_in_quote": 0.20, "arith_ok": 0.20, "label_known": 0.10,
            "period_ok": 0.05, "page_is_statement": 0.05, "unit_ok": 0.05,  # docs/CONFIDENCE.md; sums to 1.0

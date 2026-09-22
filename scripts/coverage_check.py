@@ -64,6 +64,7 @@ def main() -> None:
     report_cache: dict[str, tuple[list[str] | None, list[int], set[int]]] = {}
     sweep_cache: dict[tuple[str, str], dict] = {}
     locator_hits = sweep_hits = 0
+    supplemental: list[tuple[str, str, int]] = []
     uncovered: list[tuple[str, str, int, str]] = []
 
     for row in rows:
@@ -94,6 +95,7 @@ def main() -> None:
         swept = sweep_cache[cache_key]
         if expected in swept["pages"]:
             sweep_hits += 1
+            supplemental.append((stem, key, expected))
             continue
         if expected in pending:
             reason = "scanned page: ocr_pending"
@@ -112,6 +114,9 @@ def main() -> None:
         f"combined coverage {combined}/{total}",
         f"still uncovered {len(uncovered)}/{total}",
     ]
+    if supplemental:
+        lines.append("sweep supplemental rows:")
+        lines.extend(f"  {stem} {key} p.{page}" for stem, key, page in supplemental)
     if uncovered:
         lines.append("uncovered rows:")
         lines.extend(f"  {stem} {key} p.{page}: {reason}" for stem, key, page, reason in uncovered)

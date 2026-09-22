@@ -4423,6 +4423,15 @@ def test_fulltext_sweep_finds_numeric_synonym_rows_and_skips_tried_or_ocr_pages(
     assert swedish["pages"] == [1] and swedish["hits"] == {1: 1}, swedish
 
 
+def test_fulltext_sweep_ranks_hit_count_then_page_and_caps_three():
+    """w198: hit count wins, page number breaks ties, and no field gets more than three pages."""
+    field = {"key": "revenue", "label": "Revenue", "synonyms": ["revenue"]}
+    texts = ["Revenue 1", "Revenue 2\nRevenue 3", "Revenue 4", "Revenue 5", "Revenue without a figure"]
+    swept = x.sweep_pages(texts, field)
+    assert swept["pages"] == [2, 1, 3], swept
+    assert swept["hits"] == {1: 1, 2: 2, 3: 1, 4: 1}, swept
+
+
 def _second_pass_result(schema, keys):
     return {
         "report_id": "second-pass-test", "company": "Second Pass Test", "fiscal_year": 2025,
@@ -4610,6 +4619,7 @@ if __name__ == "__main__":
     test_heldout_parent_continuation_and_unmarked_lease_schedule()
     test_missing_reasons_for_honest_debt_nulls()
     test_fulltext_sweep_finds_numeric_synonym_rows_and_skips_tried_or_ocr_pages()
+    test_fulltext_sweep_ranks_hit_count_then_page_and_caps_three()
     test_second_pass_fills_required_field_from_full_candidate_pages()
     test_second_pass_retries_a_locator_miss_on_fulltext_sweep_pages()
     test_second_pass_rejects_a_quote_not_on_its_page()
