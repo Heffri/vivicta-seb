@@ -1,0 +1,29 @@
+python -m pytest backend -q
+  before edit (a4ff971, w203's dispatch baseline): 80 passed, 2 skipped
+  after edit (schema + 3 new sweep_pages fixtures), before merging latest acrylic: 83 passed, 2 skipped
+  after merging origin/acrylic (93c1e86, w199/w200/w201 landed in the interim -- test_kb.py grew
+  2 more cases, unrelated to this lane): 85 passed, 2 skipped
+
+Every backend/**/test_*.py also carries its own `if __name__ == "__main__":` block (documented as
+the module's primary self-check entry point, e.g. test_confidence.py's own docstring: "Run: python
+-m pipeline.test_confidence"). Those blocks call some non-`test_`-prefixed self-check functions
+(demo(), *_self_check() prints, ...) that pytest's default collection does not discover, so they
+were run directly as a second pass:
+
+  cd backend && ../.venv/Scripts/python.exe -m pipeline.<module>
+
+for every one of the 13 pipeline test modules that defines such a block (test_confidence,
+test_debt_selection, test_fetch, test_global_ask, test_jobs, test_kb, test_llm, test_locate,
+test_maturity_ocr, test_merge, test_parse, test_paths, test_runtime). All 13 exit 0, re-confirmed
+after merging origin/acrylic. The first run caught a real regression pytest's collection could not
+see: test_confidence.py's demo() hardcoded an Acast total_debt confidence of 0.9 for a fixture whose
+raw_label is literally "Total lease Liability" (the same real p.67 row this lane's fix targets) --
+once that row_synonym landed, label_known newly applies and confidence reaches the max 1.0, so the
+hardcoded 0.9 assertion broke. Fixed by updating the expected tuple to 1.0 with a one-line note (see
+the diff); re-run green.
+
+The 3 files without a __main__ block (backend/test_collection.py, backend/test_human_review.py,
+backend/test_workbench.py) are pure pytest style; the `pytest backend -q` pass above already covers
+them.
+
+16/16 backend test_*.py modules green by both routes.
