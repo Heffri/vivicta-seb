@@ -4,7 +4,7 @@ import type { Batch } from '../../hooks/useBatch'
 
 type StatusBarProps = { config: Config | null; batch?: Batch; onOpenBatch?: () => void }
 
-// Minimal cross-tab visibility for a running batch (v171): a small "n/m" pill so leaving the
+// Minimal cross-tab visibility for a running batch: a small "n/m" pill so leaving the
 // Extract tab doesn't make the batch feel like it vanished — the fuller per-report breakdown
 // stays in BatchProgress, this is just a pointer back to it.
 export function StatusBar({ config, batch, onOpenBatch }: StatusBarProps) {
@@ -26,7 +26,7 @@ export function StatusBar({ config, batch, onOpenBatch }: StatusBarProps) {
         <span title={config.base_url ?? (config.llm ? 'no embeddings endpoint — keyword (BM25) retrieval' : 'no LLM configured')}>
           {config.model}
           {config.retrieval === 'bm25' ? (
-            // v034's bm25 state embeds nothing — same swap as SettingsView's StatusRow (v056);
+            // The bm25 state embeds nothing — same swap as SettingsView's StatusRow;
             // hybrid/fixture keep the embed model name.
             <span className="opacity-60"> · retrieval BM25</span>
           ) : (

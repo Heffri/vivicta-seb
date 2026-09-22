@@ -1,17 +1,15 @@
 'use strict'
 // Bundled data (companies.json, reports/index.json, kb/) -> <userData>/data, merged on EVERY
-// launch (v107). The old behavior copied the whole tree once and never again, so KB entries
-// shipped with a new app version never reached existing installs.
+// launch rather than copied once, so KB entries shipped with a new app version reach installs
+// created by older versions. main.js calls syncBundledData() from ensureUserData.
 //
-// v138: the merge is three-way. <userData>/data/.bundle-manifest.json records the sha256 of
-// every file the bundle installed, so the next launch can tell "the user still has exactly the
-// bundle version we put there" (-> follow the new bundle) from "the user changed it" (-> keep).
-// Files installed before the manifest existed cannot be judged, so the first manifest-less run
-// applies a conservative one-time rule to kb/<stem>/ only: an unreviewed file that differs from
-// the new bundle is stale bundle data and is refreshed once (uploads kb/up-*, reviewed
-// extractions, and everything outside kb/ are never touched by the rule). User uploads
-// (kb/up-*), reviewed extractions and config.json always win. main.js calls syncBundledData()
-// from ensureUserData.
+// The merge is three-way. <userData>/data/.bundle-manifest.json records the sha256 of every file
+// the bundle installed, so the next launch can tell "the user still has exactly the bundle version
+// we put there" (-> follow the new bundle) from "the user changed it" (-> keep). Files installed
+// before the manifest existed cannot be judged, so the first manifest-less run applies a
+// conservative one-time rule to kb/<stem>/ only: an unreviewed file that differs from the new
+// bundle is stale bundle data and is refreshed once. User uploads (kb/up-*), reviewed extractions
+// and config.json always win, and nothing outside kb/ is touched by the one-time rule.
 const path = require('node:path')
 const fs = require('node:fs')
 const fsp = require('node:fs/promises')
@@ -22,8 +20,7 @@ const KB_STEM_RE = /^kb\/([^/]+)\//
 const EXTRACTION_RE = /^kb\/[^/]+\/extractions\/[^/]+\.json$/
 
 // Same exclude list as the repo's own .gitignore for data/ (no PDFs, no derived KB
-// embeddings/tmp files, no ad-hoc up-* uploads). Moved here from main.js so the once-copy
-// and the every-launch merge share one rule set.
+// embeddings/tmp files, no ad-hoc up-* uploads).
 function shouldSkipDataEntry(relPath) {
   const p = relPath.replace(/\\/g, '/')
   return (
@@ -68,7 +65,8 @@ function resultHasReviews(result) {
   )
 }
 
-// null = no manifest on disk (a v107-era install; see the one-time rule in syncBundledData).
+// null = no manifest on disk (an install predating the manifest; see the one-time rule in
+// syncBundledData).
 // A manifest that exists but cannot be parsed counts as present-but-empty: without trustworthy
 // hashes we cannot tell user-modified from bundle-installed, so the safe answer is keep.
 async function loadManifest(destRoot) {
@@ -203,7 +201,7 @@ async function syncBundledData(bundledRoot, destRoot) {
     await fsp.cp(src, path.join(destRoot, 'kb', stem), {
       recursive: true,
       filter: (source) => {
-        // rel paths below bundledRoot, same shape planDataSync/skip use (e.g. kb/b_2025/pages.jsonl)
+        // rel paths below bundledRoot, the same shape walk()/shouldSkipDataEntry use (e.g. kb/b_2025/pages.jsonl)
         const rel = path.relative(bundledRoot, source).replace(/\\/g, '/')
         return rel === '' || !shouldSkipDataEntry(rel)
       },

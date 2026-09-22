@@ -2,13 +2,12 @@ import { expect, type Page, test } from '@playwright/test'
 import { makePdf } from '../fixtures/make-pdf'
 import { trackPageErrors } from '../support/page-errors'
 
-// v171 (consult item 6): the batch's progress used to live inside UploadView, so switching tabs
-// mid-batch unmounted it, and the still-running promise chain called the old onDone regardless of
-// which tab was open when it finished — yanking the user back to Results/Compare even if they'd
-// since navigated elsewhere. These three specs cover the fix: state survives a tab switch, a
-// partial failure only retries the failed report, and "Stop after current" leaves the rest queued
-// but untouched. Logic tests, not visual ones (like ai-discovery.spec.ts / pdf-opt-in.spec.ts) —
-// no tone loop.
+// Batch progress must not live inside UploadView: switching tabs mid-batch would unmount it, and
+// the still-running promise chain would call the old onDone regardless of which tab was open when
+// it finished, yanking the user back to Results/Compare even if they had since navigated
+// elsewhere. These specs cover that: state survives a tab switch, a partial failure only retries
+// the failed report, and "Stop after current" leaves the rest queued but untouched. Logic tests,
+// not visual ones (like ai-discovery.spec.ts / pdf-always-download.spec.ts) — no tone loop.
 
 // Scoped to BatchProgress's own labeled list — Dropzone stages its picked files as <li> rows too
 // (name + size + a remove button), and a plain `page.locator('li', { hasText })` matches both.
@@ -45,8 +44,8 @@ test('extract: switching tabs mid-batch and back keeps progress, and the finish 
   await expect(rowB).toBeVisible()
 
   // Let the active reports finish while we stay on Extract. We DID navigate away during the run,
-  // so per the work order it must not force a navigation once it ends — it offers a button
-  // instead, and we're still looking at the Extract screen once both reports are done.
+  // so it must not force a navigation once it ends — it offers a button instead, and we're still
+  // looking at the Extract screen once both reports are done.
   await expect(rowA.getByText('Done', { exact: true })).toBeVisible({ timeout: 20000 })
   await expect(rowB.getByText('Done', { exact: true })).toBeVisible({ timeout: 20000 })
   const viewResults = page.getByRole('button', { name: /^View results/ })
@@ -149,10 +148,10 @@ test('extract: Stop after current lets the active three finish and leaves later 
 })
 
 test('extract: a scanned PDF over the OCR page budget offers "Run OCR anyway", which resends with ocr=full', async ({ page }) => {
-  // v191(c): registration 422s with {detail, ocr_pages_needed} when a scanned PDF's bounded OCR
-  // pass alone is over budget; the batch row surfaces a "Run OCR anyway (~N min)" button that
-  // resends the same upload with ocr=full. Mocked end to end (work order's own instruction) — the
-  // real bounded-OCR mechanics are covered by the backend's pipeline.test_maturity_ocr/test_runtime.
+  // Registration 422s with {detail, ocr_pages_needed} when a scanned PDF's bounded OCR pass alone
+  // is over budget; the batch row surfaces a "Run OCR anyway (~N min)" button that resends the same
+  // upload with ocr=full. Mocked end to end — the real bounded-OCR mechanics are covered by the
+  // backend's pipeline.test_maturity_ocr/test_runtime.
   const errors = trackPageErrors(page)
   await page.goto('/')
 

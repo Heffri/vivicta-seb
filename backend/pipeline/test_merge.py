@@ -1,7 +1,7 @@
-"""Self-check: the two-run merge behind EXTRACT_MERGE_RUNS (v129's rules; the same-check-state
-rule re-decided on the v129/v136/v141 data in v145 and folded further by the v145-b ruling: a
-conflict has no signal and publishes null) and its /extract route wiring. Synthetic
-extract()-shaped runs only -- no model calls, isolated KB_DIR, no data/kb reads.
+"""Self-check: the two-run merge behind EXTRACT_MERGE_RUNS and its /extract route wiring. The rule
+under test: with the same identity-check state, agreeing values are one answer, while a conflict
+has no signal and publishes null. Synthetic extract()-shaped runs only -- no model calls, isolated
+KB_DIR, no data/kb reads.
 Run: python -m pipeline.test_merge"""
 import copy
 import json
@@ -95,7 +95,7 @@ def test_union_lone_value():
 def test_union_conflict_check_then_agree_conf():
     """Two non-null answers: the run whose identity check passed wins even against higher confidence;
     with the same check state, agreeing values (one answer within the band) still pick their copy by
-    confidence; a conflict has no signal left (v145-b: the fold of tie->null and the 0/4
+    confidence; a conflict has no signal left (the fold of tie->null and the 0/4
     higher-confidence branch) and publishes null."""
     from . import merge
     r1 = _run({"total_debt": 3821}, conf={"total_debt": 0.8}, check_passed=True)
@@ -111,7 +111,7 @@ def test_union_conflict_check_then_agree_conf():
     r1 = _run({"total_debt": 3821}, conf={"total_debt": 1.0}, check_passed=True)  # cellavision: conflict, conf differs...
     r2 = _run({"total_debt": 1659}, conf={"total_debt": 0.5}, check_passed=True)
     merged, decisions = merge.merge_runs(r1, r2, None, "union")
-    assert _value(merged, "total_debt") is None  # ...and conf is no signal for a conflict (v145-b)
+    assert _value(merged, "total_debt") is None  # ...and conf is no signal for a conflict
     f = merged["fields"][0]
     assert f["source"] is None and f["confidence"] == 0.0 and f["evidence"] == []  # extract()'s dropped-field shape
     assert decisions["total_debt"] == "null (union: conflict, no signal -> null)"
@@ -119,25 +119,24 @@ def test_union_conflict_check_then_agree_conf():
 
 
 def test_union_conflict_null_rule():
-    """v145-b's rule, from the v129/v136/v141 data: with the same identity-check state, agreeing
-    values are one answer and keep a copy (conf decides, a conf tie -> run2), while a conflict has
-    no distinguishing signal -- the tie-conflicts score run1 right 1 (academedia 12103) / run2
-    right 2 (net_insight 39415, 8305) / both wrong 0, and the higher-confidence branch scored 0/4
-    on the datasets' conflicts (bergman_beving, viva_wine and storytel's wrong side against
-    bonava's one hit) -- so any same-state conflict publishes null in extract()'s own dropped-field
-    shape (R3's spirit). Check-state differences still decide (v141 alligo), and the majority
-    voting path never sees this (third vote)."""
+    """With the same identity-check state, agreeing values are one answer and keep a copy (conf
+    decides, a conf tie -> run2), while a conflict has no distinguishing signal -- the
+    tie-conflicts score run1 right 1 (academedia 12103) / run2 right 2 (net_insight 39415, 8305) /
+    both wrong 0, and the higher-confidence branch scored 0/4 on the measured conflicts
+    (bergman_beving, viva_wine and storytel's wrong side against bonava's one hit) -- so any
+    same-state conflict publishes null in extract()'s own dropped-field shape. Check-state
+    differences still decide (alligo), and the majority voting path never sees this (third vote)."""
     from . import merge
     r1 = _run({"total_debt": 12103}, conf={"total_debt": 0.9}, check_passed=False)  # academedia's shape
     r2 = _run({"total_debt": 12114}, conf={"total_debt": 0.9}, check_passed=False)
     merged, decisions = merge.merge_runs(r1, r2, None, "union")
     assert _value(merged, "total_debt") is None and decisions["total_debt"] == "null (union: conflict, no signal -> null)"
     assert merged["fields"][0]["label"] == "total_debt" and merged["fields"][0]["key"] == "total_debt"
-    r1 = _run({"total_debt": 81489}, check_passed=True)  # net_insight's v141 shape: both checks pass, conf tie
+    r1 = _run({"total_debt": 81489}, check_passed=True)  # net_insight's shape: both checks pass, conf tie
     r2 = _run({"total_debt": 39415}, check_passed=True)
     merged, decisions = merge.merge_runs(r1, r2, None, "union")
     assert _value(merged, "total_debt") is None and decisions["total_debt"] == "null (union: conflict, no signal -> null)"
-    r1 = _run({"total_debt": 1002}, conf={"total_debt": 0.9}, check_passed=False)  # viva_wine's v136 shape: conf differs
+    r1 = _run({"total_debt": 1002}, conf={"total_debt": 0.9}, check_passed=False)  # viva_wine's shape: conf differs
     r2 = _run({"total_debt": 1203}, conf={"total_debt": 0.85}, check_passed=False)
     merged, decisions = merge.merge_runs(r1, r2, None, "union")
     assert _value(merged, "total_debt") is None and decisions["total_debt"] == "null (union: conflict, no signal -> null)"
@@ -145,11 +144,11 @@ def test_union_conflict_null_rule():
     r2 = _run({"revenue": 101.5}, conf={"revenue": 0.9}, check_passed=True)
     merged, decisions = merge.merge_runs(r1, r2, None, "union")
     assert _value(merged, "revenue") == 101.5 and decisions["revenue"] == "run2 (agree: union: tie -> run2)"
-    r1 = _run({"revenue": 32703}, conf={"revenue": 1.0}, check_passed=True)  # ericsson v136: agree, higher conf keeps its copy
+    r1 = _run({"revenue": 32703}, conf={"revenue": 1.0}, check_passed=True)  # ericsson: agree, higher conf keeps its copy
     r2 = _run({"revenue": 32703}, conf={"revenue": 0.95}, check_passed=True)
     merged, decisions = merge.merge_runs(r1, r2, None, "union")
     assert _value(merged, "revenue") == 32703 and decisions["revenue"] == "run1 (agree: union: higher conf)"
-    r1 = _run({"total_debt": 3629}, conf={"total_debt": 0.9}, check_passed=False)  # not this branch: checks decide (v141 alligo)
+    r1 = _run({"total_debt": 3629}, conf={"total_debt": 0.9}, check_passed=False)  # not this branch: checks decide (alligo)
     r2 = _run({"total_debt": 3630}, conf={"total_debt": 0.9}, check_passed=True)
     merged, decisions = merge.merge_runs(r1, r2, None, "union")
     assert _value(merged, "total_debt") == 3630 and decisions["total_debt"] == "run2 (agree: union: check passed)"
@@ -157,7 +156,7 @@ def test_union_conflict_null_rule():
 
 
 def test_union_conflict_balance_sheet_tie():
-    """v166: Net Insight's real same-state conflict becomes decidable when exactly one run ties to BS."""
+    """Net Insight's real same-state conflict becomes decidable when exactly one run ties to BS."""
     from . import merge
     r1 = _run({"total_debt": 81489}, check_passed=True)
     r2 = _run({"total_debt": 39415}, check_passed=True)
@@ -206,9 +205,8 @@ def test_majority_votes():
 
 def test_majority_three_way_splits_back_to_union():
     """Three mutually distinct answers (stored null, or a third value) fall back to union over the
-    two runs -- including v145-b's conflict rule. academedia's real field shape (12103 vs 12114,
-    both checks failing, stored null: no third vote to break it) publishes null, the same answer
-    v129's R5 scored for it."""
+    two runs -- including the conflict rule. academedia's real field shape (12103 vs 12114, both
+    checks failing, stored null: no third vote to break it) publishes null."""
     from . import merge
     r1, r2 = _run({"total_debt": 12103}, check_passed=False), _run({"total_debt": 12114}, check_passed=False)
     merged, decisions = merge.merge_runs(r1, r2, _run({"total_debt": None}), "majority")
@@ -238,7 +236,7 @@ def test_majority_without_stored_is_union():
 # ---- exact skip trigger -----------------------------------------------------------------------
 
 def test_matches_stored_trigger():
-    """v129 R5's exact trigger: run1 value-identical to stored on every field (+/-2, null == null)."""
+    """The exact skip trigger: run1 value-identical to stored on every field (+/-2, null == null)."""
     from . import merge
     values = {"revenue": 100, "cost_of_sales": -60, "gross_profit": 40, "operating_profit": None}
     assert merge.matches_stored(_run(values), _run(values)) is True
@@ -258,7 +256,7 @@ def test_merge_is_pure_and_shapes_the_record():
     snap1, snap2 = copy.deepcopy(r1), copy.deepcopy(r2)
     merged, decisions = merge.merge_runs(r1, r2, None, "union")
     assert r1 == snap1 and r2 == snap2, "merge_runs mutated an input"
-    assert _value(merged, "revenue") is None  # 100 vs 103: |d| = 3 is outside the band, conf tie -> null (v145)
+    assert _value(merged, "revenue") is None  # 100 vs 103: |d| = 3 is outside the band, conf tie -> null
     assert merged["warnings"][0] == "run1: revenue: filled from page 1"
     assert merged["warnings"][1] == "run2: llm: timeout (pages [1, 2])"
     assert merged["warnings"][-1].startswith("merge: union, per-field: ")
@@ -269,7 +267,7 @@ def test_merge_is_pure_and_shapes_the_record():
     print("merge purity + record shape ok")
 
 
-# ---- v168: a vote must be the same financial question ------------------------------------------
+# ---- a vote must be the same financial question ------------------------------------------------
 
 def _with_field(run, key, **kw):
     """A copy of `run` whose field `key` gained the given keys (unit/period overrides, ...)."""
@@ -279,11 +277,10 @@ def _with_field(run, key, **kw):
 
 
 def test_same_question_unit_scale():
-    """v168 counterexamples, now green: two answers agreeing numerically but printed on different
-    unit scales are NOT one answer -- 100 MSEK vs 100 TSEK (the work order's case) conflicts and
-    publishes null (v145-b's no-signal rule). Equal scale+currency under different spellings stays
-    one answer (SEK M == MSEK, KSEK == TSEK, KUSD == 'USD thousands', MSEK == 'SEK million'), a
-    currency difference still conflicts (MSEK vs MEUR)."""
+    """Two answers agreeing numerically but printed on different unit scales are NOT one answer --
+    100 MSEK vs 100 TSEK conflicts and publishes null (the no-signal rule). Equal scale+currency
+    under different spellings stays one answer (SEK M == MSEK, KSEK == TSEK, KUSD == 'USD
+    thousands', MSEK == 'SEK million'), a currency difference still conflicts (MSEK vs MEUR)."""
     from . import merge
     r1 = _run({"total_debt": 100}, conf={"total_debt": 0.9}, check_passed=True)
     r2 = _with_field(_run({"total_debt": 100}, conf={"total_debt": 0.9}, check_passed=True),
@@ -316,7 +313,7 @@ def test_same_question_unit_scale():
 
 
 def test_same_question_period_and_unknown_metadata():
-    """v168: same value but a different period is not one answer (2025 column vs 2024 column); a
+    """Same value but a different period is not one answer (2025 column vs 2024 column); a
     unit/period present on one side only does not count as the same (unknown is not proof); two
     sides neither of which printed it keep agreeing (nothing contradicts); null == null is the
     null agreement regardless of metadata."""
@@ -341,7 +338,7 @@ def test_same_question_period_and_unknown_metadata():
 
 
 def test_matches_stored_same_question():
-    """v168: the exact skip trigger is a same-question comparison too -- different unit scale or
+    """The exact skip trigger is a same-question comparison too -- different unit scale or
     period, or a stored answer from another financial year/basis/report, never skips run 2; equal
     scale under different spellings still matches."""
     from . import merge
@@ -365,7 +362,7 @@ def test_matches_stored_same_question():
 
 
 def test_stored_vote_must_be_same_question():
-    """v168: the stored third vote only counts when it is the same financial question -- same
+    """The stored third vote only counts when it is the same financial question -- same
     report, section, fiscal_year, maturity_basis. A stored answer missing the metadata or read on
     another one sits out, and the merge block says why ('not eligible: <reason>')."""
     from . import merge
@@ -397,7 +394,7 @@ def test_stored_vote_must_be_same_question():
 
 
 def test_majority_scale_mismatch_does_not_stack():
-    """v168: with the unit scales differing, the two 100s are different answers and never give a
+    """With the unit scales differing, the two 100s are different answers and never give a
     2-vote majority together; only the same-scale pair votes as one."""
     from . import merge
     r1 = _run({"total_debt": 100}, conf={"total_debt": 0.9}, check_passed=True)
@@ -415,9 +412,9 @@ def test_majority_scale_mismatch_does_not_stack():
 
 
 def test_prior_year_and_buckets_follow_run1():
-    """v168: run1's prior_year/buckets_by_year attachments are deterministic reads of run1's own
+    """Run1's prior_year/buckets_by_year attachments are deterministic reads of run1's own
     rows, so they ride along only while every field they cover still carries run1's answer -- a
-    value within the band on the same unit/period, whoever's copy of it won (v145's agreeing tie
+    value within the band on the same unit/period, whoever's copy of it won (an agreeing tie
     flips no verdict). Once a covered field is no longer that answer (a conflict-null, another
     run's different value, a different unit scale) the attachment is dropped, with a warning."""
     from . import merge
@@ -532,7 +529,7 @@ def _run_files():
 
 def test_route_off_is_the_old_route():
     """EXTRACT_MERGE_RUNS off (default): one model call, no run records, no merge key -- the route
-    is byte-identical to before v133."""
+    is byte-identical to the pre-merge route."""
     from . import kb
     with tempfile.TemporaryDirectory() as tmp, _env(EXTRACT_MERGE_RUNS=None):
         app_mod, client = _setup_route(tmp)
@@ -569,7 +566,7 @@ def test_route_union_two_runs_two_records():
             x = r.json()
             assert len(calls) == 2, f"union must run the extraction twice ({len(calls)} calls)"
             assert calls[0]["pages"] == calls[1]["pages"] == [1, 2]  # same window both runs
-            assert _value(x, "revenue") is None  # conflict (100 vs 250), checks pass -> no signal, null (v145-b)
+            assert _value(x, "revenue") is None  # conflict (100 vs 250), checks pass -> no signal, null
             assert _value(x, "gross_profit") == 40  # only run1 answered
             assert _value(x, "cost_of_sales") == -60  # only run2 answered
             assert x["merge"]["mode"] == "union" and x["merge"]["runs"] == 2

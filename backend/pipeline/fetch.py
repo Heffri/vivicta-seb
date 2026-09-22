@@ -72,7 +72,7 @@ IS_AR = re.compile(r"annual|[åa]rsredovisning|[åa]rs-?\s*och", re.I)
 BAD_URL = re.compile(r"interim|q[1-4]\b|quarter|delars|half-?year|risk|pillar|remuneration|ersattning|sustainab|hallbarhet|governance|bolagsstyrning|presentation|agm|stamma|prospect", re.I)
 NOT_REPORT = re.compile(r"capital and risk management|pillar 3|remuneration report|sustainability (report|statement)|corporate governance report|prospectus|interim report|half-year|year-end report|bokslutskommunik", re.I)
 
-# ---- fourth source (v074): the model's own web search, after feeds + crawl + DDG are exhausted ----
+# ---- fourth source: the model's own web search, after feeds + crawl + DDG are exhausted ----
 
 MAX_MODEL_CANDIDATES = 3  # each one still goes through the same download + validation as every other source
 SEARCH_SCHEMA = {  # codex/claude ignore the schema (llm.py); it states the reply shape the prompt asks for
@@ -94,7 +94,7 @@ SEARCH_SYSTEM = (
     "annual accounts. A company-specific listing page for the requested year is useful even if downloading "
     "requires browser verification, login or payment. Return that listing URL; never invent a direct PDF URL."
 )
-# ---- second ask (v081): only after every fourth-source candidate and the fifth source's generic IR-path
+# ---- second ask: only after every fourth-source candidate and the fifth source's generic IR-path
 # guesses have both failed -- ask once more, this time only for the IR/annual-report-archive page itself ----
 MAX_IR_PAGE_CANDIDATES = 2
 IR_PAGE_SYSTEM = (
@@ -107,7 +107,7 @@ IR_PAGE_SYSTEM = (
     "or payment. Check the legal entity, not its parent or a similarly named subsidiary. Do not infer that no "
     "report exists just because there is no direct PDF link."
 )
-# the complete-report preference (v081): Nestle's real Annual Review is 67p, well under this floor; a summary/
+# the complete-report preference: Nestle's real Annual Review is 67p, well under this floor; a summary/
 # highlights/at-a-glance/short/in-brief excerpt is accepted only when nothing among the candidates clears it
 FULL_REPORT_MIN_PAGES = 80
 SUMMARY_WORDS = re.compile(r"\bsummary\b|highlights|at[-_ ]a[-_ ]glance|\bshort\b|in[-_ ]brief", re.I)
@@ -223,7 +223,7 @@ def _model_candidates(company, year, country=None, hint=None, job_id=None):
     """Ask the model for official annual-report PDF links. (urls, note): at most MAX_MODEL_CANDIDATES
     cleaned URLs, best first, plus a short note for the eventual 404 detail -- the model being
     unavailable or replying with something unparseable is not the same thing as "no links found".
-    job_id (v194) rides through to llm.web_lookup, which surfaces the web_search tool's own query
+    job_id rides through to llm.web_lookup, which surfaces the web_search tool's own query
     terms as job-progress events while this call runs (codex only; see llm._codex_search_events)."""
     user = f"Company: {company}\nFiscal year: {year}" + _collection_context(company)
     if country:
@@ -252,10 +252,10 @@ def _model_candidates(company, year, country=None, hint=None, job_id=None):
 
 
 def _ir_page_candidates(company, year, country=None, hint=None, job_id=None):
-    """The second model ask (v081): (urls, note) like _model_candidates, but only ever called once
+    """The second model ask: (urls, note) like _model_candidates, but only ever called once
     every fourth-source candidate and the fifth source's own generic IR-path guesses have already
     failed, asking for an issuer archive or company-specific registry listing -- never a PDF --
-    so v080's crawl (_ir_page_report) has a page the model actually named instead of only a guessed
+    so the crawl (_ir_page_report) has a page the model actually named instead of only a guessed
     generic path. At most MAX_IR_PAGE_CANDIDATES URLs; a candidate that is itself a PDF is dropped,
     since that is exactly what the first ask already tried and failed at. job_id: see _model_candidates."""
     user = f"Company: {company}\nFiscal year: {year}" + _collection_context(company)
@@ -413,7 +413,7 @@ def discover(company: str, year: int, country: "str | None" = None, hint: "str |
     Dedupe is collection.identity, not a bare casefold, so a saved "ABB" and the model's "ABB Ltd"
     are one card.
 
-    job_id (v194, optional): reports the directory/model_search stages, the model's own query terms
+    job_id (optional): reports the directory/model_search stages, the model's own query terms
     and candidate names, and a final done event to pipeline.jobs -- a no-op when job_id is None."""
     dest_dir = Path(dest_dir) if dest_dir is not None else paths.reports_dir()
     if (private := collection.report_metadata(company)) and private.get("no_standalone_report"):
@@ -453,14 +453,14 @@ def discover(company: str, year: int, country: "str | None" = None, hint: "str |
 
 def _label_clean(url):
     """True unless the URL's own filename reads like a summary/highlights/at-a-glance/short/in-brief
-    excerpt (v081) -- the model's title isn't kept past this call, so the filename is what's left to
+    excerpt -- the model's title isn't kept past this call, so the filename is what's left to
     check once every candidate has already downloaded and validated as a real annual report."""
     fname = url.rsplit("/", 1)[-1].split("?", 1)[0]
     return not SUMMARY_WORDS.search(fname)
 
 
 def _is_full_report(url, pages):
-    """The complete-report bar itself (v081): both the page-count floor and a clean filename."""
+    """The complete-report bar itself: both the page-count floor and a clean filename."""
     return pages >= FULL_REPORT_MIN_PAGES and _label_clean(url)
 
 
@@ -477,7 +477,7 @@ DOWNLOAD_STEP_EVERY = 8     # ~512 KB between events -- enough to show movement 
 
 
 def _get(url, timeout=60, job_id=None, label=None):
-    """job_id (v194, optional): streams the read in DOWNLOAD_CHUNK pieces and reports "download"
+    """job_id (optional): streams the read in DOWNLOAD_CHUNK pieces and reports "download"
     progress (bytes so far, total -- total is None when the server sends no Content-Length) every
     DOWNLOAD_STEP_EVERY chunks, plus one final event with the true total read. Every existing call
     site (job_id left unset) still does one unbuffered r.read(), byte for byte as before."""
@@ -548,7 +548,7 @@ def _year_re(year):
     return re.compile(rf"\b{year}\b|\b{year - 1}/{year % 100}\b")  # SkiStar's "Annual Report 2024/25" is the FY2025 report
 
 
-# ---- v122: the year check is anchored to the cover/first pages and the accounting period ----
+# ---- the year check is anchored to the cover/first pages and the accounting period ----
 # "the year anywhere in the text" let MTG's FY2021 Annual and CR Report through as modern_times_2025:
 # 122 of its 148 pages say 2021, and its only "2025" mentions are six pages of forward-looking targets.
 
@@ -585,7 +585,7 @@ def _head_text(doc, page_texts=None):
 
 def _title_year(head, year):
     """An earlier year standing alone on a report-titled cover ("Annual Report 2021", or MTG's
-    year-above-the-title layout), or None -- the detail that explains a v122 rejection: in such a
+    year-above-the-title layout), or None -- the detail that explains a rejection: in such a
     document the target year typically appears only in forward-looking text, which is exactly how
     the old year-anywhere check was satisfied."""
     if not _TITLE_WORDS.search(head):
@@ -595,7 +595,7 @@ def _title_year(head, year):
 
 
 def _year_ok(doc, year, page_texts=None):
-    """v122: is this plausibly the fiscal-`year` report? The year itself -- or the split-year
+    """Is this plausibly the fiscal-`year` report? The year itself -- or the split-year
     "2024/25" / "2024/2025" cover shape -- must sit on the first three pages (cover, title page,
     contents), or an accounting period ending in the year must be stated anywhere in the text.
     A mere mention on some later page no longer passes: MTG's FY2021 report slipped through the
@@ -617,7 +617,7 @@ def _year_ok(doc, year, page_texts=None):
 
 
 def _year_reason(doc, year, page_texts=None):
-    """The v122 rejection reason for a PDF _year_ok refused (None when it passes). When the first
+    """The rejection reason for a PDF _year_ok refused (None when it passes). When the first
     three pages title the report with an earlier year, the reason names it: that is a corpus-defect
     finding worth keeping on the tried list, not just another candidate miss."""
     declared = report_period.declared_year(_head_text(doc, page_texts))
@@ -786,7 +786,7 @@ def _crawl(company, year):
 def _candidates(company, year, job_id=None):
     """Candidate PDF URLs, best first: the structured feeds, then (only if those are exhausted) the web — the feeds often carry
     just the press release or the ESEF zip (AstraZeneca, Lundin Gold, SkiStar) while the report sits on the company's site.
-    job_id (v194): one mfn/nasdaq event pair for the feed lookup, one ddg event pair for the crawl+DuckDuckGo fallback --
+    job_id: one mfn/nasdaq event pair for the feed lookup, one ddg event pair for the crawl+DuckDuckGo fallback --
     the same two groups this function already computes, just named and reported, the URLs and their order unchanged."""
     jobs.step(job_id, "mfn", f"searching MFN for {company} ({year})")
     mfn_urls = _mfn(company, year)
@@ -799,10 +799,6 @@ def _candidates(company, year, job_id=None):
     rest = [u for u in dict.fromkeys(_crawl(company, year) + _ddg(company, year)) if u not in feeds][:MAX_TRIES]
     jobs.step(job_id, "ddg", f"{len(rest)} more candidate(s)" if rest else "no more candidates")
     yield from rest
-
-
-def find_report(company: str, year: int) -> list[str]:
-    return list(_candidates(company, year))
 
 
 def _validate(data, company, year, page_texts=None):
@@ -856,7 +852,7 @@ def _validate(data, company, year, page_texts=None):
     plain = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
     missing = [t for t in _toks(company) if not re.search(rf"\b{re.escape(t)}\b", plain)]  # "nibe", "abb", "lundin gold" (not Lundin Mining)
     if missing:
-        # v122 ruling: the issuer may style itself only by its acronym, when the initials (at least
+        # The issuer may style itself only by its acronym, when the initials (at least
         # three letters) stand whole-word on the cover -- that is how MTG's own FY2025 report reads.
         # An acronym in the body alone accepts nothing: an unrelated report naming "ABB" as a
         # supplier is still somebody else's report (DDG happily returns those).
@@ -879,7 +875,7 @@ def _validate(data, company, year, page_texts=None):
             doc.close()
             return None, f"registration statement lacks verified audited annual accounts for {company} FY{year}"
         return doc, report_period.ValidatedText(text, **metadata)
-    if reason := _year_reason(doc, year, page_texts):  # v122: the year on the first pages or an accounting period, not "anywhere"
+    if reason := _year_reason(doc, year, page_texts):  # the year on the first pages or an accounting period, not "anywhere"
         doc.close()
         return None, reason
     if NOT_REPORT.search(head) and not IS_AR.search(head):
@@ -931,7 +927,7 @@ def _stub_pages(data, toks):
     return _ir_guesses(hosts)
 
 
-# ---- fifth source (v080): crawl a page-shaped leftover from levels 1-4 for the report PDF, one hop deep ----
+# ---- fifth source: crawl a page-shaped leftover from levels 1-4 for the report PDF, one hop deep ----
 
 MAX_CRAWL_SEEDS = 4        # candidate pages to start a crawl from
 MAX_CRAWL_CANDIDATES = 8   # harvested PDF links actually downloaded + validated
@@ -1036,18 +1032,18 @@ def _crawl_ir_page(start_url, year, deadline, company=None, tried=None):
 
 
 def _verify_text(url, doc, text):
-    """The verify-stage progress line for one downloaded + validated candidate (v194) -- the same
+    """The verify-stage progress line for one downloaded + validated candidate -- the same
     "ok (N pages)" / rejection-reason shape every print(f"{url} -> ...") in this file already uses."""
     return f"{url} -> ok ({doc.page_count} pages)" if doc else f"{url} -> {text}"
 
 
 def _ir_page_report(seeds, company, year, tried, job_id=None):
-    """Fifth source (v080): crawl candidate IR/report pages for the report PDF itself, at most one hop deep.
+    """Fifth source: crawl candidate IR/report pages for the report PDF itself, at most one hop deep.
     Every harvested link still runs the full download+validate chain, appended to `tried` like every other
     candidate; unlike the earlier sources (first validated survivor wins) this one downloads every harvested
     candidate within budget and keeps the one with the most pages, because the page linking a summary volume
     often links the full report right next to it (Nestlé's Annual Review vs. its actual Annual Report).
-    job_id (v194): one "ir_page" event per seed page read, one "download"/"verify" pair per harvested
+    job_id: one "ir_page" event per seed page read, one "download"/"verify" pair per harvested
     candidate (byte progress rides on _get; see jobs.py)."""
     deadline = time.time() + CRAWL_BUDGET
     ranked = {}
@@ -1065,7 +1061,7 @@ def _ir_page_report(seeds, company, year, tried, job_id=None):
                 continue
             ranked[u] = sc
             if (dec := urllib.parse.unquote(u)) != u and dec not in ranked:
-                ranked[dec] = sc  # the same %-decoded-twin trick as the model candidates (v074)
+                ranked[dec] = sc  # the same %-decoded-twin trick as the model candidates
     ordered = [u for u, _ in sorted(ranked.items(), key=lambda x: -x[1])][:MAX_CRAWL_CANDIDATES]
     best = None
     for url in ordered:
@@ -1085,7 +1081,7 @@ def _ir_page_report(seeds, company, year, tried, job_id=None):
         if not doc:
             print(f"{url} -> {text}")
             _failure(tried, url, text)
-            if TITLE_YEAR_MARK in text:  # v122: a cover naming an older year is a finding, not just a miss
+            if TITLE_YEAR_MARK in text:  # a cover naming an older year is a finding, not just a miss
                 tried.append(text)
             continue
         pages = doc.page_count
@@ -1229,7 +1225,7 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
     `url` (a discover candidate the user confirmed) is tried before any source of our own;
     `company` is then the confirmed legal name, and the cache filename follows it as always.
 
-    job_id (v194, optional): every source below reports its stage, each candidate's download
+    job_id (optional): every source below reports its stage, each candidate's download
     progress and verify outcome, and a final done/failed event to pipeline.jobs -- a no-op when
     job_id is None. See jobs.py's module docstring and docs/API.md's Progress tracking section.
     """
@@ -1303,15 +1299,15 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
         if text:
             print(f"{url} -> {text}")
             _failure(tried, url, text)
-            if TITLE_YEAR_MARK in text:  # v122: a cover naming an older year is a finding, not just a miss
+            if TITLE_YEAR_MARK in text:  # a cover naming an older year is a finding, not just a miss
                 tried.append(text)
-            if not data.startswith(b"%PDF"):  # the confirmed link was a page, not a PDF: crawl it (v080)
+            if not data.startswith(b"%PDF"):  # the confirmed link was a page, not a PDF: crawl it
                 page_seeds.append(url)
     if p := websearch_provider():
         jobs.step(job_id, "model_search", "asking the connected model to search the web")
         urls, model_note = _model_candidates(company, year, country, hint, job_id=job_id)
         jobs.step(job_id, "model_search", f"model suggested {len(urls)} candidate(s)" if urls else (model_note or "model suggested no candidates"), urls=urls)
-        hits = []  # (url, data, text, pages) for every candidate that downloads + validates (v081: rank, don't stop at the first)
+        hits = []  # (url, data, text, pages) for every candidate that downloads + validates -- rank them, don't stop at the first
         for url in urls:
             if url in tried:
                 continue
@@ -1324,15 +1320,15 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
                 print(f"{url} -> {e}")
                 jobs.step(job_id, "verify", f"{url} -> {e}")
                 _failure(tried, url, e, "download")
-                page_seeds += [u for u in _host_guesses(url, toks) if u not in page_seeds]  # a dead link: guess its own IR page (v080)
+                page_seeds += [u for u in _host_guesses(url, toks) if u not in page_seeds]  # a dead link: guess its own IR page
                 continue
             jobs.step(job_id, "verify", _verify_text(url, doc, text))
             if not doc:  # no stub-page harvest here: the model was asked for direct PDF links only
                 print(f"{url} -> {text}")
                 _failure(tried, url, text)
-                if TITLE_YEAR_MARK in text:  # v122: a cover naming an older year is a finding, not just a miss
+                if TITLE_YEAR_MARK in text:  # a cover naming an older year is a finding, not just a miss
                     tried.append(text)
-                if not data.startswith(b"%PDF") and url not in page_seeds:  # the model named a page, not a PDF (v080)
+                if not data.startswith(b"%PDF") and url not in page_seeds:  # the model named a page, not a PDF
                     page_seeds.append(url)
                 continue
             pages = doc.page_count
@@ -1340,7 +1336,7 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
             print(f"{url} -> ok ({pages} pages, {time.time() - t0:.0f}s)")
             hits.append((url, data, text, pages))
         if hits:
-            # v081: prefer the complete report over a summary volume when more than one candidate
+            # Prefer the complete report over a summary volume when more than one candidate
             # validated; accept a summary only when nothing among them clears the full-report bar
             url, data, text, pages = _best_model_candidate(hits)
             note = f"model search ({p})" if _is_full_report(url, pages) else f"model search ({p}); summary volume"
@@ -1390,17 +1386,17 @@ def fetch_report(company: str, year: int, dest_dir: "Path | None" = None, countr
             print(f"{url} -> {e}")
             jobs.step(job_id, "verify", f"{url} -> {e}")
             _failure(tried, url, e, "download")
-            page_seeds += [u for u in _host_guesses(url, toks) if u not in page_seeds]  # a dead link: guess its own IR page (v080)
+            page_seeds += [u for u in _host_guesses(url, toks) if u not in page_seeds]  # a dead link: guess its own IR page
             continue
         jobs.step(job_id, "verify", _verify_text(url, doc, text))
         if not doc:
             print(f"{url} -> {text}")
             _failure(tried, url, text)
-            if TITLE_YEAR_MARK in text:  # v122: a cover naming an older year is a finding, not just a miss
+            if TITLE_YEAR_MARK in text:  # a cover naming an older year is a finding, not just a miss
                 tried.append(text)
             if data.startswith(b"%PDF"):  # not a download error: a page an RNS-style notice may name its own site on
                 stub_pages += [u for u in _stub_pages(data, toks) if u not in stub_pages]
-            elif url not in page_seeds:  # a page, not a PDF (a DDG hit that served an IR page): crawl it (v080)
+            elif url not in page_seeds:  # a page, not a PDF (a DDG hit that served an IR page): crawl it
                 page_seeds.append(url)
             if i == len(candidates) and stub_pages:  # every direct candidate failed: try the issuer's own site (AstraZeneca)
                 candidates += [u for u in _harvest(stub_pages, year) if u not in candidates]

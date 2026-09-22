@@ -28,7 +28,7 @@ def after(args, flag):
 
 args = sys.argv[1:]
 stdin_text = sys.stdin.read()
-schema_seen = None  # v121: the file --output-schema points at, parsed back, for the test to assert on
+schema_seen = None  # the file --output-schema points at, parsed back, for the test to assert on
 if "--output-schema" in args:
     with open(args[args.index("--output-schema") + 1], encoding="utf-8") as f:
         schema_seen = json.load(f)
@@ -37,9 +37,9 @@ if debug:
     with open(debug, "w", encoding="utf-8") as f:
         json.dump({"args": args, "stdin": stdin_text, "schema": schema_seen}, f)
 print(json.dumps({"type": "session_configured"}))  # a real --json event; unparsed here, -o carries the reply
-# v194: FAKE_CODEX_SEARCH_QUERIES (JSON list of query-lists) replays one item.completed web_search
+# FAKE_CODEX_SEARCH_QUERIES (JSON list of query-lists) replays one item.completed web_search
 # event per entry, the shape a real `codex --search exec --json` call actually prints (probed against
-# gpt-5.6-terra, 2026-09-22) -- unset in every pre-v194 test, so this changes no existing assertion.
+# gpt-5.6-terra, 2026-09-22) -- unset unless a test asks for it.
 search_queries = os.environ.get("FAKE_CODEX_SEARCH_QUERIES")
 if search_queries and "--search" in args:
     for i, qs in enumerate(json.loads(search_queries)):
@@ -131,7 +131,7 @@ def demo_codex():
             except subprocess.TimeoutExpired as e:
                 assert "timeout" in type(e).__name__.lower(), type(e).__name__
 
-            # web_lookup (v074): the same CLI, but with the top-level --search flag ahead of the
+            # web_lookup: the same CLI, but with the top-level --search flag ahead of the
             # subcommand (codex exec itself rejects --search) so the model gets its web_search tool
             os.environ["FAKE_CODEX_MODE"], os.environ["LLM_TIMEOUT"] = "ok", "120"
             os.environ["FAKE_CODEX_REPLY"] = json.dumps({"candidates": [{"url": "https://ir.example.com/ar.pdf"}]})
@@ -141,7 +141,7 @@ def demo_codex():
             args = call["args"]
             assert args[args.index("--search") + 1] == "exec", args  # top-level flag, before the subcommand
 
-            # v194: job_id (optional) turns the web_search tool's own query terms into job-progress
+            # job_id (optional) turns the web_search tool's own query terms into job-progress
             # events, parsed from the --json event stream; two identical consecutive query lists (the
             # real CLI's own shape, see fake_codex_impl's comment) fold into a single event
             os.environ["FAKE_CODEX_SEARCH_QUERIES"] = json.dumps([
@@ -163,7 +163,7 @@ def demo_codex():
             assert len(jobs._jobs) == before, "web_lookup without a job_id must not create a job"
             del os.environ["FAKE_CODEX_SEARCH_QUERIES"]
 
-            # LLM_STRICT_SCHEMA (v121, opt-in): default is byte-for-byte today's call -- every assertion
+            # LLM_STRICT_SCHEMA (opt-in): default is byte-for-byte the plain call -- every assertion
             # above ran with the switch unset, and this one pins the flag's absence explicitly
             os.environ["FAKE_CODEX_MODE"], os.environ["FAKE_CODEX_REPLY"] = "ok", json.dumps(REPLY)
             assert json.loads(llm.chat("s", "u", SCHEMA)) == REPLY
@@ -216,7 +216,7 @@ import time
 
 args = sys.argv[1:]
 stdin_text = sys.stdin.read()
-schema_seen = None  # v121: the --json-schema value itself (claude takes the schema inline, not as a file)
+schema_seen = None  # the --json-schema value itself (claude takes the schema inline, not as a file)
 if "--json-schema" in args:
     schema_seen = json.loads(args[args.index("--json-schema") + 1])
 debug = os.environ.get("FAKE_CLAUDE_DEBUG")
@@ -314,7 +314,7 @@ def demo_claude():
             except subprocess.TimeoutExpired as e:
                 assert "timeout" in type(e).__name__.lower(), type(e).__name__
 
-            # web_lookup (v074): the same call with --tools WebSearch instead of "" -- the allowlist
+            # web_lookup: the same call with --tools WebSearch instead of "" -- the allowlist
             # is the whole difference ("" disables every tool, "WebSearch" leaves exactly that one)
             os.environ["FAKE_CLAUDE_MODE"], os.environ["LLM_TIMEOUT"] = "ok", "120"
             os.environ["FAKE_CLAUDE_REPLY"] = json.dumps({"candidates": [{"url": "https://ir.example.com/ar.pdf"}]})
@@ -324,7 +324,7 @@ def demo_claude():
             args = call["args"]
             assert args[args.index("--tools") + 1] == "WebSearch", args
 
-            # LLM_STRICT_SCHEMA (v121, opt-in): default is byte-for-byte today's call -- every assertion
+            # LLM_STRICT_SCHEMA (opt-in): default is byte-for-byte the plain call -- every assertion
             # above ran with the switch unset, and this one pins the flag's absence explicitly
             os.environ["FAKE_CLAUDE_MODE"], os.environ["FAKE_CLAUDE_REPLY"] = "ok", json.dumps(REPLY)
             assert json.loads(llm.chat("s", "u", SCHEMA)) == REPLY
@@ -382,7 +382,7 @@ def demo():
         else:
             os.environ["LLM_PROVIDER"] = saved
 
-    # web_lookup (v074) exists only where a search tool exists: the openai provider has none, and the
+    # web_lookup exists only where a search tool exists: the openai provider has none, and the
     # guard raises before any executable discovery or subprocess could happen
     saved = os.environ.get("LLM_PROVIDER")
     try:

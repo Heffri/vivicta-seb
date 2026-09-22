@@ -88,7 +88,7 @@ def _text_page(doc, text, width=300, height=100):
 
 
 def text_pdf_image_cover_without_tessdata():
-    """w204: a real text PDF is classified as a book, not one page at a time.
+    """A real text PDF is classified as a book, not one page at a time.
 
     An image-only cover must not make registration depend on OCR language files when the body has
     a substantial text layer.  The cover stays blank/pending for possible on-demand OCR.
@@ -118,7 +118,7 @@ def text_pdf_image_cover_without_tessdata():
 def _bounded_fixture(tmp_path):
     """16 pages: 3 (front matter), 14/15/16 (an outline entry's ±1 window) and 11 (neither) are
     scanned; page 15's own outline title carries a debt_maturity toc_keyword ("Borrowings").
-    Everything else has a normal text layer. v191."""
+    Everything else has a normal text layer."""
     doc = pymupdf.open()
     _text_page(doc, "Cover page")
     _text_page(doc, "Table of contents")
@@ -139,7 +139,7 @@ def _bounded_fixture(tmp_path):
 
 
 def bounded_ocr():
-    """v191: registration OCR is bounded to the pages a debt-maturity locate pass could reach, a
+    """Registration OCR is bounded to the pages a debt-maturity locate pass could reach, a
     page budget refuses a synchronous pass that is bigger than that, ocr="full" is an unconditional
     opt-in, and a page left ocr_pending can be OCR'd individually later (app.py's on-demand top-up
     before /extract uses exactly this: a bare parse.page_text() call on the one page it needs).

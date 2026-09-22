@@ -2,11 +2,11 @@ import { useRef, useState } from 'react'
 import { type ApiError, type CandidatePage, type FetchAttempt, type ReportListing, extractSection, formatPageRanges, getCandidates } from '@/api'
 import type { Report, Result } from '@/types'
 
-// v171 (consult item 6): the extraction queue's state used to live inside UploadView, so switching
-// tabs mid-batch unmounted it -- progress vanished, and the still-running promise chain (fetch/extract
-// calls don't care about React unmounting) called the old onDone at the end regardless, yanking the
-// user back to Results even if they'd since navigated elsewhere. This hook lifts that state to
-// whoever calls it once, at the App level, so it survives every tab switch; the queue loop itself
+// The extraction queue's state must not live inside UploadView: switching tabs mid-batch would
+// unmount it -- progress vanishes, and the still-running promise chain (fetch/extract calls don't
+// care about React unmounting) calls the old onDone at the end regardless, yanking the user back to
+// Results even if they had since navigated elsewhere. This hook lifts that state to whoever calls
+// it once, at the App level, so it survives every tab switch; the queue loop itself
 // keeps running against `itemsRef` (a mirror of `items` that's always synchronously current, since
 // state updates from `setItems` don't apply until the next render — a `retry()` mid-loop needs the
 // live value, not a stale one from whenever the closure was created).
@@ -15,7 +15,7 @@ export type BatchStage = 'queued' | 'registering' | 'candidates' | 'extracting' 
 // 409 means two different things depending which call failed: the extractor's own guard (a saved,
 // human-reviewed result must not be overwritten) vs. /fetch's (no saved text or PDF without an
 // explicit download). 422 during registration with an ocr_pages_needed body = a scanned PDF whose
-// bounded OCR pass alone is over budget (v191) -- 'ocr-budget', offering a full-OCR retry; any other
+// bounded OCR pass alone is over budget -- 'ocr-budget', offering a full-OCR retry; any other
 // 422 = no text candidates (needs OCR some other way, or a different file). 502 = the model provider
 // itself failed. Fetch failures can additionally distinguish an unavailable public report from a
 // blocked/failed download. Everything else remains 'other'; the raw message is still shown.
@@ -47,7 +47,7 @@ export type BatchItem = BatchSpec & {
   errorKind: BatchErrorKind | null
   tried: string[] | undefined // /fetch 404's attempted URLs, when the backend reports them
   attempts?: FetchAttempt[]
-  ocrPages: number[] | null // v191: pages this item's own registration actually OCR'd, once known
+  ocrPages: number[] | null // pages this item's own registration actually OCR'd, once known
   listings?: ReportListing[]
   retrying: boolean
   downloadPending?: boolean

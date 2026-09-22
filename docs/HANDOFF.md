@@ -1,5 +1,9 @@
 # Handoff — Boyu & Chen (backend pipeline)
 
+> Historical record, written 2026-09-15 to hand the `debt_maturity` work to two teammates. Every
+> task on its to-do list has since shipped, and the counts below describe the repository as it
+> stood that day.
+
 Written 2026-09-15 by Sebastijan, right after the SEB/Kristian meeting. Read this, then [`README.md`](../README.md) for run instructions and [`docs/API.md`](API.md) for shapes. Ask on Discord.
 
 ## Where we are

@@ -83,7 +83,7 @@ with tempfile.TemporaryDirectory() as tmp:
     except HTTPException as e:
         assert e.status_code == 422
 
-    # v177: an analyst-directed retry is a candidate only. It can use no page other than the
+    # An analyst-directed retry is a candidate only. It can use no page other than the
     # explicitly supplied window, cannot change the stored extraction, and keeps the normal
     # reviewed-section barrier ahead of even fixture-mode handling.
     def fill_request(report_id, field, pages):

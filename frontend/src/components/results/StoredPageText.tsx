@@ -4,7 +4,7 @@ type Props = { text: string; quote?: string | null; zoom?: number | null }
 
 const normalize = (s: string) => s.replace(/\s+/g, ' ').trim()
 
-/** The no-PDF saved-text view (v179, consult item 12): scrolls to and highlights the cited quote's
+/** The no-PDF saved-text view: scrolls to and highlights the cited quote's
  *  own line instead of leaving the analyst to read the whole page. A line printed more than once
  *  (the same total under two column headers) gets a "1/N ▸" cycler rather than silently landing on
  *  the first hit; a quote that doesn't appear verbatim still shows the full page, with a note.

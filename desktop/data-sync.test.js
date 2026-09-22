@@ -6,10 +6,9 @@ const path = require('node:path')
 const crypto = require('node:crypto')
 const { syncBundledData, syncLogLine } = require('./data-sync')
 
-// Work order v107 scenario, extended by v138: userData/data already holds a user-reviewed
-// extraction (content X, carrying the review markers the backend writes) and an upload stem;
-// the bundled data ships a newer version of that same extraction (content Y), a brand-new stem,
-// and a report index. The old once-only copy never delivered any of it.
+// The fixture scenario: userData/data already holds a user-reviewed extraction (content X,
+// carrying the review markers the backend writes) and an upload stem; the bundled data ships a
+// newer version of that same extraction (content Y), a brand-new stem, and a report index.
 const ENT_A_BUNDLED = { file: 'a_2025.pdf', company: 'A', note: 'bundled' }
 const ENT_B = { file: 'b_2025.pdf', company: 'B', note: 'bundled-only' }
 const ENT_A_USER = { file: 'a_2025.pdf', company: 'A', note: 'user-reviewed' }
@@ -128,7 +127,7 @@ test('index copy and merge degrade correctly when either side is missing', async
   assert.equal(untouched.indexEntries, 0)
 })
 
-// v138: three-way sync against the bundle manifest recorded by the previous launch. A file the
+// Three-way sync against the bundle manifest recorded by the previous launch. A file the
 // user never modified (hash still equal to what the manifest recorded) follows the new bundle;
 // a file the user changed, and any reviewed extraction, are kept.
 test('three-way sync: unmodified bundle entries follow the new bundle, modified and reviewed entries are kept', async () => {
@@ -174,8 +173,8 @@ test('three-way sync: unmodified bundle entries follow the new bundle, modified 
   assert.equal(treeHash(user), before)
 })
 
-// v138: first run on an install created before the manifest existed (the 09-16 owner shape) —
-// there is no recorded bundle version to compare against, so unreviewed kb entries that differ
+// First run on an install created before the manifest existed: there is no recorded bundle
+// version to compare against, so unreviewed kb entries that differ
 // from the new bundle are treated as stale bundle data and refreshed once; uploads, reviewed
 // extractions and non-kb user files are outside the rule. Every later launch is three-way.
 test('first run without a manifest: stale bundle-era kb entries are refreshed once; reviewed and user files are kept', async () => {

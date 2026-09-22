@@ -49,10 +49,10 @@ so that check establishes error handling rather than live report discovery.
 Reproduce from the repository root:
 
 ```powershell
-backend/.venv/Scripts/python scripts/benchmark.py --live --index --count 5 --output benchmark-results.json
+backend/.venv/Scripts/python scripts/benchmark.py --live --index --count 5 --output docs/benchmarks/benchmark-results.json
 ```
 
-Raw measurements are in `benchmark-results.json` at the repository root. The corpus was
+Raw measurements are in `docs/benchmarks/benchmark-results.json`. The corpus was
 not replaced by benchmark results. Only Ericsson's derived embedding index was rebuilt
 in the real KB to verify the live application. Legacy indexes require rebuilding before
 retrieval because their embedding model was never recorded.
@@ -79,9 +79,10 @@ split when its components do not reconcile. The UI and CSV show component eviden
   otherwise-readable current bucket, rather than publishing incomplete buckets.
 
 Fresh debt calls in the four-report run took 19.5–49.5 seconds. Repeats took 6–8 ms
-with zero model calls. See `debt-benchmark-results.json`; its SKF row predates the
-final withholding guard, verified separately in `debt-skf-check.json`. These are
-small-sample checks, not a broad accuracy evaluation.
+with zero model calls. See `docs/benchmarks/debt-benchmark-results.json`; its SKF row
+predates the final withholding guard, verified separately in
+`docs/benchmarks/debt-skf-check.json`. These are small-sample checks, not a broad
+accuracy evaluation.
 
 Saab's English PDF contains outlined text with no usable text layer. The local OCR
 pass took 506 seconds for 231 pages; cached registration took 56 ms. Seven income
@@ -91,8 +92,8 @@ profit 6,356, and basic EPS 11.77. Cost of sales remained null because OCR did n
 read it reliably. Its correct visible amount is -61,978; arithmetic alone is not
 accepted as printed evidence. Debt extraction recovered 9,785 total on page 194,
 but its current quote did not verify and longer buckets lacked carrying-amount
-disaggregation. See `ocr-benchmark-results.json`. That timing run preceded the
-additional 80% confidence cap now applied to OCR-sourced fields.
+disaggregation. See `docs/benchmarks/ocr-benchmark-results.json`. That timing run
+preceded the additional 80% confidence cap now applied to OCR-sourced fields.
 
 OCR uses PyMuPDF's bundled Tesseract engine and official English/Swedish fast
 language data. No OCR server or report upload is used. OCR is fallible, and debt
@@ -180,7 +181,7 @@ only value change was to withhold Sedana Medical's false-positive total (lease/a
 liabilities), making that null label correct; it did not improve a cited page. No result caused a
 label, schema, prompt, or pipeline change.
 
-Round 1 was subsequently inspected to attribute failures and develop the v185/v186 guards. It is
+Round 1 was subsequently inspected to attribute failures and develop the extraction guards. It is
 therefore no longer the current held-out benchmark; it remains a documented historical first-run
 measurement. See [v178](acrylic/evidence/v178.md) for its fixed sample, skips, score vectors,
 configuration, and blind-label chronology.
@@ -199,7 +200,7 @@ default.
 | --- | ---: | --- | --- | ---: | ---: |
 | default `off` (primary) | 18 | **36/40 (90.0%)** | **14/17 (82.4%)** | 1 | 3 |
 | `majority` (non-default comparison, same frozen labels) | 22 | 36/40 (90.0%) | 14/17 (82.4%) | 1 | 3 |
-| `EXTRACT_SECOND_PASS=1` (w211 decision run, same frozen labels) | 41 (16 first-pass + 25 follow-up) | 29/40 (72.5%) | 12/17 (70.6%) | 3 | 8 |
+| `EXTRACT_SECOND_PASS=1` (decision run, same frozen labels) | 41 (16 first-pass + 25 follow-up) | 29/40 (72.5%) | 12/17 (70.6%) | 3 | 8 |
 
 Round 2 used **40 extraction calls total**, exactly its cap. Eight majority comparisons matched the
 stored default answer after one run; two needed a second run. The comparison changed no scored
@@ -209,7 +210,7 @@ exclusions are tracked separately. This is an n=10 measurement, not a market-acc
 [v190](acrylic/evidence/v190.md) for the sample, skip handling, frozen-label chronology, snapshots,
 and per-company score vectors.
 
-The w211 decision run used the current pipeline with merge off and every other optional extraction
+The decision run used the current pipeline with merge off and every other optional extraction
 switch unset. The follow-up cost averaged **+2.5 model calls and +18.4 model seconds per report**.
 Model variation made that run's pre-follow-up answer score 31/40 values and 12/17 pages; applying
 the second pass to the same answers then reduced the score to 29/40 by adding two non-empty wrong

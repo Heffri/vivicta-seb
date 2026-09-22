@@ -3,7 +3,7 @@ import { makePdf } from '../fixtures/make-pdf'
 import { trackPageErrors } from '../support/page-errors'
 import { gotoWithTone, TONES } from '../support/tone'
 
-// v164: the wait says which pages are being read, and a nothing-found result explains itself.
+// The wait says which pages are being read, and a nothing-found result explains itself.
 // The candidates endpoint (GET /candidates) is real here — keyword scoring on the uploaded PDF's
 // text; only the model call itself is shaped: held open to make the waiting state observable
 // (fixture answers instantly), or fulfilled with every field nulled to reproduce a report the
@@ -33,7 +33,7 @@ for (const tone of TONES) {
     await expect(wait).toBeVisible({ timeout: 15000 })
     await expect(page.getByText(/· \d+ s$/)).toBeVisible() // the stopwatch ticks alongside
 
-    // v171: a finished batch never forces a tab switch (BatchProgress's own "View results" does).
+    // A finished batch never forces a tab switch (BatchProgress's own "View results" does).
     await page.getByRole('main').getByRole('button', { name: /^View results/ }).click({ timeout: 30000 })
     await page.getByRole('navigation', { name: 'Report workspace' }).getByRole('button', { name: 'Export', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Export JSON' })).toBeVisible()
@@ -76,7 +76,7 @@ for (const tone of TONES) {
     })
     await page.getByRole('main').getByRole('button', { name: /^Extract/ }).click()
 
-    // v171: a finished batch never forces a tab switch (BatchProgress's own "View results" does).
+    // A finished batch never forces a tab switch (BatchProgress's own "View results" does).
     await page.getByRole('main').getByRole('button', { name: /^View results/ }).click({ timeout: 20000 })
     const banner = page.getByRole('region', { name: 'Figures the model did not find' })
     await expect(banner).toBeVisible()

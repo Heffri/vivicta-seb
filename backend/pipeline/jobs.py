@@ -1,4 +1,4 @@
-"""In-memory progress trail for a long-running discover/fetch call (v194). A job_id is a frontend-
+"""In-memory progress trail for a long-running discover/fetch call. A job_id is a frontend-
 generated uuid, optional on every request; step() is a no-op without one, so fetch.py/llm.py never
 need a None-check before calling it. One process, one dict -- matches how `reports`/`extractions` in
 app.py already assume a single uvicorn worker; nothing here persists across a restart.
@@ -10,7 +10,7 @@ import threading
 import time
 
 JOB_TTL_SECONDS = 3600
-# Fixed vocabulary (the contract v193 also builds against): directory/mfn/nasdaq/ddg lookups, the
+# Fixed vocabulary, the same one the frontend builds against: directory/mfn/nasdaq/ddg lookups, the
 # connected model's own web search, following an IR page it names, a PDF download's byte progress,
 # fiscal-year/issuer verification, then a terminal done or failed.
 STAGES = ("directory", "mfn", "nasdaq", "ddg", "model_search", "ir_page", "download", "verify", "done", "failed")

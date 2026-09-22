@@ -3,8 +3,8 @@
 
 Label: expected_value == "null" (case-insensitive, stripped) -> "not_applicable"; anything else
 (a number, or any other non-empty string) -> "applicable". Rows for report_file
-nordic_industrials_2025.pdf are dropped -- they are the example/placeholder rows called out in
-eval/README.md ("no KB stem and never score") and there is no data/kb/nordic_industrials_2025
+nordic_industrials_2025.pdf are dropped -- they are the example/placeholder rows eval/README.md
+calls out as having no KB stem and never scoring, and there is no data/kb/nordic_industrials_2025
 directory to pull report text from.
 
 Context text per (report_file, section) is built the same way the real extraction pipeline picks

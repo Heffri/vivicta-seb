@@ -6,7 +6,7 @@ import type { Extraction, Field } from '@/types'
 
 // Copied verbatim from backend/pipeline/ppt.py — change it there first, then here.
 // HANDOFF.md: "update BUCKET_ORDER / BUCKET_LABELS in ppt.py — that is the only coupling."
-// Exported for reuse by components/compare/MaturityBar.tsx (v020) — same bucket judgment,
+// Exported for reuse by components/compare/MaturityBar.tsx — same bucket judgment,
 // not re-derived — per the "only coupling" note above, this file stays the one place a
 // bucket-key change must land.
 export const BUCKET_ORDER = ['due_within_1_year', 'due_1_to_5_years', 'due_after_5_years'] as const
@@ -19,18 +19,18 @@ export const BUCKET_LABELS: Record<(typeof BUCKET_ORDER)[number], string> = {
 // identity flag over the API (docs/API.md), so the result is looked up by name — never recomputed here.
 export const IDENTITY_CHECK = 'maturity_sums_to_total'
 
-// v091: "Show prior year" remembers its last position per browser (default off = the exact
-// pre-v091 rendering). Same pattern as ResultsView's provenance-viewer key.
+// "Show prior year" remembers its last position per browser (default off = the single-year
+// rendering). Same pattern as ResultsView's provenance-viewer key.
 const PRIOR_KEY = 'maturity-prior-year'
-// v109: "Per year" likewise remembers its position (default off = the three-bucket rendering).
+// "Per year" likewise remembers its position (default off = the three-bucket rendering).
 const PER_YEAR_KEY = 'maturity-per-year'
 
 type Props = {
   extraction: Extraction
   selectedKey: string | null
   onSelect: (key: string) => void
-  onPriorChange?: (shown: boolean) => void // v091: mirrors the toggle so the Export PPTX href can follow it (?prior_year=1)
-  onPerYearChange?: (shown: boolean) => void // v109: same mirror for "Per year" (?per_year=1)
+  onPriorChange?: (shown: boolean) => void // mirrors the toggle so the Export PPTX href can follow it (?prior_year=1)
+  onPerYearChange?: (shown: boolean) => void // same mirror for "Per year" (?per_year=1)
 }
 
 // Same rule as ppt.py build_pptx, translated verbatim: draw a bar chart iff any bucket
@@ -43,7 +43,7 @@ export const bucketSlots = (fields: Field[]) => {
 export const numeric = (f: Field | null) => (f && typeof f.value === 'number' ? f.value : null)
 
 // The chart-vs-nothing judgment, exported so CompareView can decide the same way per
-// column before it draws anything (v020) — never a second, independently-maintained rule.
+// column before it draws anything — never a second, independently-maintained rule.
 export const isMaturitySection = (fields: Field[]) => bucketSlots(fields).some((f) => f && f.value !== null)
 
 // Round the axis top up to a clean step so ticks land on printed numbers: 29 165 → step
@@ -74,7 +74,7 @@ const TICKS = 4
 // brighter via the raw accent, failure stays on the check line, not the marks.
 const BAR_FILL = 'var(--primary)'
 const BAR_FILL_LIT = 'color-mix(in srgb, var(--ring) 45%, var(--primary))'
-// v091: the prior year sits beside the current one as the same mark one step fainter — the
+// The prior year sits beside the current one as the same mark one step fainter — the
 // accent at 60% opacity over the glass, never a second hue competing with the primary series.
 const BAR_FILL_PRIOR = 'color-mix(in srgb, var(--primary) 60%, transparent)'
 
@@ -99,12 +99,12 @@ const loadPerYear = () => {
  *  column selects its field row, so the Source panel jumps to that field's page — the
  *  same selection the table drives. Pure SVG, no chart library.
  *
- *  v091: when the extraction carries `prior_year` (the prior fiscal year's own figures,
- *  read deterministically from the same table and identity-gated by the backend), a
+ *  When the extraction carries `prior_year` (the prior fiscal year's own figures, read
+ *  deterministically from the same table and identity-gated by the backend), a
  *  "Show prior year (FY<n>)" switch offers them beside each bucket — default off, and off
- *  renders exactly the chart this file drew before the switch existed.
+ *  renders the single-year chart.
  *
- *  v109: when the extraction carries `buckets_by_year` (the report's own calendar-year
+ *  When the extraction carries `buckets_by_year` (the report's own calendar-year
  *  columns, identity-gated against total_debt), a "Per year" switch redraws the body as
  *  one column per printed year — the report's own granularity instead of the three fixed
  *  buckets. Default off; off (or no key) renders exactly the chart above, and the two
@@ -115,7 +115,7 @@ export function MaturityChart({ extraction, selectedKey, onSelect, onPriorChange
   const [showPerYear, setShowPerYear] = useState(loadPerYear)
   const prior = extraction.prior_year ?? null
   const byYear = extraction.buckets_by_year ?? null
-  // v109: the two switches are mutually exclusive — one chart, one question. "Per year" redraws
+  // The two switches are mutually exclusive — one chart, one question. "Per year" redraws
   // the body as the report's own calendar-year columns (no bucket fields behind the bars); the
   // prior-year series is bucket-shaped and cannot ride along on year categories. Turning either
   // on turns the other off, so at most one non-default view ever renders.
@@ -268,7 +268,7 @@ export function MaturityChart({ extraction, selectedKey, onSelect, onPriorChange
             {unit}
           </text>
 
-          {/* v091: with both years on, the legend names them beside the unit, top right */}
+          {/* with both years on, the legend names them beside the unit, top right */}
           {py && (
             <g fontSize={11}>
               <rect x={VIEW.w - M.right - 196} y={4} width={10} height={10} rx={2} fill={BAR_FILL} />
@@ -299,7 +299,7 @@ export function MaturityChart({ extraction, selectedKey, onSelect, onPriorChange
           ))}
 
           {years ? (
-            /* v109: the report's own calendar-year columns, one bar per printed year — the same
+            /* the report's own calendar-year columns, one bar per printed year — the same
                marks, the same color, no field key behind a year so the bars are not selectable;
                the header's total line and check indicator are the view's own provenance */
             years.map((yr, i) => {
@@ -324,12 +324,12 @@ export function MaturityChart({ extraction, selectedKey, onSelect, onPriorChange
             const cx = M.left + band * i + band / 2
             const v = numeric(f)
             const lit = f && (key === selectedKey || key === hoveredKey)
-            // v165: the report's own maturity table prints no column for this window (the header row
+            // The report's own maturity table prints no column for this window (the header row
             // quoted in the field's source is the proof) — an explicit absence, labelled as such.
             const notPrinted = !!f && f.value === null && (f.evidence ?? []).includes('absent_in_table')
             const pv = dual ? priorValue(key) : null
             // grouped columns while both years show: current left, prior right; single-centred
-            // otherwise — the exact pre-v091 geometry, unchanged when the switch is off
+            // otherwise — the single-year geometry, unchanged when the switch is off
             const curCx = pv === null ? cx : cx - BAR_W / 2 - 2
             const priCx = cx + BAR_W / 2 + 2
             return (

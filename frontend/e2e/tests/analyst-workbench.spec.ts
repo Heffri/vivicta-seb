@@ -51,7 +51,7 @@ test('one statement card keeps independent basis prefill, source hints, reviewer
   ]
   const extraction: any = {
     ...entry, section: 'debt_maturity', currency: 'MSEK', fields, checks: [], warnings: [], issues, ready: false,
-    // v185: confirmed basis choices no longer block the figure/check queue. The backend pre-fills
+    // Confirmed basis choices do not block the figure/check queue. The backend pre-fills
     // its safe defaults in this dictionary, while the older source-backed hints remain available
     // for a reviewer to inspect or explicitly re-apply.
     basis_issues: [{ kind: 'basis', key: 'period', detail: 'Confirm period' }],

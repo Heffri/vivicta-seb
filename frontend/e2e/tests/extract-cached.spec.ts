@@ -6,10 +6,10 @@ import { gotoWithTone, TONES } from '../support/tone'
 
 // Cached Reports only lists PDFs that are actually on disk (GET /api/library joins
 // data/reports/index.json against data/reports/*.pdf); the repo ships the curated index entry
-// but the PDF itself is gitignored. common.md has teammates copy the shared real report in at
-// data/reports/atlas_copco_2025.pdf — skip with a reason instead of failing red when it's absent.
+// but the PDF itself is gitignored, so it has to be copied in at data/reports/atlas_copco_2025.pdf
+// — skip with a reason instead of failing red when it's absent.
 const ATLAS_PDF = path.resolve(import.meta.dirname, '../../../data/reports/atlas_copco_2025.pdf')
-const REASON = 'data/reports/atlas_copco_2025.pdf not present — copy the shared report in first (see common.md)'
+const REASON = 'data/reports/atlas_copco_2025.pdf not present — copy the report in first'
 
 for (const tone of TONES) {
   test(`extract: first cached report -> Extract -> Results shows Export JSON [${tone}]`, async ({ page }) => {
@@ -26,7 +26,7 @@ for (const tone of TONES) {
     await expect(extractButton).toBeEnabled()
     await extractButton.click()
 
-    // v171: a finished batch never forces a tab switch (BatchProgress's own "View results" does).
+    // A finished batch never forces a tab switch (BatchProgress's own "View results" does).
     await page.getByRole('main').getByRole('button', { name: /^View results/ }).click({ timeout: 20000 })
     await page.getByRole('navigation', { name: 'Report workspace' }).getByRole('button', { name: 'Export', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Export JSON' })).toBeVisible()

@@ -1,7 +1,6 @@
 import { cn } from 'cn'
 
-// Promoted from results/Segmented.tsx in v010 (verbatim) — the second consumer didn't
-// appear, but views may now treat it as a primitive per the v010 work order.
+// Promoted verbatim from results/Segmented.tsx — views treat it as a shared primitive.
 
 type SegmentedProps<T extends string> = {
   options: { value: T; label: string }[]

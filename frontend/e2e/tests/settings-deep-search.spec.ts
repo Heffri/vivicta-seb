@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-// w212: the deep-search switch (EXTRACT_SECOND_PASS) round-trips from Settings into the
+// The deep-search switch (EXTRACT_SECOND_PASS) round-trips from Settings into the
 // backend's live env and back. The editable Settings view only mounts where `window.arp`
 // exists (desktop preload.js), so this spec stands in for the shell the way the real one
 // behaves: settings.set() persists config.json (here localStorage) and the restarted
@@ -41,8 +41,8 @@ test('deep search toggle survives Save, reload and the off round trip', async ({
   await page.goto('/')
   await page.getByRole('tab', { name: 'Settings', exact: true }).click()
   await expect(page.getByText('Running now', { exact: true })).toBeVisible()
-  await expect(page.getByText('deep search off')).toBeVisible() // w197's default, echoed
-  await expect(page.getByText('scan all off')).toBeVisible() // m02's offline scan, echo-only
+  await expect(page.getByText('deep search off')).toBeVisible() // the default, echoed
+  await expect(page.getByText('scan all off')).toBeVisible() // the offline scan, echo-only
 
   await page.getByRole('button', { name: 'Extraction', exact: true }).click()
   const group = page.getByRole('group', { name: 'Deep search for missing figures' })

@@ -13,7 +13,7 @@ type FieldsTableProps = {
   notReported?: string[] // Extraction.not_reported: optional rows the report does not print
   selectedKey: string | null
   onSelect: (key: string) => void
-  onOpenPage?: (key: string, page: number) => void // v179: a component's own citation may sit on a page the field's own source doesn't
+  onOpenPage?: (key: string, page: number) => void // a component's own citation may sit on a page the field's own source doesn't
 }
 
 /** The product's argument, one row per number: the number, its unit and period, how much
@@ -85,7 +85,7 @@ export function FieldsTable({ fields, notReported = [], selectedKey, onSelect, o
                     {f.human_review?.source_verified && f.source && <button type="button" className="mt-2 block text-left text-xs text-primary underline-offset-2 hover:underline" title={f.source.quote} onClick={(e) => { e.stopPropagation(); onSelect(f.key) }}>
                       Reviewed source · p.{f.source.page} · “{f.source.quote.length > 96 ? `${f.source.quote.slice(0, 93).trimEnd()}…` : f.source.quote}”{f.components?.length ? ` · ${f.components.length} components` : ''}
                     </button>}
-                    {/* v179: each summed component gets its own page link — a total's components don't all sit on the field's own source page. */}
+                    {/* each summed component gets its own page link — a total's components don't all sit on the field's own source page. */}
                     {!!f.components?.length && (
                       <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground">
                         {f.components.map((c, i) => (
@@ -95,7 +95,7 @@ export function FieldsTable({ fields, notReported = [], selectedKey, onSelect, o
                         ))}
                       </p>
                     )}
-                    {/* v179: an OCR'd page is read text, not a photograph — flag it beside the check result, not only inside Source. */}
+                    {/* an OCR'd page is read text, not a photograph — flag it beside the check result, not only inside Source. */}
                     {f.evidence?.includes('ocr_text') && <p className="mt-2 text-xs font-medium text-warning">From OCR — check the scanned image</p>}
                     {NEEDS_HUMAN.includes(verification.label) && !reason && (
                       <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{verification.detail}</p>

@@ -1,12 +1,12 @@
 // Hand-rolled, dependency-free PDF bytes: an N-page document, empty pages (no /Contents — valid
-// per the spec, MuPDF renders it as blank). Since v164 the fixture-mode backend DOES read page
+// per the spec, MuPDF renders it as blank). The fixture-mode backend DOES read page
 // text at upload time (the zero-model candidate-pages locator scores it — backend/app.py's
 // GET /candidates), so `pageTexts` prints lines on individual pages in standard Helvetica
 // (base-14 font, nothing to embed). The extraction itself still ignores page content — it returns
 // the canned backend/fixtures/sample_extraction.json regardless of what was uploaded — only the
 // page COUNT matters there, so a citation's page image (GET /api/reports/{id}/pages/64.png)
 // doesn't 404 on a report with fewer than 64 pages. Verified against the real backend (upload +
-// extract + ask + pages/64.png all 200) before this landed — see the evidence doc.
+// extract + ask + pages/64.png all 200).
 
 const EOL = '\r\n' // xref entries must be exactly 20 bytes each; CRLF is the spec-safe line ending
 
@@ -22,11 +22,11 @@ function pdfLine(line: string): string {
 }
 
 function textStream(text: string): { body: string; length: number } {
-  // v179: T* (move to the next line per the leading set above) must run BEFORE the line it moves
-  // down for, not after the line just drawn — the previous placement drew every line but the first
-  // on top of its predecessor (T* only ever advanced position for a line that didn't exist), so a
-  // multi-line pageTexts entry silently collapsed into one overlapping run. get_text()/search_for()
-  // on a real PDF made this visible: two stacked lines read back as one line with no separator.
+  // T* (move to the next line per the leading set above) must run BEFORE the line it moves down
+  // for, not after the line just drawn. Placed after, it draws every line but the first on top of
+  // its predecessor (T* only ever advances position for a line that doesn't exist), and a
+  // multi-line pageTexts entry silently collapses into one overlapping run that get_text() /
+  // search_for() reads back as a single line with no separator.
   const body = `BT${EOL}/F1 9 Tf${EOL}13 TL${EOL}72 720 Td${EOL}${text
     .split('\n')
     .map((l, i) => `${i === 0 ? '' : `T*${EOL}`}(${pdfLine(l)}) Tj${EOL}`)

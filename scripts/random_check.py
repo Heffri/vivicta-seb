@@ -4,7 +4,8 @@
 
 "Full confidence" = every non-null field at confidence 1.0 and every arithmetic check passed (docs/CONFIDENCE.md).
 No labels involved: this is the backend's own evidence on companies nobody tuned the parser on. The labelled eval set
-(eval/labels.csv) is skipped; the same seed always draws the same companies. Needs the backend on :8000 with Ollama; ~2 min per company.
+(eval/labels.csv) is skipped; the same seed always draws the same companies. Needs the backend on :8000 with a model
+provider configured (backend/.env); ~2 min per company.
 """
 import argparse
 import json

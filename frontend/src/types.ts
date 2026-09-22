@@ -9,7 +9,7 @@ export type Report = {
   document_type?: "registration_statement";
   statement_pages?: number[];
   source_notice?: string;
-  ocr_pages?: number[];     // v191: 1-based pages this registration actually OCR'd (empty for a text-layer PDF)
+  ocr_pages?: number[];     // 1-based pages this registration actually OCR'd (empty for a text-layer PDF)
 };
 
 export type Company = {
@@ -50,9 +50,9 @@ export type Discovery = {
 };
 
 export type JobEvent = { t: number; stage: string; text: string; data?: Record<string, unknown> };
-// data (v194): download carries { bytes, total: number | null }; model_search carries { queries: string[] } and/or
+// data: download carries { bytes, total: number | null }; model_search carries { queries: string[] } and/or
 // { candidates / urls }, whichever the stage produced — see docs/API.md's Progress tracking section
-export type Job = {                // GET /api/jobs/{job_id} (v194)
+export type Job = {                // GET /api/jobs/{job_id}
   job_id: string;
   stage: string;             // directory | mfn | nasdaq | ddg | model_search | ir_page | download | verify | done | failed
   started: number;           // unix seconds
@@ -152,7 +152,7 @@ export type Field = {
   missing_reason?: MissingReason; // debt_maturity only; present only while this field's value is null. It explains a known absence/refusal without changing the field, check, or standard-bucket semantics.
   components?: ReviewComponent[]; // individually cited human-review inputs whose exact sum is this value
   confidence: number;       // 0..1, computed from evidence by the backend — see docs/CONFIDENCE.md. Never the model's opinion.
-  evidence: string[];       // satisfied evidence codes, e.g. ["quote_on_page","value_in_quote","arith_ok"]; 1.0 <=> all seven present; "absent_in_table" = the maturity table prints no column for this window (v165: value stays null, source quotes the header row, the identity counts it as 0)
+  evidence: string[];       // satisfied evidence codes, e.g. ["quote_on_page","value_in_quote","arith_ok"]; 1.0 <=> all seven present; "absent_in_table" = the maturity table prints no column for this window (value stays null, source quotes the header row, the identity counts it as 0)
 };
 
 // An analyst-directed /fill response is deliberately not an Extraction: it contains only a
@@ -168,13 +168,13 @@ export type Check = {
 };
 
 export type Basis = { values: Record<string, string>; reviewer: string; note: string; at: string };
-// v182: deterministic, source-backed form hints. They are not analyst confirmation and do not
+// Deterministic, source-backed form hints. They are not analyst confirmation and do not
 // contribute to `ready`; a missing key is deliberately still unknown.
 export type BasisSuggestion = { key: string; value: string; source: Source | 'report metadata' };
 export type ReviewIssue = { kind: 'basis' | 'field' | 'check'; key: string; detail: string };
 export type Comparison = { candidates: KbEntry[]; previous_stem?: string; current_year?: number; previous_year?: number; reasons: string[]; restatement?: Record<string, string>; rows: { key: string; label: string; current: Field['value']; previous: Field['value']; delta: number | null; percent: number | null; sign_change: boolean; reason: string }[] };
 export type QueueIssue = ReviewIssue & { report: KbEntry; section: string };
-// v174: GET /api/kb/maturity-wall — deterministic upcoming-maturities list over a saved collection.
+// GET /api/kb/maturity-wall — deterministic upcoming-maturities list over a saved collection.
 // No FX conversion: `total`/`due_within_1_year` carry the printed unit unless both fields share a
 // recognised currency at different scales (MSEK vs TSEK), in which case both are shown at the coarser
 // scale. `share` (due_within_1_year / total) is 0..1, or null when it cannot be computed (a missing
@@ -192,12 +192,12 @@ export type MaturityWallRow = {
   review_status: string;
   comparable: boolean;
   reason: string;
-  // v180: the data/companies.json sector (null when the company is not in the universe file) and
+  // The data/companies.json sector (null when the company is not in the universe file) and
   // whether the buckets are complete: the stored identity check passed AND total AND <1y present.
   sector: string | null;
   complete: boolean;
 };
-// v180: the same wall aggregated per sector. median/min/max only count complete companies' shares
+// The same wall aggregated per sector. median/min/max only count complete companies' shares
 // (a missing bucket is never back-filled with 0); all three are null until one company completes.
 export type MaturityWallSector = {
   sector: string | null; companies: number; complete: number;
@@ -208,14 +208,14 @@ export type MaturityWall = {
   coverage: { total: number; comparable: number; missing_total: number; missing_w1y: number; basis_unconfirmed: number };
   sectors: MaturityWallSector[];
 };
-// v091: the prior fiscal year's own figures, read deterministically from the same table as the
+// The prior fiscal year's own figures, read deterministically from the same table as the
 // current year (identity-gated on explicit values) — absent entirely when they could not be.
 export type PriorYear = {
   fiscal_year: number;
   fields: Record<string, { value: number; source: Source | null }>; // one entry per readable field (a bucket the prior-year table never prints is absent)
   check: { passed: boolean; detail: string };
 };
-// v109: the report's own calendar-year maturity columns (the years must sum to total_debt within
+// The report's own calendar-year maturity columns (the years must sum to total_debt within
 // the identity check's own tolerance) — absent entirely when the report prints named buckets
 // instead, or the year columns cannot be read deterministically.
 export type BucketsByYear = {
@@ -243,9 +243,9 @@ export type Extraction = {
   fiscal_year: number | null;
   currency: string | null;  // dominant unit in the section
   section: string;          // schema name
-  maturity_basis?: 'carrying' | 'undiscounted'; // v089, debt_maturity only: which maturity table total_debt + the buckets were read from (env DEBT_BASIS)
-  prior_year?: PriorYear;   // v091, debt_maturity only: FY-1 alongside FY for the maturity chart
-  buckets_by_year?: BucketsByYear; // v109, debt_maturity only: the report's own calendar-year columns for the maturity chart
+  maturity_basis?: 'carrying' | 'undiscounted'; // debt_maturity only: which maturity table total_debt + the buckets were read from (env DEBT_BASIS)
+  prior_year?: PriorYear;   // debt_maturity only: FY-1 alongside FY for the maturity chart
+  buckets_by_year?: BucketsByYear; // debt_maturity only: the report's own calendar-year columns for the maturity chart
   fields: Field[];          // one entry per schema field, in schema order (value null if missing)
   checks: Check[];
   warnings: string[];       // free text, e.g. "revenue: quote not found on page 64"

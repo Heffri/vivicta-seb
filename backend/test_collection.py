@@ -1,5 +1,4 @@
 """Run: python test_collection.py. No network calls or real user data."""
-import json
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -104,7 +103,7 @@ with tempfile.TemporaryDirectory() as tmp:
             assert discover.call_args.args == ('intel', 2025, None, 'chips', library)
             assert discover.call_args.kwargs == {'job_id': None, 'force_web': True}
             assert client.post('/api/reports/discover', json={'company': 'intel', 'year': 1066}).status_code == 400
-        # v194 integration: a job_id on a REAL (unmocked) /discover call is recorded end to end through
+        # Integration: a job_id on a REAL (unmocked) /discover call is recorded end to end through
         # GET /api/jobs/{id}; no LLM_PROVIDER is set anywhere in this test, so this never reaches a model
         job_id = 'job-discover-abb'
         assert client.get(f'/api/jobs/{job_id}').status_code == 404

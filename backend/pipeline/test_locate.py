@@ -1,6 +1,6 @@
 """locate.py self-check: the candidate window's structural invariants. Run: python -m pipeline.test_locate
 
-Covers the two-shape contract of candidate_pages (v123): the forced companion page, and the budget
+Covers the two-shape contract of candidate_pages: the forced companion page, and the budget
 rule -- PROMPT_BUDGET bounds only the window prefix (what extract() ever reads as full text, its
 pages[:4]); every top_n-scored page stays in the list for two-pass page selection's snippets, so an
 oversized page is demoted past the window, never dropped (the ctt/humana shape: label page ranked #2-#3
@@ -31,7 +31,7 @@ def test_companion_is_second():
 
 def test_no_scored_page_dropped_for_budget():
     # ctt's shape: the top-scored pages are huge, later-scored pages small. The old whole-list trim
-    # popped the small ones (red, v123); they must stay in the list for pass-1's snippets.
+    # popped the small ones; they must stay in the list for pass-1's snippets.
     texts = [""] * 8
     texts[0] = "Borrowings note\n" + "x " * 3500  # ~7k chars, scores
     texts[2] = "borrowings table total borrowings 5\n" + "y " * 3300  # ~6.6k chars, scores higher
@@ -57,7 +57,7 @@ def test_window_prefix_fits_budget_unless_two():
 
 
 def test_balance_sheet_page_joins_last():
-    # v139 flerie/kabe/hansa shape: a balance-sheet page carrying no debt keyword (noscore, would-be
+    # flerie/kabe/hansa shape: a balance-sheet page carrying no debt keyword (noscore, would-be
     # unreachable) joins the candidate list as its last entry -- appended, never ranked, so scored
     # pages keep their places and the full-text window prefix is untouched.
     texts = [""] * 5
@@ -70,7 +70,7 @@ def test_balance_sheet_page_joins_last():
 
 def test_parent_and_summary_balance_sheets_not_companions():
     # The parent-company statement and the five-year summary both print a balance sheet; neither is
-    # the group one the debt note ties to, and v123 measured BS title words crowding ranked pages out.
+    # the group one the debt note ties to, and BS title words measurably crowded ranked pages out.
     texts = [""] * 6
     texts[0] = "Borrowings note\n" + "total borrowings 5\n" + "z " * 300
     texts[2] = "Balansräkning för moderbolaget\nSumma tillgångar 100\n" + "q " * 100
@@ -80,10 +80,10 @@ def test_parent_and_summary_balance_sheets_not_companions():
 
 
 def test_no_bare_liability_class_keywords():
-    # v163: b29c4b0 added the bare keyword "financial liabilities" to the debt schema. It heads
-    # every fair-value and financial-instruments note, so those pages crowded the real maturity
+    # The bare keyword "financial liabilities" was once in the debt schema. It heads every
+    # fair-value and financial-instruments note, so those pages crowded the real maturity
     # note out of the first windows. Measured over the 106 labelled debt reports, the labelled
-    # page sat in the top 4 of the candidates for 80 of them before that keyword and 72 after;
+    # page sat in the top 4 of the candidates for 80 of them without that keyword and 72 with it;
     # narrowing it to the phrase "maturity of financial liabilities" scores 83.
     #
     # A page-ranking fixture cannot catch this -- the crowding is competition among a real
@@ -157,7 +157,7 @@ def test_nvidia_us_gaap_debt_maturities_beat_instrument_decoys():
 
 
 def test_numbered_loan_maturity_table_beats_summary_chart():
-    """w208: Volvo's bare ``22:2 Maturity`` title is the loan table, not an unscored page."""
+    """Volvo's bare ``22:2 Maturity`` title is the loan table, not an unscored page."""
     schema = json.loads((pathlib.Path(__file__).resolve().parents[1] / "schemas" / "debt_maturity.json").read_text(
         encoding="utf-8"))
     summary = ("Net financial position\nSEK bn\nRead more in Note 22 Liabilities, regarding the maturity "

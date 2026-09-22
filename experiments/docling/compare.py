@@ -271,14 +271,14 @@ def main():
         "## Known fairness caveats",
         "",
         "- **saab_2025 is image-only (no text layer)** per data/reports/index.json's own note. Our "
-        "parser (backend/pipeline/parse.py) has no OCR fallback wired in yet (see its own module "
-        "docstring: \"Next for a teammate: scanned reports need an OCR fallback\") and returns near-empty "
-        "text for it. Docling ships OCR on by default (do_ocr=True, force_full_page_ocr=False -- OCR "
-        "kicks in exactly where a page has no native text layer, i.e. exactly this file) and may return "
-        "real text where ours returns nothing. That is a genuine capability gap this project has not "
-        "built yet, not a parsing-quality difference on text both tools can already see -- and saab_2025 "
-        "has zero labelled rows either way, so it cannot move the scored accuracy numbers above, only "
-        "the parse-time and page-count rows.",
+        "parser (backend/pipeline/parse.py) OCRs such pages with a bounded, selective pass over the "
+        "pages a locate pass would target (OCR_PAGE_BUDGET, default 40), but only once the Tesseract "
+        "language files are installed by scripts/setup_ocr.py; without them it raises OCRUnavailable "
+        "and returns near-empty text for this file. Docling ships OCR on by default (do_ocr=True, "
+        "force_full_page_ocr=False -- OCR kicks in exactly where a page has no native text layer, i.e. "
+        "exactly this file). Either way it is a parser-capability difference, not a parsing-quality "
+        "difference on text both tools can already see -- and saab_2025 has zero labelled rows, so it "
+        "cannot move the scored accuracy numbers above, only the parse-time and page-count rows.",
         "- **investor_2025** is an investment company; data/reports/index.json's own note says "
         "\"income-statement checks fail by design\" for it -- it was never going to score well on "
         "income_statement regardless of parser.",

@@ -5,8 +5,8 @@ import { defineConfig } from '@playwright/test'
 //
 // Serial on purpose (fullyParallel: false, workers: 1): every test shares one long-lived dev
 // backend (in-memory report store, data/kb on disk). Two tests registering the same cached PDF
-// at once would race on the KB re-registration write (docs/acrylic/... LESSONS.md #27); a smoke
-// suite this small doesn't need the parallelism enough to risk that.
+// at once would race on the KB re-registration write; a smoke suite this small doesn't need the
+// parallelism enough to risk that.
 export default defineConfig({
   testDir: './tests',
   outputDir: './test-results', // keep run artifacts under e2e/, not scattered into frontend/
@@ -21,9 +21,8 @@ export default defineConfig({
   projects: [
     {
       name: 'edge',
-      // Local Microsoft Edge, zero browser download (frontend/README.md's Acrylic UI section /
-      // LESSONS.md #24). CI without Edge installed: drop `channel` to fall back to bundled Chromium
-      // (after an `npx playwright install chromium`).
+      // Local Microsoft Edge, zero browser download. CI without Edge installed: drop `channel` to
+      // fall back to bundled Chromium (after an `npx playwright install chromium`).
       use: { channel: 'msedge' },
     },
   ],

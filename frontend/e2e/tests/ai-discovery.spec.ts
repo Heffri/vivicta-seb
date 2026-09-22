@@ -22,7 +22,7 @@ test('AI discovery proposes companies to confirm before fetching', async ({ page
       extracted.push(path)
       return route.fulfill({ json: { report_id: 'lib-intel_2025', company: 'Intel Corporation', fiscal_year: 2025, section: 'income_statement', fields: [], checks: [], warnings: [] } })
     }
-    // v194: every discover/fetch call now carries a job_id; useReportSearch polls this once as soon
+    // Every discover/fetch call carries a job_id; useReportSearch polls this once as soon
     // as the call settles (plus every 1.5 s while it's still running) — a generic "done" reply is all
     // this test needs, since it does not assert on the trace panel's own content.
     if (path.startsWith('/api/jobs/')) {

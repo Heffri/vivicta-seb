@@ -1,7 +1,7 @@
 """Offline label-synonym regression over the stored KB extractions. No model, no network, read-only.
 
-    python scripts/label_regression.py                                 # income_statement, old = origin/acrylic
-    python scripts/label_regression.py --schema debt_maturity
+    python scripts/label_regression.py --baseline <git ref>            # income_statement
+    python scripts/label_regression.py --schema debt_maturity --baseline <git ref>
     python scripts/label_regression.py --schema income_statement --schema debt_maturity --baseline <git ref>
 
 For every field of every data/kb/<stem>/extractions/<schema>.json whose key exists in the matching
@@ -19,8 +19,9 @@ where syns is the call site's synonym set: the baseline builds it verbatim ({s.l
 code cleans it ({_clean_label(s), non-empty}).
 
 --baseline loads extract.py AS OF that git ref (via `git show`) into a throwaway module in the
-pipeline package namespace, so its relative imports resolve to the current parse/locate; the default
-baseline is origin/acrylic. Verdicts are pure predicates -- nothing is written, data/ is untouched.
+pipeline package namespace, so its relative imports resolve to the current parse/locate. The default
+baseline, origin/acrylic, no longer exists in this repository: pass --baseline explicitly. Verdicts
+are pure predicates -- nothing is written, data/ is untouched.
 """
 import argparse
 import importlib.util

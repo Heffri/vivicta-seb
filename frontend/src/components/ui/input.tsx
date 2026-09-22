@@ -3,7 +3,7 @@ import type { InputHTMLAttributes, ReactNode } from 'react'
 type InputProps = InputHTMLAttributes<HTMLInputElement> & { icon?: ReactNode }
 
 // Acrylic text input: hairline border, translucent --bg-1 fill, accent focus ring.
-// Promoted from upload/Input.tsx in v010 (verbatim) now that a second view filters with it.
+// Promoted verbatim from upload/Input.tsx once a second view needed to filter with it.
 export function Input({ icon, className = '', ...props }: InputProps) {
   return (
     <div className={`relative min-w-0 flex-1 ${className}`}>

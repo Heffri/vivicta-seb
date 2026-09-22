@@ -68,7 +68,7 @@ export function SourcePanel({
       .catch((error: Error) => { if (!stale) setPageError({page, stem, message: error.message}) })
     return () => { stale = true }
   }, [pdfAvailable, stem, page, onUseSource])
-  // v179: the quote to locate/highlight for the page currently on screen — null for an Ask citation
+  // The quote to locate/highlight for the page currently on screen — null for an Ask citation
   // (no field is selected there) or once the selected field's own page has scrolled out of view.
   const citedQuote = askPage === null && selected?.source && selected.source.page === page ? selected.source.quote : null
   return (
@@ -160,15 +160,15 @@ export function SourcePanel({
               <div className="flex aspect-[1/1.3] flex-col items-center justify-center gap-2 rounded-lg border bg-muted/40 text-sm text-muted-foreground">
                 <ImageOff className="size-5" />
                 <span>Page preview unavailable</span>
-                {/* v092: a KB-only report's pages 404 until the PDF is fetched — same hint the backend's detail carries */}
-                <span>Fetch the PDF from Extract (directory search) to see the pages.</span>
+                {/* a KB-only report's pages 404 until the PDF is fetched — same hint the backend's detail carries */}
+                <span>Fetch the PDF from Extract (Find a company) to see the pages.</span>
               </div>
             ) : (
               <div className="h-[78vh] min-h-[520px] overflow-auto rounded-lg border bg-muted/40">
                 <div className="relative w-fit min-w-full">
                   <img src={pageUrl(reportId, page)} alt={`Page ${page} of the report`} onError={() => onBrokenPage(page)}
                     style={{ width: zoom === null ? '100%' : `${816 * zoom / 100}px`, maxWidth: 'none' }} className="bg-white" />
-                  {/* v179: frames the cited quote on the page image — Image mode only, PDF viewer untouched. */}
+                  {/* frames the cited quote on the page image — Image mode only, PDF viewer untouched. */}
                   {citedQuote && <PageLocateOverlay key={`${page}:${citedQuote}`} reportId={reportId} page={page} quote={citedQuote} />}
                 </div>
               </div>

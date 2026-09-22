@@ -18,7 +18,7 @@ type Props = {
   results: Result[]
   onSelect: (index: number, page?: number) => void
   onReset: () => void
-  // v174: threaded straight through to MaturityWall's row actions ("Open" / "Review"); undefined
+  // Threaded straight through to MaturityWall's row actions ("Open" / "Review"); undefined
   // just disables those buttons, so this view still renders without it.
   onOpenReport?: (report: KbEntry, section?: string, key?: string) => void
 }
@@ -37,7 +37,7 @@ export function CompareView({ results, onSelect, onReset, onOpenReport }: Props)
     <TableCell key={i} rowSpan={span} className="max-w-60 whitespace-normal align-top text-xs text-danger">
       {r.error}
       <p className="mt-2 text-danger/80">
-        Next step: fetch the PDF from the Extract tab’s Directory search, then open it here again.
+        Next step: fetch the PDF from Find a company on the Extract tab, then open it here again.
       </p>
     </TableCell>
   )
@@ -47,7 +47,7 @@ export function CompareView({ results, onSelect, onReset, onOpenReport }: Props)
       <PageHeader eyebrow="Compare" title="Compare reports" description={`${results[0]?.sectionTitle ?? 'Statements'} · ${ok} of ${results.length} reports extracted`} actions={<Button onClick={onReset}>New report</Button>} />
       <Workspace label="Comparison workspace" value={view} onChange={setView} pages={[
       { value: 'figures', label: 'Side by side', icon: Columns3, content: <div className="space-y-5">
-      {/* v174: the saved-collection-wide list, independent of the result columns below it. */}
+      {/* the saved-collection-wide list, independent of the result columns below it. */}
       <MaturityWall onOpenReport={onOpenReport} />
       <Card className="overflow-x-auto py-0">
         <Table>

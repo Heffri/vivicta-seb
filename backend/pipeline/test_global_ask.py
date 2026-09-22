@@ -65,7 +65,7 @@ def check():
             # from being published. Matching saved evidence is deliberately not reparsed or changed.
             assert app.report_texts("lib-acme_2024")[0].startswith("Revenue")
             # A KB-only report gets locator candidates from pages.jsonl; a missing source PDF must
-            # not turn its saved text into an empty candidate list (w209 regression guard).
+            # not turn its saved text into an empty candidate list.
             candidates = client.get("/api/reports/lib-acme_2024/candidates?section=income_statement")
             assert candidates.status_code == 200 and candidates.json(), candidates.text
             (library / "acme_2024.pdf").write_bytes(fetched_pdf)

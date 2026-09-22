@@ -218,10 +218,10 @@ class RuntimeChecks(unittest.TestCase):
             self.assertEqual(read.call_count, 1)
 
     def test_config_echoes_extraction_switches(self):
-        """w212: GET /api/config echoes the two extraction switches that previously had no API
-        surface at all (w207's demo-checklist gap), read exactly the way the pipeline reads them:
-        second_pass is w197's bounded retry (default off), scan_all is m02's offline full-report
-        scan (off by default, echoed for confirmation only -- it stays env-only by design)."""
+        """GET /api/config echoes the two extraction switches, read exactly the way the pipeline
+        reads them: second_pass is the bounded retry (default off), scan_all is the offline
+        full-report scan (off by default, echoed for confirmation only -- it stays env-only
+        by design)."""
         self.assertFalse(self.client.get("/api/config").json()["second_pass"])
         self.assertFalse(self.client.get("/api/config").json()["scan_all"])
         with patch.dict(os.environ, {"EXTRACT_SECOND_PASS": "1", "EXTRACT_SCAN_ALL": "1"}):
@@ -234,7 +234,7 @@ class RuntimeChecks(unittest.TestCase):
             self.assertFalse(echo["scan_all"])
 
     def test_upload_over_budget_422_then_ocr_full_retry(self):
-        """v191(a)(b): a scanned upload whose bounded candidate set alone exceeds OCR_PAGE_BUDGET is
+        """A scanned upload whose bounded candidate set alone exceeds OCR_PAGE_BUDGET is
         refused with a structured 422 naming how many pages full OCR needs; the same bytes with
         ocr=full run it unconditionally, no budget check. The ocr=full half exercises real OCR (not
         a mocked textpage) -- skipped, not red, on a clone that never ran scripts/setup_ocr.py."""
@@ -261,7 +261,7 @@ class RuntimeChecks(unittest.TestCase):
             self.assertEqual(full.json()["ocr_pages"], [3, 4, 5])
 
     def test_scanned_upload_without_languages_registers_then_extract_422s(self):
-        """w204: missing language data is page provenance, not a registration failure.
+        """Missing language data is page provenance, not a registration failure.
 
         Extraction returns the packaged-app-safe 422 only when every selected page is known to be
         unavailable; it must never tell an installed user to run a repository script.
@@ -286,7 +286,7 @@ class RuntimeChecks(unittest.TestCase):
             extract.assert_not_called()
 
     def test_extract_uses_readable_candidates_when_only_some_ocr_is_unavailable(self):
-        """w204: one unavailable image page must not reject a readable candidate set."""
+        """One unavailable image page must not reject a readable candidate set."""
         from . import parse
         texts = ["", "Revenue 100 90"]
         kb.save_report(self.stem, {"company": "Test AB", "fiscal_year": 2025, "pages": 2, "sha256": "mixed",
@@ -309,7 +309,7 @@ class RuntimeChecks(unittest.TestCase):
         self.assertEqual(captured["pages"], [2])
 
     def test_extract_fills_pending_candidate_page_on_demand(self):
-        """v191(b): a candidate page the bounded registration pass left ocr_pending (it sits past
+        """A candidate page the bounded registration pass left ocr_pending (it sits past
         the front matter, with no outline hit) is OCR'd individually, right before the model call
         that needs it -- extract_mod.extract never sees a blank page for a page it was told to read.
         The on-demand top-up runs real OCR -- skipped, not red, on a clone that never ran
@@ -342,7 +342,7 @@ class RuntimeChecks(unittest.TestCase):
         self.assertEqual(kb._meta(self.stem)["ocr_pages"], [10])
 
     def test_scanned_bilingual_report_uses_saved_companion_only_to_locate_ocr_pages(self):
-        """w209: Saab's English PDF is image-only while the saved Swedish edition has text on
+        """Saab's English PDF is image-only while the saved Swedish edition has text on
         matching pages. The sibling may nominate bounded OCR pages, but its text must never become
         the English report's evidence; candidates are recomputed from newly OCR'd English text."""
         report_id, stem, companion = "lib-saab_2025", "saab_2025", "saab_2025_sv"

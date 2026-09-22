@@ -1,16 +1,16 @@
 """Offline reachability of the locator's candidate window against labelled pages. No model, no network.
 
-    python scripts/locate_reach.py --section debt_maturity            # 87 eval/labels.csv companies
-    python scripts/locate_reach.py --section income_statement        # 101 stored-extraction companies
-    python scripts/locate_reach.py --section debt_maturity --baseline origin/acrylic
+    python scripts/locate_reach.py --section debt_maturity            # 106 eval/labels.csv companies
+    python scripts/locate_reach.py --section income_statement        # 102 stored-extraction companies
+    python scripts/locate_reach.py --section debt_maturity --baseline <git ref>
 
 For every labelled company the expected page(s) are compared with locate.candidate_pages():
     debt_maturity -- eval/labels.csv expected_page, one column per row (a company may hold several);
-    income_statement -- the majority source.page of the stored data/kb extraction, the v008 measure
-    (labels.csv covers only 12 income companies; the stored set is the 101-company red line v008 used).
+    income_statement -- the majority source.page of the stored data/kb extraction
+    (labels.csv carries income rows for only 13 reports; the stored set is the wider measure).
 Each expected page classifies as
     in          listed among the candidates
-    adjacent    ±1 of a listed candidate (the reach of the two-pass companion rule, v045/v120)
+    adjacent    ±1 of a listed candidate (the reach of the two-pass companion rule)
     unreachable neither, with a non-empty candidate list
     empty       the company's candidate list is empty (oresund's shape) -- company-wide, dominates
 A company takes its worst page's class, so "reachable" (in or adjacent) means every labelled field's
@@ -95,7 +95,7 @@ def debt_expected() -> dict[str, list[int]]:
 
 
 def stored_expected() -> dict[str, int]:
-    """stem -> majority source.page of the stored income_statement extraction (the v008 measure)."""
+    """stem -> majority source.page of the stored income_statement extraction."""
     out: dict[str, int] = {}
     for ext in sorted((ROOT / "data" / "kb").glob("*/extractions/income_statement.json")):
         try:

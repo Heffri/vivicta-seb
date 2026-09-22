@@ -3,7 +3,7 @@ import { makePdf } from '../fixtures/make-pdf'
 import { trackPageErrors } from '../support/page-errors'
 import { gotoWithTone, TONES } from '../support/tone'
 
-// v179 (consult item 12): "there is a citation" -> "you can see the line in one glance". Image mode
+// "There is a citation" -> "you can see the line in one glance". Image mode
 // frames the cited quote on the page image (real /locate call against a real uploaded PDF); the
 // no-PDF saved-text view scrolls to and highlights it instead. Both degrade silently — a request
 // that 500s, or a quote that never repeats, or one that never printed verbatim, all just fall back

@@ -51,7 +51,7 @@ def page_match(expected_page, got_page, expected_value=None, got_value=None):
     if not expected_page:
         return None  # not asserted for this row
     if str(expected_value).strip().lower() == "null" and got_value is None:
-        # v132-b: the label wants the value absent and it is absent -- no citation exists, so there is
+        # The label wants the value absent and it is absent -- no citation exists, so there is
         # no page to be right about (the label's expected_page names where the absence was verified).
         # Unscored, same treatment as a missing expected_page: out of the page denominator.
         return None

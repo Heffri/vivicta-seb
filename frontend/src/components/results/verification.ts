@@ -16,7 +16,7 @@ export function fieldVerification(field: Field, notReported = false): Verificati
     return { label: r.decision === 'unresolved' ? 'Needs review' : r.decision === 'corrected' ? 'Human corrected' : 'Human confirmed', variant: r.decision === 'unresolved' ? 'warning' : 'success', detail: `${r.reviewer} · ${r.at}: ${r.note || 'Confirmed against the source.'} Human review is separate from automated checks.` }
   }
   if (field.value === null) {
-    // v165: the report's maturity table prints no column for this window — the header row quoted in
+    // The report's maturity table prints no column for this window — the header row quoted in
     // the source is the proof. An explicit absence, not a missed figure and not zero.
     if ((field.evidence ?? []).includes('absent_in_table'))
       return { label: 'Not printed in this report', variant: 'secondary', detail: `The maturity table on ${field.source ? `page ${field.source.page}` : 'this report'} prints no column for this window — its own header row is the source quoted here. This is an explicit absence, not a missed figure and not zero.` }

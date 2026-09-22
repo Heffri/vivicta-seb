@@ -2,10 +2,10 @@ import { useRef, useState } from 'react'
 import { discoverCompanies, getJob } from '@/api'
 import type { Discovery, Job } from '@/types'
 
-// v194 (mirrors v171's useBatch.ts): query/year/discovery used to live inside UploadView, so
-// switching tabs mid-search silently dropped the reply -- setDiscovery on an unmounted component is
-// a no-op, and the fetch() call itself is never aborted (nothing here uses AbortController), so from
-// the user's side "I switched to Settings and came back" looked exactly like "the search died".
+// Mirrors useBatch.ts. Inside UploadView, query/year/discovery would be silently dropped by a
+// mid-search tab switch -- setDiscovery on an unmounted component is a no-op, and the fetch() call
+// itself is never aborted (nothing here uses AbortController), so from the user's side "I switched
+// to Settings and came back" looks exactly like "the search died".
 // Lifted here, called once at the App level, so a search (or the fetch that follows confirming a
 // candidate) keeps running -- progress trail included -- and is still there when the user comes back.
 

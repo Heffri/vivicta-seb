@@ -19,15 +19,15 @@ type Props = {
   onNavigate?: (tab: Tab) => void
 }
 
-// Next-step copy per work order §3: 409 means two different things depending which call failed
+// Next-step copy per error kind: 409 means two different things depending which call failed
 // (see useBatch's classify()), 422 = no text candidates, 502 = the provider itself. No canned copy
 // for 'other' (400 bad file, 404 unknown company, network) — the raw message alone is the only
 // honest thing to say there.
 const ERROR_COPY: Record<BatchErrorKind, { text: string; settings?: boolean; kb?: boolean }> = {
   'review-protected': { text: 'This report already has a human-reviewed result, which was kept as-is.', kb: true },
-  'download-needed': { text: 'No saved text or local PDF for this one without a download. Check “Allow PDF download” above, then retry.' },
+  'download-needed': { text: 'No saved text or local PDF for this one — download the report in your browser and upload the PDF above.' },
   'needs-ocr': { text: 'No text found on the candidate pages — this file may need OCR, or try a different one.', settings: true },
-  // v191: only the pages a locator would check were OCR'd; the rest of this scan was left unread to
+  // Only the pages a locator would check were OCR'd; the rest of this scan was left unread to
   // keep registration synchronous. "Run OCR anyway" resends with ocr=full.
   'ocr-budget': { text: 'This is a scanned PDF. Only the pages a locator would check were read — run OCR on the rest to extract from anywhere else in it.' },
   'provider-failed': { text: 'The model provider failed. Check Settings › Test connection, then retry just this one.', settings: true },
@@ -56,9 +56,9 @@ const stageIcon = (item: BatchItem) => {
   }
 }
 
-// v164 already put a running stopwatch on the wait line itself ("… · Note 20 Borrowings … · 2 s");
-// kept inline here (not folded into the header badge below, which covers every other active stage)
-// so that exact reading doesn't move or double up. Built as one string, not JSX text mixed with
+// The wait line carries its own running stopwatch ("… · Note 20 Borrowings … · 2 s"), kept inline
+// here (not folded into the header badge below, which covers every other active stage) so that
+// exact reading doesn't move or double up. Built as one string, not JSX text mixed with
 // an expression across lines — that split is exactly what silently drops the space a regex like
 // /· \d+ s$/ depends on.
 function stageLine(item: BatchItem, seconds: number | null): string {
@@ -85,12 +85,12 @@ const hasWaitStopwatch = (item: BatchItem, seconds: number | null) => item.stage
 
 const ACTIVE_STAGES: BatchItem['stage'][] = ['registering', 'candidates', 'extracting']
 
-// Batch state (App-level, this application session only — v171/consult item 6): each report's own
+// Batch state (App-level, this application session only): each report's own
 // stage, a stopwatch, whether it reused a cached result, and — for failures — which next step
 // applies. Lives below the action bar as its own bordered step of the one glass pane (DESIGN.md);
 // survives switching tabs and back because the state itself lives in App, not here.
 export function BatchProgress({ items, busy, stopRequested, resultsCount, onStopAfterCurrent, onExtractAgain, onRetry, onDownload, onViewResults, onNavigate }: Props) {
-  // The stopwatch: like UploadView's own (v164), the elapsed string is read off `now` — a state
+  // The stopwatch: like UploadView's own, the elapsed string is read off `now` — a state
   // value refreshed inside the interval — never off a bare Date.now()/performance.now() call made
   // directly during render, so render stays pure.
   const [now, setNow] = useState(() => performance.now())
@@ -148,7 +148,7 @@ export function BatchProgress({ items, busy, stopRequested, resultsCount, onStop
                         saved result
                       </Badge>
                     )}
-                    {/* v191(c): this report's registration OCR'd a bounded set of pages -- said here so a
+                    {/* this report's registration OCR'd a bounded set of pages -- said here so a
                         scanned report doesn't look silently skipped once it reaches Results. */}
                     {item.ocrPages && item.ocrPages.length > 0 && (
                       <Badge variant="secondary" className="normal-case">

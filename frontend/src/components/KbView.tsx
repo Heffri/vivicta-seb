@@ -16,8 +16,8 @@ type Props = { onOpen: (results: Result[]) => void; onOpenReport: (report: KbEnt
 
 const NO_PDF_DESC_ID = 'kb-no-pdf-desc'
 const NO_PDF_TITLE = 'Saved figures and page text are available; the original PDF is not cached'
-// Polling while any Embeddings cell says "building": a growing gap instead of a fixed 2 s (the w195
-// storm: one stuck building row re-fetched the whole 206-stem KB every 2 s for 45 minutes), and a
+// Polling while any Embeddings cell says "building": a growing gap instead of a fixed 2 s (one
+// stuck building row once re-fetched the whole 206-stem KB every 2 s for 45 minutes), and a
 // hard stop after 10 checks — a backend that keeps saying building without ever finishing gets a
 // refresh-to-retry notice, not an endless poll.
 const POLL_BASE_MS = 2000
@@ -86,7 +86,7 @@ export function KbView({ onOpen, onOpenReport, revision = 0 }: Props) {
 
   useEffect(() => {
     getSchemas().then(setSchemas).catch(() => {})
-    getConfig().then(setConfig).catch(() => {}) // v034-era backend without `retrieval` -> null, column unchanged
+    getConfig().then(setConfig).catch(() => {}) // a backend without `retrieval` -> null, column unchanged
   }, [])
 
   useEffect(() => {
@@ -137,8 +137,8 @@ export function KbView({ onOpen, onOpenReport, revision = 0 }: Props) {
     })
 
   const withSection = [...selected].filter((s) => entries?.find((e) => e.stem === s)?.sections.length)
-  // Batch section = the first schema (in schema order) every selected report actually has; schemas[0] is
-  // debt_maturity since that schema landed, which no KB entry has yet, so it 404'd both legs of a Compare.
+  // Batch section = the first schema (in schema order) every selected report actually has. Taking
+  // schemas[0] blindly 404s both legs of a Compare when a selected report has no extraction for it.
   const has = (stem: string, name: string) => !!entries?.find((e) => e.stem === stem)?.sections.includes(name)
   const section =
     schemas.map((s) => s.name).find((n) => withSection.length > 0 && withSection.every((s) => has(s, n))) ??
@@ -219,7 +219,7 @@ export function KbView({ onOpen, onOpenReport, revision = 0 }: Props) {
                     {view === 'index' && <TableCell>
                       {config?.retrieval === 'bm25' ? (
                         // Keyword-only retrieval uses no embeddings file: "not yet" on every row read like
-                        // breakage (v034), so name the index that actually serves /ask here instead.
+                        // breakage, so name the index that actually serves /ask here instead.
                         <Badge variant="outline" className="text-muted-foreground">
                           BM25
                         </Badge>
@@ -267,7 +267,7 @@ export function KbView({ onOpen, onOpenReport, revision = 0 }: Props) {
           details={
             notCached ? (
               <p className="mt-2 text-xs">
-                Next step: fetch the PDF from the Extract tab’s Directory search, then open it here again.
+                Next step: fetch the PDF from Find a company on the Extract tab, then open it here again.
               </p>
             ) : undefined
           }

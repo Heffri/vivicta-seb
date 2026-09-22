@@ -5,8 +5,8 @@ installed there): compare.py (which runs under backend/.venv to import backend.p
 out to this script to produce a per-stem JSON cache, the same split scan_all_compare.py's cached-KB
 trick uses to keep the two sides comparable without cross-installing dependencies into either venv.
 
-    experiments/docling/.venv/Scripts/python experiments/docling/docling_parse.py --all
-    experiments/docling/.venv/Scripts/python experiments/docling/docling_parse.py --only skf_2025
+    experiments/docling/.venv/Scripts/python experiments/docling/docling_convert.py --all
+    experiments/docling/.venv/Scripts/python experiments/docling/docling_convert.py --only skf_2025
 
 Default DocumentConverter()/PdfPipelineOptions(): do_ocr=True (force_full_page_ocr=False -- OCR only
 where a page has no native text layer, e.g. saab_2025's scanned pages) and do_table_structure=True in

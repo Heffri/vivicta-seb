@@ -26,7 +26,7 @@ type Props = {
   onNavigate?: (tab: Tab) => void
 }
 
-// The saved real-debt sample the first screen opens directly (supervisor add-on to v164): a stored
+// The saved real-debt sample the first screen opens directly: a stored
 // KB extraction, opened with zero model calls, that still awaits its basis confirmation — a demo
 // can show real output before any model is configured.
 const SAMPLE_STEM = 'karnell_2025'
@@ -42,7 +42,7 @@ export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onView
   const [library, setLibrary] = useState<LibraryEntry[]>([])
   const [libraryError, setLibraryError] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set()) // LibraryEntry.file
-  // v194: query/year/discovery/discovering/trace lifted to the App level (useReportSearch) so a
+  // query/year/discovery/discovering/trace live at the App level (useReportSearch) so a
   // search, and the fetch that follows confirming a candidate, survive switching away from Extract.
   const { query, year, discovery, discovering, trace, setQuery, setYear, discover, trackJob } = reportSearch
   const [companies, setCompanies] = useState<Company[]>([])
@@ -87,7 +87,7 @@ export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onView
         setSection(list[0]?.name ?? null)
       })
       .catch((e: Error) => setSchemasError(e.message))
-    // v074: the web-search action is only offerable when the backend runs on a provider that has a
+    // The web-search action is only offerable when the backend runs on a provider that has a
     // web-search tool (codex/claude); fixture/openai get the "needs a model provider" hint instead.
     getConfig()
       .then((c) => setProvider(c.provider))
@@ -146,7 +146,7 @@ export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onView
   const busy = batch.busy || anyRetrying
   const count = picked.length + selected.size + files.length
   const canExtract = count > 0 && !!section && !busy
-  // v164: the expected duration is the provider's to promise. codex/claude subscriptions answer in
+  // The expected duration is the provider's to promise. codex/claude subscriptions answer in
   // ~30 s; the OpenAI-compatible endpoint of this setup is the local model, ~1 min; the fixture
   // backend answers instantly, so it promises nothing.
   const eta =
@@ -157,14 +157,14 @@ export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onView
         : ''
 
   // The PDF is always wanted (page images, quote checks): the backend reuses a cached PDF, downloads one
-  // when only text is saved, and falls back to that saved text if the download fails. jobId (v194,
-  // optional): only the AI-searched candidate path (useCandidate below) tracks it — a plain directory
-  // pick's fetch stays as before, untracked.
+  // when only text is saved, and falls back to that saved text if the download fails. jobId
+  // (optional): only the AI-searched candidate path (useCandidate below) tracks it — a plain
+  // directory pick's fetch is untracked.
   const fetchWithDownload = (company: string, opts: { country?: string | null; url?: string | null; ocr?: 'full' } = {}, jobId?: string) =>
     fetchReport(company, Number(yearRef.current), { ...opts, download_pdf: true, job_id: jobId })
 
-  // Stored extraction from the knowledge base (supervisor add-on): no model call, works without the
-  // original PDF (v092). The result was extracted previously and still awaits its basis
+  // Stored extraction from the knowledge base: no model call, works without the
+  // original PDF. The result was extracted previously and still awaits its basis
   // confirmation — which is exactly what the Results view's basis form is for. Bypasses the batch
   // entirely (single, instant, zero-model), so it still lands on Results immediately.
   const openSample = async () => {
@@ -193,7 +193,7 @@ export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onView
     }
   }
 
-  // Builds the queue and hands it to the App-level batch (v171/consult item 6): submission no
+  // Builds the queue and hands it to the App-level batch: submission no
   // longer runs the loop itself, so its progress survives switching away from this tab and back,
   // and the batch doesn't force a tab switch when it ends — see BatchProgress's "View results".
   const runBatch = (extra: BatchSpec[] = [], onlyExtra = false) => {
@@ -215,7 +215,7 @@ export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onView
   }
 
   // A confirmed candidate runs immediately, independent of any directory picks still queued. Wrapped
-  // in trackJob (v194) so CompanySearch's trace panel follows straight through from "resolving the
+  // in trackJob so CompanySearch's trace panel follows straight through from "resolving the
   // company" into "fetching its report" — the same App-level state, just a new job_id and label.
   const useCandidate = (c: Candidate) =>
     runBatch(

@@ -11,8 +11,6 @@ Retrieval is three-state (retrieval_mode()): hybrid cosine+BM25 when an embeddin
 (LLM_BASE_URL), pure BM25 under a codex/claude-only subscription (neither has an embeddings endpoint,
 so Ask works there too), fixture when nothing is configured at all. embeddings.jsonl records the
 EMBED_MODEL that built it (first line) and is rebuilt wholesale when that changes.
-
-Next for a teammate: (2) embed the page *before/after* a hit for table context.
 """
 import hashlib
 import tempfile
@@ -108,7 +106,7 @@ def save_report(stem: str, meta: dict, texts: list[str]) -> Path:
 
 
 def fill_ocr_pages(stem: str, updates: dict[int, str]) -> None:
-    """Patch a subset of a saved report's pages after an on-demand OCR top-up (v191: a candidate page
+    """Patch a subset of a saved report's pages after an on-demand OCR top-up (a candidate page
     the bounded registration pass left ocr_pending, OCR'd just before extraction). sha256/parser/
     ocr_settings are unchanged, so save_report's own cache guard would skip rewriting pages.jsonl --
     this always rewrites it, then moves the filled pages from ocr_pending to ocr_pages in meta.json."""
@@ -136,14 +134,14 @@ def save_extraction(stem: str, section: str, extraction: dict) -> Path:
 
 
 def save_run(stem: str, section: str, n: int, result: dict) -> Path:
-    """Per-run raw extraction record, `extractions/<section>.run<n>.json` (v133): the inputs the
+    """Per-run raw extraction record, `extractions/<section>.run<n>.json`: the inputs the
     merged section file was built from, so an offline audit can replay a merge without rerunning
     the model. Same atomic write as save_extraction; never a section itself (see _section_files)."""
     return save_extraction(stem, f"{section}.run{n}", result)
 
 
 def _section_files(stem: str) -> list[Path]:
-    """extractions/<section>.json only -- never <section>.run<n>.json (v133's per-run merge
+    """extractions/<section>.json only -- never <section>.run<n>.json (the per-run merge
     records, audit-only): section names are [a-z0-9_]+, the run records carry a dot."""
     return _section_files_in(kb_dir() / stem / "extractions")
 
@@ -254,7 +252,7 @@ def _rows(stem: str) -> list[dict]:
 
 
 def _emb_model(stem: str) -> str | None:
-    """The EMBED_MODEL recorded on embeddings.jsonl's first line (v034). None = legacy file without the
+    """The EMBED_MODEL recorded on embeddings.jsonl's first line. None = legacy file without the
     line, or no file -- index() treats both as needing one rebuild against the current embed_model()."""
     manifest = kb_dir() / stem / "index.json"
     if manifest.exists():
@@ -467,7 +465,7 @@ def search(stems: list[str], query: str, k=8, *, keyword_only=False) -> list[dic
     if not cand:
         return []
     if mode == "bm25" and not any(x[1] for x in cand):
-        # v059: no query term matched any chunk (Swedish question against an English report, a topic the
+        # No query term matched any chunk (Swedish question against an English report, a topic the
         # report does not cover) -- ranking would just hand back cover-page order and ask() would spend a
         # 10-40 s model call to answer "the excerpts don't say". Empty means empty. Hybrid keeps going:
         # cosine still has a signal when the words differ.
@@ -510,7 +508,7 @@ def ask(stems: list[str], question: str, k=8, ids: dict[str, str] | None = None,
     label = {s: f"{m.get('company') or s} FY{m.get('fiscal_year') or '?'}" for s, m in metas.items()}
     hits = search(stems, question, k, keyword_only=keyword_only)
     warnings = ["Keyword search over saved reports; excerpts are limited, not a complete comparison of every company."] if keyword_only else []
-    if not hits:  # v059: bm25 all-zero (or no chunks at all) -- answer directly, save the 10-40 s call
+    if not hits:  # bm25 all-zero (or no chunks at all) -- answer directly, save the 10-40 s call
         return {"question": question,
                 "answer": "No passage in the selected report(s) matches the question's terms — try the report's own wording or another language.",
                 "citations": [],
@@ -523,7 +521,7 @@ def ask(stems: list[str], question: str, k=8, ids: dict[str, str] | None = None,
         raw = json.loads(llm.chat(ASK_SYSTEM, user, ANSWER_SCHEMA, "answer"))
         if not isinstance(raw, dict) or not isinstance(raw.get("answer"), str) or not isinstance(raw.get("citations"), list):
             raise ValueError("Malformed answer")
-    except Exception as e:  # ponytail: no retry, same as extract
+    except Exception as e:  # no retry, same as extract
         raw = {"answer": "", "citations": []}
         warnings.append(f"llm: {type(e).__name__}: {e}")
 
@@ -630,7 +628,7 @@ def entries() -> list[dict]:
     cached by a file fingerprint -- (path, mtime_ns, size) of meta.json, pages.jsonl, embeddings.jsonl,
     index.json and every extractions/<section>.json, plus the embedding identity -- so a warm listing
     stats a few files per stem and reads none; writers (save_report/save_extraction/save_run, index
-    rebuilds) invalidate by changing those files, no manual eviction (v173)."""
+    rebuilds) invalidate by changing those files, no manual eviction."""
     embedding_fp = fingerprint(embedding_identity())
     base = kb_dir()  # one resolve per request: ~5 kb_dir() calls x 206 stems was the warm cost
     out = []
@@ -653,7 +651,7 @@ def entries() -> list[dict]:
                  "figures_available": figures,
                  "pages": m.get("pages", 0), "sections": sorted(p.stem for p in sections),
                  "indexed": status["status"] == "ready", **status}
-        if status["status"] != "building":  # w199: never persist building -- it describes this
+        if status["status"] != "building":  # never persist building -- it describes this
             _entry_cache[d.name] = (signature, entry)  # listing only, and a cached one outlives
         out.append(entry)  # the write that caused it (fingerprint unchanged), feeding the poll storm
     return out
@@ -742,9 +740,9 @@ def cached_texts(stem, digest):
 
 def load_texts(stem, path, digest, ocr="bounded"):
     """Use the same OCR provenance/cache behavior for uploads, library, reopen and CLI. `ocr`:
-    "bounded" (default, v191) OCRs only the pages a debt-maturity locate pass could reach when a
+    "bounded" (default) OCRs only the pages a debt-maturity locate pass could reach when a
     cache miss needs a fresh parse; "full" OCRs every scanned page. The default keeps the exact
-    pre-v191 two-positional-arg call to parse.page_texts, so a caller mocking that function with a
+    two-positional-arg call to parse.page_texts, so a caller mocking that function with a
     plain (path, metadata) signature -- as test_runtime.py's provenance test does -- still works."""
     from .parse import page_texts, ocr_settings
     texts = cached_texts(stem, digest)
@@ -783,7 +781,7 @@ def index_status(stem):
     """Hash/validate once per file revision; repeated listings only stat the dependencies.
     "building" is reported only while a real write (index/save/OCR fill) holds the stem's write
     lock, probed via _index_in_progress: readers never take that lock, so overlapping listings --
-    the KB page's poll storm -- cannot manufacture the status or stall each other (w199). Before,
+    the KB page's poll storm -- cannot manufacture the status or stall each other. Before,
     readers hashed under the write lock and kept failing each other's acquire, then entries()
     cached the building they had seen, serving it forever. A hash that overlaps a writer's
     atomic replace reads old-or-new files whole; any mismatch shows as a transient "invalid"
@@ -804,7 +802,7 @@ def index_status(stem):
 
 
 def _index_status(stem):
-    # No write lock here (w199): taking it made every sibling reader report "building" and queued
+    # No write lock here: taking it made every sibling reader report "building" and queued
     # listings behind each other. Atomic writes keep a torn read detectable, and the signature
     # computed by the caller changes on any real write, so a stale result recomputes next time.
     d = kb_dir() / stem
@@ -831,7 +829,7 @@ def _index_status(stem):
 
 
 def inspect_chunks(stem, query="", offset=0, limit=25):
-    # No write lock (w199): a reader must never hold it -- a chunk-browser poll holding the lock
+    # No write lock: a reader must never hold it -- a chunk-browser poll holding the lock
     # made listings report "building". _rows is mtime-keyed, so a read racing an atomic replace
     # is re-read on the next call.
     path = kb_dir() / stem / "embeddings.jsonl"

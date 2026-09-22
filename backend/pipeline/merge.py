@@ -1,8 +1,8 @@
-"""Merge two independent extraction runs of the same section into one answer (v133).
+"""Merge two independent extraction runs of the same section into one answer.
 
-v129 (docs/acrylic/evidence/v129.md) scored the offline rules over 89 stems x 2 rerun answers:
-per-field union for fresh runs (R2), the stored answer as a third majority vote when a
-pipeline-generated `extractions/<section>.json` exists (R5), and an exact skip trigger -- run1
+The rules were scored offline over 89 stems x 2 rerun answers (docs/acrylic/evidence/v129.md):
+per-field union for fresh runs, the stored answer as a third majority vote when a
+pipeline-generated `extractions/<section>.json` exists, and an exact skip trigger -- run1
 value-identical to stored field by field makes the second run provably a no-op under the majority
 merge. Wired into app.py's /extract behind `EXTRACT_MERGE_RUNS=off|union|majority` (default off:
 the route is byte-identical); the two raw runs land in `extractions/<section>.run<n>.json` beside
@@ -12,26 +12,25 @@ Pure functions: no model calls, no disk. Labels never enter a rule -- the merge 
 run reports (value/confidence/evidence/source) and whether the run's identity check passed; the
 caller recomputes the merged checks with extract's own checker (`recheck`), which is the one part
 that needs the schema and the page texts. Parameter notes: a value "matches" another within +/-2
-absolute (the work order's band; eval/run.py's relative values_match is for scoring, not a rule
-input). When the two runs' identity checks agree, agreeing values are one answer (the copy choice
-goes to confidence, a confidence tie to run2), and a *conflict* has no signal to side with: v145
-measured the tie-conflicts in the v129/v136/v141 datasets at run1 right 1 -- academedia 12103 --
-vs run2 right 2 -- net_insight 39415/8305 -- and the v145-b ruling folded the higher-confidence
-branch in after it scored 0/4 on the same datasets' conflicts, so any same-check-state conflict
-publishes null (v129 R3's spirit: never publish a coin flip) where v133 had pinned run2.
+absolute (eval/run.py's relative values_match is for scoring, not a rule input). When the two
+runs' identity checks agree, agreeing values are one answer (the copy choice goes to confidence, a
+confidence tie to run2), and a *conflict* has no signal to side with: the measured tie-conflicts
+were run1 right 1 -- academedia 12103 -- vs run2 right 2 -- net_insight 39415/8305 -- and siding
+with the higher-confidence branch instead scored 0/4 on the same conflicts. So any same-check-state
+conflict publishes null: never publish a coin flip.
 
-v168 (docs/acrylic/evidence/v168.md, the gpt6 P0-4 ruling): before values are compared, a vote
-must be the same *financial question*. `_same` compared bare numbers, so two answers printed on
-different unit scales (100 MSEK vs 100 TSEK) or different year columns vouched for each other,
-and the stored third vote counted even when it had been read on another fiscal year or maturity
-basis (re-running after a carrying/undiscounted switch). Field agreement now also compares
-unit/period whenever both sides carry them -- units by currency + magnitude, so MSEK, "SEK m" and
+Before values are compared, a vote must be the same *financial question*
+(docs/acrylic/evidence/v168.md). Comparing bare numbers let two answers printed on different unit
+scales (100 MSEK vs 100 TSEK) or different year columns vouch for each other, and let the stored
+third vote count even when it had been read on another fiscal year or maturity basis (re-running
+after a carrying/undiscounted switch). Field agreement therefore also compares unit/period
+whenever both sides carry them -- units by currency + magnitude, so MSEK, "SEK m" and
 "SEK million" stay one answer while KSEK and TSEK do not (a unit known on one side only is not
 proof of sameness either); the stored vote must match run1 on report, section, fiscal_year and
 maturity_basis, and one missing that metadata sits out with the reason recorded in the merge
 block ("not eligible: ..."). run1's `prior_year`/`buckets_by_year` attachments are deterministic
 reads of run1's own rows: they ride along only while every field they cover still carries run1's
-answer -- another run's copy of that same answer counts (v145's agreeing ties flip no verdict) --
+answer -- another run's copy of that same answer counts (agreeing ties flip no verdict) --
 and are dropped with a warning once it does not.
 """
 import copy
@@ -60,7 +59,7 @@ def _same(a, b) -> bool:
     return abs(a - b) <= TIE_BAND
 
 
-# v168: unit scales -- the word forms first, then the bare-letter prefix (MSEK/KSEK/TSEK put the
+# Unit scales -- the word forms first, then the bare-letter prefix (MSEK/KSEK/TSEK put the
 # magnitude first, "SEK m" carries it as its own word), then "SEKm"-style suffixes glued onto a
 # known currency, then the thousands notation many reports print ("SEK '000").
 _SCALE_WORDS = (("billion", "bn"), ("billions", "bn"), ("million", "m"), ("millions", "m"),
@@ -170,12 +169,12 @@ def _pick(a: dict, b: dict, ia, ib) -> tuple[dict, str, str, str | None]:
     synthesized null whose reason already carries the wording. The run whose identity check passed
     wins. With the same check state, agreeing values (+/-2) are one answer -- both sides carry the
     same verdict on every agreeing instance measured -- so the copy choice goes to confidence, a
-    confidence tie to run2. A same-state conflict is normally signal-free (v145's measured split:
+    confidence tie to run2. A same-state conflict is normally signal-free (measured split:
     run1 right 1 -- academedia 12103 -- vs run2 right 2 -- net_insight 39415/8305 -- both wrong 0;
-    v145-b folded the higher-confidence branch in after it scored 0/4 on the same datasets'
-    conflicts), except when exactly one total carries extract.py's independent `bs_tie` evidence;
-    that field wins. Otherwise v145-b's null rule keeps the conflict in extract()'s own
-    dropped-field shape. v168: agree vs conflict is a same-financial-question comparison
+    siding with the higher-confidence branch instead scored 0/4 on the same conflicts), except
+    when exactly one total carries extract.py's independent `bs_tie` evidence; that field wins.
+    Otherwise the null rule keeps the conflict in extract()'s own dropped-field shape.
+    Agree vs conflict is a same-financial-question comparison
     (`_same_field`) -- two answers printed on different unit scales or year columns are a conflict
     even when the bare numbers match."""
     kind = "agree" if _same_field(a, b) else "conflict"
@@ -198,7 +197,7 @@ def _pick(a: dict, b: dict, ia, ib) -> tuple[dict, str, str, str | None]:
 
 
 def _union(a: dict, b: dict, ia, ib) -> tuple[dict, str]:
-    """v129 R2 per field with v145-b's conflict rule: the non-null side wins; two answers go to the
+    """Union per field: the non-null side wins; two answers go to the
     check, then -- only if the values agree within the band -- to confidence and the run2 tie; a
     conflict publishes null. Whether they agree within the band or conflict changes which branch
     decides, and the recorded reason names it."""
@@ -213,13 +212,13 @@ def _union(a: dict, b: dict, ia, ib) -> tuple[dict, str]:
 
 
 def _majority(a: dict, b: dict, s: dict, ia, ib) -> tuple[dict, str]:
-    """v129 R5 per field: the three votes {run1, run2, stored} decide by value (null votes as
+    """Majority per field: the three votes {run1, run2, stored} decide by value (null votes as
     null), >=2 votes win, and the field comes from the winning value's own run -- run1 before
     run2 before stored. Three mutually distinct answers fall back to union over the two fresh
     runs: the stored answer may not smuggle in a value no fresh run supports. By construction the
     fallback only ever sees agreeing runs when both are null -- two agreeing values are already a
     2-vote majority -- so with both runs non-null it decides on the check state or, same state,
-    publishes null (v145-b). v168: agreement is `_same_field`'s -- two votes on the same bare
+    publishes null. Agreement is `_same_field`'s -- two votes on the same bare
     number but different unit scales or periods are different answers, not a majority."""
     votes = {"run1": a, "run2": b, "stored": s}
     for name in votes:
@@ -251,7 +250,7 @@ def merge_runs(run1: dict, run2: dict, stored: dict | None, mode: str) -> tuple[
         raise ValueError(f"merge mode must be union|majority, not {mode!r}")
     majority = mode == "majority" and stored is not None
     stored_note = None
-    if majority:  # v168: an old answer on a different financial question does not vote
+    if majority:  # an old answer on a different financial question does not vote
         stored_note = stored_ineligible(run1, stored)
         if stored_note:
             stored, majority = None, False
@@ -275,14 +274,14 @@ def merge_runs(run1: dict, run2: dict, stored: dict | None, mode: str) -> tuple[
     merged["warnings"] = [f"run1: {w}" for w in run1.get("warnings", [])] \
         + [f"run2: {w}" for w in run2.get("warnings", [])] \
         + [f"merge: {mode}, per-field: " + ", ".join(f"{k}={decisions[k]}" for k in decisions)]
-    by_key = {f["key"]: f for f in fields}  # v168: these attachments are deterministic reads of
+    by_key = {f["key"]: f for f in fields}  # these attachments are deterministic reads of
     r1f = {f["key"]: f for f in run1["fields"]}  # run1's own rows and gate on run1's own values --
     for extra, gate in (("prior_year", None), ("buckets_by_year", ("total_debt",))):  # they stay while
         if extra not in merged:                                                       # every covered field
             continue                                                                  # still carries run1's
         keys = gate if gate is not None else [k for k in merged[extra] if k in by_key]  # answer (another
         off = [k for k in keys if not (k in by_key and k in r1f                       # run's copy of that same
-                                       and _same_field(by_key[k], r1f[k]))]           # answer counts; v145's
+                                       and _same_field(by_key[k], r1f[k]))]           # answer counts;
         if off:                                                                       # agreeing ties flip no
             merged.pop(extra)                                                         # verdict) -- and go once
             merged["warnings"].append(f"merge: {extra} dropped -- {'/'.join(off)} is no longer run1's answer")
@@ -293,11 +292,11 @@ def merge_runs(run1: dict, run2: dict, stored: dict | None, mode: str) -> tuple[
 
 
 def matches_stored(run1: dict, stored: dict) -> bool:
-    """v129 R5's exact skip trigger: run1 is value-identical to the stored answer on every one of
-    run1's fields (+/-2, null == null; v168: unit/period compared too whenever both sides carry
+    """The exact skip trigger: run1 is value-identical to the stored answer on every one of
+    run1's fields (+/-2, null == null; unit/period compared too whenever both sides carry
     them). Under the majority merge every field then already has two agreeing votes or two nulls,
     so the second run is provably a no-op and the call buys nothing. Fresh runs have no stored
-    answer and always pay both. v168: an answer from another financial question never skips the
+    answer and always pay both. An answer from another financial question never skips the
     second run -- a stored record on a different report, section, fiscal_year or maturity_basis,
     or one missing that metadata, is ineligible (`stored_ineligible`) and reads False here."""
     if stored_ineligible(run1, stored):

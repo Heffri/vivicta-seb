@@ -1,4 +1,4 @@
-"""Self-check for path resolution (v030: dev tree vs. PyInstaller onedir). Run: python -m pipeline.test_paths"""
+"""Self-check for path resolution: dev tree vs. PyInstaller onedir. Run: python -m pipeline.test_paths"""
 import os
 import sys
 import tempfile
@@ -24,7 +24,7 @@ def demo():
     repo = backend.parent
     saved = _clear("ARP_DATA_DIR", "KB_DIR", "TESSDATA_PREFIX")
     try:
-        # dev tree, no env overrides: matches the pre-v030 hardcoded HERE-relative paths byte for byte
+        # dev tree, no env overrides: every default, spelled out
         assert not getattr(sys, "frozen", False)
         assert paths.resource_dir() == backend, paths.resource_dir()
         assert paths.schemas_dir() == backend / "schemas", paths.schemas_dir()
@@ -77,7 +77,7 @@ def demo():
                     (data_tessdata / f"{language}.traineddata").write_bytes(b"test")
                 os.environ["ARP_DATA_DIR"] = str(custom)
                 assert paths.data_dir() == custom.resolve()  # still overridable when frozen
-                # w209: an empty/missing package resource must fall through to the writable data
+                # An empty/missing package resource must fall through to the writable data
                 # copy. The desktop shell used to point TESSDATA_PREFIX at that empty package path,
                 # hiding complete language files already installed under userData/data/tessdata.
                 assert paths.tessdata_dir() == data_tessdata.resolve()

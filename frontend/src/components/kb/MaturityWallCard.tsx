@@ -49,7 +49,7 @@ const hbarPath = (x: number, y: number, w: number, h: number) => {
   return `M${x} ${y} h${w - r} q${r} 0 ${r} ${r} v${h - 2 * r} q0 ${r} -${r} ${r} h${-(w - r)} Z`
 }
 
-/** v180 (consult-fable #2): the KB page's "Maturity wall" card, beside the collection switch.
+/** The KB page's "Maturity wall" card, beside the collection switch.
  *  The sector view of GET /api/kb/maturity-wall — one bar per company (due_within_1_year /
  *  total_debt), grouped by sector, honest about buckets that do not reconcile (grey, labelled)
  *  and totals never read ("not read"). Nothing is inferred; a missing bucket is never a 0.

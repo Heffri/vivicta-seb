@@ -1,8 +1,11 @@
 # Historical report discovery: merge handoff
 
+> Historical record of completed work, written 2026-09-22. The branch described below has since
+> been merged into `main`; this is the audit trail for that merge, not a description of current state.
+
 Branch: `codex/historical-report-discovery-fixes`
 
-Base: `abf5355` from main. This branch contains the local follow-up fixes described below. Earlier Ask evidence formatting, keyword/number highlighting, and annotated PDF downloads are already in the base. Publishing this branch does not merge or push main.
+Base: `abf5355` from main. This branch contains the local follow-up fixes described below. Earlier Ask evidence formatting, keyword/number highlighting, and annotated PDF downloads are already in the base. This branch has since been merged into `main`.
 
 ## Changes included
 

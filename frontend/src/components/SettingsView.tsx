@@ -22,10 +22,10 @@ const DEFAULT_CONFIG: DesktopConfig = {
   codexModel: 'gpt-5.6-terra',
   claudeModel: 'claude-sonnet-5',
   extractTwoPass: true, // matches desktop/settings.js's own DEFAULTS -- see its comment for why
-  maturityBasis: 'carrying', // v089, same -- the backend's own default since v028
-  mergeRuns: 'off', // v140, same -- v133's EXTRACT_MERGE_RUNS default off (the single-run route)
-  secondPass: false, // w212, same -- w197's bounded retry default off; the UI default follows the w211 ruling
-  theme: 'solid', // v100, same -- desktop/settings.js's own DEFAULTS; never reaches the backend
+  maturityBasis: 'carrying', // same -- the backend's own default
+  mergeRuns: 'off', // same -- EXTRACT_MERGE_RUNS default off (the single-run route)
+  secondPass: false, // same -- the bounded retry defaults off
+  theme: 'solid', // same -- desktop/settings.js's own DEFAULTS; never reaches the backend
 }
 
 // Ollama has no toggle for this (see the Local (Ollama) card below) and desktop/settings.js's
@@ -58,7 +58,7 @@ function TextField({ caption, ...props }: { caption: string } & InputHTMLAttribu
 }
 
 // `twoPass` is left undefined by ReadOnlySettings (the plain-browser mirror): GET /api/config never
-// carries this field (v047 work order -- backend stays untouched), so that view has no source of
+// carries this field, so that view has no source of
 // truth for it at all and shows nothing rather than guess. DesktopSettings passes its own
 // last-saved config.json value instead, which is where this actually lives.
 function StatusRow({ status, error, twoPass }: { status: Config | null; error: string | null; twoPass?: boolean }) {
@@ -75,8 +75,8 @@ function StatusRow({ status, error, twoPass }: { status: Config | null; error: s
               model <span className="text-foreground">{status.model}</span>
             </span>
             {status.retrieval === 'bm25' ? (
-              // bm25 state (v034: codex/claude, no base URL) embeds nothing, so the strip names the
-              // retrieval mode instead of an embed model that is not in use (v056); hybrid keeps the
+              // bm25 state (codex/claude with no base URL) embeds nothing, so the strip names the
+              // retrieval mode instead of an embed model that is not in use; hybrid keeps the
               // embed model name, fixture mode unchanged.
               <span className="text-muted-foreground">
                 retrieval <span className="text-foreground">BM25</span>
@@ -92,7 +92,7 @@ function StatusRow({ status, error, twoPass }: { status: Config | null; error: s
               </span>
             )}
             {status.maturity_basis && (
-              // v089: /api/config carries the backend's live DEBT_BASIS, so unlike two-pass (which
+              // /api/config carries the backend's live DEBT_BASIS, so unlike two-pass (which
               // lives only in the desktop's config.json) this segment renders in the plain-browser
               // mirror too -- "Running now" showing what the backend would actually read.
               <span className="text-muted-foreground">
@@ -100,7 +100,7 @@ function StatusRow({ status, error, twoPass }: { status: Config | null; error: s
               </span>
             )}
             {status.merge_runs && (
-              // v140: same deal as basis -- the merge mode lives in the backend's env (the desktop
+              // Same deal as basis -- the merge mode lives in the backend's env (the desktop
               // passes EXTRACT_MERGE_RUNS on Save), and /api/config echoes the live value, so this
               // shows what the backend would actually run with, browser mirror included.
               <span className="text-muted-foreground">
@@ -108,7 +108,7 @@ function StatusRow({ status, error, twoPass }: { status: Config | null; error: s
               </span>
             )}
             {status.second_pass !== undefined && (
-              // w212: the deep-search switch is the same deal as merge -- /api/config echoes the
+              // The deep-search switch is the same deal as merge -- /api/config echoes the
               // live EXTRACT_SECOND_PASS, so the strip shows what the backend would run with
               // (browser mirror included). `!== undefined`, not truthiness: a plain false is the
               // normal off state and must still render.
@@ -117,7 +117,7 @@ function StatusRow({ status, error, twoPass }: { status: Config | null; error: s
               </span>
             )}
             {status.scan_all !== undefined && (
-              // w212: m02's offline full-report scan, echoed for confirmation only (DEMO.md's
+              // The offline full-report scan, echoed for confirmation only (docs/DEMO.md's
               // checklist) -- it has no Settings control by design, so off is its expected state.
               <span className="text-muted-foreground">
                 scan all <span className="text-foreground">{status.scan_all ? 'on' : 'off'}</span>
@@ -152,9 +152,9 @@ function TestOutcome({ result }: { result: TestConnectionResult }) {
   )
 }
 
-// v047: same checkbox styling as ProviderCard.tsx's own radio (`accent-ring`, `size-4`) -- shown on
-// the Codex/Claude/API-endpoint cards only (Ollama has no two-pass evidence to recommend it, Local
-// (Ollama) card below never renders this; fixture mode makes no model call at all).
+// Same checkbox styling as ProviderCard.tsx's own radio (`accent-ring`, `size-4`). Rendered on the
+// Extraction page for Codex/Claude/API-endpoint only: Ollama has no two-pass evidence to recommend
+// it, and fixture mode makes no model call at all.
 function TwoPassToggle({ checked, onChange }: { checked: boolean; onChange: (value: boolean) => void }) {
   return (
     <label className="flex cursor-pointer items-start gap-2 text-xs">
@@ -166,11 +166,10 @@ function TwoPassToggle({ checked, onChange }: { checked: boolean; onChange: (val
   )
 }
 
-// v089: which maturity table the debt_maturity section reads — the borrowings note's carrying
-// amounts (the backend's default since v028, total ties to the balance sheet) or the liquidity
-// note's contractual undiscounted cash flows (future interest included, higher total). Unlike
-// TwoPassToggle this is model-independent, so every provider card carries it, Ollama included.
-// Same Select as the model picker above.
+// Which maturity table the debt_maturity section reads — the borrowings note's carrying amounts
+// (the backend's default, total ties to the balance sheet) or the liquidity note's contractual
+// undiscounted cash flows (future interest included, higher total). Unlike TwoPassToggle this is
+// model-independent, so it renders on the Extraction page for every provider, Ollama included.
 function MaturityBasisSelect({
   value,
   onChange,
@@ -206,11 +205,10 @@ function MaturityBasisSelect({
   )
 }
 
-// v140: v133's second-run merge (`EXTRACT_MERGE_RUNS=off|union|majority`, default off) as a user
-// option. Model-independent like MaturityBasisSelect, but rendered ONCE in the panel instead of
-// per provider card (basis repeats inside every card; this sits beside that block as one control,
-// since the choice has nothing to do with which provider is picked -- every non-fixture provider
-// passes it through, Ollama included). Same Segmented primitive as Results' PDF/Image toggle.
+// The second-run merge (`EXTRACT_MERGE_RUNS=off|union|majority`, default off) as a user option.
+// Model-independent like MaturityBasisSelect -- the choice has nothing to do with which provider
+// is picked, and every non-fixture provider passes it through, Ollama included. Same Segmented
+// primitive as Results' PDF/Image toggle.
 function MergeRunsControl({ value, onChange }: { value: DesktopConfig['mergeRuns']; onChange: (value: DesktopConfig['mergeRuns']) => void }) {
   return (
     <Card size="sm">
@@ -236,11 +234,10 @@ function MergeRunsControl({ value, onChange }: { value: DesktopConfig['mergeRuns
   )
 }
 
-// w212: w197's bounded second pass + w198's full-text sweep (EXTRACT_SECOND_PASS) as a user
-// option, modeled on MergeRunsControl (same card, same Segmented primitive, default off per
-// w197's measurement -- the UI default follows the w211 ruling if that lane lands one).
-// Model-independent like the merge: the retry rides the same fixed_pages seam as the analyst
-// fill, so every non-fixture provider passes it through, Ollama included.
+// The bounded second pass + full-text sweep (EXTRACT_SECOND_PASS) as a user option, modeled on
+// MergeRunsControl (same card, same Segmented primitive, default off). Model-independent like the
+// merge: the retry rides the same fixed_pages seam as the analyst fill, so every non-fixture
+// provider passes it through, Ollama included.
 function DeepSearchControl({ value, onChange }: { value: boolean; onChange: (value: boolean) => void }) {
   return (
     <Card size="sm">
@@ -265,12 +262,11 @@ function DeepSearchControl({ value, onChange }: { value: boolean; onChange: (val
   )
 }
 
-// v100: the owner's either/or between the app's two visual languages — Solid (default: the
-// 09-18 opaque surfaces, pixel-identical to before this control existed) and Acrylic (the
-// v001–v006b glass: wallpaper glow + backdrop blur in the browser, real Windows acrylic in the
-// desktop app). Rendered outside every provider card in *both* settings variants: in a plain
-// browser tab localStorage is the whole persistence, the desktop additionally writes config.json
-// and flips the live window material through window.arp.setTheme (main.tsx).
+// The either/or between the app's two visual languages — Solid (default: opaque surfaces) and
+// Acrylic (glass: wallpaper glow + backdrop blur in the browser, real Windows acrylic in the
+// desktop app). Rendered on the Appearance page in *both* settings variants: in a plain browser
+// tab localStorage is the whole persistence, the desktop additionally writes config.json and
+// flips the live window material through window.arp.setTheme (main.tsx).
 function ThemeSelect({ onThemeChange }: { onThemeChange?: (theme: DesktopConfig['theme']) => void }) {
   const [theme, setTheme] = useState<DesktopConfig['theme']>(() =>
     localStorage.getItem('arp-theme') === 'acrylic' ? 'acrylic' : 'solid',
@@ -341,9 +337,9 @@ function ThemeSelect({ onThemeChange }: { onThemeChange?: (theme: DesktopConfig[
   )
 }
 
-// Shared by the Codex and Claude cards (v033 owner follow-up added Claude, same shape as Codex): a
-// model dropdown, an optional base URL for embeddings/Ask with an optional key for it, and a status
-// badge from the CLI-specific *Status() check. `info` is whatever that check last returned.
+// Shared by the Codex and Claude cards: a model dropdown, an optional base URL for embeddings/Ask
+// with an optional key for it, and a status badge from the CLI-specific *Status() check. `info` is
+// whatever that check last returned.
 function SubscriptionCliFields({
   cliName,
   modelOptions,
@@ -432,9 +428,9 @@ function ReadOnlySettings() {
 
 // The only place that checks for window.arp — everything below takes `api` as a given, so there's
 // no repeated optional-chaining (or a dead "not desktop" branch inside effects/handlers that only
-// ever mount when it's already known to exist). `onConfigChange` (v065) forwards the post-save
-// config to App so its StatusBar stops lagging behind a save until relaunch (v061 §6-5) — the same
-// fresh payload this view's own strip gets in DesktopSettings.save().
+// ever mount when it's already known to exist). `onConfigChange` forwards the post-save config to
+// App so its StatusBar stops lagging behind a save until relaunch — the same fresh payload this
+// view's own strip gets in DesktopSettings.save().
 export function SettingsView({ onConfigChange }: { onConfigChange?: (config: Config) => void }) {
   const api = typeof window !== 'undefined' ? window.arp?.settings : undefined
   return api ? <DesktopSettings api={api} onConfigChange={onConfigChange} /> : <ReadOnlySettings />
@@ -467,7 +463,7 @@ function DesktopSettings({ api, onConfigChange }: { api: ArpSettingsApi; onConfi
       .then((c) => {
         setStatus(c)
         setStatusError(null)
-        return c // v065: save()'s no-config branch forwards this same payload up to App
+        return c // save()'s no-config branch forwards this same payload up to App
       })
       .catch((e: Error) => {
         setStatus(null)
@@ -526,8 +522,8 @@ function DesktopSettings({ api, onConfigChange }: { api: ArpSettingsApi; onConfi
     if (res.ok) {
       setSaved(true)
       setTwoPassStatus(effectiveTwoPass(form))
-      // v065: App's StatusBar keeps the mount-time config until relaunch (v061 §6-5), so forward the
-      // post-restart payload up the same way this strip gets it -- res.config when the shell resolved
+      // App's StatusBar keeps the mount-time config until relaunch, so forward the post-restart
+      // payload up the same way this strip gets it -- res.config when the shell resolved
       // it (desktop/main.js's nicety fetch; its failure path still resolves { ok: true } without a
       // config), a fresh /api/config fetch otherwise. Success only: the failure branch's
       // refreshStatus() below must leave App's footer showing whatever was live before the save.

@@ -20,8 +20,7 @@ no worse than what the seed stored. Both cases keep the stored warnings (with th
 any user-profile path masked -- a stored provider-error warning can quote a whole failed command
 line) and append one "published: ..." line naming the seed and how the entry was produced. The
 extract.py hash is the sha256 of the file that produced the replay -- not HEAD -- so a re-run from
-a moved HEAD with unchanged extract.py still writes byte-identical files (idempotency; seeds 9/10
-will re-run this).
+a moved HEAD with unchanged extract.py still writes byte-identical files (idempotent).
 
 Not copied: PDFs (gitignored), embeddings.jsonl (derived). An existing data/kb/<stem> whose
 meta.json sha256 differs from the seed's is skipped and listed, never overwritten.
@@ -120,7 +119,7 @@ def compare_fields(stored: dict, replayed: dict) -> tuple[list[str], list[str]]:
     for key, s in sf.items():
         r = rf.get(key) or {}
         sv, rv = s.get("value"), r.get("value")
-        sc = min(s.get("confidence") or 0.0, 1.0)  # a stored >1.0 is a scoring bug (fixed after v097), never a real edge
+        sc = min(s.get("confidence") or 0.0, 1.0)  # a stored >1.0 is a scoring bug, never a real edge
         rc = r.get("confidence") or 0.0
         if sv is not None and rv is None:
             worse.append(f"{key}: value {sv!r} -> null")
@@ -154,7 +153,7 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="decide and print, write nothing")
     ap.add_argument("--accept-loss", default="",
                     help="comma-separated stems whose replay is published even where it drops a stored value: a guard "
-                         "(e.g. v103's wrong-table refusal) that nulls a value proven wrong is the honest state, not a loss")
+                         "(e.g. a wrong-table refusal) that nulls a value proven wrong is the honest state, not a loss")
     a = ap.parse_args()
     a.section = a.section or ["debt_maturity"]
     accept_loss = {x.strip() for x in a.accept_loss.split(",") if x.strip()}

@@ -64,11 +64,11 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
   const [brokenPage, setBrokenPage] = useState<number | null>(null)
   const [askPage, setAskPage] = useState<number | null>(initialPage ?? null) // citation chip override; a row click clears it
   // Keep the last evidence page visible when the analyst switches from a sourced field to an
-  // empty one. That is the deliberate source-panel handoff for a controlled v177 fill.
+  // empty one. That is the deliberate source-panel handoff for a controlled single-field fill.
   const [viewedPage, setViewedPage] = useState<number | null>(() => initialPage ?? fields.find((field) => field.source)?.source?.page ?? null)
   const [viewer, setViewerState] = useState<Viewer>(loadViewer)
-  const [priorYear, setPriorYear] = useState(false) // v091: mirrors MaturityChart's "Show prior year" switch so Export PPTX requests the second series
-  const [perYear, setPerYear] = useState(false) // v109: mirrors "Per year" the same way (?per_year=1)
+  const [priorYear, setPriorYear] = useState(false) // mirrors MaturityChart's "Show prior year" switch so Export PPTX requests the second series
+  const [perYear, setPerYear] = useState(false) // mirrors "Per year" the same way (?per_year=1)
   const [reviewCitation, setReviewCitation] = useState({ page: '', quote: '' })
   const [fillResult, setFillResult] = useState<(FieldFill & { fieldKey: string }) | null>(null)
   const [fillingField, setFillingField] = useState(false)
@@ -121,7 +121,7 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
       setFillingField(false)
     }
   }
-  // v179: a component citation may sit on a page the field's own source doesn't — reuses the same
+  // A component citation may sit on a page the field's own source doesn't — reuses the same
   // askPage override an Ask citation chip sets, so Source shows that page instead of the field's own.
   const openComponentPage = (key: string, page: number) => {
     setSelectedKey(key)

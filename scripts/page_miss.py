@@ -20,8 +20,8 @@ returned matches the label, but the cited page is not the label page), the scrip
 Buckets (precedence top-down, so each row lands in exactly one):
 
     N  expected_value is "null" and the pipeline answers null: the value is correctly ABSENT, so no
-       citation exists. Inert since the v132-b convention (eval's page_match leaves null/null rows
-       unscored), kept so the bucket survives if that convention is ever revisited.
+       citation exists. Inert while eval's page_match leaves null/null rows unscored, kept so the
+       bucket survives if that convention is ever revisited.
     A  the same number is printed on BOTH the pipeline page and the label page: two pages carry it,
        the label took the other one (labelling scope, not a wrong citation).
     B  the pipeline page does not print the number anywhere. Either a by-design derivation

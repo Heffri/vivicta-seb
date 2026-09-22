@@ -98,7 +98,7 @@ def field_for(extraction: dict[str, Any] | None, key: str) -> dict[str, Any] | N
 
 
 def value_printed(value: Any, text: str) -> bool | None:
-    """Use the extractor's numeric matcher, as v132's page-miss analysis does."""
+    """Use the extractor's numeric matcher, as scripts/page_miss.py does."""
     # Keeping this import local means --help and a missing stored KB need no pipeline import work.
     from pipeline import extract as cur
 
@@ -137,7 +137,7 @@ def relevant_warnings(extraction: dict[str, Any] | None, key: str) -> list[str]:
 
 
 def likely_writer(warnings: list[str]) -> str:
-    """The same warning vocabulary mapping used by scripts/page_miss.py (v132)."""
+    """The same warning vocabulary mapping used by scripts/page_miss.py."""
     joined = " | ".join(warnings)
     for needle, name in (
         ("section subtotals on page", "_subtotal_pair_fill"),
@@ -221,14 +221,14 @@ def citation_reason(expected: Any, label_page: int | None, got_page: int | None,
     on_label = value_printed(expected, label_text)
     on_source = value_printed(expected, source_text)
     if on_label and on_source:
-        return "label scope: value is printed on both pages (v132 A)"
+        return "label scope: value is printed on both pages"
     if not on_source and evidence & BY_DESIGN:
-        return "derived/translated citation: value is not printed on source page (v132 B by-design)"
+        return "derived/translated citation: value is not printed on source page (by design)"
     if not on_source:
-        return "citation defect candidate: value is absent from source page (v132 B)"
+        return "citation defect candidate: value is absent from source page"
     if label_page is not None and got_page is not None and abs(label_page - got_page) == 1:
-        return "adjacent table continuation/off-by-one candidate (v132 C)"
-    return "other page difference; inspect page semantics (v132 D)"
+        return "adjacent table continuation/off-by-one candidate"
+    return "other page difference; inspect page semantics"
 
 
 def classify(row: dict[str, Any], field: dict[str, Any] | None, pages: dict[int, str],
@@ -349,7 +349,7 @@ def render(rows: list[dict[str, Any]], kb_dir: Path, selected_sections: list[str
     lines += ["", "## Miss buckets", "",
               "A = stored null / not read; B = value mismatch; C = value right, page wrong; D = label candidate (expected value absent from stored text).",
               "",
-              "| bucket | rows | companies | companies |",
+              "| bucket | rows | companies | company list |",
               "| --- | ---: | ---: | --- |"]
     for bucket in "ABCD":
         names = sorted({stem(row["report_file"]) for row in by_bucket[bucket]})

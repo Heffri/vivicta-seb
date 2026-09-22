@@ -1,7 +1,7 @@
 'use strict'
 // Desktop settings: <userData>/config.json <-> the backend's LLM_* env vars (backend/pipeline/llm.py,
-// backend/.env.example). Kept separate from main.js so the translation table (the one piece a teammate
-// changing model defaults would touch) isn't buried in process-management code.
+// backend/.env.example). Kept separate from main.js so the translation table isn't buried in
+// process-management code.
 const fs = require('node:fs')
 const path = require('node:path')
 
@@ -17,34 +17,33 @@ const DEFAULTS = {
   embedModel: '',
   codexModel: CODEX_MODELS[0],
   claudeModel: CLAUDE_MODELS[0],
-  // v045's own "for the group" recommendation (docs/acrylic/evidence/v045.md): net positive on a
-  // 30-company debt_maturity before/after against Codex -- default on for the three hosted-model
-  // cards (Codex, Claude, API endpoint). Never run against a local model, so irrelevant for Ollama,
-  // which envForConfig's 'ollama' case below always forces off regardless of this default.
+  // Measured net positive on a 30-company debt_maturity before/after against Codex
+  // (docs/acrylic/evidence/v045.md), so it defaults on for the three hosted-model cards (Codex,
+  // Claude, API endpoint). It was never measured against a local model, so envForConfig's 'ollama'
+  // case below forces it off regardless of this default.
   extractTwoPass: true,
-  // v089: which maturity table debt_maturity reads -- the borrowings note's carrying amounts
-  // (backend default since v028) or the liquidity note's contractual undiscounted cash flows.
-  // Unlike two-pass this is model-independent, so every provider card carries the control and
-  // every non-fixture provider passes DEBT_BASIS through (backend/pipeline/extract.py's debt_basis()).
+  // Which maturity table debt_maturity reads -- the borrowings note's carrying amounts (the
+  // backend default) or the liquidity note's contractual undiscounted cash flows. Unlike two-pass
+  // this is model-independent, so every provider card carries the control and every non-fixture
+  // provider passes DEBT_BASIS through (backend/pipeline/extract.py's debt_basis()).
   maturityBasis: 'carrying',
-  // v140: v133's EXTRACT_MERGE_RUNS second-run merge (off|union|majority; backend/pipeline/merge.py).
-  // Like maturityBasis this is model-independent -- every non-fixture provider passes it through,
-  // Ollama included. Cost note for the copy in SettingsView: 'union' means every extraction costs
-  // TWO model calls (the second run and the per-field merge); 'majority' additionally counts the
-  // saved extraction and skips the second run entirely when the first matches it; 'off' (default)
-  // is the byte-identical single-run route.
+  // EXTRACT_MERGE_RUNS, the second-run merge (off|union|majority; backend/pipeline/merge.py).
+  // Model-independent like maturityBasis, so every non-fixture provider passes it through, Ollama
+  // included. Cost, which SettingsView's copy repeats: 'union' makes every extraction cost TWO
+  // model calls (the second run and the per-field merge); 'majority' additionally counts the saved
+  // extraction and skips the second run entirely when the first matches it; 'off' (the default) is
+  // the single-run route.
   mergeRuns: 'off',
-  // w212: w197's bounded second pass (EXTRACT_SECOND_PASS) + w198's full-text sweep as a user
-  // option ("Deep search for missing figures"). Default off: w197's live measurement did not
-  // justify an always-on cost (docs/acrylic/evidence/w197.md) -- the same call as two-pass and
-  // merge-runs. Unlike two-pass there is no hosted-only caveat: the retry rides the same
-  // fixed_pages seam as the analyst fill, so every non-fixture provider passes it through,
-  // Ollama included.
+  // EXTRACT_SECOND_PASS: a bounded second pass plus a full-text sweep, exposed as "Deep search for
+  // missing figures". Default off because the live measurement did not justify an always-on cost
+  // (docs/acrylic/evidence/w197.md). Unlike two-pass there is no hosted-only caveat: the retry
+  // rides the same fixed_pages seam as the analyst fill, so every non-fixture provider passes it
+  // through, Ollama included.
   secondPass: false,
-  // v100: visual theme for the whole app -- 'solid' (default: the 09-18 opaque surfaces) or
-  // 'acrylic' (the v001-v006b glass + this shell's real Windows material). Like maturityBasis a
-  // plain config key, but unlike it never an env var: main.js reads it when building the window,
-  // the renderer keeps the live choice in localStorage 'arp-theme'. envForConfig ignores it.
+  // Visual theme for the whole app -- 'solid' (the default: opaque surfaces) or 'acrylic' (the
+  // app's glass styling over this shell's real Windows material). A plain config key that is never
+  // an env var: main.js reads it when building the window and the renderer keeps the live choice
+  // in localStorage 'arp-theme'. envForConfig ignores it.
   theme: 'solid',
 }
 
@@ -80,9 +79,9 @@ function loadConfig(userDataDir) {
   }
 }
 
-/** Plaintext by design (owner call, v033 work order): this file is the only place an API key is
- *  ever persisted. Never write `cfg`/`clean` to a log -- envForConfig() below only ever hands the
- *  key to the backend child process's own env, never to backendLogStream. */
+/** Plaintext by design: this file is the only place an API key is ever persisted. Never write
+ *  `cfg`/`clean` to a log -- envForConfig() below only ever hands the key to the backend child
+ *  process's own env, never to backendLogStream. */
 function saveConfig(userDataDir, cfg) {
   const clean = sanitize(cfg)
   fs.mkdirSync(userDataDir, { recursive: true })
@@ -98,16 +97,16 @@ function envForConfig(clean) {
       // Defaults match backend/.env.example's own Ollama block; EMBED_MODEL default also matches
       // kb.embed_model()'s fallback, set explicitly anyway so /api/config always shows the real value.
       // EXTRACT_TWO_PASS is hardcoded off here (not `clean.extractTwoPass`, which this card has no
-      // toggle for and may still hold a stale hosted-provider value) -- v045's evidence never ran
-      // two-pass against a local model, see docs/acrylic/README.md's "Model providers".
+      // toggle for and may still hold a stale hosted-provider value) -- the two-pass measurement
+      // never ran against a local model, see docs/acrylic/README.md's "Model providers".
       return {
         LLM_BASE_URL: clean.baseUrl || 'http://127.0.0.1:11434/v1',
         LLM_MODEL: clean.model || 'qwen3:8b',
         EMBED_MODEL: clean.embedModel || 'bge-m3',
         EXTRACT_TWO_PASS: '0',
-        DEBT_BASIS: clean.maturityBasis, // v089: basis is model-independent -- Ollama passes it through, unlike two-pass
-        EXTRACT_MERGE_RUNS: clean.mergeRuns, // v140: the merge runs are rules over the two answers, not model work -- Ollama passes them through too
-        EXTRACT_SECOND_PASS: clean.secondPass ? '1' : '0', // w212: the bounded retry rides the fixed_pages seam -- Ollama passes it through too
+        DEBT_BASIS: clean.maturityBasis, // basis is model-independent -- Ollama passes it through, unlike two-pass
+        EXTRACT_MERGE_RUNS: clean.mergeRuns, // the merge runs are rules over the two answers, not model work -- Ollama passes them through too
+        EXTRACT_SECOND_PASS: clean.secondPass ? '1' : '0', // the bounded retry rides the fixed_pages seam -- Ollama passes it through too
       }
     case 'openai': {
       const env = { EXTRACT_TWO_PASS: clean.extractTwoPass ? '1' : '0', DEBT_BASIS: clean.maturityBasis, EXTRACT_MERGE_RUNS: clean.mergeRuns, EXTRACT_SECOND_PASS: clean.secondPass ? '1' : '0' }
@@ -120,8 +119,8 @@ function envForConfig(clean) {
     case 'codex': {
       // LLM_BASE_URL is optional here (embeddings/hybrid retrieval only -- backend/app.py gates
       // /extract, /index and /ask on _llm_configured(), true for provider=="codex" with no base URL
-      // at all; since v034 Ask retrieves with pure BM25 without it, hybrid cosine+BM25 with it).
-      // See docs/acrylic/evidence/v033.md, v034.md.
+      // at all; Ask retrieves with pure BM25 without it, hybrid cosine+BM25 with it). See
+      // docs/acrylic/evidence/v033.md and docs/acrylic/evidence/v034.md.
       // An API key here is optional and only ever reaches that same base URL (embeddings/Ask) --
       // never the codex CLI call itself, which authenticates via `codex login`, not an env var.
       const env = { LLM_PROVIDER: 'codex', LLM_MODEL: clean.codexModel, EXTRACT_TWO_PASS: clean.extractTwoPass ? '1' : '0', DEBT_BASIS: clean.maturityBasis, EXTRACT_MERGE_RUNS: clean.mergeRuns, EXTRACT_SECOND_PASS: clean.secondPass ? '1' : '0' }
@@ -133,8 +132,8 @@ function envForConfig(clean) {
     case 'claude': {
       // Mirrors 'codex' exactly -- same optional base-URL-for-embeddings shape, same "API key only
       // ever reaches that base URL, never the CLI call" rule (Claude Code CLI authenticates via
-      // `claude login`/an already-signed-in CLI). LLM_PROVIDER=claude landed in backend/pipeline/llm.py
-      // (v039) while this lane was in flight -- merged in, see docs/acrylic/evidence/v033.md.
+      // `claude login`/an already-signed-in CLI). backend/pipeline/llm.py handles
+      // LLM_PROVIDER=claude; see docs/acrylic/evidence/v033.md.
       const env = { LLM_PROVIDER: 'claude', LLM_MODEL: clean.claudeModel, EXTRACT_TWO_PASS: clean.extractTwoPass ? '1' : '0', DEBT_BASIS: clean.maturityBasis, EXTRACT_MERGE_RUNS: clean.mergeRuns, EXTRACT_SECOND_PASS: clean.secondPass ? '1' : '0' }
       if (clean.baseUrl) env.LLM_BASE_URL = clean.baseUrl
       if (clean.apiKey) env.LLM_API_KEY = clean.apiKey

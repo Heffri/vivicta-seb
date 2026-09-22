@@ -18,7 +18,7 @@ for (const tone of TONES) {
     await expect(extractButton).toHaveText('Extract') // single file: no "N reports" suffix
     await extractButton.click()
 
-    // v171: a finished batch never forces a tab switch (BatchProgress's own "View results" does).
+    // A finished batch never forces a tab switch (BatchProgress's own "View results" does).
     await page.getByRole('main').getByRole('button', { name: /^View results/ }).click({ timeout: 20000 })
     await expect(page.getByRole('heading', { name: 'Nordic Industrials', exact: false })).toBeVisible()
 

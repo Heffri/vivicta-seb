@@ -26,7 +26,7 @@ type CompanySearchProps = {
   canRun: boolean // a section is picked; 'Use this company' runs the extraction straight away
   discovery: Discovery | null // null = nothing searched for this query yet
   discovering: boolean
-  trace: SearchTrace | null // v194: the current/last discover or fetch job's progress trail
+  trace: SearchTrace | null // the current/last discover or fetch job's progress trail
   onQueryChange: (query: string) => void
   onYearChange: (year: string) => void
   onTogglePick: (company: Company) => void
@@ -199,9 +199,9 @@ export function CompanySearch({
       )}
 
       {/* Candidate cards: what the query resolved to. Every identity field is model-reported (or the
-          saved entry's own name); the PDF is only validated once a card is confirmed. v194: the
-          progress trail replaces the old bare "Resolving…" line — it covers discover *and* the fetch
-          that follows confirming a candidate, survives switching tabs away and back, and on failure
+          saved entry's own name); the PDF is only validated once a card is confirmed. The progress
+          trail covers discover *and* the fetch that follows confirming a candidate, survives
+          switching tabs away and back, and on failure
           keeps the trail up with the reason and a Retry (discover only; a failed fetch already has
           its own Retry in BatchProgress, so this one isn't offered there — see SearchTrace.tsx). */}
       {trace && <SearchTracePanel trace={trace} onRetry={trace.kind === 'discover' ? () => onDiscover() : undefined} />}

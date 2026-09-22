@@ -1,10 +1,10 @@
-"""Self-check for AI-first report discovery: the model's own web search and the
-IR-page retrieval that follows when
-a model candidate turns out to be a page instead of a direct PDF. Also v081: the second model ask (only
-after the fourth source and the first IR-page crawl both fail) and the complete-report-over-summary
-ranking. `llm.web_lookup` is faked (a scripted function, no CLI, no network beyond a loopback
-http.server that serves a handful of generated PDFs and static HTML pages), and `_candidates` is
-patched out for the same reason -- this needs no MFN/Nasdaq/DuckDuckGo access and no model call.
+"""Self-check for AI-first report discovery: the model's own web search, the IR-page retrieval that
+follows when a model candidate turns out to be a page instead of a direct PDF, the second model ask
+(only after the fourth source and the first IR-page crawl both fail), and the
+complete-report-over-summary ranking. `llm.web_lookup` is faked (a scripted function, no CLI, no
+network beyond a loopback http.server that serves a handful of generated PDFs and static HTML
+pages), and `_candidates` is patched out for the same reason -- this needs no MFN/Nasdaq/DuckDuckGo
+access and no model call.
 Run: python -m pipeline.test_fetch"""
 import json
 import os
@@ -27,7 +27,7 @@ GOOD_PATH, GONE_PATH = "/nestle-annual-report-2025.pdf", "/deleted.pdf"
 # a name-filtered candidate: BAD_URL drops it before any download, mirroring what the real flow does
 # with the interim/quarterly links a model sometimes proposes alongside the real report
 INTERIM_URL = f"https://ir.example.com/{COMPANY.lower()}-q4-interim-report.pdf"
-# v080: pages the model may hand back instead of a direct PDF link, and the report's own IR-page trail
+# pages the model may hand back instead of a direct PDF link, and the report's own IR-page trail
 IR_PAGE_PATH = "/ir/reports.html"                 # a direct PDF link among an interim one -- filtered
 IR_HOP_INDEX_PATH = "/ir/index.html"               # no PDF link itself, links one hop to IR_HOP_PATH
 IR_HOP_PATH = "/ir/reports-2025.html"
@@ -36,7 +36,7 @@ REVIEW_PATH, FULL_PATH = "/nestle-annual-review-2025.pdf", "/nestle-annual-repor
 # Shell's own shape: BAD_URL's "sustainab" term sits in an *earlier* path segment, not the filename
 SHELL_SHAPE_PATH = "/sustainability/reporting-centre/nestle-annual-report-2025.pdf"
 COUNTER_EXAMPLE_URL = "https://ir.example.com/annual-report/interim-q3.pdf"  # bad filename still wins
-# v081: a page with nothing useful on it (the first IR crawl attempt must genuinely run and fail before
+# a page with nothing useful on it (the first IR crawl attempt must genuinely run and fail before
 # the second ask fires), and two shapes of summary volume -- one flagged by its own filename, one only
 # by its page count (Nestle's real Annual Review: a clean name, just short)
 EMPTY_IR_PAGE_PATH = "/ir/empty.html"
@@ -79,7 +79,7 @@ def _mtg_fy2021_cover_pages():
     """MTG's real FY2021 first three pages (cover / contents / contents), frozen into
     fixtures/mtg_fy2021_cover_pages.jsonl from the pre-rebuild KB entry -- the first three lines of
     `git show 8a0e784~1:data/kb/modern_times_2025/pages.jsonl` byte for byte. That entry was MTG's
-    148-page FY2021 report, the v122 defect; 8a0e784 rebuilt the stem from the real FY2025 document,
+    148-page FY2021 report; 8a0e784 rebuilt the stem from the real FY2025 document,
     so the defect text the anchored year check must refuse no longer exists in data/kb and the
     year-gate tests read it from here (same jsonl shape, same split('\n') rule as _kb_pages)."""
     lines = (FIXTURES / "mtg_fy2021_cover_pages.jsonl").read_text(encoding="utf-8").split("\n")
@@ -117,10 +117,9 @@ def _http_server(directory: Path):
 
 
 class _FakeWebLookup:
-    """Stands in for llm.web_lookup: records its arguments, replays a scripted behaviour. v081's
+    """Stands in for llm.web_lookup: records its arguments, replays a scripted behaviour. The
     second ask uses its own system prompt (IR_PAGE_SYSTEM), so it can be scripted separately via
-    FAKE_WEB_REPLY_IR_PAGE when set; falls back to the same FAKE_WEB_REPLY otherwise, which is what
-    every pre-v081 test still does (it never sets the new env var)."""
+    FAKE_WEB_REPLY_IR_PAGE when set; falls back to the same FAKE_WEB_REPLY otherwise."""
 
     def __init__(self):
         self.calls = []
@@ -175,10 +174,8 @@ def demo():
             good_url, gone_url = _url(base, GOOD_PATH), _url(base, GONE_PATH)
 
             fake = _FakeWebLookup()
-            # v194 fix: this used to store (original, replacement) 2-tuples and the restore loop below
-            # set the attribute back to the whole tuple, not just `original` -- harmless as long as
-            # nothing called fetch.llm.web_lookup/fetch._candidates again in this process after demo()
-            # returned, which held until demo_candidates_events() below started doing exactly that.
+            # store the originals alone: the restore loop at the end puts each attribute straight
+            # back, and demo_candidates_events() below really does call these again after demo().
             patched["web_lookup"] = fetch.llm.web_lookup
             fetch.llm.web_lookup = fake
             patched["_candidates"] = fetch._candidates
@@ -247,7 +244,7 @@ def demo():
             assert len(fake.calls) == 1, "cache hit must not re-search"
 
             # The API finds valid library entries before it calls pipeline.fetch.fetch_report().
-            # That fast path must still settle v194's frontend-generated job_id, or the renderer's
+            # That fast path must still settle the frontend-generated job_id, or the renderer's
             # final job poll receives a 404 even though the cached fetch itself returned 200.
             cached_job_id = "job-fetch-cached-route"
             jobs._jobs.pop(cached_job_id, None)
@@ -386,7 +383,7 @@ def demo():
             assert len(fake.calls) == calls_before + 2, "model discovery precedes feed fallback"
             fetch._candidates = lambda company, year, job_id=None: []  # back to "nothing above the model layer" for 10-12
 
-            # 10. v080 fifth source: the model names the issuer's IR page instead of a direct PDF --
+            # 10. fifth source: the model names the issuer's IR page instead of a direct PDF --
             #     fetch_report crawls it, drops the interim link (no IS_AR match) and registers the
             #     real report link found next to it, with a source-specific note/tag pair
             dest4 = tmp / "reports4"
@@ -397,7 +394,7 @@ def demo():
             assert entry4["note"] == "IR page crawl" and entry4["tags"] == ["fetched", "foreign"], entry4
             assert entry4["tried"] == [ir_page_url, good_url], entry4["tried"]
 
-            # 11. v080: the crawled page links both a shorter and a longer valid report (Nestlé's
+            # 11. the crawled page links both a shorter and a longer valid report (Nestlé's
             #     Annual Review next to its actual Annual Report) -- the fifth source downloads both
             #     within budget and keeps the one with more pages, not just the first one found
             dest5 = tmp / "reports5"
@@ -406,7 +403,7 @@ def demo():
             entry5 = fetch.fetch_report(COMPANY, YEAR, dest5)
             assert entry5["source_url"] == _url(base, FULL_PATH), entry5
 
-            # 12. v080: the IR page itself carries no PDF link but points one hop to a same-domain
+            # 12. the IR page itself carries no PDF link but points one hop to a same-domain
             #     reports page that does -- the crawl follows that single hop and finds it there
             dest6 = tmp / "reports6"
             hop_index_url = _url(base, IR_HOP_INDEX_PATH)
@@ -414,7 +411,7 @@ def demo():
             entry6 = fetch.fetch_report(COMPANY, YEAR, dest6)
             assert entry6["source_url"] == good_url and entry6["note"] == "IR page crawl", entry6
 
-            # 13. v080: a direct link that 404s outright (Shell's expired asset-store URL) leaves no
+            # 13. a direct link that 404s outright (Shell's expired asset-store URL) leaves no
             #     page to crawl -- _host_guesses derives the same IR-path guesses _stub_pages makes,
             #     seeded from the dead URL's own domain, gated on that domain actually naming the company
             toks = fetch._toks(COMPANY)
@@ -422,7 +419,7 @@ def demo():
             assert guesses == [f"https://www.nestle.com{p}" for p in fetch._IR_PATHS], guesses
             assert fetch._host_guesses("https://cdn.example.com/report.pdf", toks) == [], "unrelated domain must not be guessed"
 
-            # 14. v080 follow-up: BAD_URL's "sustainab" term sitting in an *earlier* path segment (Shell's
+            # 14. BAD_URL's "sustainab" term sitting in an *earlier* path segment (Shell's
             #     real shape: /sustainability/reporting-centre/.../shell-annual-report-2025.pdf) must not
             #     drop a model candidate whose filename plainly names the report -- end to end, the model
             #     candidate now survives _model_candidates and the direct download succeeds (no crawl needed)
@@ -444,7 +441,7 @@ def demo():
             assert fetch._filename_clear(shell_shape_url, fetch.BAD_URL) is True, "clean filename clears a bad rest-of-path"
             assert fetch._filename_clear(COUNTER_EXAMPLE_URL, fetch.BAD_URL) is False, "a bad filename still rejects"
 
-            # 16. v081: the second model ask fires only after every fourth-source candidate AND the
+            # 16. the second model ask fires only after every fourth-source candidate AND the
             #     first IR-page crawl attempt have both failed -- here the model's only "direct link"
             #     candidate is itself an IR page with nothing on it, so the first crawl genuinely runs
             #     and finds nothing; the second, more targeted ask then names the real reports page,
@@ -462,7 +459,7 @@ def demo():
             assert fake.calls[-1]["system"] == fetch.IR_PAGE_SYSTEM, fake.calls[-1]
             os.environ.pop("FAKE_WEB_REPLY_IR_PAGE", None)
 
-            # 17. v081: when more than one model candidate downloads and validates, the complete
+            # 17. when more than one model candidate downloads and validates, the complete
             #     report wins even when a summary-shaped one is listed first -- proves ranking
             #     replaced "first success wins", not just "reject the summary outright"
             dest10 = tmp / "reports10"
@@ -475,7 +472,7 @@ def demo():
             assert entry10["source_url"] == good_url, entry10
             assert entry10["note"] == "model search (codex)", entry10
 
-            # 18. v081: a lone model candidate that validates but stays under the 80-page floor is
+            # 18. a lone model candidate that validates but stays under the 80-page floor is
             #     still accepted (better than nothing) but flagged as a summary volume -- Nestle's
             #     real Annual Review is exactly this shape: a clean filename ("review", not any of
             #     summary/highlights/at-a-glance/short/in-brief), just short
@@ -505,14 +502,14 @@ def demo():
             assert ir_urls == [_url(base, "/ir/page1.html"), _url(base, "/ir/page2.html")], ir_urls  # capped at MAX_IR_PAGE_CANDIDATES
             os.environ.pop("FAKE_WEB_REPLY_IR_PAGE", None)
 
-            # 20. v122 red proof, end to end: MTG's real FY2021 cover/title/contents as the first three
+            # 20. end to end: MTG's real FY2021 cover/title/contents as the first three
             #     pages of an otherwise plausible candidate (forward-looking "2025" filler after), served
             #     off the loopback server exactly like the download that put the wrong document in the KB.
             #     The old year-anywhere check registered this exact shape; the anchored check must refuse
             #     it, and the reason on the tried list must name the year the cover does name.
             os.environ.pop("LLM_PROVIDER", None)  # feeds-only: no model layer between the candidate and the year gate
             dest12 = tmp / "reports12"
-            mtg_pages = _mtg_fy2021_cover_pages()  # frozen FY2021 pages; the KB stem is the FY2025 report since 8a0e784
+            mtg_pages = _mtg_fy2021_cover_pages()  # frozen FY2021 pages; the KB stem now holds the real FY2025 report
             mtg_head = "".join(mtg_pages)
             mtg_path = "/mtg-annual-and-cr-report-2021.pdf"
             _pdf_from_page_texts(tmp / "public" / mtg_path.lstrip("/"), mtg_pages,
@@ -595,7 +592,7 @@ def demo():
                 assert fetch._fiscal_year_re(meta["fiscal_year"]).search(head) or fetch._period_re(meta["fiscal_year"]).search(full), \
                     f"{stem}: real FY{meta['fiscal_year']} report fails the anchored year check -- audit it"
 
-            # 26. v122 ruling follow-up: an issuer that styles itself only by its acronym is accepted
+            # 26. an issuer that styles itself only by its acronym is accepted
             #     when the initials of its name (at least three letters) stand whole-word on the cover
             #     -- MTG's real FY2025 report (the one that escaped into the feed) says "MTG" from
             #     page 2 and first spells "Modern Times Group" on page 41 -- while an acronym mention
@@ -714,7 +711,7 @@ def demo():
             entry15 = fetch.fetch_report(COMPANY, YEAR, tmp / "reports15", url=other_url)
             assert entry15["source_url"] == good_url and entry15["tried"] == [other_url, good_url], entry15["tried"]
 
-            # 31. v194: a forced discover(job_id=...) records directory -> model_search -> done, with the
+            # 31. a forced discover(job_id=...) records directory -> model_search -> done, with the
             #     model's suggested candidates riding on the model_search event's own data
             os.environ["FAKE_WEB_REPLY"] = _reply([
                 {"legal_name": "Nestle Ltd", "ticker": "NESN", "exchange": "SIX", "country": "CH", "org_number_or_lei": None,
@@ -728,7 +725,7 @@ def demo():
             search_events = [e for e in job["events"] if e["stage"] == "model_search"]
             assert any(e.get("data", {}).get("candidates") for e in search_events), search_events
 
-            # 32. v194: fetch_report(job_id=...) end to end through the model-search path -- a verify
+            # 32. fetch_report(job_id=...) end to end through the model-search path -- a verify
             #     event with the real page count, and a download event whose total matches the
             #     loopback server's real Content-Length (the byte-progress path actually ran, not
             #     just "did not crash")
@@ -746,7 +743,7 @@ def demo():
             real_size = (tmp / "public" / GOOD_PATH.lstrip("/")).stat().st_size
             assert download_events[-1]["data"] == {"bytes": real_size, "total": real_size}, (download_events[-1], real_size)
 
-            # 33. v194: _get()'s own chunked-read path -- a file big enough to cross the throttle
+            # 33. _get()'s own chunked-read path -- a file big enough to cross the throttle
             #     threshold produces more than the one final event, bytes increase monotonically, and
             #     the last event's bytes/total match the real file size exactly
             big_path = tmp / "public" / "big.bin"
@@ -759,7 +756,7 @@ def demo():
             assert dl[-1]["data"]["bytes"] == dl[-1]["data"]["total"] == big_path.stat().st_size, dl[-1]
             assert dl[0]["text"].startswith("downloading ") and dl[-1]["text"].startswith("downloaded "), dl
 
-            # 34. v194: every source failing still ends with a "failed" job event carrying the same
+            # 34. every source failing still ends with a "failed" job event carrying the same
             #     detail the /fetch route's own 404 would show
             dest17 = tmp / "reports17"
             fetch._candidates = lambda company, year, job_id=None: []  # explicit, not relying on case 20's leftover patch
@@ -773,12 +770,12 @@ def demo():
             assert job["done"] is True and job["stage"] == "failed" and job["error"], job
             assert job["error"].startswith(f"no annual report found for {COMPANY} {YEAR}"), job["error"]
 
-            # 35. v194: without a job_id, none of the above touches the jobs table at all
+            # 35. without a job_id, none of the above touches the jobs table at all
             before = len(jobs._jobs)
             fetch.fetch_report(COMPANY, YEAR, tmp / "reports18", url=good_url)
             assert len(jobs._jobs) == before, "a job_id-less call must not create a job"
 
-            # m03/w213: a bare fiscal-year phrase buried in another report is not evidence that
+            # a bare fiscal-year phrase buried in another report is not evidence that
             # the document itself is for that year. The old fallback accepted this exact shape,
             # then the longest-report selector could cache a silent wrong-year result. Keep the
             # verify event too: the analyst's progress trail must expose why the PDF was refused.
@@ -830,7 +827,7 @@ def demo():
 
 
 def demo_candidates_events():
-    """v194: _candidates() itself -- not the fetch_report()-level mock the main demo() uses throughout
+    """_candidates() itself -- not the fetch_report()-level mock the main demo() uses throughout
     -- reports mfn -> nasdaq -> ddg in order, and its dedupe/cap computation is unchanged (same URLs,
     same order a plain `_mfn(...) + _nasdaq(...)` / `_crawl(...) + _ddg(...)` merge always produced)."""
     saved = {name: getattr(fetch, name) for name in ("_mfn", "_nasdaq", "_crawl", "_ddg")}
@@ -854,7 +851,7 @@ def demo_candidates_events():
 
 
 def demo_saved_first_discovery():
-    """w200: a deterministic saved report (normalised name, ticker, or ISIN) ends discovery before
+    """A deterministic saved report (normalised name, ticker, or ISIN) ends discovery before
     web lookup. An explicit force_web opt-in and an uncertain prefix still use the model instead."""
     with tempfile.TemporaryDirectory(prefix="test-discover-saved-first-") as tmpdir:
         tmp = Path(tmpdir)

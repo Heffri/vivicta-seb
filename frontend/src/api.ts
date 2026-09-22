@@ -8,7 +8,7 @@ export type ApiError = Error & { status: number; code?: string; tried?: string[]
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init)
   if (!res.ok) {
-    // Errors are JSON { detail } per docs/API.md (fetch 404s add tried[]; v191's OCR-budget 422 adds
+    // Errors are JSON { detail } per docs/API.md (fetch 404s add tried[]; the OCR-budget 422 adds
     // ocr_pages_needed); fall back to status text for proxy/network errors.
     const body: { detail?: string; code?: string; tried?: string[]; attempts?: FetchAttempt[]; ocr_pages_needed?: number; listings?: ReportListing[] } = await res.json().catch(() => ({}))
     throw Object.assign(new Error(body.detail ?? `${res.status} ${res.statusText}`), {
@@ -25,7 +25,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 
 export const getSchemas = () => request<Schema[]>('/api/schemas')
 
-// v191: ocr="full" opts into an unconditional OCR pass on a scanned PDF, after a first ("bounded",
+// ocr="full" opts into an unconditional OCR pass on a scanned PDF, after a first ("bounded",
 // the default when omitted) attempt 422'd with ocr_pages_needed -- see ApiError/BatchErrorKind's
 // 'ocr-budget' kind.
 export function uploadReport(file: File, ocr?: 'full') {
@@ -46,7 +46,7 @@ export const registerLibraryReport = (file: string, ocr?: 'full') =>
 export const getCompanies = (q: string, collection: Collection = 'wallenberg') => request<Company[]>(`/api/companies?q=${encodeURIComponent(q)}&collection_name=${collection}`)
 
 // Which legal entities a typed query could mean (a deterministic saved report returns before model search);
-// force_web is the explicit analyst override. job_id (v194, optional): getJob polls this call's progress.
+// force_web is the explicit analyst override. job_id (optional): getJob polls this call's progress.
 export const discoverCompanies = (company: string, year: number, opts?: { country?: string; hint?: string; job_id?: string; force_web?: boolean }) =>
   request<Discovery>('/api/reports/discover', {
     method: 'POST',
@@ -55,7 +55,7 @@ export const discoverCompanies = (company: string, year: number, opts?: { countr
   })
 
 // country/hint provide optional context for AI-first report discovery; url (a confirmed candidate's link) is tried first.
-// job_id (v194, optional): see discoverCompanies. ocr (v191, optional): see uploadReport.
+// job_id (optional): see discoverCompanies. ocr (optional): see uploadReport.
 export const fetchReport = (company: string, year: number, opts?: { country?: string | null; hint?: string; url?: string | null; download_pdf?: boolean; ocr?: 'full'; job_id?: string }) =>
   request<Report>('/api/reports/fetch', {
     method: 'POST',
@@ -63,7 +63,7 @@ export const fetchReport = (company: string, year: number, opts?: { country?: st
     body: JSON.stringify({ company, year, ...opts }),
   })
 
-// v194: progress trail for a job_id passed to discoverCompanies/fetchReport; 404 once pipeline.jobs
+// Progress trail for a job_id passed to discoverCompanies/fetchReport; 404 once pipeline.jobs
 // has swept it (unknown id, or past its 1-hour TTL) -- request() turns that into a thrown ApiError.
 export const getJob = (jobId: string) => request<Job>(`/api/jobs/${encodeURIComponent(jobId)}`)
 
@@ -74,7 +74,7 @@ export const extractSection = (reportId: string, section: string, force = false)
     body: JSON.stringify({ section, reuse_saved: !force, force }),
   })
 
-// v164: the deterministic page locator (the same one the extractor runs) served before the model
+// The deterministic page locator (the same one the extractor runs) served before the model
 // call, so the waiting line can name the pages being read. Zero-model; advisory for the UI only —
 // an older backend's 404 just means the wait stays on the generic wording.
 export type CandidatePage = { page: number; heading: string }
@@ -107,7 +107,7 @@ export const ask = (question: string, reportIds?: string[], reportStems?: string
   })
 
 export const pageUrl = (reportId: string, page: number) => `/api/reports/${reportId}/pages/${page}.png`
-// v179: where a citation's quote sits on the rendered page (page-point rects, same top-down space
+// Where a citation's quote sits on the rendered page (page-point rects, same top-down space
 // pageUrl renders) — zero-model, advisory for Image-mode framing only. `rects` holds every
 // occurrence at whichever tier matched; an older backend's 404 just leaves the page unframed.
 // `occurrences` divides `rects.length` back out by the searched text's own line count, so a citation
@@ -117,8 +117,8 @@ export type PageLocate = { page: number; width: number; height: number; matched:
 export const locateQuote = (reportId: string, page: number, quote: string) =>
   request<PageLocate>(`/api/reports/${reportId}/pages/${page}/locate?quote=${encodeURIComponent(quote)}`)
 export const csvUrl = (reportId: string, section?: string, previous?: string) => `/api/reports/${reportId}/extraction.csv?${new URLSearchParams({ ...(section ? { section } : {}), ...(previous ? { previous_stem: previous } : {}) })}`
-// v091: prior=1 asks the pptx for the prior-year series alongside the current one (ignored by the
-// backend when the extraction carries no prior_year). v109: perYear=1 asks for the report's own
+// prior=1 asks the pptx for the prior-year series alongside the current one (ignored by the
+// backend when the extraction carries no prior_year). perYear=1 asks for the report's own
 // calendar-year columns instead of the three buckets (ignored without buckets_by_year).
 export const pptxUrl = (reportId: string, section?: string, previous?: string, prior?: boolean, perYear?: boolean) => `/api/reports/${reportId}/extraction.pptx?${new URLSearchParams({ ...(section ? { section } : {}), ...(previous ? { previous_stem: previous } : {}), ...(prior ? { prior_year: '1' } : {}), ...(perYear ? { per_year: '1' } : {}) })}`
 export const pdfUrl = (reportId: string, page?: number) =>
@@ -131,10 +131,9 @@ export const getPageEvidence = (reportId: string, page: number, quotes: string[]
 export const highlightedPdfUrl = (reportId: string, page: number, quotes: string[]) =>
   `/api/reports/${encodeURIComponent(reportId)}/pdf?page=${page}&${evidenceParams(quotes)}#page=${page}`
 
-// provider added in v031 (backend/app.py); this type lagged behind until v033's Settings view needed it.
-// retrieval (v034, consumed by KbView since v059) is how /ask retrieves: embeddings+keywords or keywords only.
-// Optional: main.tsx's SetSettingsResult (desktop save path) predates it and is outside lane territory —
-// an absent field just keeps KbView's column on the pre-v059 wording.
+// Mirrors GET /api/config. `retrieval` is how /ask retrieves: embeddings+keywords or keywords only.
+// It is optional because main.tsx's SetSettingsResult (desktop save path) can omit it — an absent
+// field just leaves KbView's Embeddings column on its per-row wording.
 export type Config = {
   model: string
   embed_model: string
@@ -142,10 +141,10 @@ export type Config = {
   llm: boolean
   provider: string
   retrieval?: 'hybrid' | 'bm25' | 'fixture'
-  maturity_basis?: 'carrying' | 'undiscounted' // v089: the backend's live DEBT_BASIS; absent on older backends
-  merge_runs?: 'off' | 'union' | 'majority' // v140: the backend's live EXTRACT_MERGE_RUNS; absent on older backends
-  second_pass?: boolean // w212: the backend's live EXTRACT_SECOND_PASS (w197's bounded retry); absent on older backends
-  scan_all?: boolean // w212: the backend's live EXTRACT_SCAN_ALL (m02's offline scan, env-only by design); absent on older backends
+  maturity_basis?: 'carrying' | 'undiscounted' // the backend's live DEBT_BASIS; absent on older backends
+  merge_runs?: 'off' | 'union' | 'majority' // the backend's live EXTRACT_MERGE_RUNS; absent on older backends
+  second_pass?: boolean // the backend's live EXTRACT_SECOND_PASS (the bounded retry); absent on older backends
+  scan_all?: boolean // the backend's live EXTRACT_SCAN_ALL (the offline scan, env-only by design); absent on older backends
 }
 export const getConfig = () => request<Config>('/api/config')
 // The KB page's collection switch. Wallenberg remains the UI default; midcap is the 132-company
@@ -170,7 +169,7 @@ export const getKbPage = (stem: string, page: number) =>
 export const restoreSourcePdf = (stem: string) =>
   request<Report>(`/api/kb/${encodeURIComponent(stem)}/pdf`, { method: 'POST' })
 
-// v174: deterministic upcoming-maturities list over the saved collection (Compare view). Zero model calls.
+// Deterministic upcoming-maturities list over the saved collection (Compare view). Zero model calls.
 export const getMaturityWall = (collection: Collection = 'wallenberg') =>
   request<MaturityWall>(`/api/kb/maturity-wall?collection=${collection}`)
 

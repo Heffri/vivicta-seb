@@ -18,20 +18,16 @@ directly): neither Codex nor Claude has an embeddings endpoint, so retrieval for
 LLM_BASE_URL pointed at Ollama or a real OpenAI-compatible host even when LLM_PROVIDER=codex/claude
 extracts and answers.
 
-Next for a teammate: codex_cli/claude_cli ignore `schema`/`name` -- `codex exec --output-schema <file>`
-or claude's `--json-schema` could constrain the reply the way response_format={"json_schema": ...} does
-for openai_compatible, but that's untried against the real CLIs and the prompt already asks for strict
-JSON, parsed the same way as today either way.
-
-LLM_STRICT_SCHEMA=1 (enabled by default) closes that gap: the CLI providers then pass the caller's `schema` on
--- codex exec takes `--output-schema <file>` (the schema written into the call's own -C temp dir), claude
+LLM_STRICT_SCHEMA=1 (enabled by default) constrains the CLI providers' reply with the caller's
+`schema`, the way response_format={"json_schema": ...} does for openai_compatible: codex exec takes
+`--output-schema <file>` (the schema written into the call's own -C temp dir), claude
 takes `--json-schema <inline JSON>` (its --help shows the schema as a string value, not a file path -- the
 one place the two CLIs differ). Parsing is unchanged; the prompt still asks for strict JSON either way.
 When the strict call fails (a CLI build without the flag, or any non-zero exit/timeout), chat() falls
 back to today's flag-less call with a warnings.warn -- so the switch can only add a retry, never change
 a reply that today's code would have gotten. Set LLM_STRICT_SCHEMA=0 only for older CLI versions without schema support.
 
-web_lookup() (v074) is chat() with the provider's own web-search tool switched on -- fetch.py's fourth
+web_lookup() is chat() with the provider's own web-search tool switched on -- fetch.py's fourth
 report source. Only the CLI providers have a search tool; an OpenAI-compatible endpoint has none, so
 web_lookup raises there instead of quietly answering from the model's memory.
 """
@@ -50,9 +46,10 @@ from openai import OpenAI
 
 from . import jobs
 
-# Hosted CLIs (codex/claude) take LLM_CONCURRENCY calls at once; a local Ollama is one GPU, so it stays at 1.
+# Bounds concurrent codex CLI calls (_codex_chat is its only taker): LLM_CONCURRENCY at once, 1 under
+# LLM_PROVIDER=openai. The claude CLI and the openai_compatible path are not throttled here.
 _MODEL_LOCK = threading.BoundedSemaphore(1 if (os.getenv("LLM_PROVIDER") or "openai") == "openai" else max(1, int(os.getenv("LLM_CONCURRENCY", "3"))))
-DEFAULT_TIMEOUT = "300"  # v120 measured no accuracy change at 600; 120 caused spurious timeout-then-retry (v045/v051/v097/v136/v148)
+DEFAULT_TIMEOUT = "300"  # no accuracy change measured at 600; 120 caused spurious timeout-then-retry
 
 _FENCE = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$")
 
@@ -70,11 +67,11 @@ def chat(system: str, user: str, schema: dict, name: str = "response") -> str:
     extract.extract()'s retry/window-shrink logic keys off; anything else is just some Exception, same
     as an unhandled openai.* error today).
 
-    LLM_STRICT_SCHEMA=1 (v121) hands the CLI providers the caller's `schema` the way _openai_chat has
+    LLM_STRICT_SCHEMA=1 hands the CLI providers the caller's `schema` the way _openai_chat has
     always passed it as response_format. Only the *first*, strict attempt carries the flag: any failure
     (RuntimeError from a non-zero exit, or TimeoutExpired) falls back to today's flag-less call with a
     warnings.warn -- so a CLI build without the flag, a rate limit, or a timeout costs one retry and
-    degrades to exactly the pre-v121 behavior. The fallback's own failure is what the caller sees."""
+    degrades to exactly the flag-less call's behavior. The fallback's own failure is what the caller sees."""
     p = provider()
     strict = schema is not None and os.getenv("LLM_STRICT_SCHEMA", "1") == "1"
     if p == "codex":
@@ -108,7 +105,7 @@ def web_lookup(system: str, user: str, schema: dict, name: str = "web_lookup", j
     from the model's memory -- fetch.py gates on provider() in ("codex", "claude") first anyway.
     Reply post-processing is chat()'s, byte for byte.
 
-    job_id (v194, optional): surfaces the web_search tool's own query terms as job-progress events
+    job_id (optional): surfaces the web_search tool's own query terms as job-progress events
     while this call runs, parsed from codex's --json event stream (_codex_search_events). claude's
     `--output-format json` is a single object, not an event stream, so job_id is a no-op there --
     fetch.py's own step() calls around this call are what a claude-backed search still shows."""
@@ -172,7 +169,7 @@ def _codex_executable() -> str:
 
 
 def _codex_search_events(job_id: "str | None", stdout: str) -> None:
-    """v194: pulls the web_search tool's own query terms out of codex's --json event stream (one JSON
+    """Pulls the web_search tool's own query terms out of codex's --json event stream (one JSON
     object per line) and turns each into a model_search job-progress event -- the closest thing a
     closed model offers to a visible chain of thought while fetch.py's web-search ask is in flight.
     A probe against the real CLI (gpt-5.6-terra, 2026-09-22) shows two `item.completed` events per
@@ -205,7 +202,7 @@ def _codex_chat(system: str, user: str, search: bool = False, schema: dict | Non
     prompt = f"{system}\n\n{user}"
     with tempfile.TemporaryDirectory(prefix="vivicta-codex-") as cwd:
         out = Path(cwd) / "last-message.txt"  # -o: codex's own answer to "which part of the output is the reply"; the --json stream on stdout is only parsed for job progress (_codex_search_events), never for the reply itself
-        # --output-schema (v121, opt-in LLM_STRICT_SCHEMA) is an exec flag per `codex exec --help`
+        # --output-schema (on unless LLM_STRICT_SCHEMA=0) is an exec flag per `codex exec --help`
         # ("Path to a JSON Schema file describing the model's final response shape"): a FILE path, so
         # the schema goes into the call's own -C temp dir -- inside the read-only sandbox, never the repo.
         schema_arg = []
@@ -213,7 +210,7 @@ def _codex_chat(system: str, user: str, search: bool = False, schema: dict | Non
             sp = Path(cwd) / "response-schema.json"
             sp.write_text(json.dumps(schema), encoding="utf-8")
             schema_arg = ["--output-schema", str(sp)]
-        # --search is a top-level codex flag (v074), not an exec one: `codex exec --search` is rejected,
+        # --search is a top-level codex flag, not an exec one: `codex exec --search` is rejected,
         # `codex --search exec ...` parses. It enables the native Responses web_search tool with no
         # per-call approval, which is all web_lookup() needs.
         cmd = [exe, "-a", "never", *(["--search"] if search else []), "exec", "--ignore-user-config", "--ephemeral", "-c", "features.shell_tool=false", "-c", "project_doc_max_bytes=0", "-c", "model_reasoning_effort=" + json.dumps(os.getenv("LLM_REASONING", "low")), *([] if search else ["-c", 'web_search="disabled"']), "-m", model, "-s", "read-only", "-C", cwd, "--skip-git-repo-check", *schema_arg, "--json", "-o", str(out), "-"]
@@ -293,10 +290,10 @@ def _claude_chat(system: str, user: str, tools: str = "", schema: dict | None = 
         # than --permission-mode plan, which still permits read-only tool calls and exists for an interactive
         # approval loop `-p` never runs. UAW's own CLAUDE_CATALOG_ARGUMENTS (process-transport.ts) reaches for
         # the same "--tools", "" pair to take a headless CLI call down to plain text in, text out. web_lookup()
-        # passes "WebSearch" instead (v074): the same flag is the whole allowlist. --output-format
+        # passes "WebSearch" instead: the same flag is the whole allowlist. --output-format
         # json is codex's `--json -o <file>` in one flag: a single JSON object on stdout, reply text in "result"
         # (verified against a real `claude -p` call, 2026-09-16).
-        # --json-schema (v121, opt-in LLM_STRICT_SCHEMA), unlike codex's --output-schema, takes the schema
+        # --json-schema (on unless LLM_STRICT_SCHEMA=0), unlike codex's --output-schema, takes the schema
         # itself, not a file path: `claude --help` shows `--json-schema <schema>` with an inline JSON object
         # as its example, so it goes on argv as one element (subprocess list form, no quoting involved).
         schema_arg = ["--json-schema", json.dumps(schema)] if schema is not None else []

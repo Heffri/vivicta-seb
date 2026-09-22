@@ -41,8 +41,8 @@ is the natural fit for "applicable vs not applicable" and is what the model card
 uses, so that's what was tried, via the direct single-model SDK (`laya.load(...)`,
 `agent.predict(state, questions)`).
 
-For every one of the 367 scoreable label rows in `eval/labels.csv` (see below), one `noul`
-question was built:
+For every one of the 367 scoreable label rows in `eval/labels.csv` as it stood then (see below),
+one `noul` question was built:
 
 - **state** (`{"body": ...}`): the report's own text near where the field would appear --
   reused, read-only, the *actual* candidate-page picker the extraction pipeline uses
@@ -73,6 +73,11 @@ Built from `eval/labels.csv` directly (`experiments/laya/build_dataset.py`): `ex
 them out as examples that "never score." That leaves **367 rows across 117 reports**: **55
 not_applicable (15.0%) / 312 applicable (85.0%)** -- the ~85% naive baseline the task description
 anticipated.
+
+Those counts describe the frozen snapshot this run used, committed as
+`experiments/laya/dataset.json`. `eval/labels.csv` has grown since, so re-running
+`build_dataset.py` today produces a larger set with different totals; every number below belongs to
+the snapshot, not to today's labels.
 
 **Split** (`experiments/laya/make_split.py`, seed `20260922`): by **report**, not by row --
 several label rows from the same report share the same context text, so a row-level split would

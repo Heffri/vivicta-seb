@@ -5,9 +5,13 @@ debt and when it falls due, every figure carrying the page it came from and the 
 it was read from, exportable as PPTX/CSV/JSON for downstream banking systems. Web UI and a
 double-click Windows app on top.
 
+The hackathon concluded on 2026-09-22; this repository is the finished entry, not an active
+project. The code is left as it was demoed — the app runs, and the saved library and the accuracy
+evaluation both reproduce offline with no model calls.
+
 Scope decided with SEB's end user (Kristian, 15 Sept): the **debt maturity note** — one slide per
 company, Nasdaq Stockholm Mid Cap. Challenge owner: Kimberly Lejonö, Co-Head CIB Data & AI Hub,
-SEB. Full brief + meeting notes: [`docs/CHALLENGE.md`](docs/CHALLENGE.md).
+SEB. Full brief, meeting notes and the team: [`docs/CHALLENGE.md`](docs/CHALLENGE.md).
 
 | ① Open a saved report | ② Click a figure — buckets + page | ③ The source: quote on the page |
 |---|---|---|
@@ -32,8 +36,8 @@ script — the two bundled samples, a three-minute line-by-line, and the demo-da
    CI-built, checks for updates on startup and applies them on exit (the [`desktop-main`
    feed](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-main) tracks `main`).
    Unsigned, so SmartScreen asks: "More info" → "Run anyway". Starts on fixture (demo) data; pick
-   a real provider in Settings. Do not demo from the old portable `desktop-0.3.4` zip — it cannot
-   update itself. Details: [`desktop/README.md`](desktop/README.md).
+   a real provider in Settings. The old portable `desktop-0.3.4` zip cannot update itself — use
+   the installer instead. Details: [`desktop/README.md`](desktop/README.md).
 2. **`run.bat` (Windows) / `./run.sh` (macOS/Linux)** from a clone of this repo: first run sets up
    a Python venv, installs dependencies, builds the frontend, and opens the app in your browser on
    one port — about 2–4 minutes; later runs take seconds. Ctrl+C stops it (on Windows,
@@ -41,8 +45,9 @@ script — the two bundled samples, a three-minute line-by-line, and the demo-da
 3. **From source, piece by piece** — backend venv + `uvicorn`, frontend dev server with `/api`
    proxy: see "Run it" below.
 
-Docs: the API contract is [`docs/API.md`](docs/API.md); what the acrylic branch built and how to
-verify it is [`docs/acrylic/README.md`](docs/acrylic/README.md); backend state is
+Docs: the API contract is [`docs/API.md`](docs/API.md); the accuracy numbers and their caveats are
+[`docs/ACCURACY.md`](docs/ACCURACY.md); the per-change evidence archive (all of it merged into
+`main`) is [`docs/acrylic/README.md`](docs/acrylic/README.md); backend state is
 [`docs/HANDOFF.md`](docs/HANDOFF.md).
 
 ## The one idea to keep
@@ -53,11 +58,16 @@ That is what makes this a bank tool and not a chatbot. Don't drop it.
 ## Layout
 
 ```
-backend/    FastAPI + PyMuPDF + OpenAI-compatible LLM client (Ollama locally)   ← Chen, Boyu
-frontend/   Vite + React 19 + Tailwind 4 + shadcn/ui                            ← Sebastijan
-eval/       labels.csv + run.py → accuracy number                               ← Sara
-docs/       API contract, challenge notes, prep for SEB meetings
+backend/       FastAPI + PyMuPDF + OpenAI-compatible LLM client (Ollama locally)
+frontend/      Vite + React 19 + Tailwind 4 + shadcn/ui
+desktop/       Electron shell: packaged Windows app, auto-update, data sync
+eval/          labels.csv + run.py → accuracy number
+scripts/       standalone checks and audits (eval_breakdown, random_check, publish_kb, ...)
+experiments/   the two alternatives that were benchmarked and ruled out (Laya, Docling)
+docs/          API contract, accuracy, challenge notes, prep for SEB meetings
+data/kb/       saved reports: metadata, page text, extractions, reviews — committed
 data/reports/  bundled annual reports: index.json committed, PDFs gitignored -> `python data/fetch.py`
+.github/       one workflow: tests, then builds and publishes the Windows installer
 ```
 
 The handshake between frontend and backend is [`docs/API.md`](docs/API.md). Change it there first.
@@ -73,14 +83,18 @@ Backend (terminal 1):
 cd backend
 python -m venv .venv
 # Windows: .venv\Scripts\activate    mac/linux: source .venv/bin/activate
-pip install -r requirements.txt    # pymupdf pinned to 1.27.2.3 — why: docs/acrylic/evidence/v049.md
+pip install -r requirements.txt    # pymupdf is pinned — see below
 cp .env.example .env               # leave LLM_BASE_URL unset → returns the fixture (UI dev mode)
 uvicorn app:app --reload --port 8000
 ```
 
+`pymupdf` is pinned to 1.27.2.3 because 1.28.2 splits text blocks differently and reflows about 17%
+of the 35-report test corpus's pages; the pin keeps the text layer this parser was validated on.
+`backend/requirements.txt` carries the detail.
+
 Reports (once): `python data/fetch.py` downloads the annual reports listed in `data/reports/index.json`
-(114 curated entries — Atlas Copco, Investor, Saab en/sv, SEB, SKF and the rest; ~130 MB). They show
-up in `GET /api/library` and in the UI's library picker. None of this is needed for the saved-KB
+(Atlas Copco, Investor, Saab en/sv, SEB, SKF and the rest; ~130 MB). They show up in
+`GET /api/library` and in the UI's library picker. None of this is needed for the saved-KB
 walkthrough above; PDFs are only required for page images and *new* live extractions.
 
 Frontend (terminal 2):
@@ -125,81 +139,38 @@ Extraction and Ask's answers then run on Codex/Claude — no base URL needed; wi
 falls back to keyword search (BM25), and an `LLM_BASE_URL` (Ollama/OpenAI-compatible) upgrades it to hybrid
 embeddings+BM25 — see `backend/README.md`.
 
-## Accuracy — the honest version
-
-**Stored-library scores and first-extraction scores are two different claims.** They are kept
-separate here, and the error *nature* is separate again.
-
-**1) The stored library (curated).** `data/kb/` holds 105 stored `debt_maturity` extractions,
-republished after every pipeline change under a "nothing loses on the hand-verified labels" gate.
-That gate is exactly why this number is *not* a first-pass rate:
+## Accuracy
 
 ```bash
 python eval/run.py --stored-kb data/kb --no-fail   # zero model calls, offline, reproducible
 ```
 
-- Values **327/367 (89.1%)** — 271 hand-verified `debt_maturity` rows across 105 companies
-  (the Mid Cap hardening universe plus the large-cap originals), plus 96 `income_statement` rows
-  (income alone: 96/96 values, 92/92 cited pages)
-- Cited pages **263/313 (84.0%)** (scored only where a value is cited)
-- Debt section alone: values **231/271 (85.2%)**, pages **171/221 (77.4%)** — the headline number
-  is pulled up by the income section; the debt number is the honest one for the scoped section
-- Offline labelled-page coverage (all 276 debt rows with a page): locator candidates **263/276
-  (95.3%)** → candidates plus the deterministic full-text field sweep **268/276 (97.1%)**
-  ([w198](docs/acrylic/evidence/w198.md) reached 264/276; [w203](docs/acrylic/evidence/w203.md)'s
-  wordlist fixes took it to 268/276 — the remaining 8 are named structural table-layout gaps, not
-  missing synonyms)
+Against the hand-verified labels in `eval/labels.csv`: values **328/368 (89.1%)**, cited pages
+**263/313 (84.0%)**. The scoped debt section on its own is **232/272 (85.3%)** values and
+**171/221 (77.4%)** pages, scoring 272 of the 276 labelled debt rows — the headline is pulled up by
+the income section, and the debt number is the honest one for the scoped section.
 
-**2) First extraction (no labels at run time).** Three measured batches where the pipeline ran
-without label access and was scored afterwards:
+The caveat that matters most: those 106 labelled companies were used repeatedly to debug and tune
+this pipeline, so none of these numbers is an out-of-the-box market-accuracy claim, and we do not
+present them as one. Blind held-out samples, first-extraction batches, what the 40 debt misses
+actually are, and the alternatives that were benchmarked and ruled out are all in
+[`docs/ACCURACY.md`](docs/ACCURACY.md).
 
-- 24 companies the locator had just made reachable: **9 → 14** fully-labelled companies
-  ([v124](docs/acrylic/evidence/v124.md))
-- 18 newly-labelled stems: stored 16/40 → **19/40** label fields after that round's publish set —
-  the raw fresh runs scored 14/40 ([v136](docs/acrylic/evidence/v136.md))
-- 28 remaining value-miss stems: 23/69 → **31/69** fields, pages 17/62 → 23/62
-  ([v160](docs/acrylic/evidence/v160.md))
+## Checks
 
-**3) What the errors are.** Of the 40 debt value misses in the stored library: **34 are empty**
-(the field was not read, or was honestly declined) and **6 are non-empty but wrong**. An audit of
-the disputed label candidates found **0 label errors**, **2 report-internal disagreements** (the
-report itself prints two inconsistent totals — Green Landscaping, Volati) and **7 hard cases**
-where the label is right and a named, bounded mechanism gap blocked the read
-([v154](docs/acrylic/evidence/v154.md)). Scope calls that depend on Kristian's definitions
-(carrying vs undiscounted, leases in/out) are disclosed per company, not silently resolved.
-
-**4) Held-out first extraction (Small Cap, blind labels).** There are two separate ten-report
-FY2025 samples, each labelled before its outputs were opened. **Round 1** (`seed=1`) scored
-**26/40 (65.0%)** values and **8/17 (47.1%)** cited pages at the shipped default (5 empty, 9
-non-empty-wrong); it was subsequently used to develop guard/tuning work and is no longer the
-current held-out benchmark. **Round 2** (`seed=2`, excluding round 1's extracted-or-skipped
-companies) is the current held-out benchmark: shipped-default `off` scored **36/40 (90.0%)** values
-and **14/17 (82.4%)** cited pages (**1 empty**, **3 non-empty-wrong**), and the same frozen labels
-under non-default `majority` scored the same 36/40 and 14/17. A later decision run with the bounded
-`EXTRACT_SECOND_PASS=1` scored **29/40** values and **12/17** pages (**3 empty**, **8
-non-empty-wrong**) at an average **+2.5 calls / +18.4 model seconds per report**, so that switch
-remains off by default. Neither n=10 measurement is a market-accuracy claim, and neither is
-extrapolated into one; see [v178](docs/acrylic/evidence/v178.md),
-[v190](docs/acrylic/evidence/v190.md), and [w211](docs/acrylic/evidence/w211.md).
-
-**5) The boundary.** The 105 labelled companies have been used repeatedly to debug and tune this
-pipeline — none of the numbers above is an out-of-the-box market-accuracy claim, and we do not
-present them as one.
-
-**6) What we've tried and ruled out.** Two alternatives a teammate benchmarked: **Laya** (zero-shot
-classifier) scored **79.6%** at its default threshold — below the **80.6%** always-applicable naive
-baseline — and **69.9%** after train-calibrated thresholding; a zero-shot miss, not a verdict on a
-fine-tuned model. **Docling**'s PDF conversion took **1710 s** for a 163-page report against **6.3 s**
-for this parser (**~271× slower**); no accuracy comparison was run, so the only supported conclusion
-is speed. Detail: [m02](docs/acrylic/evidence/m02.md).
-
-Other checks:
+There is no test framework: each test module is a script that asserts and prints. 22 Python
+modules, run from `backend/` with the venv active —
 
 ```bash
-python eval/run.py --dry-run       # scores the fixture, no backend needed
-python eval/run.py                 # runs the real pipeline over data/reports + eval/labels.csv
-python scripts/random_check.py --n 10 --seed 1   # fetches 10 untuned Large Cap reports; how many parse at full confidence
+python -m pipeline.test_locate     # the 13 modules under backend/pipeline/, run as modules
+python test_collection.py          # the 9 modules at backend/, run as scripts
 ```
+
+— and 5 Node modules for the desktop shell: `node --test` from `desktop/` after `npm ci`. In
+`frontend/`, `npm run build` type-checks and builds and `npm run lint` runs oxlint.
+
+`.github/workflows/desktop.yml` runs a subset on every push and pull request to `main` — ten of the
+Python modules and `desktop/updates.test.js` — then builds and publishes the Windows installer.
 
 ## Desktop app
 
@@ -208,47 +179,31 @@ OS acrylic material on Windows 11. Install it from the [`desktop-demo`
 release](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-demo) (auto-updating), or build
 it from `desktop/`: [`desktop/README.md`](desktop/README.md).
 
-### Sharing saved reports with the hackathon team
+## The saved library (`data/kb/`)
 
-`data/kb/` is the team's shared cache: report metadata, source page text, saved
-extractions and reviews. The app opens these without re-extracting them. In
-**Knowledge base**, choose **Collection → All** to see the full library. Extract
-and Ask share this collection choice; Extract also offers **All companies**.
+`data/kb/` is a committed cache: report metadata, source page text, saved extractions and reviews,
+which the app opens without re-extracting. In **Knowledge base**, choose **Collection → All** for
+the full library; Extract and Ask share that choice, and Extract also offers **All companies**. Ask
+lists saved text, nonempty extracted figures and downloaded PDFs separately, and excludes catalog
+entries with no readable page text. In Extract, typing a company name and pressing Enter has the
+connected model resolve the text to concrete companies — "intel" becomes Intel Corporation
+(NASDAQ: INTC) — shown as cards with ticker, country and the report it found; **Use this company**
+downloads that PDF and extracts it. Saved reports come first; feeds and traditional search are
+fallbacks.
 
-In Extract, type any company name and press Enter (or **Search**): the connected
-Codex/Claude model resolves the text to concrete companies — "intel" becomes
-Intel Corporation (NASDAQ: INTC) — shown as cards with ticker, country and the
-report it found. **Use this company** downloads that PDF and extracts; **None of
-these** re-runs the search with a hint. Saved reports appear first; feeds and
-traditional search are fallback sources.
-Ask lists saved text, nonempty extracted figures, and downloaded PDFs separately.
-A catalog entry with no readable page text is excluded from Ask.
-
-For the installed desktop app, close it and run from your checkout (Node required):
-
-```powershell
-node scripts/sync-team-data.js --dry-run
-node scripts/sync-team-data.js
-```
-
-This copies new results between the installation and `data/kb/`. Review and commit
-the changed files on a branch, then share through the usual PR. Teammates pull the
-merged changes and run the same command. Reopen the app to load them. Merged data
-also ships in the next automatic desktop update. This is Git sharing, not live sync.
-
-Conflicting edits or different source PDFs are reported and left unchanged. Keep
-the app closed while syncing; do not pull while extracting or reviewing. PDFs,
-private uploads (`up-*`), credentials, logs, raw runs and derived embeddings stay
-local. This repository is public: commit only reports and review notes intended
-for it. A custom installation can use `--app-data <path-to-its-data-folder>`.
+PDFs, private uploads (`up-*`), credentials, logs, raw runs and derived embeddings are gitignored
+and stay local. This repository is public and holds only reports and review notes intended for it.
+`node scripts/sync-team-data.js` (try `--dry-run` first) copies results between an installed
+desktop app and a checkout; keep the app closed while it runs, and it reports conflicting edits or
+differing source PDFs rather than overwriting them.
 
 ## How a section works
 
 One JSON file per report section in `backend/schemas/` — fields, sv+en locator keywords, arithmetic checks.
 The prompt is generated from it. **Adding a section = adding a file.** `debt_maturity.json` is the scoped section
 (total interest-bearing debt + maturity buckets, decided with SEB's end-user Kristian on 15 Sept; output is a one-slide
-PPTX per company via `GET /api/reports/{id}/extraction.pptx`). `income_statement.json` was the placeholder we hardened
-the parser on. Current state and next steps for the backend team: [`docs/HANDOFF.md`](docs/HANDOFF.md).
+PPTX per company via `GET /api/reports/{id}/extraction.pptx`). `income_statement.json` was the placeholder the parser
+was hardened on. Backend state at handoff: [`docs/HANDOFF.md`](docs/HANDOFF.md).
 
 ## Pipeline (backend/pipeline)
 
@@ -260,7 +215,7 @@ extract.py  candidate pages + schema → LLM (JSON schema) → fields
             → arithmetic checks from schema
 ```
 
-Deferred until a demo breaks without it: ESEF/iXBRL cross-check, full vision fallback for scanned
-tables (selective page OCR for text-less PDFs ships today — see `docs/PERFORMANCE.md`), async jobs,
-DB, auth. Multi-report compare is no longer deferred: the Compare tab compares saved extractions
-side by side, including the KB entries.
+Out of scope, and never built: ESEF/iXBRL cross-check, a full vision fallback for scanned tables
+(selective page OCR for text-less PDFs does ship — see [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md)),
+async jobs, a database, auth. Multi-report compare did get built: the Compare tab puts saved
+extractions side by side, including the KB entries.

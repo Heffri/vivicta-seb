@@ -8,32 +8,32 @@ Backend runs on `http://localhost:8000`, frontend dev server proxies `/api` to i
 | Method | Path | Body | Returns |
 |---|---|---|---|
 | `GET`  | `/api/schemas` | – | `Schema[]` (section definitions, see below) |
-| `POST` | `/api/reports?ocr=bounded\|full` | `multipart/form-data`, field `file` = PDF | `Report` — `ocr` (v191, default `bounded`) bounds a scanned PDF's registration OCR to the pages a debt-maturity locate pass could reach; `full` OCRs every such page unconditionally. See "Bounded OCR" below |
+| `POST` | `/api/reports?ocr=bounded\|full` | `multipart/form-data`, field `file` = PDF | `Report` — `ocr` (default `bounded`) bounds a scanned PDF's registration OCR to the pages a debt-maturity locate pass could reach; `full` OCRs every such page unconditionally. See "Bounded OCR" below |
 | `POST` | `/api/reports/import-download` | Multipart `file`, `company`, `year`, `source_url` | `Report` after issuer/year/annual-accounts validation; 400 for invalid content, 413 over 50 MB. Content-addressed editions preserve existing PDFs and reviews. |
 | `GET`  | `/api/reports/{report_id}` | – | `Report` |
 | `POST` | `/api/reports/{report_id}/extract` | `{ "section": "<schema name>" }` | `Extraction` (synchronous; may take up to ~60 s with a local model) |
 | `POST` | `/api/reports/{report_id}/fill?section=<schema name>` | `{ "field": "<empty schema key>", "pages": [<one or two 1-based pages>] }` | `{ candidate: Field \| null, warnings: string[] }` — an analyst-directed, one-field candidate; it never saves or replaces the extraction |
-| `GET`  | `/api/reports/{report_id}/candidates` | `?section=<schema name>` | `[{ page, heading }]` — the section's ranked candidate pages (1-based, best first), from the same deterministic locator the extractor runs, computed with no model call (fixture mode included). `heading` is the page's de-boilerplated opening, whitespace-normalized, ≤80 chars. Powers the extraction waiting UI (v164) |
+| `GET`  | `/api/reports/{report_id}/candidates` | `?section=<schema name>` | `[{ page, heading }]` — the section's ranked candidate pages (1-based, best first), from the same deterministic locator the extractor runs, computed with no model call (fixture mode included). `heading` is the page's de-boilerplated opening, whitespace-normalized, ≤80 chars. Powers the extraction waiting UI |
 | `GET`  | `/api/reports/{report_id}/pages/{n}.png` | – | PNG of page `n` (1-based), ~150 dpi. 404 if out of range |
-| `GET`  | `/api/reports/{report_id}/pages/{n}/locate` | `?quote=<verbatim text>` | `{ page, width, height, matched: "quote"\|"line"\|"value"\|"none", rects: [[x0,y0,x1,y1], ...], occurrences }` — zero-model (v179): where `quote` sits on page `n`, in page-point coordinates (the same top-down space `pages/{n}.png` renders, so a box scales directly against the image's rendered width/height). Tries `quote` verbatim, then its own longest line (a citation that never prints as one contiguous run), then the longest digit run inside it. `rects` holds one box per *printed line* a hit touches — a match spanning two lines (an ordinary wrapped citation) reports two adjacent rects the same way a genuine second occurrence would add two more, so `occurrences` divides that back out by the searched text's own line count: a wrapped citation reports `occurrences: 1` (still with 2 rects to draw), a truly repeated line reports 2+. `matched: "none"`, empty `rects`, `occurrences: 0` when nothing was found. 404 if `n` is out of range, 409 if the PDF is no longer cached (`require_pdf`, same as the other page endpoints) |
+| `GET`  | `/api/reports/{report_id}/pages/{n}/locate` | `?quote=<verbatim text>` | `{ page, width, height, matched: "quote"\|"line"\|"value"\|"none", rects: [[x0,y0,x1,y1], ...], occurrences }` — zero-model: where `quote` sits on page `n`, in page-point coordinates (the same top-down space `pages/{n}.png` renders, so a box scales directly against the image's rendered width/height). Tries `quote` verbatim, then its own longest line (a citation that never prints as one contiguous run), then the longest digit run inside it. `rects` holds one box per *printed line* a hit touches — a match spanning two lines (an ordinary wrapped citation) reports two adjacent rects the same way a genuine second occurrence would add two more, so `occurrences` divides that back out by the searched text's own line count: a wrapped citation reports `occurrences: 1` (still with 2 rects to draw), a truly repeated line reports 2+. `matched: "none"`, empty `rects`, `occurrences: 0` when nothing was found. 404 if `n` is out of range, 409 if the PDF is no longer cached (`require_pdf`, same as the other page endpoints) |
 | `GET`  | `/api/reports/{report_id}/extraction.csv` | – | last extraction for this report as CSV (one row per field). 404 if none |
 | `GET`  | `/api/reports/{report_id}/pdf` | optional `?page=55&quote=<verified passage>` (repeat `quote` for multiple passages) | Original PDF when no quote is supplied. With quotes and a valid 1-based page, returns an in-memory annotated copy of the entire PDF: blue keywords, yellow numbers on that page. Append `#page=55` to navigate directly there. The cached original is never modified. Maximum 20 nonempty quotes, 8,000 characters each, 24,000 total; invalid parameters return 422. |
 | `GET` | `/api/reports/{report_id}/pages/{n}/evidence` | `?quote=<verified passage>` (repeatable, same limits as annotated PDF) | `{ page, width, height, keywords: [[x0,y0,x1,y1],...], numbers: [...], matched_quotes, total_quotes }`. Same matching used by the annotated PDF. Coordinates follow the rendered page, including rotation. Full-quote matches first; otherwise label phrases anchor numbers on the same visual row. Unrelated repeated numbers and partial numeric matches are excluded. Empty results mean no confident match (including image-only pages without a text layer); no approximate coordinates are invented. |
 | `GET`  | `/api/companies?q=<text>&collection_name=wallenberg\|midcap\|all` | – | `Company[]` — the listed-company directory (`data/companies.json`, Nasdaq Stockholm), filtered by collection then name/ticker substring; max 50. Empty `q` = first 50. `midcap` is the 132 companies whose `market` is `Mid Cap`. Private holdings may name a parent report for company-map context, but `no_standalone_report: false` keeps their own accounts searchable. Parent coverage is not evidence that standalone accounts are unavailable. |
-| `POST` | `/api/reports/discover` | `{ "company": "<typed query>", "year": 2025, "country"?, "hint"?, "force_web"?: false, "job_id"? }` | `{ candidates: Candidate[], note: string \| null, source: "saved"\|"web", skipped_web_search: boolean }` — which legal entities the query could mean, for the user to confirm one **before** anything is downloaded. An exact saved report for that year (normalised company name, ticker, or ISIN) returns `source: "saved"` and `skipped_web_search: true`, with zero model calls. Private holdings use the same discovery and issuer checks as other companies. `force_web: true` is the explicit "Search the web anyway" override for ordinary saved matches; otherwise an uncertain/missing local match gets one model web-search ask for up to 5 distinct entities with their official report PDF `url` when known. Results are capped at 5 and deduped on the normalized legal name. Nothing is downloaded. `job_id` (v194, optional) — see Progress tracking below |
-| `POST` | `/api/reports/fetch` | `{ "company": "<Candidate.legal_name or Company.name>", "year": 2025, "country"?, "hint"?, "url"?, "download_pdf"?: true, "ocr"?: "bounded"\|"full", "job_id"? }` | `Report` — finds the company's annual report for that year on the web, downloads it into the cache (`data/reports/`), registers it like an upload. 10–90 s. `download_pdf` defaults to **true** (the PDF is always wanted); `false` is the text-only reuse of a saved report for API callers (409 when nothing is saved). When the download fails but page text is saved, the saved report is returned instead of an error. Any company name is accepted — not just directory entries; `country`/`hint` are optional context for the model search (v074). For a report without saved evidence, `url` (a confirmed `/discover` candidate's link) is downloaded and validated **first**, before any source of the backend's own, and falls through to them when it fails. Parent-report metadata does not block standalone lookup or saved report reuse. A verified listing without a downloadable PDF returns `409 report_listed` with `{detail, code, tried, attempts, listings}`. Other failures return `404` with `{detail, code, tried: string[], attempts}` when no verified public PDF was found, or `502` for download/access or search-provider failures. Cached = instant. `ocr` (v191, default `bounded`): see "Bounded OCR" below. `job_id` (v194, optional) — see Progress tracking below |
-| `GET`  | `/api/jobs/{job_id}` | – | `Job` — progress trail for a `job_id` passed to `/discover` or `/fetch` (v194). `404` once unknown or expired (1 h TTL). See Progress tracking below |
+| `POST` | `/api/reports/discover` | `{ "company": "<typed query>", "year": 2025, "country"?, "hint"?, "force_web"?: false, "job_id"? }` | `{ candidates: Candidate[], note: string \| null, source: "saved"\|"web", skipped_web_search: boolean }` — which legal entities the query could mean, for the user to confirm one **before** anything is downloaded. An exact saved report for that year (normalised company name, ticker, or ISIN) returns `source: "saved"` and `skipped_web_search: true`, with zero model calls. Private holdings use the same discovery and issuer checks as other companies. `force_web: true` is the explicit "Search the web anyway" override for ordinary saved matches; otherwise an uncertain/missing local match gets one model web-search ask for up to 5 distinct entities with their official report PDF `url` when known. Results are capped at 5 and deduped on the normalized legal name. Nothing is downloaded. `job_id` (optional) — see Progress tracking below |
+| `POST` | `/api/reports/fetch` | `{ "company": "<Candidate.legal_name or Company.name>", "year": 2025, "country"?, "hint"?, "url"?, "download_pdf"?: true, "ocr"?: "bounded"\|"full", "job_id"? }` | `Report` — finds the company's annual report for that year on the web, downloads it into the cache (`data/reports/`), registers it like an upload. 10–90 s. `download_pdf` defaults to **true** (the PDF is always wanted); `false` is the text-only reuse of a saved report for API callers (409 when nothing is saved). When the download fails but page text is saved, the saved report is returned instead of an error. Any company name is accepted — not just directory entries; `country`/`hint` are optional context for the model search. For a report without saved evidence, `url` (a confirmed `/discover` candidate's link) is downloaded and validated **first**, before any source of the backend's own, and falls through to them when it fails. Parent-report metadata does not block standalone lookup or saved report reuse. A verified listing without a downloadable PDF returns `409 report_listed` with `{detail, code, tried, attempts, listings}`. Other failures return `404` with `{detail, code, tried: string[], attempts}` when no verified public PDF was found, or `502` for download/access or search-provider failures. Cached = instant. `ocr` (default `bounded`): see "Bounded OCR" below. `job_id` (optional) — see Progress tracking below |
+| `GET`  | `/api/jobs/{job_id}` | – | `Job` — progress trail for a `job_id` passed to `/discover` or `/fetch`. `404` once unknown or expired (1 h TTL). See Progress tracking below |
 | `GET`  | `/api/library?collection_name=wallenberg\|midcap\|all` | – | `LibraryEntry[]` — the report **cache** in `data/reports/` (only files present on disk), filtered by the requested collection. Populated by `/fetch`; hand-curated entries also live in `index.json` |
 | `POST` | `/api/reports/{report_id}/index` | – | `IndexStatus` — chunk + embed the report into the knowledge base (idempotent, cached on disk). ~10–30 s per report locally |
 | `POST` | `/api/ask` | `{ "question": string, "report_ids"?: string[], "report_stems"?: string[] }` | `Answer` — omit both scopes to search all saved reports. Explicit scopes must be non-empty and mutually exclusive; unknown entries fail rather than widening the search. Global retrieval uses BM25 with bounded context, without embedding the entire library |
 | `GET`  | `/api/kb` | `?collection_name=wallenberg\|midcap\|all` | `KbEntry[]` — what is in `data/kb/` (one per parsed report: pages indexed, sections extracted). `collection_name` filters the list: `all` (the backend default), the curated Wallenberg roster (`wallenberg` — what the KB page sends by default), or the 132-company SEB Mid Cap universe (`midcap`) |
 | `GET` | `/api/kb/export.csv` | `?section=debt_maturity&collection=wallenberg\|midcap\|all&q=` | One CSV row per saved company extraction. `collection` follows the KB page scope; optional `q` matches its company/stem filter. No PDF or model call is needed. |
 | `GET` | `/api/kb/export.pptx` | `?section=debt_maturity&collection=wallenberg\|midcap\|all&q=` | A PPTX deck with one maturity-wall summary table, then one established PowerPoint slide per saved company. Filtering is identical to the whole-KB CSV and no PDF or model call is needed. |
-| `GET` | `/api/kb/maturity-wall` | `?section=debt_maturity&collection=wallenberg\|midcap\|all` | `MaturityWall` — deterministic upcoming-maturities list (v174): total debt, amount due within 1 year and their share for every saved `debt_maturity` extraction in the collection, sorted comparable-first by share descending. Each row also names its `data/companies.json` sector and whether its buckets are complete (v180), and the wall is aggregated per sector — counts plus median/min/max share over complete companies only. Reads the same decorated extracts as the CSV/PPTX exports (no PDF, no model call); 200 with `rows: []` when the collection has none yet |
+| `GET` | `/api/kb/maturity-wall` | `?section=debt_maturity&collection=wallenberg\|midcap\|all` | `MaturityWall` — deterministic upcoming-maturities list: total debt, amount due within 1 year and their share for every saved `debt_maturity` extraction in the collection, sorted comparable-first by share descending. Each row also names its `data/companies.json` sector and whether its buckets are complete, and the wall is aggregated per sector — counts plus median/min/max share over complete companies only. Reads the same decorated extracts as the CSV/PPTX exports (no PDF, no model call); 200 with `rows: []` when the collection has none yet |
 | `GET` | `/api/kb/{stem}/pages/{page}` | – | `{ page: number, text: string }` — saved page text, available even without the PDF; exact known stem and valid page required |
 | `GET` | `/api/kb/{stem}/{section}` | – | Saved `Extraction`, no model call, available without the original PDF |
-| `GET`  | `/api/config` | – | `{ model, embed_model, base_url, llm, provider, retrieval, maturity_basis, merge_runs, second_pass, scan_all }` — what the backend runs with; `retrieval` is `"hybrid"` (cosine+BM25) \| `"bm25"` (keyword-only, e.g. codex/claude subscription with no embeddings endpoint) \| `"fixture"`; `maturity_basis` (v089) is `"carrying"` (default) \| `"undiscounted"`, from env `DEBT_BASIS`; `merge_runs` (v140) is `"off"` (default) \| `"union"` \| `"majority"`, from env `EXTRACT_MERGE_RUNS`; `second_pass` (w212) is a boolean echo of env `EXTRACT_SECOND_PASS` (w197's bounded retry + w198's full-text sweep, default `false`, also the Settings "Deep search for missing figures" switch); `scan_all` (w212) is a boolean echo of env `EXTRACT_SCAN_ALL` (m02's offline full-report scan — echoed for confirmation only, no Settings control by design) |
-| `POST` | `/api/reports/from-library` | `{ "file": "<LibraryEntry.file>", "ocr"?: "bounded"\|"full" }` | `Report` — registers a bundled report exactly like an upload would. Same file twice = same `report_id`. `ocr` (v191, default `bounded`): see "Bounded OCR" below |
+| `GET`  | `/api/config` | – | `{ model, embed_model, base_url, llm, provider, retrieval, maturity_basis, merge_runs, second_pass, scan_all }` — what the backend runs with; `retrieval` is `"hybrid"` (cosine+BM25) \| `"bm25"` (keyword-only, e.g. codex/claude subscription with no embeddings endpoint) \| `"fixture"`; `maturity_basis` is `"carrying"` (default) \| `"undiscounted"`, from env `DEBT_BASIS`; `merge_runs` is `"off"` (default) \| `"union"` \| `"majority"`, from env `EXTRACT_MERGE_RUNS`; `second_pass` is a boolean echo of env `EXTRACT_SECOND_PASS` (the bounded retry plus the full-text sweep, default `false`, also the Settings "Deep search for missing figures" switch); `scan_all` is a boolean echo of env `EXTRACT_SCAN_ALL` (the offline full-report scan — echoed for confirmation only, no Settings control by design) |
+| `POST` | `/api/reports/from-library` | `{ "file": "<LibraryEntry.file>", "ocr"?: "bounded"\|"full" }` | `Report` — registers a bundled report exactly like an upload would. Same file twice = same `report_id`. `ocr` (default `bounded`): see "Bounded OCR" below |
 
 Errors: JSON `{ "detail": "message" }` with 4xx/5xx.
 
@@ -46,7 +46,7 @@ type Report = {
   pages: number;
   company?: string | null;  // best-effort guess from first pages, may be null
   fiscal_year?: number | null;
-  ocr_pages?: number[];     // v191: 1-based pages this registration actually OCR'd (empty for a text-layer PDF)
+  ocr_pages?: number[];     // 1-based pages this registration actually OCR'd (empty for a text-layer PDF)
 };
 
 type Company = {
@@ -81,9 +81,9 @@ type Candidate = {          // one entity POST /api/reports/discover proposes; i
 };
 
 type JobEvent = { t: number; stage: string; text: string; data?: Record<string, unknown> };
-// data (v194): download carries { bytes, total: number | null }; model_search carries { queries: string[] } and/or
+// data: download carries { bytes, total: number | null }; model_search carries { queries: string[] } and/or
 // { candidates / urls }, whichever the stage produced — see Progress tracking above
-type Job = {                // GET /api/jobs/{job_id} (v194)
+type Job = {                // GET /api/jobs/{job_id}
   job_id: string;
   stage: string;             // directory | mfn | nasdaq | ddg | model_search | ir_page | download | verify | done | failed
   started: number;           // unix seconds
@@ -179,7 +179,7 @@ type Field = {
   components?: ReviewComponent[]; // analyst-reviewed printed amounts used to derive this field; never a claim that one printed row equals their sum
   confidence: number;       // 0..1, computed from evidence by the backend — see docs/CONFIDENCE.md. Never the model's opinion.
   evidence: string[];       // satisfied evidence codes, e.g. ["quote_on_page","value_in_quote","arith_ok"]; 1.0 <=> all seven present
-                            // "absent_in_table" (v165, debt_maturity buckets): the maturity table's own parsed header prints no
+                            // "absent_in_table" (debt_maturity buckets): the maturity table's own parsed header prints no
                             // column for this window — value stays null and `source` quotes the header row that proves it; the
                             // identity check counts the operand as 0 (see docs/acrylic/evidence/v165.md)
 };
@@ -190,7 +190,7 @@ type Check = {
   detail: string;           // human-readable, e.g. "152340 + -88120 = 64220 == 64220"
 };
 
-// v182: a deterministic, unconfirmed starting point for the basis-review form. Every
+// A deterministic, unconfirmed starting point for the basis-review form. Every
 // suggestion names its provenance: metadata for the company/year, or a saved field
 // citation for a value inferred from a printed unit/header. It is never a review.
 type BasisSuggestion = {
@@ -207,16 +207,16 @@ type Extraction = {
   fiscal_year: number | null;
   currency: string | null;  // dominant unit in the section
   section: string;          // schema name
-  maturity_basis?: "carrying" | "undiscounted"; // v089, debt_maturity only: which maturity table total_debt + the buckets were read from (env DEBT_BASIS); distinct from the analyst-confirmed `basis` object below
-  prior_year?: PriorYear;   // v091, debt_maturity only: the prior fiscal year's own figures (see below); the key is absent when they cannot be read deterministically
-  buckets_by_year?: BucketsByYear; // v109, debt_maturity only: the report's own calendar-year maturity columns (see below); the key is absent unless the report prints years and they close on total_debt
-  basis_suggestions?: BasisSuggestion[]; // v182: source-backed, deterministic suggestions; omitted keys remain unknown
+  maturity_basis?: "carrying" | "undiscounted"; // debt_maturity only: which maturity table total_debt + the buckets were read from (env DEBT_BASIS); distinct from the analyst-confirmed `basis` object below
+  prior_year?: PriorYear;   // debt_maturity only: the prior fiscal year's own figures (see below); the key is absent when they cannot be read deterministically
+  buckets_by_year?: BucketsByYear; // debt_maturity only: the report's own calendar-year maturity columns (see below); the key is absent unless the report prints years and they close on total_debt
+  basis_suggestions?: BasisSuggestion[]; // source-backed, deterministic suggestions; omitted keys remain unknown
   fields: Field[];          // one entry per schema field, in schema order (value null if missing)
   checks: Check[];
   warnings: string[];       // free text, e.g. "revenue: quote not found on page 64"
 };
 
-// v091: FY-1 alongside FY, read from the same table the current year came from (same basis),
+// FY-1 alongside FY, read from the same table the current year came from (same basis),
 // never a model answer. Written only when total_debt and at least two buckets were read and they
 // close maturity_sums_to_total within the check's own tolerance on explicit values — a bucket
 // whose prior-year figure the table does not print is absent from `fields` and named in the detail.
@@ -229,7 +229,7 @@ type PriorYear = {
   check: { passed: boolean; detail: string }; // the identity re-run on the prior year's values
 };
 
-// v109: the report's own calendar-year maturity columns, read deterministically from the same table
+// The report's own calendar-year maturity columns, read deterministically from the same table
 // the current year's buckets came from — never a model answer. Written only when the years sum to
 // total_debt within the check's own ±2 (a dash in a year column is the report's explicit 0).
 type BucketsByYear = {
@@ -241,7 +241,7 @@ type BucketsByYear = {
   }[];
 };
 
-// v174: GET /api/kb/maturity-wall. No FX conversion: total/due_within_1_year keep the printed unit
+// GET /api/kb/maturity-wall. No FX conversion: total/due_within_1_year keep the printed unit
 // unless both fields share a recognised currency at different scales (MSEK vs TSEK), in which case
 // both are shown at the coarser scale. `comparable` is false when the basis is unconfirmed, either
 // field lacks verified evidence, or the two units don't share a recognised currency — `share` can
@@ -257,10 +257,10 @@ type MaturityWallRow = {
   review_status: string;                     // e.g. "confirmed", "unreviewed", "unresolved"
   comparable: boolean;
   reason: string;
-  sector: string | null;                     // v180: data/companies.json sector, null when unknown
-  complete: boolean;                         // v180: identity check passed AND total AND <1y present
+  sector: string | null;                     // data/companies.json sector, null when unknown
+  complete: boolean;                         // identity check passed AND total AND <1y present
 };
-// v180: the wall aggregated per sector (alphabetical, the null sector last). median/min/max count
+// The wall aggregated per sector (alphabetical, the null sector last). median/min/max count
 // complete companies' shares only — a missing bucket is never back-filled with 0, so a sector with
 // no complete company reports null stats while still counting its companies.
 type MaturityWallSector = {
@@ -375,7 +375,7 @@ or cannot retrieve a valid report. This is public-web discovery, not guaranteed 
 Validated PDFs are cached in `data/reports/<slug>_<year>.pdf`, with their actual source URL recorded
 in `data/reports/index.json`. Repeated requests reuse the cache without another model search.
 
-### Progress tracking (v194)
+### Progress tracking
 
 `/discover` and `/fetch` can each take an optional `job_id` — a uuid the frontend generates once per
 call. When present, every stage the call passes through (checking the cache — including the terminal
@@ -412,8 +412,7 @@ data/kb/<stem>/
   runs the extraction a second time on the same pages and merges field by field — the run whose identity check passed
   wins; when the checks agree, values within ±2 count as the same answer and higher confidence picks whose copy to keep
   (a confidence tie keeps the second run), while a conflicting pair publishes null — with neither check nor a
-  corroborating vote on either side, no signal says which run is right (v129's rules with the v145/v145-b conflict rule,
-  measured on the v129/v136/v141 rerun data). Agreement is a same-financial-question comparison (v168): the unit counts
+  corroborating vote on either side, no signal says which run is right. Agreement is a same-financial-question comparison: the unit counts
   too, by magnitude and currency — `MSEK`, `SEK m`, `SEKm` and `SEK million` are one unit, `KSEK`/`TSEK`/`SEK '000` are
   another, so 100 MSEK and 100 TSEK are a conflict, not a corroborating pair — and so does the period when both sides
   carry one; a unit or period printed on one side only is not proof of sameness. Both raw
@@ -492,13 +491,13 @@ Checks include `status: passed|failed|unavailable`. Reconciliation requires ever
 
 Comparison responses include saved `candidates`, `previous_stem`, `current_year`, `previous_year`, `reasons`, and per-field `rows` with current/previous values, delta, percent, sign-change flag, sources and human reviews. Missing immediate prior years and duplicate sources require explicit selection. Definitions must be confirmed and compatible before calculating changes. Period formats must match after replacing each fiscal year. A zero previous value gives a null percentage, never infinity. Alternate intervals and declared restatements remain explicit. Export query parameters `section` and `previous_stem` select the saved statement and comparison, regardless of the last statement opened.
 
-### Prior-year maturity metadata and the PPTX second series (v091)
+### Prior-year maturity metadata and the PPTX second series
 `GET /api/reports/{report_id}/extraction.pptx` additionally accepts `prior_year=1`: the maturity chart gains a second, fainter series named `FY<n-1>` beside the current one (plus a legend naming both). The flag is ignored — the slide renders exactly as before — when the extraction carries no `prior_year` or the parameter is absent. The two deterministic sources are: a maturity table printing one row per bucket under year columns (the prior year is the prior-year column of the same rows), and one printing buckets as columns under stacked per-year blocks (the prior year is the same-labelled row of the FY-1 block, read with the same column keys). Date-per-instrument notes and model-only answers never produce a prior year.
 
-`GET /api/reports/{report_id}/extraction.pptx` also accepts `per_year=1` (v109): when the extraction carries `buckets_by_year`, the maturity chart's three bucket categories are replaced by the report's own calendar-year columns, one "Debt due" series of the printed years (labels as printed). The flag is ignored — the slide renders exactly the three buckets — when the extraction carries no `buckets_by_year` or the parameter is absent; when both `per_year=1` and `prior_year=1` are sent, the year series wins (a year series and a bucket series answer two different questions). See "Per-year maturity metadata (`buckets_by_year`)" in `backend/README.md`.
+`GET /api/reports/{report_id}/extraction.pptx` also accepts `per_year=1`: when the extraction carries `buckets_by_year`, the maturity chart's three bucket categories are replaced by the report's own calendar-year columns, one "Debt due" series of the printed years (labels as printed). The flag is ignored — the slide renders exactly the three buckets — when the extraction carries no `buckets_by_year` or the parameter is absent; when both `per_year=1` and `prior_year=1` are sent, the year series wins (a year series and a bucket series answer two different questions). See "Per-year maturity metadata (`buckets_by_year`)" in `backend/README.md`.
 
 
-## Cache and embedding integration (21 September 2026)
+## Cache and embedding integration
 
 - `POST /api/reports/{id}/extract` accepts `force: true` to bypass the automatic
   source/model/settings cache. `reuse_saved: true` still opens the saved result,
@@ -522,10 +521,10 @@ Comparison responses include saved `candidates`, `previous_stem`, `current_year`
 - Fact chunks require printed amounts, verified sources, matching year and confidence
   at least 0.7. Raw per-run extraction records are excluded. Answers containing rejected
   citations are withheld, with warnings explaining the rejected evidence.
-- Parser 7 combines the current column/header reconstruction with selective local OCR.
+- The parser combines column/header reconstruction with selective local OCR.
   OCR language/path and page provenance are recorded with the cached text. OCR-derived
   fields are capped at 0.8 confidence. Missing language files return an actionable 422.
-- **Bounded OCR (v191).** A scanned PDF's registration request (`POST /api/reports`,
+- **Bounded OCR.** A scanned PDF's registration request (`POST /api/reports`,
   `/api/reports/from-library`, `/api/reports/fetch`) does not OCR the whole document
   synchronously by default: it OCRs only the pages a debt-maturity locate pass could reach
   (the report's own front matter plus any outline/bookmark entry naming a debt/maturity/

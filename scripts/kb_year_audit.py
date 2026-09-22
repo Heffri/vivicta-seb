@@ -1,4 +1,4 @@
-"""Audit the knowledge base against fetch.py's anchored fiscal-year rule (v122); zero model calls.
+"""Audit the knowledge base against fetch.py's anchored fiscal-year rule; zero model calls.
 
     python scripts/kb_year_audit.py --kb data/kb
 

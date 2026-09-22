@@ -1,15 +1,34 @@
-# Acrylic branch — notes for the team
+# Acrylic — what it built and how to verify it
 
-What this branch changed, how to run it, and what the backend hardening found along the way — for
-whoever picks this up next. Background, if you haven't read it yet: [`README.md`](../../README.md),
-[`docs/HANDOFF.md`](../HANDOFF.md) (backend state, decided-today scope), [`docs/API.md`](../API.md)
+What the acrylic line of work changed, how to run it, and what the backend hardening found along
+the way. This is history: the work is merged into `main` (main's own HEAD is that merge commit) and
+the `acrylic` branch itself no longer exists. Background: [`README.md`](../../README.md),
+[`docs/HANDOFF.md`](../HANDOFF.md) (backend state), [`docs/API.md`](../API.md)
 (the contract), [`DESIGN.md`](DESIGN.md) (the token system everything below is built on).
 
-## What this branch is
+## Reading the archive
+
+`evidence/` holds 212 entries, one per change, each written when the change was made; an entry's
+screenshots, dumps and score files sit in a subdirectory of the same name. None of it is a plan or
+a to-do list — it is a record of what was done and what was measured, kept so that any number in
+this repo can be traced back to the run that produced it.
+
+Entry ids run in the order the work happened, and the prefix says which run produced it:
+
+- `v001`–`v194` — the main acrylic run: the frontend rebuild first, then the backend hardening.
+- `w195`–`w214` — the QA and follow-up run after it.
+- `m01`–`m03` — merges of other people's branches into this line.
+
+To find the entry behind a claim, follow the id link printed next to it — the page-scoring rule
+below cites [v132](evidence/v132.md), the bank-borrowings decision [v090](evidence/v090.md). An
+entry is a short page: what changed, why, what was measured, and the files it produced. A few ids
+carry a suffix naming their subject (`m03-merge-historical`).
+
+## What this work is
 
 The frontend is redone in the UAW "acrylic" glass design language (tokens, rationale, contrast
 numbers: [`DESIGN.md`](DESIGN.md)). Alongside it, a batch of backend fixes that don't need a model to
-verify — locator, parser, label matching. `main` hasn't moved; nothing here has merged there.
+verify — locator, parser, label matching.
 
 **How a teammate gets it** — three ways, cheapest first:
 
@@ -50,11 +69,11 @@ verify — locator, parser, label matching. `main` hasn't moved; nothing here ha
 - **Look**: Settings' **Theme** switch (Solid default / Acrylic) — the browser UI flips instantly, the desktop window's real material follows; the rail's tone toggle still picks dark/light within either theme.
 - **Accuracy — two separate claims, kept separate** (re-measured on this tree, zero model calls;
   superseded 86.4% / 81.5%):
-  - **Stored library (curated)**: `eval/run.py --stored-kb data/kb` — values **327/367 (89.1%)**
-    over 367 scored rows (271 hand-verified `debt_maturity` labels across 105 companies, plus 96
+  - **Stored library (curated)**: `eval/run.py --stored-kb data/kb` — values **328/368 (89.1%)**
+    over 368 scored rows (272 hand-verified `debt_maturity` labels across 105 companies, plus 96
     income rows); pages **263/313 (84.0%)** — pages scored only where a value is cited: a null
     label answered null has no citation, hence no page to score ([v132](evidence/v132.md)). Debt
-    section alone: values **231/271 (85.2%)**, pages **171/221 (77.4%)**; income 96/96 and 92/92.
+    section alone: values **232/272 (85.3%)**, pages **171/221 (77.4%)**; income 96/96 and 92/92.
     The library is republished under a "nothing loses on the labels" gate, so this is a curated
     score, **not** a first-pass rate.
   - **First extraction (no labels at run time)**, the three measured batches, scored afterwards:
@@ -598,12 +617,17 @@ cd backend  && python -m pipeline.test_parse           # parse.py's row-merge be
 cd backend  && python -m pipeline.test_paths           # dev-tree-vs-frozen path resolution self-check
 cd backend  && python -m pipeline.test_runtime         # runtime/config regressions, offline
 cd backend  && python test_collection.py               # collection scope (Wallenberg / SEB Mid Cap / all)
+cd backend  && python test_download_import.py          # browser imports: content check, saved reports kept
+cd backend  && python test_fetch_coverage.py           # report-download regressions, offline
 cd backend  && python test_human_review.py             # review route: citations, components, targeted fill
+cd backend  && python test_report_listing.py           # company-independent listing and download
+cd backend  && python test_report_period.py            # historical discovery and reporting-period rules
+cd backend  && python test_source_evidence.py          # source-evidence route
+cd backend  && python test_source_restore.py           # restoring a saved report without replacing its edition
 cd backend  && python test_workbench.py                # CSV/PPTX export, candidates, maturity wall
 ```
 
-The backend carries **16 standalone suites** (13 under `pipeline/` plus `test_collection`,
-`test_human_review`, `test_workbench`).
+The backend carries **22 standalone suites** — 13 under `pipeline/` and 9 at `backend/` root.
 
 Three offline, read-only scripts (repo root `scripts/`, no model calls, nothing started):
 
@@ -612,7 +636,8 @@ Three offline, read-only scripts (repo root `scripts/`, no model calls, nothing 
   "looks like the note" marker (a triage aid, not a score).
 - `python scripts/label_regression.py [--schema income_statement] [--schema debt_maturity] [--baseline <git ref>]`
   — walks every stored KB extraction, compares label-matching verdicts between a baseline `extract.py`
-  (default `origin/acrylic`) and the current one.
+  and the current one. Its built-in default baseline, `origin/acrylic`, no longer resolves — the
+  branch is gone, so pass `--baseline <commit>` explicitly.
 - `python scripts/parse_check.py [--out <file>] [--quotes] [--locate]` — split-row rate over every PDF
   in `data/reports/` by default; `--quotes` re-checks stored quotes against a fresh re-parse;
   `--locate` compares locator rankings before/after.

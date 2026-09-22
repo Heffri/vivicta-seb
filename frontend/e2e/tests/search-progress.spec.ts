@@ -1,11 +1,10 @@
 import { expect, test } from '@playwright/test'
 
-// v194: the search/fetch progress trail — jobs.py's job table, GET /api/jobs/{job_id} polled every
-// 1.5 s by useReportSearch — fixes the P0 this ticket is about: a company search used to look
-// identically "stuck" whether it was working or dead, and switching to another tab and back silently
-// dropped the reply. These three specs mock GET /api/jobs/{job_id} directly (something ai-discovery.spec.ts
-// never needed to) to prove the trace actually appears, survives a tab switch, and offers a working
-// Retry on failure.
+// The search/fetch progress trail — jobs.py's job table, GET /api/jobs/{job_id} polled every 1.5 s
+// by useReportSearch. Without it a company search looks identically "stuck" whether it is working
+// or dead, and switching to another tab and back silently drops the reply. These three specs mock
+// GET /api/jobs/{job_id} directly (something ai-discovery.spec.ts never needed to) to prove the
+// trace actually appears, survives a tab switch, and offers a working Retry on failure.
 
 const intel = { legal_name: 'Intel Corporation', ticker: 'INTC', exchange: 'NASDAQ', country: 'US', org_number_or_lei: null, fiscal_year_end: 'Dec', document_title: null, document_type: 'annual report', url: null, reason: 'US chipmaker', saved: false, stem: null }
 const card = (page: any, name: string) => page.locator('[data-slot="card"]', { hasText: name })

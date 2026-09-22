@@ -3,8 +3,8 @@ import { makePdf } from '../fixtures/make-pdf'
 import { trackPageErrors } from '../support/page-errors'
 import { gotoWithTone, TONES } from '../support/tone'
 
-// Two runtime-generated PDFs (different page counts so their bytes/sizes differ, same as v021's
-// evidence did with its PyMuPDF-built fixtures) — no atlas dependency, no fixture binaries to commit.
+// Two runtime-generated PDFs (different page counts so their bytes/sizes differ) — no atlas
+// dependency, no fixture binaries to commit.
 for (const tone of TONES) {
   test(`extract: two uploaded PDFs -> Compare with two columns [${tone}]`, async ({ page }) => {
     const errors = trackPageErrors(page)
@@ -23,7 +23,7 @@ for (const tone of TONES) {
     await expect(extractButton).toHaveText('Extract 2 reports')
     await extractButton.click()
 
-    // v171: a finished batch never forces a tab switch (BatchProgress's own "View results" does);
+    // A finished batch never forces a tab switch (BatchProgress's own "View results" does);
     // it also appears as soon as the first of the two is done, so wait for the count to say both
     // finished before clicking through, or this can land on the single Results view instead.
     const viewResults = page.getByRole('main').getByRole('button', { name: 'View results (2)' })
@@ -33,7 +33,7 @@ for (const tone of TONES) {
     await expect(page.getByText('2 of 2 reports extracted')).toBeVisible()
     await expect(page.locator('table thead th')).toHaveCount(3) // Field + 2 report columns
 
-    // v174: the "Upcoming maturities" section is collection-wide (data/kb), independent of the two
+    // The "Upcoming maturities" section is collection-wide (data/kb), independent of the two
     // uploaded fixture reports above it. Wallenberg has only one saved debt_maturity extraction, so
     // switch to All for a pool wide enough to prove the threshold filter actually removes rows.
     await expect(page.getByRole('heading', { name: 'Upcoming maturities', exact: false })).toBeVisible({ timeout: 20000 })

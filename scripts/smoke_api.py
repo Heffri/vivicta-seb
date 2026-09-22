@@ -1,9 +1,14 @@
 #!/usr/bin/env python
-"""Hit every endpoint in docs/API.md against a running backend; print PASS/FAIL per call.
+"""Smoke-test the core read/upload path of a running backend; print PASS/FAIL per call.
 
     python scripts/smoke_api.py [--api http://localhost:8000] [--llm] [--fetch "Company Name"]
 
---llm    also run /extract, /index, /ask (needs Ollama; ~2 min)
+Covers /api/schemas, /api/companies, /api/library, /api/reports (upload, from-library, metadata,
+pdf, page PNG), /api/kb, /api/reports/fetch, and the error cases for each. Not every endpoint in
+docs/API.md is called -- review, fill, discover, jobs, collections, the PPTX/whole-KB CSV exports
+and PDF restore are not exercised here.
+
+--llm    also run /extract, /extraction.csv, /index, /ask (needs a configured model; ~2 min)
 --fetch  also run POST /api/reports/fetch for an uncached company (web access; ~1 min)
 Exit 1 if anything failed. stdlib only.
 """

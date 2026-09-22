@@ -56,7 +56,7 @@ def checks(x, schema):
     out = []
     for rule in schema.get("checks", []):
         keys = [f["key"] for f in schema["fields"] if re.search(r"\b" + re.escape(f["key"]) + r"\b", rule["expr"])]
-        # v165: a bucket the maturity table prints no column for (evidence "absent_in_table", the header
+        # A bucket the maturity table prints no column for (evidence "absent_in_table", the header
         # row its source) is the report's explicit absence: it joins the reconciliation as 0 -- the same
         # participation extract._check gives it under require_explicit_values -- instead of holding the
         # check "unavailable" on a value the report never prints. Its missing unit/period are implied by
@@ -85,7 +85,7 @@ def decorate(x, schema, audit=None):
     x["checks"] = checks(x, schema)
     if audit and old != x["checks"]:
         x.setdefault("check_history", []).append(dict(audit, previous=old))
-    # v182: derive only explicitly sourced, unconfirmed starting values. This is deliberately
+    # Derive only explicitly sourced, unconfirmed starting values. This is deliberately
     # recomputed rather than persisted as a review: a changed field citation must not leave a
     # stale basis hint behind, and a suggestion never clears an issue or contributes to `ready`.
     x["basis_suggestions"] = _basis_suggestions(x)
@@ -105,7 +105,7 @@ def decorate(x, schema, audit=None):
     labelled = lambda f: extract._label_known(f.get("raw_label"), {**(sf := sfs.get(f["key"], {})),
         "synonyms": sf.get("synonyms", []) + sf.get("row_synonyms", []) + [sf.get("label", "")]})
     row_of = lambda f: ((f.get("source") or {}).get("page"), " ".join(str((f.get("source") or {}).get("quote") or "").split()))
-    # v157: one printed row can answer two fields. A maturity ladder's last bucket often IS its closing
+    # One printed row can answer two fields. A maturity ladder's last bucket often IS its closing
     # row ("Later 60 / Total 300" torn into one), and the report labels that row once -- the bucket
     # inherits a bare "Total" and gets flagged though the very same quote already carries a known label
     # on the other field. Grant it, debt only, and only when this extraction's own buckets-sum-to-total
@@ -118,7 +118,7 @@ def decorate(x, schema, audit=None):
     for f in x["fields"]:
         review = f.get("human_review", {})
         evidence = set(f.get("evidence", []))
-        # v165: a null bucket the report's own maturity table prints no column for is not an open
+        # A null bucket the report's own maturity table prints no column for is not an open
         # question -- the header row in its source is the proof it is not printed; nothing to review.
         # A reviewer actively marking it unresolved re-opens it below like any other field.
         if f.get("value") is None and "absent_in_table" in evidence and review.get("decision") != "unresolved":
@@ -168,7 +168,7 @@ def compare(current, previous):
             "previous_basis": b, "restatement": {"current": av.get("restatement", "unknown"), "previous": bv.get("restatement", "unknown")}, "reasons": reasons, "rows": rows}
 
 
-# v174: upcoming-maturities list over a whole saved collection -- consult-gpt6 #8 / consult-fable #2.
+# Upcoming-maturities list over a whole saved collection.
 # Deterministic (no model, no FX): total debt, the amount due within a year, and their share, for every
 # debt_maturity extraction handed in (kb_export_extractions' decorated output). No pairwise comparison --
 # each row judges only its own basis/evidence/units, so the share stays visible even when "comparable" is
@@ -182,7 +182,7 @@ _KNOWN_CCY = {"SEK", "EUR", "USD", "GBP", "NOK", "DKK", "CHF", "JPY", "CAD", "AU
 
 def _parse_unit(unit):
     """(currency, scale-multiplier) from a free-text unit ('MSEK', 'SEK million', 'TSEK', 'EUR'000',
-    'Mkr' ...) -- reuses merge._unit_key (v168's tested magnitude/currency parser, already exercised
+    'Mkr' ...) -- reuses merge._unit_key (a tested magnitude/currency parser, already exercised
     against real saved units) instead of a second copy of the same regexes. currency is None when no
     recognised code survives parsing, so callers must treat the figure as not safely combinable with
     another field, never guess one."""

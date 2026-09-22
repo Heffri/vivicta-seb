@@ -1,14 +1,14 @@
-"""Mechanism-only replay: extract() on the model-selected pages with the model's values nulled (v158).
+"""Mechanism-only replay: extract() on the model-selected pages with the model's values nulled.
 
     python scripts/mechanism_only.py --kb data/kb --section debt_maturity
     python scripts/mechanism_only.py --variant total                    # only total_debt keeps the model's stored answer
     python scripts/mechanism_only.py --pages locate                     # window from the deterministic locator, not the model's selection
     python scripts/mechanism_only.py --only academedia_2025 --out replay.md --csv fields.csv
 
-The question (v141's same-model rerun lost value, v152 flipped window values 3/14 -- model variance is
-now the largest residual): if the model's four answers are thrown away and only extract()'s
-deterministic mechanisms read the pages the model picked, what survives?  This decides whether a
-"table-first, model-picks-the-page" mode (EXTRACT_TABLE_FIRST) is worth building.
+The question (reruns of the same model move values, so model variance is the largest residual): if
+the model's four answers are thrown away and only extract()'s deterministic mechanisms read the
+pages the model picked, what survives?  It measures how much of the accuracy the rules alone carry,
+and so how far a "table-first, model-picks-the-page" mode could go.
 
 For every <kb>/<stem>/extractions/<section>.json the stored fields are -- as in scripts/replay_check.py
 and scripts/publish_kb.py -- fed back as the model's own answer (MODEL_KEYS only; confidence/evidence
@@ -18,15 +18,15 @@ through) with value/unit/period/raw_label/source all null; the --variant total a
 total_debt field verbatim (the field the model is best at; the buckets are where the instability lives)
 and nulls the rest.  call_llm is stubbed -- zero model calls.  What can still write is exactly the
 machinery that fires on null: the statement-spread null fill, _fill_bucket_columns' null fills,
-_finer_split_rows, _subtotal_pair_fill, v156's on-null window family, _stated_zero/printed-nil,
+_finer_split_rows, _subtotal_pair_fill, the on-null window family, _stated_zero/printed-nil,
 _between_rows, _date_bucket_derive -- each gated as hard as it is in production, so a mechanism-only
 hit is a value the rules alone can prove.
 
 The replay window is publish_kb's own construction (imported, not re-derived): the two_pass selection
 recorded in the stored warnings -- what the original run received as `pages`, selection first -- UNION
 the stored fields' cited pages.  --pages locate swaps it for pipeline.locate.candidate_pages' ranking
-(the deterministic locator standing in for the model at page-pick too): the sensitivity line behind the
-TABLE_FIRST recommendation.
+(the deterministic locator standing in for the model at page-pick too): the sensitivity check on how
+much the result depends on the model's own page choice.
 
 Scored per field against (a) eval/labels.csv through eval/run.py's own values_match/page_match -- the
 same predicates -- and (b) the stored record itself (the model+mechanism baseline): same (repr-equal),

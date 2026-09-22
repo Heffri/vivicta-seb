@@ -6,14 +6,14 @@ words only when that still leaves rows open. Prose pages pass through byte-ident
 Column-major layers (Arion Bank prints every figure first, then every label) go through the word-level
 rebuild too.
 
-The word-level rebuild is column-aware (v049): a page-wide baseline merge glues a sidebar/TOC column
+The word-level rebuild is column-aware: a page-wide baseline merge glues a sidebar/TOC column
 into body text mid-sentence (Ratos) and interleaves two tables printed side by side (Flerie, AQ), so
 the page is first cut into column regions at vertical gutters and each column is rebuilt on its own.
 A cut is refused when the two sides share a row grid -- those are one table's label and figure
 columns, and cutting a table is far worse than not cutting. Block-local merging chains a wrapped
 cell's stacked fragments (a header printed "Between" / "1 and" / "2 years" on three lines becomes one
 line again) without touching prose, whose leading is wider than the chaining tolerance. The grouping
-this chaining runs within is geometric, not pymupdf's own block partition (v049b): pymupdf's block
+this chaining runs within is geometric, not pymupdf's own block partition: pymupdf's block
 split for a short table region -- a stacked cell, a row's label split from its figures -- changes
 between its own releases (Ependion p.155's maturity header is one block under PyMuPDF 1.27.2.3 and
 five under 1.28.2, same glyph boxes), so a fragment's block id is not something the chain can rely on.
@@ -22,18 +22,15 @@ already trusts, before either version's block boundary is looked at.
 
 A table header that prints as two physical lines but is matrix-transposed -- line 1 holds every
 column's first fragment, line 2 holds every column's second fragment, because a header cell that needs
-two lines and a neighbor that needs only one both set their single/first line at the same height (v060:
-Ework p.70, XANO p.84) -- comes out of both rebuilds above in that same scrambled, two-line order: it is
+two lines and a neighbor that needs only one both set their single/first line at the same height
+(Ework p.70, XANO p.84) -- comes out of both rebuilds above in that same scrambled, two-line order: it is
 neither a stacked cell (the fragments are never in one narrow column or block) nor two side-by-side
 tables (every column shares the row's own baseline). `_rebuild_transposed_headers` closes this
 specifically: a row with enough bare value-shaped fragments to be a table's own data row fixes that
-row's column x-positions, and the 1-3 short lines directly above it (v060's transposed header) are
+row's column x-positions, and the 1-3 short lines directly above it (the transposed header) are
 reread by which column's position their own words are closest to, right edge to right edge -- the same
 edge a wrapped header's printer already right-aligns to its column, whether or not that column also
 needed a second line. Only adopted when every word's column is unambiguous.
-
-Next for a teammate: scanned reports need an OCR fallback (pymupdf + tesseract via
-`page.get_textpage_ocr()`).
 """
 import re
 import os
@@ -48,7 +45,7 @@ _DIGIT_SPACE = re.compile(r" (?=\d)|(?<=\d) ")  # any space touching a digit
 _CHARMAP = str.maketrans({"\u00a0": " ", "\u202f": " ", "\u2013": "-", "\u2212": "-"})  # NBSP, narrow NBSP, en dash, minus
 
 
-PARSER_VERSION = 10  # w204: classify OCR need across the whole PDF; image-only pages no longer fail native-text reports
+PARSER_VERSION = 10  # classify OCR need across the whole PDF; an image-only page does not fail a native-text report
 NUMERIC_RUN = 12  # consecutive letterless lines: a column-major text layer (Arion Bank prints every figure first, then every label, in no order)
 _LEADERS = re.compile(r"(?:\s*\.){3,}")
 _PURE_VALUE = re.compile(r"[\s\d.,()\-–—%*]+")  # a figures-only line ("164,155 164,155", " - "), as opposed to a label
@@ -59,13 +56,13 @@ _ROW_GAP = 3.0  # two short blocks on one baseline join _group_blocks's pool whe
 _LINE_RATIO = 2.0  # _group_blocks never links two lines whose heights differ by more than this factor
 _PHRASE_GAP = 4.0  # word-to-word gap _phrases treats as ordinary spacing within one phrase, not a column boundary: intra-phrase gaps measured <=1.9pt (Ework's "< 1 month", XANO's space-grouped "51"+"075"); the tightest real inter-column gap measured is 5.5pt (Ework's "years"/"counted") -- 4.0 sits with margin on both sides
 _HEADER_TOL = 2.0  # a header phrase's own right edge must land within this many points of its column's right edge to be adopted: both companies' printers right-align a wrapped header phrase's last word to its column, the same edge the column's own figures right-align to; every real match measured here lands within 0.2pt
-_HEADER_MAX_LINES = 3  # a transposed header is at most this many physical lines above its anchor row (v060: Ework and XANO each wrap at most 2; a 4th line reaching this deep is a different shape, not this one)
+_HEADER_MAX_LINES = 3  # a transposed header is at most this many physical lines above its anchor row (Ework and XANO each wrap at most 2; a 4th line reaching this deep is a different shape, not this one)
 
-OCR_PAGE_BUDGET = int(os.getenv("OCR_PAGE_BUDGET", "40"))  # v191: pages a bounded registration pass may OCR synchronously
-OCR_SECONDS_PER_PAGE = 2.2  # v191: Saab's 231-page scan measured 506s (docs/PERFORMANCE.md) -- for the budget 422's "~N min" estimate only
-FRONT_PAGES = 8  # v191: report front matter always considered, mirrors locate.py's own TOC_PAGES
-TEXT_LAYER_PAGE_CHARS = 200  # w204: enough letters/digits to prove this page has useful native text
-TEXT_LAYER_PAGE_RATIO = 0.20  # w204: this share proves the PDF as a whole is not a scan
+OCR_PAGE_BUDGET = int(os.getenv("OCR_PAGE_BUDGET", "40"))  # pages a bounded registration pass may OCR synchronously
+OCR_SECONDS_PER_PAGE = 2.2  # Saab's 231-page scan measured 506s (docs/PERFORMANCE.md) -- for the budget 422's "~N min" estimate only
+FRONT_PAGES = 8  # report front matter always considered, mirrors locate.py's own TOC_PAGES
+TEXT_LAYER_PAGE_CHARS = 200  # enough letters/digits to prove this page has useful native text
+TEXT_LAYER_PAGE_RATIO = 0.20  # this share proves the PDF as a whole is not a scan
 
 
 def _dedupe_doubled_tokens(text: str) -> str:
@@ -146,7 +143,7 @@ def page_texts(pdf_path, metadata: dict | None = None, ocr: str = "bounded") -> 
     for later, on-demand OCR (app.py's extract path) instead of costing a ten-minute registration
     request on a long scanned report. Raises OCRBudgetExceeded rather than running it when even that
     bounded set is bigger than OCR_PAGE_BUDGET. For a scan-classified document, `ocr="full"` OCRs
-    every such page unconditionally (pre-v191 behaviour) -- an explicit opt-in, since only the
+    every such page unconditionally -- an explicit opt-in, since only the
     caller knows the wait is wanted. Image-only pages in a native-text document remain pending."""
     if metadata is not None:
         metadata.update(ocr_pages=[], ocr_pending=[], ocr_unavailable=[], ocr_settings=ocr_settings())
@@ -154,7 +151,7 @@ def page_texts(pdf_path, metadata: dict | None = None, ocr: str = "bounded") -> 
         pages = list(doc)
         raw_texts = [page.get_text() for page in pages]
         scanned = {p.number + 1 for p, text in zip(pages, raw_texts) if _looks_scanned(p, text)}
-        # w204: registration of a native-text annual report never attempts OCR merely because its
+        # Registration of a native-text annual report never attempts OCR merely because its
         # cover or an illustration page is image-only.  Keep that page blank/pending; its useful
         # body text remains immediately available with or without Tesseract data.
         if scanned and _has_document_text_layer(raw_texts):
@@ -282,7 +279,7 @@ def _group_blocks(block_lines: list[list[tuple[tuple, str]]], page_w: float) -> 
     order. Pymupdf's own block split is exactly as version-fragile as its line split within one block
     (see _stack_cells): a stacked header cell or a row split into a label piece and a figures piece can
     land in a single block on one pymupdf release and in several on another (Ependion p.155's maturity
-    header, v049b). Two blocks join the same group when a line in one sits where _stack_cells would
+    header). Two blocks join the same group when a line in one sits where _stack_cells would
     chain it onto a line in the other, or the two lines share a baseline (a row's label-and-figures split
     the same way a stacked cell's fragments are) -- both geometric, so the join does not depend on which
     block pymupdf put either line in. Only blocks of _CHAIN_MAX lines or fewer are eligible: a paragraph
@@ -506,7 +503,7 @@ def _assign_columns(groups: list, first_x0: float, col_x1: list[float]):
 def _header_fix(lines: list[tuple[float, list]], j: int):
     """None, or (start, end, rebuilt) if lines[j] is a table row whose own column x-positions can be
     read off (>=3 bare value-shaped phrases) and 1-3 short lines directly above it are that row's own
-    column headers, matrix-transposed across physical lines (v060: Ework p.70 and XANO p.84 each print a
+    column headers, matrix-transposed across physical lines (Ework p.70 and XANO p.84 each print a
     table header as two lines -- one holding every column's first fragment, the next holding every
     column's second -- because a two-line column and a one-line neighbor both set their first/only line
     at the same height; plain reading order glues them in an order that matches no real column order).

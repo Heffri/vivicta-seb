@@ -6,6 +6,7 @@ data/reports/report-listings.json.tmp
 data/uploads/
 # derived, rebuilt by POST /index; meta.json, pages.jsonl, extractions/ stay committed
 data/kb/*/embeddings.jsonl
+data/kb/*/index.json
 data/kb/*/*.tmp
 # ad-hoc uploads (stem up-<sha>) are not public reports; fetched/curated ones are
 data/kb/up-*/
@@ -35,8 +36,8 @@ desktop/icons/icon.png
 data/tessdata/*
 !data/tessdata/*.traineddata
 !data/tessdata/LICENSE
+
 backend/uploads/
-data/kb/*/index.json
 
 # experiments: keep the comparison scripts/writeups, not the model weights/PDFs/regenerable cache
 experiments/laya/.hf_cache/

@@ -8,7 +8,7 @@ type Props = {
   onSelectField: (key: string) => void // selects a row -> its review form opens below the table
 }
 
-// v164 (consult item 8): a page of "Not found" rows reads as a parser failure when it is often just
+// A page of "Not found" rows reads as a parser failure when it is often just
 // the report not printing the figures. When the model answered nothing (every value null) or the
 // identity check cannot close for missing values, one secondary banner at the top says which pages
 // were searched and hands over to the manual review form below. Secondary styling on purpose — a
@@ -18,7 +18,7 @@ export function NotFoundBanner({ extraction, onSelectField }: Props) {
   const allNull = fields.length > 0 && fields.every((f) => f.value === null)
   // The identity "cannot close for missing values" case: a check marked unavailable *and* a figure
   // actually missing. An unavailable check with every value present is a unit/period mismatch —
-  // the figures were found, so the banner has nothing to say there (work order: 全 null 或因缺值失败).
+  // the figures were found, so the banner has nothing to say there.
   const identityMissing = checks.some((c) => c.status === 'unavailable') && fields.some((f) => f.value === null)
   const show = allNull || identityMissing
   const [candidates, setCandidates] = useState<CandidatePage[] | null>(null)

@@ -1,7 +1,7 @@
 'use strict'
 // Stages electron-builder's extraResources under desktop/build-resources/ (gitignored) so
-// electron-builder.yml can point at paths that always exist, even when v030's backend.exe
-// (backend/dist/) has not been built yet — see README.md "Packaging without backend.exe".
+// electron-builder.yml can point at paths that always exist, even when backend/dist/backend.exe
+// has not been built yet — see README.md "Running a packaged build without backend.exe".
 const fs = require('node:fs')
 const fsp = require('node:fs/promises')
 const path = require('node:path')
@@ -34,7 +34,7 @@ async function stageTessdata(dataDir) {
     const source = path.join(sourceDir, name)
     const dest = path.join(destDir, name)
     if (fs.existsSync(source)) {
-      // w214: these three files are committed to the repo, so this is the normal path on every
+      // These three files are committed to the repo, so this is the normal path on every
       // clone/CI machine and the build is deterministic and offline.
       await fsp.copyFile(source, dest)
       continue
@@ -58,7 +58,7 @@ async function main() {
   }
   await fsp.cp(frontendDist, path.join(stageDir, 'frontend-dist'), { recursive: true })
 
-  // v030's build_exe.py runs PyInstaller in onedir mode: output is dist/backend/backend.exe +
+  // backend/build_exe.py runs PyInstaller in onedir mode: output is dist/backend/backend.exe +
   // dist/backend/_internal/, so the staged copy source is dist/backend (not dist itself) or the
   // packaged resources/backend/ would end up nested one level too deep.
   const backendDist = path.join(repoRoot, 'backend', 'dist', 'backend')
@@ -67,7 +67,7 @@ async function main() {
   } else {
     await fsp.mkdir(path.join(stageDir, 'backend'), { recursive: true })
     console.warn(
-      '[prepare-resources] backend/dist not found (v030 not landed yet) — packaging without backend.exe; ' +
+      '[prepare-resources] backend/dist not found — packaging without backend.exe; ' +
         'the packaged app will need ARP_DEV_BACKEND_DIR to run (see README.md).',
     )
   }
@@ -80,9 +80,9 @@ async function main() {
       return rel === '' || !shouldSkipDataEntry(rel)
     },
   })
-  // w204: every distributable carries the two languages the parser requests by default. Since
-  // w214 they are committed under data/tessdata, so packaging copies the repo copy (offline,
-  // deterministic); the download inside stageTessdata only covers a damaged checkout.
+  // Every distributable carries the two languages the parser requests by default. They are
+  // committed under data/tessdata, so packaging copies the repo copy (offline, deterministic);
+  // the download inside stageTessdata only covers a damaged checkout.
   await stageTessdata(dataDir)
 
   console.log(`[prepare-resources] staged resources at ${stageDir}`)

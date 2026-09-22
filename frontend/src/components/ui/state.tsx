@@ -2,8 +2,8 @@ import { Loader2 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { cn } from 'cn'
 
-// Shared status states (v010): loading = spinner + one sentence; error = the danger block
-// (the recipe v005 introduced on the KB view) with optional collapsible details. Empty states
+// Shared status states: loading = spinner + one sentence; error = the danger block
+// (the KB view's recipe) with optional collapsible details. Empty states
 // stay plain — a muted sentence plus the next step needs no component.
 
 /** Busy line: spinner + one sentence, the same shape the KB loading and Ask thinking lines used. */

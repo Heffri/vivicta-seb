@@ -1,7 +1,7 @@
 """One-slide PowerPoint export of an Extraction (docs/API.md). Generic, not debt-specific:
 a bar chart when the fields look like maturity buckets ('due_*' keys), a table otherwise.
 The whole-universe deck (build_deck) adds two debt-specific summary pages -- the maturity-wall
-table and, since v180, the sector maturity wall -- both fed by the same decorated extracts.
+table and the sector maturity wall -- both fed by the same decorated extracts.
 """
 import io
 import json
@@ -65,9 +65,9 @@ def add_slide(prs: Presentation, x: dict, prior_year: bool = False, per_year: bo
     if len(buckets) == 3 and all(c.get("passed") for c in x.get("checks", [])):
         debt_basis = f"{basis.get('debt_basis') or 'Debt basis unknown'} | Leases: {basis.get('leases') or 'unknown'}"
         _textbox(slide, debt_basis, Pt(12), top=Inches(2.05 + offset))
-        # v091: the prior year rides along only when the caller asked for it (?prior_year=1) and the
+        # The prior year rides along only when the caller asked for it (?prior_year=1) and the
         # extraction carries it; anything else renders exactly as before.
-        # v109: ?per_year=1 swaps the three-bucket series for the report's own calendar-year columns
+        # ?per_year=1 swaps the three-bucket series for the report's own calendar-year columns
         # when the extraction carries them -- same total, the report's own granularity (a year series
         # and a bucket series on one chart would answer two different questions, so per_year wins and
         # the prior series steps aside). Without the flag or without buckets_by_year: exactly as before.
@@ -117,7 +117,7 @@ def summary_row(x: dict) -> dict:
 
 
 def complete_buckets(x: dict) -> bool:
-    """v180: the maturity wall's "complete buckets" -- the stored identity check passed and both
+    """The maturity wall's "complete buckets" -- the stored identity check passed and both
     total_debt and due_within_1_year carry values. Companies whose identity failed or that miss a
     bucket draw grey ("buckets incomplete") and never feed a sector's median/min/max -- a missing
     figure is never back-filled with 0, so an honest share can only come from an honest total."""
@@ -135,7 +135,7 @@ def _normalize_name(name: str) -> str:
 def _sector_map() -> dict:
     """Normalized company name -> sector from data/companies.json -- the same mapping GET /api/kb
     builds. A function, not a constant, so tests can freeze the universe instead of trusting
-    data/ content (LESSONS 43)."""
+    data/ content."""
     companies = json.loads(paths.companies_path().read_text(encoding="utf-8"))
     return {_normalize_name(c["name"]): c.get("sector") for c in companies}
 
@@ -205,7 +205,7 @@ def _wall_text(slide, text, x, y, size, w=12.0, bold=False, color=None):
 
 
 def _sector_wall_slide(prs: Presentation, extractions: list[dict]):
-    """v180 (consult-fable #2, after the summary table): "Maturity wall by sector" -- one horizontal
+    """After the summary table: "Maturity wall by sector" -- one horizontal
     bar per company (due_within_1_year / total_debt) under its sector header. Complete buckets draw
     the share; a failed/absent identity or a missing bucket draws grey with "buckets incomplete" (the
     computable share still sets the bar's length -- arithmetic on printed numbers, not a guess); a
@@ -260,7 +260,7 @@ def _sector_wall_slide(prs: Presentation, extractions: list[dict]):
 
 
 def build_deck(extractions: list[dict], summary: list[dict] | None = None) -> bytes:
-    """Build one universe deck: a maturity-wall table, the v180 sector wall page(s), then one
+    """Build one universe deck: a maturity-wall table, the sector wall page(s), then one
     established slide per company."""
     prs = _presentation()
     _summary_slide(prs, summary if summary is not None else [summary_row(x) for x in extractions])
@@ -307,18 +307,18 @@ def _debt_chart(slide, by_key, buckets, prior=None, by_year=None, offset=0):
         _textbox(slide, "Total debt: " + f"{total:,.6f}".rstrip("0").rstrip(".").replace(",", " ") + " " + unit, Pt(20), bold=True, top=Inches(2.4 + offset))
 
     data = CategoryChartData()
-    if by_year:  # v109: the report's own calendar-year columns as the categories, one series of the same "Debt due"
+    if by_year:  # the report's own calendar-year columns as the categories, one series of the same "Debt due"
         data.categories = [y["label"] for y in by_year["years"]]
         data.add_series("Debt due", [y["value"] for y in by_year["years"]])
     else:
         data.categories = [BUCKET_LABELS[k] for k in buckets]
         data.add_series("Debt due", [by_key[k]["value"] for k in buckets])
-        if prior:  # v091: a second, fainter series beside each bucket, named for its own fiscal year
+        if prior:  # a second, fainter series beside each bucket, named for its own fiscal year
             data.add_series(f"FY{prior.get('fiscal_year')}", [prior.get("fields", {}).get(k, {}).get("value") for k in buckets])
     frame = slide.shapes.add_chart(XL_CHART_TYPE.COLUMN_CLUSTERED, Inches(1.2), Inches(2.95 + offset), Inches(10.9), Inches(3.7 - offset), data)
     chart = frame.chart
     chart.has_legend = bool(prior and not by_year)  # one series needs no legend; two are told apart by theirs
-    if prior and not by_year:  # v109: the year view has one series again -- no legend to place
+    if prior and not by_year:  # the year view has one series again -- no legend to place
         chart.legend.position = XL_LEGEND_POSITION.BOTTOM
         chart.legend.include_in_layout = False
     plot = chart.plots[0]

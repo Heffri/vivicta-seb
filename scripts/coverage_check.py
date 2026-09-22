@@ -1,4 +1,4 @@
-"""Offline labelled-page coverage for locator candidates plus the w198 full-text sweep.
+"""Offline labelled-page coverage for locator candidates plus the full-text sweep.
 
     python scripts/coverage_check.py
     python scripts/coverage_check.py --out docs/acrylic/evidence/w198/coverage.txt

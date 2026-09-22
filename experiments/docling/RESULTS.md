@@ -43,28 +43,33 @@ atlas_copco/ericsson/investor/saab) was killed rather than left running for ~1.5
 
 ## The one real capability gap found
 
-`atlas_copco_2025` contains scanned pages and triggered our own parser's
-`OCRUnavailable: Scanned PDF needs OCR language files` error — it has no OCR fallback wired in
-(`parse.py`'s own module docstring already flags this: "Next for a teammate: scanned reports need
-an OCR fallback"). Docling ships OCR on by default and would handle that page where ours currently
-returns nothing. That is a genuine, real gap — but it's a capability difference, not something the
-(incomplete) accuracy numbers above can speak to either way, and it doesn't require paying Docling's
-~270x time cost across an entire document just to cover the scanned pages within it.
+`atlas_copco_2025` contains scanned pages and triggered our own parser's `OCRUnavailable` error:
+when this ran, `parse.py` had no OCR fallback at all, while Docling ships OCR on by default.
+
+Since closed: `parse.py` now runs a bounded, selective OCR pass over the pages a locate pass would
+target (`OCR_PAGE_BUDGET`, default 40 pages) and raises `OCRUnavailable` only when the Tesseract
+language files are missing — `scripts/setup_ocr.py` installs them. It was a capability difference
+either way, not something the (incomplete) accuracy numbers above can speak to, and it never
+required paying Docling's ~270x time cost across an entire document just to cover the scanned pages
+within it.
 
 ## Verdict for the jury deck
 
 **Not worth it at default settings.** Docling costs ~270x the parse time of this project's own
 parser on a report that didn't even need OCR, and the only demonstrated advantage (handling scanned
-pages atlas_copco_2025 needs) is a narrow, fixable gap in our own parser rather than evidence Docling
-wins on accuracy. A real accuracy comparison remains untested — this is a speed verdict, stated as
-such, not a disguised accuracy one.
+pages atlas_copco_2025 needs) was a narrow gap in our own parser — since closed — rather than
+evidence Docling wins on accuracy. A real accuracy comparison remains untested — this is a speed
+verdict, stated as such, not a disguised accuracy one.
 
 ## Raw numbers
+
+`experiments/docling/cache/` and `experiments/docling/pdfs/` are gitignored local artifacts — the
+paths below were not committed and are not in a fresh clone.
 
 - `experiments/docling/cache/skf_2025.json` — Docling's own conversion output/timing for skf_2025
   (`num_pages: 163, convert_seconds: 1619.108, export_seconds: 90.991, status: SUCCESS`).
 - Our own parser's timing (6.307s, 163 pages) measured directly against the same
-  `experiments/docling/pdfs/skf_2025.pdf`, this session, not re-derived from cached KB text.
+  `experiments/docling/pdfs/skf_2025.pdf`, in that session, not re-derived from cached KB text.
 - Page counts for the two labelled-but-unconverted stems (`atlas_copco_2025`: 174,
   `ericsson_2025`: 236) via `fitz.open(path).page_count` on the downloaded PDFs in
   `experiments/docling/pdfs/`.

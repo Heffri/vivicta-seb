@@ -22,7 +22,7 @@ const STAGE_LABEL: Record<string, string> = {
   failed: 'Failed',
 }
 
-const MAX_EVENTS_SHOWN = 8 // the full trail lives in the job table; this is the "last N" the work order asks for
+const MAX_EVENTS_SHOWN = 8 // the full trail lives in the job table; this is just the last N
 
 function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`
@@ -30,12 +30,11 @@ function formatBytes(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`
 }
 
-// v194: the AI-search progress trail — jobs.py's job table, polled every 1.5 s by useReportSearch —
+// The AI-search progress trail — jobs.py's job table, polled every 1.5 s by useReportSearch —
 // rendered as a scrolling trail of recent events, the current stage, a stopwatch and (while a
 // download event is the latest one) a byte-progress bar. Closed models have no chain of thought to
-// show; these "what it's doing" events are the closest honest substitute, which is the whole point
-// of the P0 this fixes: a search that used to look identically "stuck" whether it was working or dead
-// now visibly does something the entire time, and switching tabs and back finds it unchanged.
+// show; these "what it's doing" events are the closest honest substitute. Without them a search
+// looks identically "stuck" whether it is working or dead.
 export function SearchTracePanel({ trace, onRetry }: Props) {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {

@@ -1,7 +1,5 @@
 """Which pages hold the section? Deterministic keyword scoring, no LLM.
 
-# ponytail: keyword scoring; LLM-over-TOC fallback if this misses
-
 Scoring: distinct keywords matched (not raw counts -- a prose page saying "income
 statement" five times is still prose), +5 for a keyword in the page *heading* (first 150
 chars), + the number of schema field synonyms on the page, times digit density so tables
@@ -12,15 +10,10 @@ evidence, but heading + TOC together must still beat either alone. On Atlas Copc
 this puts the consolidated income statement (p.106) first; raw counting ranked it 13th
 behind the segment overview.
 
-Next for a teammate: (1) prefer pages whose neighbours also score (statements span 2 pages,
-tried in v008b as a flat bonus -- net negative, see docs/acrylic/evidence/v008.md); (2) a
-schema-level "title_keywords" narrowing the heading bonus for debt_maturity's two-table
-problem (liquidity-risk note vs borrowings note) was tried in v017 -- also net negative
-(debt top-1 changed for 12/101 companies, 4 improved / 7 regressed / 1 neutral) and not kept:
-"liquidity risk" is the *correct* note title for several issuers (aq, seb, swedbank, sca,
-essity, arion) whose maturity table lives inside it, so no fixed word list separates them
-from the issuers (aak, alvotech, asmodee, volvo_car) where that same title names a page with
-no table at all. See docs/acrylic/evidence/v017.md before trying this again.
+Narrowing the heading bonus with a fixed list of note titles does not separate debt_maturity's
+two tables: "liquidity risk" is the *correct* note title for issuers (aq, seb, swedbank, sca,
+essity, arion) whose maturity table lives inside it, and names a table-less page for others
+(aak, alvotech, asmodee, volvo_car). See docs/acrylic/evidence/v017.md.
 """
 
 import re
@@ -178,7 +171,7 @@ def toc_targets(texts: list[str], schema: dict) -> dict[int, str]:
 def _summary_heading(head: str, raw_head: str) -> bool:
     """A multi-year / quarterly table heading: "2023 2022 2021" (>=4 distinct years, >=5 year tokens
     counting repeats) or a quarter word. Pure predicate shared by scored_pages' summary penalty and
-    the balance-sheet companion's page filter (v139) -- the five-year summary prints a balance sheet
+    the balance-sheet companion's page filter -- the five-year summary prints a balance sheet
     too, and neither scorer wants it."""
     years = [YEARS.findall(SPLIT_YEAR.sub(r"\1", DATE.sub("", h))) for h in (head, raw_head)]  # AQ prints the income statement and comprehensive income side by side, each headed "01/01/2025 31/12/2025 ...": dates, not a multi-year table
     return any(len(set(y)) >= 4 or len(y) >= 5 for y in years) or QUARTER.search(head)
@@ -243,10 +236,10 @@ def balance_sheet_page(texts: list[str]) -> int | None:
     the first remaining -- the main group statement precedes the interim and directors'-report
     lookalikes that re-print one later in the report.
 
-    Candidate pages append this page as their last entry (v139): the debt labels of flerie, kabe,
+    Candidate pages append this page as their last entry: the debt labels of flerie, kabe,
     hansa_biopharma and fm_mattsson sit on balance-sheet pages that carry no debt keyword at all
-    (noscore, unreachable), and scoring those title words -- tried in v123 -- crowded svolder and
-    hoist_finance off the ranked window. Appending joins them without competing: no scored page's
+    (noscore, unreachable), and scoring those title words crowded svolder and hoist_finance off
+    the ranked window. Appending joins them without competing: no scored page's
     rank changes, the list only grows, so no company can move down; the budget trim below still
     bounds the full-text prefix."""
     group, plain = None, None
@@ -273,11 +266,11 @@ def candidate_pages(texts: list[str], schema: dict, top_n: int = 10, fiscal_year
     pages: EPS sits on the second). PROMPT_BUDGET bounds only the list's first WINDOW_PAGES pages -- the
     deepest full-text read extract() ever makes of it (the widen window pages[:4]); pages beyond that are
     seen by two-pass page selection as ~1200-char snippets only (extract's PAGE_SELECT_SNIPPET), so they
-    are kept for it rather than trimmed: v123 measured 13/87 debt-label pages ranking #2-#8 being dropped
-    by a whole-list budget trim that no full-text reader was ever going to read. top_n 10 (was 8): the one
+    are kept for it rather than trimmed: 13/87 debt-label pages ranking #2-#8 were dropped by a whole-list
+    budget trim that no full-text reader was ever going to read. top_n is 10 because the one
     debt-label page ranking #9 (Inwido's Note 21) became a candidate with no other company moving on
     either section; the cost is pass-1 snippets for up to two more pages. The report's balance-sheet page
-    (balance_sheet_page, v139) joins as the last entry when it scored nothing of its own: the debt note's
+    (balance_sheet_page) joins as the last entry when it scored nothing of its own: the debt note's
     carrying total ties to it, and the four remaining debt-label BS pages carry no debt keyword to score."""
     pages = [page for _, page in scored_pages(texts, schema, fiscal_year)[:top_n]]
     if pages and pages[0] < len(texts):

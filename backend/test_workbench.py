@@ -1,5 +1,5 @@
-"""Run with python test_workbench.py. Isolated files, no network; v179's locate block is the one
-synthetic (pymupdf-generated, in-memory) PDF, exercised through a real upload."""
+"""Run with python test_workbench.py. Isolated files, no network; the locate block builds the one
+synthetic PDF (pymupdf, into a temp directory) and exercises it through a real upload."""
 import copy
 import csv
 import io
@@ -103,7 +103,7 @@ for section in ('income_statement', 'debt_maturity'):
     x = statement(section)
     x['fields'][0]['period'] = '2024'
     assert any(c['status'] == 'unavailable' for c in workbench.checks(x, schema))
-    # v165: a null bucket the maturity table prints no column for (evidence "absent_in_table") joins the
+    # A null bucket the maturity table prints no column for (evidence "absent_in_table") joins the
     # reconciliation as 0 instead of holding it unavailable, and is not a queue issue; a reviewer marking
     # it unresolved re-opens it. A null income-statement field stays unavailable -- the participation is
     # require_explicit_values checks only, never a general null-to-zero.
@@ -129,7 +129,7 @@ for section in ('income_statement', 'debt_maturity'):
     previous.pop('basis')
     assert workbench.compare(current, previous)['rows'][0]['delta'] is None
 
-# v182: basis suggestions are a source-backed starting point, never a hidden confirmation.
+# Basis suggestions are a source-backed starting point, never a hidden confirmation.
 # The standard maturity-header quote is deliberately present on every cited debt field here so
 # the positive case proves the strict bucket-mapping gate rather than a label-name coincidence.
 x = statement('debt_maturity')
@@ -173,7 +173,7 @@ workbench.decorate(missing, app.load_schema('debt_maturity'))
 assert not missing['ready'] and not missing['checks'][0]['passed']
 assert any(issue['kind'] == 'field' and issue['key'] == 'due_after_5_years' for issue in missing['issues'])
 
-# v174: maturity_wall -- deterministic upcoming-maturities list (consult-gpt6 #8, consult-fable #2).
+# maturity_wall -- deterministic upcoming-maturities list.
 # Pure function, no disk. statement('debt_maturity') is fully confirmed by default: total_debt=100,
 # due_within_1_year=20 (both MSEK) -> share 0.2 is the baseline every case below tweaks one thing in.
 x = statement('debt_maturity')
@@ -184,7 +184,7 @@ assert wall['coverage'] == {'total': 1, 'comparable': 1, 'missing_total': 0, 'mi
 
 # Basis not confirmed: the ratio is still arithmetic on printed numbers, so share stays visible for the
 # analyst -- only "comparable" and the coverage count flip. (This is today's real state for all 105
-# saved debt_maturity extractions -- gpt6: honestly show incomparable, don't skip confirmation for a chart.)
+# saved debt_maturity extractions: show them as incomparable rather than confirm a basis to fill a chart.)
 x = statement('debt_maturity')
 x.pop('basis')
 wall = workbench.maturity_wall([x])
@@ -356,9 +356,9 @@ with tempfile.TemporaryDirectory() as tmp:
             if not reviewed:
                 for field in x['fields']:
                     field.pop('human_review', None)
-            if stem == 'ericsson_2025':  # v180: buckets stop reconciling -> identity fails -> wall "incomplete" (share still 0.2)
+            if stem == 'ericsson_2025':  # buckets stop reconciling -> identity fails -> wall "incomplete" (share still 0.2)
                 next(f for f in x['fields'] if f['key'] == 'due_1_to_5_years')['value'] = 60
-            if stem == 'outside_2025':  # v180: a second complete share (200 = 100 + 60 + 40 -> 0.5),
+            if stem == 'outside_2025':  # a second complete share (200 = 100 + 60 + 40 -> 0.5),
                 for key, value in (('total_debt', 200), ('due_within_1_year', 100), ('due_1_to_5_years', 60), ('due_after_5_years', 40)):
                     next(f for f in x['fields'] if f['key'] == key)['value'] = value  # so a sector's median/min/max is non-trivial
             kb.save_report(stem, {'company': company, 'fiscal_year': 2025, 'pages': 1, 'sha256': 'test'}, ['Saved statement text'])
@@ -371,7 +371,7 @@ with tempfile.TemporaryDirectory() as tmp:
         assert abb['review_status'] == 'confirmed' and abb['human_review'] == 'yes'
         filtered = client.get('/api/kb/export.csv?section=debt_maturity&collection=all&q=volvo')
         assert filtered.status_code == 200 and [row['stem'] for row in csv.DictReader(io.StringIO(filtered.text))] == ['outside_2025']
-        # v180: the deck grows the "Maturity wall by sector" page between the summary table and the
+        # The deck carries a "Maturity wall by sector" page between the summary table and the
         # per-company slides. _sector_map is frozen so the sectors don't depend on data/ content.
         with patch.object(ppt, '_sector_map', return_value={'abb ltd': 'Industrials', 'ericsson': 'Telecommunications', 'volvo': 'Industrials'}):
             deck = Presentation(io.BytesIO(client.get('/api/kb/export.pptx?section=debt_maturity&collection=wallenberg').content))
@@ -392,7 +392,7 @@ with tempfile.TemporaryDirectory() as tmp:
             unicode_filter = client.get('/api/kb/export.csv', params={'section': 'debt_maturity', 'collection': 'all', 'q': 'Å'})
         assert unicode_filter.status_code == 200
         assert unicode_filter.headers['content-disposition'] == 'attachment; filename="kb_debt_maturity_all.csv"'
-        # v174: GET /api/kb/maturity-wall -- same decorated extracts as the exports above, so the
+        # GET /api/kb/maturity-wall -- same decorated extracts as the exports above, so the
         # collection filter and the reviewed/unreviewed split already set up here double as its test.
         wall = client.get('/api/kb/maturity-wall?collection=wallenberg').json()
         assert wall['coverage'] == {'total': 2, 'comparable': 1, 'missing_total': 0, 'missing_w1y': 0, 'basis_unconfirmed': 0}
@@ -401,7 +401,7 @@ with tempfile.TemporaryDirectory() as tmp:
         assert not next(r for r in wall['rows'] if r['stem'] == 'ericsson_2025')['comparable']
         wall_all = client.get('/api/kb/maturity-wall?collection=all').json()
         assert wall_all['coverage']['total'] == 3 and {r['stem'] for r in wall_all['rows']} == {'abb_2025', 'ericsson_2025', 'outside_2025'}
-        # v180: every row names its data/companies.json sector and whether its buckets are complete
+        # Every row names its data/companies.json sector and whether its buckets are complete
         # (stored identity check passed AND total AND <1y present); COMPANIES is patched inline --
         # fixtures never trust the universe file's live content. 3 companies, 2 sectors, one incomplete.
         with patch.object(app, 'COMPANIES', [{'name': 'ABB Ltd', 'sector': 'Industrials'},
@@ -424,7 +424,7 @@ with tempfile.TemporaryDirectory() as tmp:
         assert wall['sectors'][0] == {'sector': 'Industrials', 'companies': 1, 'complete': 1, 'median_share': 0.2, 'min': 0.2, 'max': 0.2}
         assert wall['sectors'][1] == {'sector': None, 'companies': 1, 'complete': 0, 'median_share': None, 'min': None, 'max': None}
 
-# v180: the sector wall page paginates at 30 row-units (companies + sector headers). 35 one-sector
+# The sector wall page paginates at 30 row-units (companies + sector headers). 35 one-sector
 # companies spill onto two "Maturity wall by sector" pages between the summary and the per-company
 # slides; build_deck is pure here -- no disk, no KB, no model.
 many = []
@@ -441,7 +441,7 @@ assert sum(1 for sh in sector_slides[0].shapes if sh.shape_type == MSO_SHAPE_TYP
     + sum(1 for sh in sector_slides[1].shapes if sh.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE) == 35
 assert '(cont.)' in ' | '.join(sh.text_frame.text for sh in sector_slides[1].shapes if sh.has_text_frame)
 
-# v164: candidate pages -- the deterministic locator behind GET /candidates, served before the
+# Candidate pages -- the deterministic locator behind GET /candidates, served before the
 # model runs. Isolated KB folder; the model entrypoint is rigged to fail so the endpoint's
 # zero-model claim is asserted, not assumed.
 with tempfile.TemporaryDirectory() as tmp:
@@ -469,9 +469,10 @@ with tempfile.TemporaryDirectory() as tmp:
         except HTTPException as e:
             assert e.status_code == 404
 
-# v179: GET .../pages/{n}/locate -- zero-model, degrades quote -> longest line -> longest digit
-# run. A real (synthetic) PDF with real searchable text exercises all four outcomes, one per page,
-# uploaded like any user PDF so require_pdf's own cache is what is actually being read.
+# GET .../pages/{n}/locate -- zero-model, degrades quote -> longest line -> longest digit run.
+# One synthetic PDF with a real text layer: pages 1-5 cover the three match tiers, a duplicated row
+# and a clean miss; pages 6-7 separate a wrapped citation's rectangles from its occurrence count.
+# Uploaded like any user PDF so require_pdf's own cache is what is actually being read.
 with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {'KB_DIR': tmp}), \
         patch.object(app, 'UPLOADS', Path(tmp)), patch.object(app, 'reports', {}), \
         patch.object(app, 'texts_cache', {}), patch.object(app, 'library_paths', {}):
@@ -534,7 +535,8 @@ with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {'KB_DIR': tmp
     assert missing.status_code == 409, missing.text
 print('locate endpoint checks passed: quote/line/value tiers, multi-match, none, out-of-range, no PDF cached')
 
-# Deterministic rendered fixtures for visual review, outside the repository.
+# Smoke test: build_pptx runs for both sections, with and without a confirmed basis, and with a
+# comparison attached. The decks land in the OS temp directory, never in the repository.
 for section in ('income_statement', 'debt_maturity'):
     x = statement(section)
     workbench.decorate(x, app.load_schema(section))

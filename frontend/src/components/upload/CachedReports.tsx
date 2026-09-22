@@ -17,9 +17,9 @@ type CachedReportsProps = {
   onToggleOne: (file: string) => void
 }
 
-// Path 2: reports already in data/reports/. Collapsible, open by default: it spent v001
-// buried inside a collapsed <details>, and a first-class path shouldn't start hidden;
-// the grid scrolls internally (max-h-72) so the face keeps its neighbours' height.
+// Path 2: reports already in data/reports/. Collapsible but open by default -- a first-class path
+// shouldn't start hidden; the grid scrolls internally (max-h-72) so the face keeps its
+// neighbours' height.
 export function CachedReports({
   library,
   libraryError,
@@ -57,7 +57,7 @@ export function CachedReports({
           <ErrorBlock className="px-3 py-2 text-xs">Report cache unavailable ({libraryError}).</ErrorBlock>
         ) : library.length === 0 ? (
           <p className="text-xs text-muted-foreground">
-            Nothing cached yet — pick a company in Directory search, or drop a PDF.
+            Nothing cached yet — pick a company under Find a company, or drop a PDF.
           </p>
         ) : (
           <>

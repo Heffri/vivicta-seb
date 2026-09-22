@@ -39,9 +39,9 @@ SCHEMAS = paths.schemas_dir()
 LIBRARY = paths.reports_dir()  # bundled reports; index.json is committed, PDFs via `python data/fetch.py`
 def _llm_configured() -> bool:
     """A model answers /extract when an OpenAI-compatible endpoint is set, or when the Codex or Claude CLI provider
-    is selected (v031: LLM_PROVIDER=codex needs no base URL; v039: same for claude). /ask runs on that model too:
-    since v034 its retrieval falls back to pure BM25 without LLM_BASE_URL (kb.retrieval_mode()), and /index then
-    reports keyword-only chunks instead of embedding anything."""
+    is selected (LLM_PROVIDER=codex or claude, neither of which needs a base URL). /ask runs on that model
+    too: without LLM_BASE_URL its retrieval falls back to pure BM25 (kb.retrieval_mode()), and /index
+    then reports keyword-only chunks instead of embedding anything."""
     return bool(os.getenv("LLM_BASE_URL")) or llm.provider() in ("codex", "claude")
 
 
@@ -127,16 +127,16 @@ class AskBody(BaseModel):
 class DiscoverBody(BaseModel):
     company: str
     year: int
-    country: str | None = None  # v074: optional context for the model search when the directory has no hit ("Switzerland")
-    hint: str | None = None     # v074: free-text hint for the model search ("FY ends 30 June", the report's exact title)
-    job_id: str | None = Field(default=None, max_length=100)  # v194: frontend-generated uuid; GET /api/jobs/{id} polls its progress
-    force_web: bool = False     # w200: an analyst explicitly asks to search despite a deterministic saved report
+    country: str | None = None  # optional context for the model search when the directory has no hit ("Switzerland")
+    hint: str | None = None     # free-text hint for the model search ("FY ends 30 June", the report's exact title)
+    job_id: str | None = Field(default=None, max_length=100)  # frontend-generated uuid; GET /api/jobs/{id} polls its progress
+    force_web: bool = False     # an analyst explicitly asks to search despite a deterministic saved report
 
 
 class FetchBody(DiscoverBody):
     download_pdf: bool = True   # the PDF is always wanted (page images, quote checks); false = text-only reuse for API callers syncing KB text
     url: str | None = None      # a confirmed /discover candidate's PDF link: fetch_report tries it before its own sources
-    ocr: Literal["bounded", "full"] = "bounded"  # v191: "full" opts into an unbounded synchronous OCR pass on a newly-fetched scan
+    ocr: Literal["bounded", "full"] = "bounded"  # "full" opts into an unbounded synchronous OCR pass on a newly-fetched scan
 
 
 def check_query(body: DiscoverBody):
@@ -180,7 +180,7 @@ def report_texts(report_id: str) -> list[str]:
 
 
 def fill_pending_ocr(report_id: str, stem: str, wanted: list[int]) -> list[str]:
-    """v191(b): a candidate page the bounded registration OCR pass skipped (it lay outside the
+    """A candidate page the bounded registration OCR pass skipped (it lay outside the
     generic debt/maturity/borrowings window) is OCR'd now, individually, when the section actually
     being extracted needs it -- e.g. the locate.candidate_pages "page after the best one" companion
     page just past the registration pass's own front-matter cutoff. No-op when none of `wanted` are
@@ -601,7 +601,7 @@ def fetch_report(body: FetchBody):
             return report
     entry = next((e for e in library_index() if e["fiscal_year"] == body.year and collection.identity(e["company"]) == collection.identity(body.company)), None)
     if entry:
-        # v194's UI starts polling before this route resolves. A library hit bypasses
+        # The UI starts polling before this route resolves. A library hit bypasses
         # pipeline.fetch.fetch_report(), so settle the job here instead of making that otherwise
         # successful fast path produce a noisy /api/jobs/{id} 404 in the renderer.
         jobs.step(body.job_id, "done", f"{entry['file']} (already cached)")
@@ -627,7 +627,7 @@ def fetch_report(body: FetchBody):
 
 @app.get("/api/jobs/{job_id}")
 def read_job(job_id: str):
-    """v194: progress trail for a job_id passed to /discover or /fetch -- {stage, started, updated,
+    """Progress trail for a job_id passed to /discover or /fetch -- {stage, started, updated,
     done, error, events: [{t, stage, text, data?}]}. The frontend polls this every 1.5 s while either
     call is in flight. 404 once pipeline.jobs has swept it (unknown id, or past its 1-hour TTL)."""
     job = jobs.get(job_id)
@@ -674,7 +674,7 @@ def page_png(report_id: str, n: int):
     return Response(png, media_type="image/png")
 
 
-NUMBER_TOKEN = re.compile(r"\d[\d\s   .,']*\d|\d")  # a printed number, same separator set as frontend/verification.ts's THOUSANDS
+NUMBER_TOKEN = re.compile(r"\d[\d\s   .,']*\d|\d")  # a printed number, same separator set as THOUSANDS in frontend/src/components/results/highlight.ts
 
 
 @app.get("/api/reports/{report_id}/pages/{n}/evidence")
@@ -689,17 +689,17 @@ def page_evidence(report_id: str, n: int, quote: list[str] = Query()):
 
 @app.get("/api/reports/{report_id}/pages/{n}/locate")
 def page_locate(report_id: str, n: int, quote: str = Query(min_length=1)):
-    """Zero-model (v179, consult item 12): where on the rendered page does this citation's quote
-    sit? `page.search_for` on the verbatim quote first; a citation that never prints as one
-    contiguous run (a wrapped table row) degrades to its own longest line, then to the longest
-    digit run inside it (the shape a value alone would print as). `rects` are page-point boxes --
-    the same top-down space page_png renders -- one per printed *line* a hit touches: MuPDF reports
-    a match spanning two lines (an ordinary wrapped citation) as two adjacent rects, exactly like a
-    genuine second, unrelated occurrence would add two more -- measured directly (a 2-line phrase
-    printed twice returns 4 rects). `occurrences` divides that back out by the searched string's own
-    line count, so a wrapped citation still reports 1 while a truly repeated line reports 2+; the
-    frontend's "N matches" badge reads `occurrences`, not `len(rects)`, and every rect is still drawn
-    either way. No PDF or nothing found leaves the page unframed."""
+    """Where on the rendered page a citation's quote sits. No model call.
+
+    `page.search_for` on the verbatim quote first; a citation that never prints as one contiguous
+    run (a wrapped table row) degrades to its own longest line, then to the longest digit run inside
+    it (the shape a value alone would print as). `rects` are page-point boxes in the same top-down
+    space page_png renders, one per printed *line* a hit touches: MuPDF reports a match spanning two
+    lines (an ordinary wrapped citation) as two adjacent rects, exactly as a genuine second,
+    unrelated occurrence would add two more. `occurrences` divides that back out by the searched
+    string's own line count, so a wrapped citation still reports 1 while a truly repeated line
+    reports 2+; the frontend's "N matches" badge reads `occurrences`, not `len(rects)`, and every
+    rect is still drawn either way. No PDF or nothing found leaves the page unframed."""
     report = get_report(report_id)
     if not 1 <= n <= report["pages"]:
         raise HTTPException(404, f"page {n} out of range 1..{report['pages']}")
@@ -722,10 +722,10 @@ def page_locate(report_id: str, n: int, quote: str = Query(min_length=1)):
 
 @app.get("/api/reports/{report_id}/candidates")
 def report_candidates(report_id: str, section: str = Query(min_length=1)):
-    """Ranked candidate pages for a section (v164): the same deterministic locator the extractor
-    runs (locate.candidate_pages), served before the model so the waiting UI can name the pages
-    being read. No model call -- fixture mode computes them from the real page text like any other.
-    heading = the page's de-boilerplated opening, whitespace-normalized (a peeks-at-the-page line)."""
+    """Ranked candidate pages for a section: the same deterministic locator the extractor runs
+    (locate.candidate_pages), served before the model so the waiting UI can name the pages being
+    read. No model call -- fixture mode computes them from the real page text like any other.
+    heading = the page's de-boilerplated opening, whitespace-normalized."""
     report = get_report(report_id)
     schema = load_schema(section)
     texts, pages = locate_report_pages(report_id, report, schema)
@@ -759,7 +759,7 @@ def _run_extract(report_id: str, body: ExtractBody):
     if saved.exists() and has_reviews(saved_extraction(report_id, body.section)):
         raise HTTPException(409, "This section has human reviews. Keep the reviewed extraction instead of replacing it.")
     if not _llm_configured():  # frontend dev mode: no model configured
-        # v164: the requested section overrides the fixture payload's own (an income-statement
+        # The requested section overrides the fixture payload's own (an income-statement
         # sample) -- the UI reads extraction.section to re-locate the report (the not-found banner's
         # candidates call), and that must name the section the user actually ran.
         result = json.loads(FIXTURE.read_text(encoding="utf-8")) | {"report_id": report_id, "section": body.section}
@@ -778,19 +778,19 @@ def _run_extract(report_id: str, body: ExtractBody):
                 raise HTTPException(422, parse.ocr_unavailable_message())
             raise HTTPException(422, "No candidate pages found for this section")
         hints_retry = os.getenv("PAGE_SELECT_HINTS") == "retry"
-        # v162: retry starts from the ordinary page-selection prompt even though the same request
-        # may later selectively retry with markers.  Other values retain extract()'s old env read.
+        # "retry" starts from the ordinary page-selection prompt even though the same request may
+        # later selectively retry with markers. Any other value leaves extract() to read the env.
         result = extract_mod.extract(texts, pages, schema, report, page_select_hints=False) if hints_retry             else extract_mod.extract(texts, pages, schema, report)
         failures = [w for w in result["warnings"] if w.startswith("llm:")]
         if failures and not any(f.get("value") is not None for f in result["fields"]):
             raise HTTPException(502, " ".join(failures))
-        from pipeline import merge  # v133: EXTRACT_MERGE_RUNS second-run merge; off (default) never reaches it
+        from pipeline import merge  # EXTRACT_MERGE_RUNS second-run merge; off (default) never reaches it
         mode = merge.mode()
         if mode != "off":  # docs/acrylic/evidence/v129.md: per-field union, the stored answer as a third majority vote
             stored = None
             if mode == "majority":
                 saved_json = json.loads(saved.read_text(encoding="utf-8")) if saved.exists() else None
-                # v129: the pipeline's own earlier answer votes; a reviewed extraction must not (and the
+                # The pipeline's own earlier answer votes; a reviewed extraction must not (and the
                 # 409 gate above already refuses to re-extract one -- this is defense in depth).
                 stored = None if saved_json is None or has_reviews(saved_json) else saved_json
             if mode == "majority" and stored is not None and merge.matches_stored(result, stored):
@@ -843,10 +843,10 @@ def _run_extract(report_id: str, body: ExtractBody):
 
 
 def apply_second_pass(result: dict, texts: list[str], pages: list[int], schema: dict, report: dict) -> dict:
-    """Route-level policy and accounting for w197's bounded required-field retry.
+    """Route-level policy and accounting for the bounded required-field retry.
 
-    The default is off: the bounded live validation did not produce a net-positive correction.
-    Set ``EXTRACT_SECOND_PASS=1`` to opt in; the zero timings make the default or an explicit off
+    The default is off: live validation did not show a net-positive correction. Set
+    ``EXTRACT_SECOND_PASS=1`` to opt in; the zero timings make the default or an explicit off
     choice observable in the normal extraction response.
     """
     # A normal extract always records timings and accepts fixed_pages. Treat a malformed/synthetic
@@ -1070,10 +1070,10 @@ def kb_export_pptx(section: str = "debt_maturity", collection_name: Literal["all
 
 @app.get("/api/kb/maturity-wall")
 def kb_maturity_wall(section: Literal["debt_maturity"] = "debt_maturity", collection_name: Literal["all", "wallenberg", "midcap"] = Query("all", alias="collection")):
-    """v174: deterministic upcoming-maturities list over the saved collection -- reads the same decorated
+    """Deterministic upcoming-maturities list over the saved collection -- reads the same decorated
     extracts as the CSV/PPTX exports, zero model calls. 200 with empty rows when the collection has no
     debt_maturity extractions yet -- the empty state is the frontend's to render, not a 404.
-    v180: every row also carries its data/companies.json `sector` (None when the company is not in the
+    Every row also carries its data/companies.json `sector` (None when the company is not in the
     universe file) and a `complete` flag (ppt.complete_buckets: the stored identity check passed and both
     total_debt and due_within_1_year are present), aggregated per sector as `sectors` -- companies/complete
     counts plus median/min/max share over complete companies only, never over guessed figures."""
@@ -1116,7 +1116,7 @@ def kb_page(stem: str, page: int):
 @app.get("/api/kb/{stem}/{section}")
 def kb_extraction(stem: str, section: str):
     """Stored extraction from the knowledge base, re-attached to a live report_id. With the PDF cached that is
-    a full re-registration (page images work); without it (v092) a KB-only report serves the stored extraction,
+    a full re-registration (page images work); without it a KB-only report serves the stored extraction,
     CSV, PPTX and Compare, and only the page/PDF endpoints 404 with a fetch hint. No model call either way."""
     path = kb.kb_dir() / stem / "extractions" / f"{section}.json"
     if not re.fullmatch(r"[a-z0-9_-]+", stem) or not re.fullmatch(r"[a-z0-9_]+", section) or not path.exists():
@@ -1277,16 +1277,15 @@ def export_extraction(report_id, section=None, previous_stem=None):
 def config():
     # codex/claude defaults live in llm.py; not "fixture" only for a provider _llm_configured() already accepts without LLM_MODEL
     model = os.getenv("LLM_MODEL") or {"codex": "gpt-5.6-terra", "claude": "claude-sonnet-5"}.get(llm.provider(), "fixture")
-    from pipeline import merge  # v140: echo only -- the route never reaches the second-run path
+    from pipeline import merge  # echo only -- the route never reaches the second-run path
     return {"model": model, "embed_model": kb.embed_model(), "embed_base_url": kb.embed_base_url(), "base_url": os.getenv("LLM_BASE_URL"),
             "llm": _llm_configured(), "provider": llm.provider() if _llm_configured() else "fixture",
-            "retrieval": kb.retrieval_mode(),  # v034: "hybrid" | "bm25" | "fixture"
-            "maturity_basis": extract_mod.debt_basis(),  # v089: "carrying" (default) | "undiscounted", env DEBT_BASIS
-            "merge_runs": merge.mode(),  # v140: "off" (default) | "union" | "majority", env EXTRACT_MERGE_RUNS
-            # w212: live echoes of the two extraction switches that had no API surface (w207's gap).
-            # second_pass is w197's bounded required-field retry + w198's full-text sweep (default
-            # off, same reading as apply_second_pass); scan_all is m02's offline full-report scan --
-            # echoed so the demo checklist can confirm it, but it stays env-only by design.
+            "retrieval": kb.retrieval_mode(),  # "hybrid" | "bm25" | "fixture"
+            "maturity_basis": extract_mod.debt_basis(),  # "carrying" (default) | "undiscounted", env DEBT_BASIS
+            "merge_runs": merge.mode(),  # "off" (default) | "union" | "majority", env EXTRACT_MERGE_RUNS
+            # Live echoes of two extraction switches that are otherwise env-only. second_pass is the
+            # bounded required-field retry plus its full-text sweep (default off, same reading as
+            # apply_second_pass); scan_all is the offline full-report scan.
             "second_pass": os.getenv("EXTRACT_SECOND_PASS", "0") == "1",
             "scan_all": os.getenv("EXTRACT_SCAN_ALL", "0") == "1"}
 
@@ -1307,8 +1306,8 @@ def extraction_csv(report_id: str, section: str | None = None, previous_stem: st
 
 @app.get("/api/reports/{report_id}/extraction.pptx")
 def extraction_pptx(report_id: str, section: str | None = None, previous_stem: str | None = None,
-                    prior_year: bool = False,  # v091: ?prior_year=1 adds the extraction's prior-year series when it carries one
-                    per_year: bool = False):  # v109: ?per_year=1 swaps the three buckets for the report's own calendar-year columns when it carries them
+                    prior_year: bool = False,  # ?prior_year=1 adds the extraction's prior-year series when it carries one
+                    per_year: bool = False):  # ?per_year=1 swaps the three buckets for the report's own calendar-year columns when it carries them
     x = export_extraction(report_id, section, previous_stem)
     data = ppt.build_pptx(x, prior_year=prior_year, per_year=per_year)
     return Response(data, media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -1369,7 +1368,9 @@ def saved_extraction(report_id: str, section: str | None = None):
 
 
 def extraction_identity(report, schema, prompt):
-    # ponytail: EXTRACT_VERSION instead of hashing 7 source files -- a comment edit no longer re-runs every section
+    # ponytail: EXTRACT_VERSION instead of hashing 7 source files -- a comment edit no longer re-runs
+    # every section. The schema dict itself is hashed in, so any edit to backend/schemas/*.json
+    # invalidates every cached extraction for that section.
     return kb.fingerprint({"report": kb._meta(report["stem"]), "schema": schema, "pipeline": extract_mod.EXTRACT_VERSION,
                            "model": os.getenv("LLM_MODEL") or {"codex": "gpt-5.6-terra", "claude": "claude-sonnet-5"}.get(llm.provider(), "fixture"), "provider": llm.provider(), "prompt": prompt,
                            "settings": {k: os.getenv(k) for k in ("LLM_BASE_URL", "LLM_REASONING", "LLM_THINK", "LLM_NUM_CTX", "LLM_STRICT_SCHEMA", "DEBT_BASIS", "EXTRACT_MERGE_RUNS", "EXTRACT_TWO_PASS", "FEWSHOT")} | {"EXTRACT_SCAN_ALL": os.getenv("EXTRACT_SCAN_ALL", "0")}

@@ -56,18 +56,17 @@ export default function App() {
     setTab('extract')
   }
 
-  // v171 (consult item 6): batch state lives here, one level above the conditionally-mounted
-  // UploadView, so switching away from Extract and back doesn't lose progress — the queue keeps
-  // running against this hook regardless of which tab is on screen. Ending a batch never forces a
-  // tab switch, even if the user never left Extract: a first cut auto-advanced whenever the user
-  // was still watching, but that fires just as eagerly after "Stop after current" or a failure —
-  // yanking the screen to Results the instant the last item settles, before there's any chance to
-  // read a failed item's next step or click Retry. Results are already visible incrementally via
-  // onSettle; "View results" (BatchProgress) is the only way there, unconditionally.
+  // Batch state lives here, one level above the conditionally-mounted UploadView, so switching away
+  // from Extract and back doesn't lose progress — the queue keeps running against this hook
+  // regardless of which tab is on screen. Ending a batch never forces a tab switch, even if the
+  // user never left Extract: auto-advancing fires just as eagerly after "Stop after current" or a
+  // failure, yanking the screen to Results the instant the last item settles, before there is any
+  // chance to read a failed item's next step or click Retry. Results are already visible
+  // incrementally via onSettle; "View results" (BatchProgress) is the only way there.
   const batch = useBatch({
     onSettle: (rs) => { setResults(rs); setKbRevision(value => value + 1) },
   })
-  // v194: same lift as batch above -- query/discovery/progress-trace state lives here so switching
+  // Same lift as batch above -- query/discovery/progress-trace state lives here so switching
   // away from Extract and back doesn't drop a search or the fetch that follows confirming a candidate.
   const reportSearch = useReportSearch()
   const submitBatch: typeof batch.start = (specs, section, sectionTitle, eta) => {
@@ -134,9 +133,9 @@ export default function App() {
             {tab === 'review' && <ReviewQueue filters={reviewFilters} onFiltersChange={setReviewFilters} onOpen={(report, section, key) => { setReviewTarget({ section, key }); setSavedReport(report); setReportOrigin('review'); setTab('results') }} />}
             {tab === 'kb' && <KbView revision={kbRevision} onOpen={done} onOpenReport={report => { setSavedReport(report); setReportOrigin('kb'); setTab('results') }} />}
             {tab === 'map' && <KnowledgeMap onOpenReport={report => { setSavedReport(report); setReportOrigin('map'); setTab('results') }} onAsk={(company) => { setAskCompany(company); setTab('ask') }} />}
-            {/* v065: a Save restarts the backend, leaving this mount-time `config` stale until
-                relaunch (v061 §6-5) -- SettingsView hands the post-restart config back so StatusBar
-                follows the save without one. */}
+            {/* A Save restarts the backend, leaving this mount-time `config` stale until relaunch --
+                SettingsView hands the post-restart config back so StatusBar follows the save
+                without one. */}
             {tab === 'settings' && <SettingsView onConfigChange={setConfig} />}
           </div>
         </main>

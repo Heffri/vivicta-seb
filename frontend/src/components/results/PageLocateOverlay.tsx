@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge'
 
 type Props = { reportId: string; page: number; quote: string }
 
-/** Image-mode overlay (v179, consult item 12): frames the cited quote on the rendered page image.
+/** Image-mode overlay: frames the cited quote on the rendered page image.
  *  The backend degrades quote -> longest line -> longest digit run (GET .../locate); this component
  *  draws every rect that came back (one per printed line a hit touches — an ordinary citation
  *  wrapped across two lines draws two adjacent boxes), scaled by the page's own point size against

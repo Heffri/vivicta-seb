@@ -1,6 +1,6 @@
 // Every local module main.js (and the modules it pulls in) requires must be in electron-builder.yml's
 // `files` list, or the packaged app.asar lacks it and the shell dies on launch with
-// "Cannot find module './data-sync'" (v107 shipped exactly that, 2026-09-19). Run: node packaging.test.js
+// "Cannot find module './data-sync'" — which has shipped before. Run: node packaging.test.js
 const fs = require('fs')
 const path = require('path')
 const assert = require('assert')
@@ -32,7 +32,7 @@ const prepare = fs.readFileSync(path.join(here, 'scripts', 'prepare-resources.js
 for (const name of ['eng.traineddata', 'swe.traineddata', 'LICENSE']) {
   assert.ok(prepare.includes(name), `prepare-resources.js must stage ${name}`)
 }
-// w214: the language packs themselves are committed (tessdata_fast, Apache-2.0), so packaging
+// The language packs themselves are committed (tessdata_fast, Apache-2.0), so packaging
 // copies the repo copy on every machine; the network path in stageTessdata is only a fallback.
 for (const name of ['eng.traineddata', 'swe.traineddata', 'LICENSE']) {
   assert.ok(

@@ -10,7 +10,7 @@ test('verification reports evidence rather than a probability of truth', () => {
   const field: Field = { ...fixture.fields[0], confidence: 1, evidence }
   expect(fieldVerification({ ...field, evidence: [] }).label).toBe('Not checked')
   expect(fieldVerification({ ...field, value: null }).label).toBe('Not found')
-  // v165: a bucket the maturity table prints no column for — the header row in the source proves it.
+  // A bucket the maturity table prints no column for — the header row in the source proves it.
   expect(fieldVerification({ ...field, value: null, evidence: ['absent_in_table'] }).label).toBe('Not printed in this report')
   expect(fieldVerification({ ...field, value: null, evidence: ['absent_in_table'] }).variant).toBe('secondary')
   expect(fieldVerification({ ...field, confidence: 0 }).label).toBe('Checks passed')
@@ -46,7 +46,7 @@ for (const tone of ['dark', 'light']) {
     await page.getByRole('button', {name:'Saved reports', exact:true}).click()
     await page.getByRole('checkbox', {name:/Example company/}).check()
     await page.getByRole('main').getByRole('button', {name:/^Extract/}).click()
-    // v171: a finished batch never forces a tab switch (BatchProgress's own "View results" does).
+    // A finished batch never forces a tab switch (BatchProgress's own "View results" does).
     await page.getByRole('main').getByRole('button', {name:/^View results/}).click({timeout: 20000})
     await expect(page.getByRole('columnheader', {name:'Verification'})).toBeVisible()
     await expect(page.getByRole('columnheader', {name:'Confidence'})).toHaveCount(0)
@@ -85,7 +85,7 @@ for (const [passed, detail, expected, visibleStatus] of [
     await page.getByRole('button', {name:'Saved reports', exact:true}).click()
     await page.getByRole('checkbox', {name:/Example company/}).check()
     await page.getByRole('main').getByRole('button', {name:/^Extract/}).click()
-    // v171: a finished batch never forces a tab switch (BatchProgress's own "View results" does).
+    // A finished batch never forces a tab switch (BatchProgress's own "View results" does).
     await page.getByRole('main').getByRole('button', {name:/^View results/}).click({timeout: 20000})
     await page.getByRole('navigation', {name:'Report workspace'}).getByRole('button', {name:/Checks & review/}).click()
     await expect(page.getByText(visibleStatus, {exact:true})).toBeVisible()

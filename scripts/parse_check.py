@@ -25,7 +25,7 @@ change so the two dumps line up page for page.
 
 --dump-all mode (full-corpus page dump): one JSON line per page of every PDF in data/reports/,
 {"stem", "page", "text"}. Meant to be diffed page-for-page against another run of the same mode --
-under a different pymupdf (v049b: 1.27.2.3 vs 1.28.2) or before/after a parse.py change -- without
+under a different pymupdf (1.27.2.3 vs 1.28.2) or before/after a parse.py change -- without
 re-parsing every PDF twice in one process.
 """
 import argparse

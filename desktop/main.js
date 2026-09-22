@@ -11,15 +11,15 @@ const { syncBundledData, syncLogLine } = require('./data-sync')
 
 const isDev = !app.isPackaged
 const isWindows = process.platform === 'win32'
-const DEV_PORT = 8000 // frontend/vite.config.ts hardcodes its /api proxy to :8000 and is outside
-// this lane's territory (see desktop/README.md "Dev mode port"), so dev mode's backend binds
-// that exact port instead of a random free one. Packaged mode serves the frontend itself, so it
-// can use this stable sequence as a stable browser origin for one userData directory.
+const DEV_PORT = 8000 // frontend/vite.config.ts hardcodes its /api proxy to :8000, so dev mode's
+// backend binds that exact port (see desktop/README.md "Dev mode port"). Packaged mode serves the
+// frontend itself, so it prefers the fixed sequence below instead: one stable browser origin per
+// userData directory, which is what keeps the renderer's localStorage across relaunches.
 const PACKAGED_BACKEND_PORTS = Array.from({ length: 16 }, (_unused, index) => 47_311 + index)
 const BACKEND_PORT_CONFIG_KEY = 'backendPort'
 
 let mainWindow = null
-let overlayTone = 'dark' // v117: last tone the renderer reported over arp:tone-changed (drives glyph color)
+let overlayTone = 'dark' // last tone the renderer reported over arp:tone-changed (drives glyph color)
 let backendProcess = null
 let viteProcess = null
 let backendLogStream = null
@@ -44,11 +44,11 @@ process.on('uncaughtException', (err) => crashLog('uncaughtException', err))
 process.on('unhandledRejection', (err) => crashLog('unhandledRejection', err))
 app.on('child-process-gone', (_event, details) => crashLog('child-process-gone', JSON.stringify(details)))
 
-// v138: honor --user-data-dir <dir> (or --user-data-dir=<dir>) by relocating userData before
-// the single-instance lock below, which is keyed on app.getPath('userData') — without this the
-// packaged exe ignored the switch end to end (v137: the run wrote into the default userData and
-// a second launch died on the lock). Works the same for `electron .` dev launches and the
-// packaged exe; the lock's semantics (one instance per userData) are unchanged.
+// Honor --user-data-dir <dir> (or --user-data-dir=<dir>) by relocating userData *before* the
+// single-instance lock below, which is keyed on app.getPath('userData'). Relocating after the lock
+// ignores the switch end to end: the run writes into the default userData and a second launch dies
+// on the lock. Works the same for `electron .` dev launches and the packaged exe; the lock's
+// semantics (one instance per userData) are unchanged.
 const userDataArgIdx = process.argv.findIndex((a) => a === '--user-data-dir' || a.startsWith('--user-data-dir='))
 if (userDataArgIdx !== -1) {
   const eq = process.argv[userDataArgIdx].indexOf('=')
@@ -75,10 +75,9 @@ if (!gotLock) {
 }
 
 // ---------------------------------------------------------------------------
-// Windows acrylic material detection — same build-number gate UAW's main.ts
-// uses (process.getSystemVersion() is "10.0.<build>" even on Windows 11).
-// v029 shipped this unconditionally; v100 gates it behind the theme setting
-// (Solid, the default, keeps the opaque window the 09-18 refresh chose).
+// Windows acrylic material detection. The gate is the build number, because
+// process.getSystemVersion() reports "10.0.<build>" even on Windows 11. Only
+// the Acrylic theme asks for it; Solid, the default, keeps an opaque window.
 // ---------------------------------------------------------------------------
 function supportsAcrylic() {
   if (!isWindows || typeof BrowserWindow.prototype.setBackgroundMaterial !== 'function') return false
@@ -149,10 +148,9 @@ function isPortAvailable(port) {
 }
 
 // Check a held-over fallback before the standard sequence so a given userData directory keeps the
-// same origin after another local app forced it off :47311. Every candidate is probed before spawn;
-// that avoids the old "reuse whatever answered /api/config" path when another desktop instance owns
-// the preferred port. A bind can still race another process after this probe, just as findFreePort()
-// did before; the normal startup health check remains the authority for that rare case.
+// same origin after another local app forced it off :47311. Every candidate is probed before spawn,
+// so a second desktop instance holding the preferred port is detected rather than adopted. A bind
+// can still race another process after the probe; the startup health check is the authority there.
 async function choosePackagedPort(rememberedPort, { isPortAvailable: available = isPortAvailable, findRandomPort = findFreePort } = {}) {
   const candidates = [rememberedPort, ...PACKAGED_BACKEND_PORTS].filter(
     (port, index, list) => isValidPort(port) && list.indexOf(port) === index,
@@ -214,10 +212,10 @@ function findRepoRoot() {
 }
 
 // ---------------------------------------------------------------------------
-// Bundled data (companies.json, reports/index.json, kb/) -> userData. v107:
-// merged on every launch (desktop/data-sync.js) instead of copied once, so KB
+// Bundled data (companies.json, reports/index.json, kb/) -> userData, merged
+// on every launch by desktop/data-sync.js rather than copied once, so KB
 // entries bundled with a new app version reach installs created by older
-// versions — and nothing the user already has is ever overwritten (uploads,
+// versions — and nothing the user already has is overwritten (uploads,
 // reviewed extractions and the user's own report index always win).
 // ---------------------------------------------------------------------------
 async function ensureUserData(userDataDir, bundledDataDir) {
@@ -259,9 +257,9 @@ async function startBackendFromVenv(backendDir, env, port) {
   return { port, proc, source: pythonExe }
 }
 
-// Spawns on a *specific* port, given -- the piece startBackend() and applySettings() (v033, settings
-// restart) both need, factored out so a restart can reuse the exact port the window already loaded
-// instead of re-deriving one (dev mode's is fixed anyway; packaged mode's window has already loaded
+// Spawns on a *specific* port -- the piece startBackend() and applySettings() both need, factored
+// out so a settings restart can reuse the exact port the window already loaded instead of
+// re-deriving one (dev mode's is fixed anyway; packaged mode's window has already loaded
 // http://127.0.0.1:<port>/, so a restart must keep serving that same origin).
 async function launchBackendOnPort(env, port) {
   if (isDev) {
@@ -284,17 +282,16 @@ async function launchBackendOnPort(env, port) {
     return { port, proc, source: backendExe }
   }
 
-  // v030 (PyInstaller packaging) had not shipped backend.exe yet when this lane ran. Dev-machine
-  // smoke test only: point ARP_DEV_BACKEND_DIR at a backend/ checkout with its own .venv and the
-  // packaged app will run it with python instead of failing outright. Real end-user installs have
-  // no such checkout and must ship backend.exe.
+  // Dev-machine smoke test only: point ARP_DEV_BACKEND_DIR at a backend/ checkout with its own
+  // .venv and the packaged app runs it with python instead of failing outright. Real end-user
+  // installs have no such checkout and must ship backend.exe (built by backend/build_exe.py).
   const devBackendDir = process.env.ARP_DEV_BACKEND_DIR
   if (devBackendDir && fs.existsSync(devBackendDir)) {
     return startBackendFromVenv(devBackendDir, env, port)
   }
 
   throw new Error(
-    `packaged backend not found at ${backendExe} (v030 build artifact not bundled).\n` +
+    `packaged backend not found at ${backendExe} (backend/build_exe.py output was not staged into this build).\n` +
       `Dev-machine smoke test: set ARP_DEV_BACKEND_DIR to a backend/ checkout with its own .venv, then relaunch.`,
   )
 }
@@ -331,7 +328,7 @@ async function stopProcess(proc) {
 }
 
 // ---------------------------------------------------------------------------
-// Settings (v033): <userData>/config.json, save-triggers-restart, test connection.
+// Settings: <userData>/config.json, save-triggers-restart, test connection.
 // ---------------------------------------------------------------------------
 
 /** Save + kill the owned backend + respawn on the *same* port with the new env + health check.
@@ -361,8 +358,8 @@ async function applySettings(cfg) {
   }
   currentBackend = launched
   backendProcess = launched.proc
-  // EXTRACT_TWO_PASS logged here (not in /api/config -- that endpoint stays backend territory,
-  // v047 work order) so a settings save's actual env is provable from this file alone.
+  // The extraction env is logged here rather than exposed on /api/config, so a settings save's
+  // actual env is provable from this file's own log alone.
   backendLogStream.write(`\nrestarting backend (settings save): ${launched.source} (port ${port}); two-pass: ${env.EXTRACT_TWO_PASS ?? 'unset'}; basis: ${env.DEBT_BASIS ?? 'unset'}\n`)
   wireBackendLogging(launched)
   const healthy = await waitForHealth(`http://127.0.0.1:${port}/api/config`, 30_000, launched.proc)
@@ -377,11 +374,11 @@ async function applySettings(cfg) {
   }
 }
 
-/** v100: a theme switch from Settings' Theme select — deliberately NOT the applySettings path
- *  (that one restarts the backend, which a visual change doesn't need). Persists theme into
- *  config.json immediately — merged over the stored file, so apiKey & friends survive and a
- *  later Save writes the same value the user already picked — then switches the live window's
- *  material when the platform can, so the change lands without a relaunch. `appliedNow: false`
+/** A theme switch from Settings' Theme select — deliberately NOT the applySettings path, which
+ *  restarts the backend that a visual change does not need. Persists theme into config.json
+ *  immediately, merged over the stored file so apiKey & friends survive and a later Save writes
+ *  the same value the user already picked, then switches the live window's material when the
+ *  platform can, so the change lands without a relaunch. `appliedNow: false`
  *  tells the renderer to show the restart hint instead; `material` tells it whether to flip
  *  <html data-material> (the CSS branch that swaps painted wallpaper for the OS blur). */
 function applyTheme(theme) {
@@ -432,10 +429,8 @@ async function testOpenAiCompatible(cfg) {
     return { ok: true, kind: 'models', models }
   } catch (err) {
     // Node's fetch collapses every network failure to the one message "fetch failed" and puts the
-    // actual reason (ECONNREFUSED, a blocked port, DNS failure, ...) on `.cause` instead -- verified
-    // live against an unreachable port, which is not a generic "connection refused" case here but
-    // undici's own blocked-port list ("bad port"). Surface `.cause` too, or a financial user sees only
-    // the unhelpful top-level message.
+    // actual reason (ECONNREFUSED, DNS failure, undici's own blocked-port "bad port", ...) on
+    // `.cause`. Surface `.cause` too, or the user only ever sees the unhelpful top-level message.
     const detail = err.cause && err.cause.message ? `: ${err.cause.message}` : ''
     return { ok: false, error: err.name === 'AbortError' ? 'Timed out after 5s' : `${String(err.message || err)}${detail}` }
   }
@@ -496,13 +491,10 @@ function runCapture(exe, args, timeoutMs = 5000) {
   })
 }
 
-// `codex login status` is a real subcommand (verified: `codex login --help` lists it, this machine's
-// 0.153.4 runs it in well under a second, read-only, no model call). Fall back to the auth.json file
-// per the work order if some other Codex version lacks it -- don't guess any other subcommand.
-// Its "Logged in using ChatGPT" line comes out on *stderr*, not stdout -- confirmed by running the
-// exact execFile call standalone and printing both streams separately; missed on first pass because
-// a plain `codex login status` in a terminal merges both onto the screen with no visible distinction.
-// Checking both streams is the fix rather than hardcoding stderr, in case a future version moves it.
+// `codex login status` is read-only and makes no model call. Its "Logged in using ChatGPT" line
+// comes out on *stderr*, not stdout -- invisible in a terminal, which merges the two streams onto
+// the screen. Both streams are checked rather than stderr alone, in case a future version moves it.
+// A Codex version without the subcommand falls back to the auth.json file.
 async function testCodex() {
   let exe
   try {
@@ -519,14 +511,10 @@ async function testCodex() {
   return { ok: true, kind: 'codex', version: version.stdout, loggedIn }
 }
 
-// Claude Code CLI discovery. `CLAUDE_BIN` matches backend/pipeline/llm.py's own _claude_executable()
-// (v039, landed after this lane started -- merged in), so a user's override works the same way for
-// both the backend's real calls and this Test button. The rest is scaled down from UAW's own
-// src/agent-runtime/claude/process-transport.ts (discoverClaudeLaunch): that version also scans an
-// npm global prefix and a "managed version" root (itself a fallback-of-a-fallback by UAW's own
-// account) neither this app nor backend/llm.py's port of it bothers with; kept here are the two steps
-// that matter for a normal install -- PATH, then the official non-npm Windows installer's target --
-// verified live on this machine (`where claude` already resolves to the second one, ~/.local/bin/claude.exe).
+// Claude Code CLI discovery. `CLAUDE_BIN` matches backend/pipeline/llm.py's own _claude_executable(),
+// so a user's override works the same way for both the backend's real calls and this Test button.
+// Only the two steps that matter for a normal install are kept: PATH, then the official non-npm
+// Windows installer's target (~/.local/bin/claude.exe).
 function claudeExecutable() {
   if (process.env.CLAUDE_BIN) return process.env.CLAUDE_BIN
   const onPath = findOnPath('claude')
@@ -536,12 +524,9 @@ function claudeExecutable() {
   throw new Error('claude executable not found (PATH, or ~/.local/bin); set CLAUDE_BIN to override')
 }
 
-// `claude auth status --json` (verified live: this machine's 2.1.270 answers in well under a second,
-// read-only, no model call) -- the exact subcommand UAW's authentication-status.ts uses, not a guess.
-// Its JSON also carries email/orgId/orgName/subscriptionType; UAW's own ClaudeAuthenticationStatus type
-// deliberately keeps only {loggedIn, authMethod, apiProvider} and documents why ("no account, email,
-// organization, or token value is read here"). Same cut here: `loggedIn` is the only field that leaves
-// this function, so that account information never reaches the renderer, an IPC log, or evidence.
+// `claude auth status --json` is read-only and makes no model call. Its JSON also carries
+// email/orgId/orgName/subscriptionType: `loggedIn` is deliberately the only field that leaves this
+// function, so no account, email, organization or token value ever reaches the renderer or a log.
 async function testClaude() {
   let exe
   try {
@@ -607,20 +592,17 @@ async function startViteDevServer(repoRoot) {
 // ---------------------------------------------------------------------------
 // Window
 // ---------------------------------------------------------------------------
-// v117: the overlay ground is always fully transparent. The caption region composites over the
-// page itself, and the page already paints the right thing under the buttons in every theme×tone
-// (Solid dark: the painted-wallpaper glass the default tone kept through v100; Solid light: the
-// opaque painted titlebar strip; Acrylic: the one glass pane over the OS material) — so a
-// transparent overlay lets the window's own titlebar continue under the OS glyphs instead of
-// showing the old flat #14141b/#f7f7fa block that matched neither theme. Only the glyph color
-// follows the tone. (Measured on the pre-fix build, 2026-09-19: an opaque overlay reads
-// (10,10,18) where the Solid dark glass titlebar reads (14,23,51) beside it — the block the
-// owner reported; transparent reads identical to the neighbouring titlebar in all four combos.)
+// The overlay ground is always fully transparent. The caption region composites over the page
+// itself, and the page already paints the right thing under the buttons in every theme×tone
+// (Solid dark: painted-wallpaper glass; Solid light: the opaque painted titlebar strip; Acrylic:
+// the one glass pane over the OS material) — so a transparent overlay lets the window's own
+// titlebar continue under the OS glyphs, where an opaque one shows a flat block matching no
+// theme. Only the glyph color follows the tone.
 function toneOverlayOptions(tone) {
   return { color: '#00000000', symbolColor: tone === 'light' ? '#16161a' : '#f4f4f7', height: 44 }
 }
 
-// v117: push the current tone onto the live overlay without a restart (glyph color; the caption
+// Push the current tone onto the live overlay without a restart (glyph color; the caption
 // ground stays transparent in every theme).
 function applyOverlay() {
   if (!isWindows || !mainWindow || mainWindow.isDestroyed()) return
@@ -628,10 +610,10 @@ function applyOverlay() {
   mainWindow.setTitleBarOverlay(toneOverlayOptions(overlayTone))
 }
 
-// Keep the shell process alive when Chromium loses only the renderer. Before v193 there was no
-// render-process-gone listener, so the user saw a vanished/blank app with no crash.log evidence and
-// could reasonably mistake a renderer failure for the whole desktop app exiting. Record the reason,
-// keep the backend and main process intact, and offer a bounded reload of the same window.
+// Keep the shell process alive when Chromium loses only the renderer. Without this listener the
+// user sees a vanished or blank app with no crash.log evidence, and reasonably mistakes a renderer
+// failure for the whole desktop app exiting. Record the reason, keep the backend and main process
+// intact, and offer a bounded reload of the same window.
 function wireRendererCrashRecovery(win) {
   win.webContents.on('render-process-gone', (_event, details) => {
     if (quitting || details.reason === 'clean-exit') return
@@ -667,7 +649,7 @@ function createWindow(acrylic) {
     title: 'Annual Report Parser',
     // Solid keeps the renderer's stable painted background (native acrylic changes on focus
     // loss); Acrylic asks for the real OS material and clears the native fill behind it so the
-    // desktop itself shows through -- the v029/v100 trade-off the theme setting exposes.
+    // desktop itself shows through -- the trade-off the theme setting exposes.
     backgroundColor: acrylic ? '#00000000' : '#0a0a12',
     icon: path.join(__dirname, 'icons', 'icon.ico'),
     webPreferences: {
@@ -734,7 +716,7 @@ async function main() {
   )
   // An explicit override stays authoritative. Do not synthesize one for an absent package
   // resource: leaving it unset lets the frozen backend fall through to userData/data/tessdata,
-  // where setup/repair and older refreshed apps may already have a complete copy (w209).
+  // where setup/repair and older refreshed apps may already have a complete copy.
   const tessdataDir = process.env.TESSDATA_PREFIX || (bundledTessdataReady ? bundledTessdataDir : null)
 
   backendBaseEnv = {
@@ -747,7 +729,7 @@ async function main() {
     KB_DIR: path.join(dataDir, 'kb'),
     ...(fs.existsSync(frontendDistDir) ? { FRONTEND_DIST: frontendDistDir } : {}),
   }
-  const llmConfig = settings.loadConfig(userDataDir) // v033: provider/model/etc. saved by a previous Settings save
+  const llmConfig = settings.loadConfig(userDataDir) // provider/model/etc. saved by a previous Settings save
   const backendEnv = { ...backendBaseEnv, ...settings.envForConfig(llmConfig) }
 
   let backend
@@ -797,16 +779,16 @@ async function main() {
     }
   }
 
-  // v100: the window is built for the configured theme — only Acrylic asks for the real OS
-  // material (v029's detection + transparent fill, restored from 263f8eb); Solid keeps the
-  // 09-18 opaque window. The log line is the evidence trail for which one this launch used.
+  // The window is built for the configured theme: only Acrylic asks for the real OS material
+  // (the detection above, plus a transparent fill); Solid keeps the opaque window. The log line
+  // records which one this launch used.
   const acrylic = llmConfig.theme === 'acrylic' && supportsAcrylic()
   backendLogStream.write(
     `windows version: ${isWindows ? process.getSystemVersion() : 'n/a'}; theme: ${llmConfig.theme}; acrylic material: ${acrylic}\n`,
   )
   mainWindow = createWindow(acrylic)
 
-  // v117: tone arrives from the renderer's <html data-tone> observer (preload.js) and drives the
+  // Tone arrives from the renderer's <html data-tone> observer (preload.js) and drives the
   // overlay glyph color; the caption ground itself is transparent, so theme needs no IPC here.
   ipcMain.on('arp:tone-changed', (_event, tone) => {
     overlayTone = tone === 'light' ? 'light' : 'dark'
@@ -815,7 +797,7 @@ async function main() {
 
   ipcMain.handle('arp:settings:get', () => settings.loadConfig(app.getPath('userData')))
   ipcMain.handle('arp:settings:set', (_event, cfg) => applySettings(cfg))
-  ipcMain.handle('arp:theme:set', (_event, theme) => applyTheme(theme)) // v100, see applyTheme
+  ipcMain.handle('arp:theme:set', (_event, theme) => applyTheme(theme)) // see applyTheme
   ipcMain.handle('arp:settings:test', (_event, cfg) => testConnection(cfg))
   ipcMain.handle('arp:settings:codex-status', () => testCodex())
   ipcMain.handle('arp:settings:claude-status', () => testClaude())

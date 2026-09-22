@@ -1,6 +1,14 @@
-"""Self-check for the KB: save idempotency (v024) + BM25 retrieval, the retrieval three-state and
-EMBED_MODEL invalidation (v034), empty-retrieval short-circuit (v059), KB open without the cached
-PDF (v092). Run: python -m pipeline.test_kb"""
+"""Self-check for the KB (pipeline/kb.py) and the routes that read it.
+
+Covers: save idempotency -- a same-sha256/same-parser save rewrites nothing, a sha256 or
+PARSER_VERSION change does, legacy meta with no parser key upgrades once; BM25 retrieval --
+ranking, stop-word neutrality, the Swedish prefix stemmer, table-continuation context, all-zero
+scores; the retrieval three-state and EMBED_MODEL invalidation; Ask -- the empty-retrieval
+short-circuit and citation verification; the entries() catalog -- content-availability flags, the
+fingerprint cache, and status="building" only while a write really holds the lock, including under
+concurrent listings; KB open with no cached PDF; and the FastAPI gates.
+
+Run: python -m pipeline.test_kb"""
 import json
 import os
 import tempfile
@@ -124,7 +132,7 @@ def demo():
     print("kb save idempotency ok")
 
 
-# ---- v034: retrieval three-state -----------------------------------------------------------
+# ---- retrieval three-state -----------------------------------------------------------------
 
 def test_retrieval_modes():
     from . import kb
@@ -139,7 +147,7 @@ def test_retrieval_modes():
     print("kb retrieval three-state ok")
 
 
-# ---- v034: BM25 ranking --------------------------------------------------------------------
+# ---- BM25 ranking --------------------------------------------------------------------------
 
 def test_bm25_ranking():
     from . import kb
@@ -272,7 +280,7 @@ def test_ask_citation_verification():
     print("kb ask citation verification ok")
 
 
-# ---- v059: empty retrieval -----------------------------------------------------------------
+# ---- empty retrieval -----------------------------------------------------------------------
 
 def test_bm25_all_zero_returns_no_hits():
     """A query none of whose terms appear in the corpus (Swedish question, English report) leaves every
@@ -298,7 +306,7 @@ def test_bm25_all_zero_returns_no_hits():
 
 
 def test_ask_empty_retrieval_skips_model():
-    """v059: zero hits -> a fixed answer, no llm.chat call, empty citations, one retrieval warning; a
+    """Zero hits -> a fixed answer, no llm.chat call, empty citations, one retrieval warning; a
     question that does match still calls the model exactly once (unchanged path)."""
     from . import kb
     with tempfile.TemporaryDirectory() as tmp:
@@ -326,7 +334,7 @@ def test_ask_empty_retrieval_skips_model():
     print("kb ask empty-retrieval skips model ok")
 
 
-# ---- v034: EMBED_MODEL invalidation --------------------------------------------------------
+# ---- EMBED_MODEL invalidation --------------------------------------------------------------
 
 def _fake_embed(kb, calls):
     """Deterministic offline stand-in for embed(): token-hash bag vectors (fake 'model'). Counts texts."""
@@ -394,7 +402,7 @@ def test_embed_model_invalidation():
     print("kb embed_model invalidation ok")
 
 
-# ---- v034: FastAPI gates -------------------------------------------------------------------
+# ---- FastAPI gates -------------------------------------------------------------------------
 
 def test_app_gates():
     """/api/ask, /api/reports/{id}/index and /api/config under the three states. kb.ask is monkeypatched
@@ -432,14 +440,13 @@ def test_app_gates():
     print("kb app gates ok")
 
 
-# ---- v092: KB open without the cached PDF ---------------------------------------------------
+# ---- KB open without the cached PDF ---------------------------------------------------------
 
 def test_kb_open_without_pdf():
     """GET /api/kb/{stem}/{section} with no cached PDF serves the stored extraction on the saved
     report id (lib-<stem>, meta from meta.json, no PDF path -- get_report's lazy registration):
     tables/CSV/PPTX work off the stored extraction, page images and /pdf 409 with a fetch-it hint,
-    data/kb is not rewritten. Once the PDF arrives the same id gains its PDF path and pages render.
-    (v092's own kb-<stem> registration was superseded by the team's saved_report_id path, 2026-09-18.)"""
+    data/kb is not rewritten. Once the PDF arrives the same id gains its PDF path and pages render."""
     with tempfile.TemporaryDirectory() as tmp:
         from . import kb
         stem = _seed(kb, tmp)  # acme_2025 + income_statement in the isolated KB_DIR
@@ -452,7 +459,7 @@ def test_kb_open_without_pdf():
         meta_bytes = (kb.kb_dir() / stem / "meta.json").read_bytes()
         try:
             r = client.get(f"/api/kb/{stem}/income_statement")
-            assert r.status_code == 200, f"open without the PDF: {r.status_code} {r.text}"  # was 409 pre-v092
+            assert r.status_code == 200, f"open without the PDF: {r.status_code} {r.text}"
             x = r.json()
             assert x["report_id"] == mine[0] and x["company"] == "Acme" and x["fields"][0]["value"] == 1234, x["report_id"]
             assert x["pdf_available"] is False, x.get("pdf_available")
@@ -518,7 +525,7 @@ def test_catalog_content_availability():
 
 
 def test_entry_cache_warm_call_reads_no_files():
-    """v173: once cached by file fingerprint, a second entries() call must be served by os.stat and
+    """Once cached by file fingerprint, a second entries() call must be served by os.stat and
     directory listings alone -- zero file-content reads (proved with counting stubs)."""
     import builtins
     from . import kb
@@ -546,7 +553,7 @@ def test_entry_cache_warm_call_reads_no_files():
 
 
 def test_entry_cache_write_visibility():
-    """v173: writes invalidate by fingerprint -- a new extraction section and a new stem must be
+    """Writes invalidate by fingerprint -- a new extraction section and a new stem must be
     visible on the very next entries() call, with no manual eviction anywhere."""
     from . import kb
     with tempfile.TemporaryDirectory() as tmp, _env(KB_DIR=tmp):
@@ -563,14 +570,14 @@ def test_entry_cache_write_visibility():
     print('Entry cache: new sections and stems are visible on the next call')
 
 
-# ---- w199: status=building only while a real write is in progress ---------------------------
+# ---- status=building only while a real write is in progress ---------------------------------
 
 def test_status_building_only_during_real_writes():
-    """w199 (QA w195's poll storm): with no index task running -- fixture mode has none, embeddings
-    are simply unavailable -- the status must be "missing", never "building", and a transient lock
-    overlap must not survive the listing that observed it: the entry cache used to keep serving a
-    building status it had picked up while a real write held the lock, which kept the frontend
-    polling every 2 s forever. A held write lock still reports building, truthfully, while it runs."""
+    """With no index task running -- fixture mode has none, embeddings are simply unavailable --
+    the status must be "missing", never "building", and a transient lock overlap must not survive
+    the listing that observed it: the entry cache used to keep serving a building status it had
+    picked up while a real write held the lock, which kept the frontend polling every 2 s forever.
+    A held write lock still reports building, truthfully, while it runs."""
     from . import kb
     with tempfile.TemporaryDirectory() as tmp:
         stem = _seed(kb, tmp)
@@ -596,7 +603,7 @@ def test_status_building_only_during_real_writes():
             release.set()
             t.join(5)
         # the write is over and nothing was written: the quiet status must come straight back --
-        # before w199 the entry cache kept serving the building it had cached mid-write
+        # the entry cache used to keep serving the building it had cached mid-write
         after = kb.index_status(stem)
         assert after["status"] == "missing", after
         cached = {e["stem"]: e for e in kb.entries()}
@@ -605,7 +612,7 @@ def test_status_building_only_during_real_writes():
 
 
 def test_concurrent_reads_never_report_building():
-    """w199: overlapping listings -- the poll storm's shape -- must never manufacture status
+    """Overlapping listings -- the poll storm's shape -- must never manufacture status
     "building" for a stem nobody is writing: readers used to hash under the write lock, so one
     listing's slow hash made every sibling listing's non-blocking acquire fail. The index here is
     real and fat enough that the hashing is exactly where the old code collided."""

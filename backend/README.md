@@ -33,17 +33,16 @@ extractions of the same section from *other* reports, so the mapping "Skatt" -> 
 
 Contract: [`docs/API.md`](../docs/API.md). Add a section = drop a file in `schemas/`, no code.
 
-Where to start hacking: `pipeline/parse.py` (PDF -> page texts, table-aware text would help),
-`pipeline/locate.py` (keyword scoring -> which pages), `pipeline/extract.py` (prompt in
-`SYSTEM_PROMPT_TEMPLATE`, provenance check, arithmetic checks), `pipeline/kb.py` (chunking, retrieval, /ask prompt).
-Each module's docstring says what to do next.
+Module map: `pipeline/parse.py` (PDF -> page texts), `pipeline/locate.py` (keyword scoring -> which
+pages), `pipeline/extract.py` (prompt in `SYSTEM_PROMPT_TEMPLATE`, provenance check, arithmetic checks),
+`pipeline/kb.py` (chunking, retrieval, /ask prompt).
 
 ## Codex CLI provider (`LLM_PROVIDER=codex`)
 
-Every model call goes through `pipeline/llm.py`'s `chat()` now; `extract.py` and `kb.py`'s `ask()` call it
-instead of talking to `openai.OpenAI` directly. Two backends: `openai_compatible` (today's Ollama / Azure /
-OpenAI / OpenRouter path -- `LLM_BASE_URL` + `LLM_MODEL`, unchanged) and `codex_cli`, for a teammate with a
-Codex subscription/API key but no local model and no OpenAI-compatible endpoint to point `LLM_BASE_URL` at:
+Every model call goes through `pipeline/llm.py`'s `chat()`; `extract.py` and `kb.py`'s `ask()` call it
+instead of talking to `openai.OpenAI` directly. Two backends: `openai_compatible` (the Ollama / Azure /
+OpenAI / OpenRouter path -- `LLM_BASE_URL` + `LLM_MODEL`) and `codex_cli`, for a Codex subscription or API
+key with no local model and no OpenAI-compatible endpoint to point `LLM_BASE_URL` at:
 
 ```
 # in backend/.env:
@@ -60,7 +59,7 @@ exit raises the same way an `openai.*` call failing already does, so `extract.py
 is untouched.
 
 **Embeddings never go through Codex.** `kb.embed()` always calls an OpenAI-compatible `/v1/embeddings`
-directly. Since v034 that no longer blocks a Codex-only setup: with `LLM_PROVIDER=codex` and no `LLM_BASE_URL`,
+directly. That does not block a Codex-only setup: with `LLM_PROVIDER=codex` and no `LLM_BASE_URL`,
 `/ask`'s retrieval runs pure BM25 (`kb.retrieval_mode()` -> `"bm25"`, nothing embedded, `embeddings.jsonl` never
 written) and `/extract`, `/ask`'s answer generation both run on Codex. Pointing `LLM_BASE_URL` at Ollama or a real
 OpenAI-compatible host additionally buys hybrid cosine+BM25 retrieval and `/index` embeddings.
@@ -70,8 +69,8 @@ a non-zero exit and a timeout, no network or real Codex install needed.
 
 ## Claude CLI provider (`LLM_PROVIDER=claude`)
 
-Same idea as the Codex path above, for a teammate with a Claude subscription (not an API key) and no local
-model or OpenAI-compatible endpoint:
+Same idea as the Codex path above, for a Claude subscription (not an API key) with no local model or
+OpenAI-compatible endpoint:
 
 ```
 # in backend/.env:
@@ -84,12 +83,10 @@ LLM_MODEL=claude-sonnet-5           # --model passed to `claude -p`; this is the
 `claude_cli` shells out to `claude -p --output-format json --model <model> --tools "" --no-session-persistence`,
 piping `system` + `user` over stdin (same as Codex -- no separate system-role concept in a one-shot `-p` call)
 and reading the reply from the JSON reply's `result` field. `--tools ""` (`claude --help`: 'Use "" to disable
-all tools') leaves the model nothing to call at all; UAW's own `CLAUDE_CATALOG_ARGUMENTS`
-(`process-transport.ts`, private reference repo) reaches for the same pair to take a headless call down to plain text in, text out --
-stronger than `--permission-mode plan`, which still permits read-only tool calls and exists for an interactive
-approval loop `-p` never runs. Executable discovery order also follows UAW's `discoverClaudeLaunch`: `CLAUDE_BIN`,
-then PATH (bare `claude`, so PATHEXT finds an npm shim too -- a backend process inherits a shell's PATH already,
-so unlike UAW's Electron app there is no separate `%APPDATA%\npm` check), then `~/.local/bin/claude.exe` (the
+all tools') leaves the model nothing to call at all -- stronger than `--permission-mode plan`, which still
+permits read-only tool calls and exists for an interactive approval loop `-p` never runs. Executable
+discovery order: `CLAUDE_BIN`, then PATH (bare `claude`, so PATHEXT finds an npm shim too -- a backend
+process inherits a shell's PATH already; there is no separate `%APPDATA%\npm` check), then `~/.local/bin/claude.exe` (the
 native installer's default), then the Claude desktop app's own bundled CLI under
 `%APPDATA%\Claude\claude-code\<newest version>\claude.exe` -- never `%LOCALAPPDATA%\AnthropicClaude`, which is
 the desktop GUI's own `claude.exe`, not the CLI. The Claude CLI manages its own login; this backend never reads
@@ -109,10 +106,8 @@ LLM_MODEL=claude-sonnet-5
 ```
 
 Confirmed against Anthropic's own OpenAI SDK compatibility docs (platform.claude.com/docs/en/cli-sdks-libraries/
-libraries/openai-sdk, fetched 2026-09-16) rather than a live call -- this environment has a Claude Code
-subscription, not a separate Anthropic API key, and the point of this lane's call budget is exercising the real
-`claude_cli` path above, not minting a new billable credential to spend a call on this one instead. Two things
-to know before relying on it:
+libraries/openai-sdk, fetched 2026-09-16) rather than a live call -- no Anthropic API key was available to
+exercise it. Two things to know before relying on it:
 
 - **`response_format` (the `json_schema`/`strict` mode `_openai_chat()` sends) is silently ignored** by
   Anthropic's compatibility layer -- Anthropic's docs say so explicitly ("For JSON output, use Structured
@@ -129,26 +124,26 @@ OpenAI-compatible `/v1/embeddings` directly. As with Codex, a Claude-only setup 
 retrieval runs pure BM25 without `LLM_BASE_URL` (`kb.retrieval_mode()` -> `"bm25"`); a base URL upgrades retrieval to
 hybrid cosine+BM25.
 
-**Strict schema for the CLI providers (both this and the Codex one): `LLM_STRICT_SCHEMA=1`.** Off (the default),
-today's calls go out exactly as before. On, the caller's JSON schema rides along the way `response_format` has
-always constrained `openai_compatible`: `codex exec` takes `--output-schema <file>` (the schema written into the
-call's own read-only temp dir; verified against codex-cli 0.153.4's `exec --help` and real calls), `claude -p`
-takes `--json-schema <inline JSON>` (its `--help` shows the schema as a string value, not a file path -- the one
-place the two CLIs differ). The parse path is unchanged either way. If the strict attempt fails -- a CLI build
-without the flag, a rate limit, a timeout -- it is retried once without the flag and a `warnings.warn` notes the
-fallback, so the switch can only add a retry, never change a reply the old code would have gotten. Verified for
-Codex with three real debt_maturity extractions (Karnell/NOTE/Dynavox, each strict vs plain: values byte-identical
-on the two stable reports, times within ~2 s); the Claude flag is help-verified and unit-tested only, no real
-call spent on it.
+**Strict schema for the CLI providers (both this and the Codex one): `LLM_STRICT_SCHEMA`, default on.** The
+caller's JSON schema rides along the way `response_format` constrains `openai_compatible`: `codex exec` takes
+`--output-schema <file>` (the schema written into the call's own read-only temp dir; verified against
+codex-cli 0.153.4's `exec --help` and real calls), `claude -p` takes `--json-schema <inline JSON>` (its
+`--help` shows the schema as a string value, not a file path -- the one place the two CLIs differ). The parse
+path is unchanged either way. If the strict attempt fails -- a CLI build without the flag, a rate limit, a
+timeout -- it is retried once without the flag and a `warnings.warn` notes the fallback, so the flag can only
+add a retry, never change a reply the flag-less call would have gotten. `LLM_STRICT_SCHEMA=0` turns it off for
+older CLI builds. Verified for Codex with three real debt_maturity extractions (Karnell/NOTE/Dynavox,
+each strict vs plain: values byte-identical on the two stable reports, times within ~2 s); the Claude
+flag is help-verified and unit-tested only, no real call spent on it.
 
 Test: `python -m pipeline.test_llm` -- a fake `claude.cmd` + Python script replays discovery, stdin,
 `--output-format json` parsing, fence stripping, `is_error: true`, a non-zero exit and a timeout, no network or
 real Claude Code install needed.
 
-## Model web search for report fetching (v074)
+## Model web search for report fetching
 
-The report cache used to only know how to find Swedish issuers. `pipeline/fetch.py` now has a fourth source for
-the rest of the world: when the MFN/Cision feeds, the Nasdaq notices and the DuckDuckGo search all come up empty
+The MFN/Cision feeds, the Nasdaq notices and the DuckDuckGo search only reach Swedish issuers.
+`pipeline/fetch.py` has a fourth source for the rest of the world: when all three come up empty
 (the norm for foreign companies -- the Swedish feeds never carry them, and DuckDuckGo bot-blocks this backend),
 and the provider is `LLM_PROVIDER=codex` or `claude`, `llm.web_lookup()` makes the same one-shot CLI call as
 `chat()` with the provider's web-search tool switched on:
@@ -168,7 +163,7 @@ keeps such a backend on the three plain sources, and a model search that errors 
 reply) is reported in `/api/reports/fetch`'s usual 404 `detail`. The endpoint takes optional `country`/`hint`
 fields that only feed this search's prompt.
 
-**Fifth source (v080): crawling a page-shaped leftover.** When every direct candidate from all four sources above
+**Fifth source: crawling a page-shaped leftover.** When every direct candidate from all four sources above
 still fails -- because a model reply names the issuer's IR page instead of a PDF, a web-search hit served a page,
 or a direct link 404s outright (Shell's own asset-store URLs expire) -- `fetch.py` crawls whatever page-shaped
 candidates those attempts left behind: the page itself (or, for a dead direct link, the guessed IR path for its
@@ -187,14 +182,14 @@ handful of generated PDFs and static HTML pages; no CLI, no model call, no exter
 
 Opt-in, default **off**: `EXTRACT_TWO_PASS=1` makes `extract()` run a small pass-1 call that asks the
 model which locator candidate page holds the target table before pass-2 extracts from that narrower
-window, instead of every candidate page at once (`_select_pages` in `pipeline/extract.py`). v045's
-30-company `debt_maturity` before/after (Codex `gpt-5.6-terra`) found this a net positive over v043's
-first round -- 11 of 13 regressions no longer worse, only 2 still worse for narrow, understood reasons
--- and recommended flipping the default on for hosted providers; kept off here pending the group's
-call, and specifically because it has never been run against a local Ollama model, only Codex/Claude.
-The desktop Settings tab's Codex/Claude/API-endpoint cards carry a matching toggle (on by default)
-that writes this same env var on Save; there is no toggle for Local Ollama, which always runs with it
-off. See `pipeline/extract.py`'s own module docstring and `docs/acrylic/evidence/v043.md`/`v045.md`.
+window, instead of every candidate page at once (`_select_pages` in `pipeline/extract.py`). A
+30-company `debt_maturity` before/after on Codex `gpt-5.6-terra` found it a net positive -- 11 of 13
+regressions from the earlier round no longer worse, 2 still worse for narrow, understood reasons --
+and recommended it for hosted providers. It stays off by default because it has only ever been run
+against Codex/Claude, never against a local Ollama model. The desktop Settings tab's
+Codex/Claude/API-endpoint cards carry a matching toggle (on by default) that writes this same env var
+on Save; there is no toggle for Local Ollama, which always runs with it off. Evidence:
+`docs/acrylic/evidence/v043.md` and `docs/acrylic/evidence/v045.md`.
 
 ## Quote retry (`EXTRACT_QUOTE_RETRY`)
 
@@ -207,17 +202,16 @@ value plus the cited page's own table rows (`_page_rows`, numbered; a page over
 null when no printed row states the figure. A field adopts the reply only when the new quote
 verifies on the page it names (`quote_on_page`), so a null, missing or still-unverifiable reply
 keeps the first answer: the retry can never leave a field worse than the single call. A 0 already
-proven by the report's own words (`_stated_zero`, v050) is not retried -- the sentence is the
-provenance, and a row list could only talk the model out of it. v054's 9-company Codex
-before/after (`docs/acrylic/evidence/v054.md`): 1 trigger in 9 (MEKO), no adoption (the true row is
-torn apart by a two-column layout in the text layer -- the `parse.py` defect HANDOFF's "Next" names),
-nothing worse, nothing improved, so it stays off pending a corpus where quote-shaped failures
-reproduce; the switch and its offline tests are ready either way.
+proven by the report's own words (`_stated_zero`) is not retried -- the sentence is the provenance,
+and a row list could only talk the model out of it. A 9-company Codex before/after
+(`docs/acrylic/evidence/v054.md`) triggered once in 9 (MEKO) and adopted nothing: the true row is
+torn apart by a two-column layout in the text layer, a `parse.py` defect. Nothing worse, nothing
+improved, so it stays off; the switch and its offline tests work either way.
 
-## debt_maturity's four synonym-shaped schema keys (v083)
+## debt_maturity's four synonym-shaped schema keys
 
 `schemas/debt_maturity.json` carries four differently-scoped word lists; picking the wrong one silently
-does nothing (a v046/v060 split, deliberate, not an oversight) or, worse, loosens the wrong match. Which
+does nothing (a deliberate split, not an oversight) or, worse, loosens the wrong match. Which
 `extract.py` code path reads each one, per field or per schema:
 
 - **`fields[].synonyms`** -- row-*label* matching, read everywhere a printed row is checked against a field
@@ -230,30 +224,30 @@ does nothing (a v046/v060 split, deliberate, not an oversight) or, worse, loosen
   Lets a header say "within 12 months" without that phrase ever being allowed to match a *row label* (which
   would wrongly claim a "within 12 months ..." prose sentence as a field's own row). `total_debt`'s own
   `header_synonyms` are carrying-amount wording ("carrying amount", "redovisat värde") that mark which header
-  column is the table's real total when a bare Total/Summa word competes with it on the same line (v076).
-- **`total_debt.row_synonyms`** (v083; formerly a private `_DEBT_ROW_SYNONYMS` list inside `extract.py`) --
-  `_bucket_total_row`'s own fallback for picking a bucket-as-columns table's *grand-total row* when no row is a
-  `total_debt` synonym and no row is a bare Total/Totalt/Summa either (Ependion's bucket row is labelled just
-  "Borrowing", Boozt's just "Lease liabilities"). Never used for direct field-row matching -- a row still needs
+  column is the table's real total when a bare Total/Summa word competes with it on the same line.
+- **`total_debt.row_synonyms`** -- `_bucket_total_row`'s own fallback for picking a bucket-as-columns
+  table's *grand-total row* when no row is a `total_debt` synonym and no row is a bare
+  Total/Totalt/Summa either (Ependion's bucket row is labelled just "Borrowing", Boozt's just
+  "Lease liabilities"). Never used for direct field-row matching -- a row still needs
   its own real bucket header above it, with a column count matching its own printed amounts, before it is
   trusted. Keep additions direction-safe and phrase-exact: bare `"loan"`/`"loans"`/`"lån"` are deliberately
-  excluded (v060 Finding 2 -- a bank's own *asset*-side "Loans to credit institutions" prefix-matched bare
-  "loan" and outranked the real debt row); `"bank loans"` and v083's `"lån kreditinstitut"` stay because they
-  are exact phrases that do not also prefix a lending-direction row like "Lån till kreditinstitut" ("till" =
+  excluded (a bank's own *asset*-side "Loans to credit institutions" prefix-matched bare "loan" and
+  outranked the real debt row); `"bank loans"` and `"lån kreditinstitut"` stay because they are
+  exact phrases that do not also prefix a lending-direction row like "Lån till kreditinstitut" ("till" =
   "to" breaks the prefix). Only `total_debt` has this key -- the three bucket fields don't need their own,
   since they are never the table's total row.
-- **`ignore_header_synonyms`** (schema top-level, not per-field; v076) -- header wording that is a real,
+- **`ignore_header_synonyms`** (schema top-level, not per-field) -- header wording that is a real,
   counted table column but must never be assigned to a bucket or the total (a liquidity-risk note's
   undiscounted contractual-cash-flow total printed beside the carrying-amount column, e.g. "Total contractual
   cash flows", "total undiscounted"). Read by `_bucket_synonym_hits`/`_bucket_header` only, tagged `_ignore`,
   dropped by `_bucket_assign` -- present in the column count so the real columns still line up, absent from
   every field's own value.
 
-## Maturity basis (`DEBT_BASIS`) -- v089
+## Maturity basis (`DEBT_BASIS`)
 
-Default **carrying**: debt_maturity reads the borrowings note's carrying-amount table, exactly as every
-round since v028 has (the total that ties to the balance sheet; a liquidity note's undiscounted total is
-counted as a column and ignored -- the v076 split above). `DEBT_BASIS=undiscounted` flips the basis to the
+Default **carrying**: debt_maturity reads the borrowings note's carrying-amount table (the total that
+ties to the balance sheet; a liquidity note's undiscounted total is counted as a column and ignored --
+the split above). `DEBT_BASIS=undiscounted` flips the basis to the
 liquidity-risk note's contractual undiscounted cash flows: the same bucket columns are read the same way,
 but the two total-shaped word groups swap roles -- `ignore_header_synonyms` wording becomes the total slot
 (total_debt = the contractual cash-flow total, future interest included, so Instalco's buckets summing to
@@ -263,13 +257,12 @@ the undiscounted total by construction. The prompt follows the basis: the schema
 `description_undiscounted` beside its `description` (schema top level and `total_debt`), and
 `system_prompt` picks the one matching `debt_basis()`; anything but `undiscounted` in the env reads
 `carrying`, so a typo can never flip it. Every extraction reports the basis it was read on in its
-top-level `maturity_basis` field (v089 named it `basis`; the 2026-09-18 merge renamed it, because
-Sebastijan's analyst-confirmed `basis` object owns that key), and `GET /api/config` mirrors the live
-value as `maturity_basis`. The desktop
+top-level `maturity_basis` field (not `basis` -- the analyst-confirmed `basis` object owns that key),
+and `GET /api/config` mirrors the live value as `maturity_basis`. The desktop
 Settings cards carry the matching two-choice control that writes this env var on Save. See
 `pipeline/extract.py`'s `debt_basis()` and `docs/acrylic/evidence/v089.md`.
 
-## Prior-year maturity metadata (`prior_year`) -- v091
+## Prior-year maturity metadata (`prior_year`)
 
 debt_maturity extractions may carry a top-level `prior_year` object: the prior fiscal year's own
 `total_debt` + bucket figures, each with the prior year's printed row as its source, plus the identity
@@ -279,18 +272,18 @@ prior-year *column* of the same bucket rows (MedCap's year-column table), or the
 the prior year's own stacked block read with the same column keys (Tången's and Ework's two-table
 pages, where `_bucket_row_prior_year` proves the year). The key is written only when `total_debt` and
 at least two buckets were read and they close `maturity_sums_to_total` within the check's own ±2 on
-**explicit** values (the shipped `require_explicit_values` rule, applied to FY-1: a bucket whose
+**explicit** values (the `require_explicit_values` rule, applied to FY-1: a bucket whose
 prior-year figure the table does not print is absent from the fields and named in the check detail,
 never zero-filled). Date-per-instrument notes (Proact) and model-only answers produce no prior year.
 `GET .../extraction.pptx?prior_year=1` adds the second, fainter `FY<n-1>` chart series when the
 extraction carries one; the UI's "Show prior year" switch (MaturityChart) follows the same flag. See
 `pipeline/extract.py`'s `_prior_year_fill()` and `docs/acrylic/evidence/v091.md`.
 
-## Per-year maturity metadata (`buckets_by_year`) -- v109
+## Per-year maturity metadata (`buckets_by_year`)
 
 debt_maturity extractions may carry a top-level `buckets_by_year` object: the report's own
-calendar-year maturity columns — Kristian's "every year its own bucket" granularity, answered
-with the report's own print whenever it prints years instead of named buckets. Two deterministic
+calendar-year maturity columns — every year its own bucket, answered with the report's own
+print whenever it prints years instead of named buckets. Two deterministic
 sources, never a model answer: the year **columns** a maturity table prints as its header
 (Electrolux Professional's Note 18: `SEKm 2026 2027 2028 2029 2030 2031– Total`), re-read on the
 bucket reader's own recorded row; or the year **rows** of a maturity table, which pymupdf tears
@@ -306,7 +299,7 @@ printed years when the key is present; the UI's "Per year" switch (MaturityChart
 same flag and is mutually exclusive with "Show prior year". See `pipeline/extract.py`'s
 `_buckets_by_year_fill()` and `docs/acrylic/evidence/v109.md`.
 
-## Publishing hardening results into `data/kb` (`scripts/publish_kb.py`) -- v093
+## Publishing hardening results into `data/kb` (`scripts/publish_kb.py`)
 
     python scripts/publish_kb.py --kb <seed1-kb> ... --kb <seedN-kb> [--section debt_maturity] [--dry-run]
 
@@ -318,17 +311,15 @@ different-sha stems are skipped and listed, never overwritten. Every extraction 
 the stored fields are fed back through the *current* `extract()` as if the model had just answered
 (no model call — the `scripts/replay_check.py` mechanism), and the replayed output is published only
 where it is no worse than stored — never a lost value, never a lower confidence; the original
-warnings are kept plus one `published:` line. Idempotent: run twice, nothing changes. At v093
-`data/kb` carried the 72 seed-1–8 entries plus 12 more (seed 9 + Avarda/Linc) published with the
-same script — 186 companies, 85 of them with a `debt_maturity` extraction. To fold in a future seed,
-append its directory and re-run; the full per-stem table (what replayed better, what was kept as
-stored and why) is in `docs/acrylic/evidence/v093.md`. Since v093 the same script has republished
-the committed `data/kb` after every landed mechanism (the `data: republish` commits — 84 Mid Cap
-debt entries after v095/v096, the seed-10 publish, v101's sign normalization, v102's Ambea year fix,
-v104's Svedbergs finer-split sums; the publish gate clamps stored confidences at 1.0): `data/kb`
-now carries 196 companies, 95 of them with a `debt_maturity` extraction, and `eval/run.py
---stored-kb data/kb` scores values 257/327 (78.6%) / pages 200/327 (61.2%) over the 327 scored
-label rows.
+warnings are kept plus one `published:` line. Idempotent: run twice, nothing changes. To fold in a
+further seed, append its directory and re-run; the per-stem table (what replayed better, what was
+kept as stored and why) is in `docs/acrylic/evidence/v093.md`. The same script republishes the
+committed `data/kb` after every landed extraction mechanism; the publish gate clamps stored
+confidences at 1.0.
+
+For what `data/kb` currently holds and how it scores, run `python eval/run.py --stored-kb data/kb`
+from the repo root. The root [README](../README.md) and [`docs/ACCURACY.md`](../docs/ACCURACY.md)
+carry those figures; they are deliberately not copied here, because a second copy drifts.
 
 ## Checks
 
@@ -338,8 +329,6 @@ label rows.
 - `python -m pipeline.test_parse`, `python -m pipeline.test_kb`, `python -m pipeline.test_paths` — table-row
   reconstruction, KB save idempotency, and dev-tree-vs-frozen path resolution self-checks.
 - `python ../eval/run.py` — accuracy + mean confidence against `eval/labels.csv` (needs Ollama; ~1 min per report).
-- Company + year in the UI calls `POST /api/reports/fetch`: MFN news feed first, DuckDuckGo PDF search as fallback; the PDF must
-  be > 40 pages, have a text layer, and mention the company and the year in its first 20 pages. Cached in `data/reports/`.
 
 ## Desktop build (PyInstaller)
 
@@ -372,7 +361,7 @@ dist\backend\backend.exe --port 8000 --host 127.0.0.1
   `zoneinfo` conversion).
 
 
-### Independent embeddings and OCR
+## Independent embeddings and OCR
 
 Set `EMBED_BASE_URL=http://localhost:11434/v1` and `EMBED_MODEL=bge-m3` to use local
 semantic retrieval with Codex or Claude extraction. Pull the model once with

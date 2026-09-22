@@ -4,11 +4,13 @@ One script the whole team can rehearse from: which version to demo, which saved 
 open, what to say, and what not to promise. Everything here reads off the repository itself —
 zero model calls to set up, and the main show is **stored real results**, not a live inference.
 
-## Version lock (update this section before demo day)
+## Version lock — what was demoed on 2026-09-22
+
+A record of the build shown on demo day, not a description of current `main`.
 
 | What | Value |
 |---|---|
-| Branch / commit demoed | `origin/acrylic` @ `0dff6d1` (2026-09-22) — the m01 (source-evidence fixes) + m02 (Sebastijan's workspace shell; `EXTRACT_SCAN_ALL` landed as an offline-only diagnostic tool) merge. Re-run `git rev-parse --short=7 origin/acrylic` after a final fetch if demoing later than this freeze. |
+| Branch / commit demoed | commit `0dff6d1` (2026-09-22) — the source-evidence fixes merged with the workspace shell, in which `EXTRACT_SCAN_ALL` landed as an offline-only diagnostic tool. The branch that carried it is gone; the commit is still in the repository (`git show 0dff6d1`). |
 | Windows installer feed | [`desktop-demo`](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-demo) (auto-updating, CI-built from the team `demo` branch) — install the Setup exe once; it updates itself. [`desktop-main`](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-main) is the equivalent feed for `main` |
 | Not the installer? | Clone the repo and run `run.bat` (Windows) or `./run.sh` (macOS/Linux) — first run ~2–4 min, later runs seconds |
 | The old portable exe | `desktop-0.3.4` (portable/Setup zip) **cannot update itself** — do not demo from it; use the auto-updating installer above or a fresh `run.bat` checkout |
@@ -75,7 +77,7 @@ after everything below has already succeeded.
   numbers on it, Draft/ready status and the open items visible. Mention CSV/JSON as the downstream
   system interface in one sentence; do not narrate the tech stack.
 - **2:40–3:00 — the numbers and the boundary.** "The stored library of 105 saved debt extractions
-  scores 327/367 (89.1%) on hand-verified values and 263/313 (84.0%) on cited pages — reproducible
+  scores 328/368 (89.1%) on hand-verified values and 263/313 (84.0%) on cited pages — reproducible
   offline with `python eval/run.py --stored-kb data/kb`, zero model calls. That is the *curated*
   library; first-pass extraction without labels scores lower (see the Accuracy section in the
   README)." Leave **Ask** and the company map for Q&A — do not let them eat the main line.
@@ -118,7 +120,7 @@ after everything below has already succeeded.
   correct fill, and averaged +2.5 calls / +18.4 model seconds per report. The
   full-report scan alone can run 77–110 model calls per report/section and stays an offline
   diagnostic tool, never a production default. How to confirm: `EXTRACT_MERGE_RUNS` shows on the
-  Settings page's status row and in `GET /api/config`'s `merge_runs` field; since w212
+  Settings page's status row and in `GET /api/config`'s `merge_runs` field;
   `EXTRACT_SECOND_PASS` is the Settings **Deep search for missing figures** switch (Extraction
   page, Off by default) and `GET /api/config`'s `second_pass` field — check it reads Off there;
   `EXTRACT_SCAN_ALL` still has no Settings toggle by design, but `GET /api/config`'s `scan_all`
@@ -137,10 +139,10 @@ after everything below has already succeeded.
   hit `GET /api/kb` / open a KB record, confirm the window survives (a fresh single-instance lock
   conflict closes the second copy silently).
 
-## Measured rehearsal (2026-09-22 · package build / acrylic `0dff6d1` · isolated Windows package copy)
+## Measured rehearsal (2026-09-22 · package build of commit `0dff6d1` · isolated Windows package copy)
 
-This is a fixture-mode rehearsal of an isolated unpacked package, freshly refreshed from the listed
-acrylic commit and launched with a new quoted `--user-data-dir` whose path contains a space. No
+This is a fixture-mode rehearsal of an isolated unpacked package, freshly refreshed from that
+commit and launched with a new quoted `--user-data-dir` whose path contains a space. No
 model call was made. The shared package was not changed. The clean first start returned 206 bundled
 saved reports; the close/reopen result later contains 207 because the Atlas fixture-upload result is
 stored in that user-data directory.

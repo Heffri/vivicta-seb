@@ -14,7 +14,7 @@ import type { KbEntry, MaturityWall as MaturityWallData, MaturityWallRow } from 
 const DEFAULT_THRESHOLD = 30
 
 type Props = {
-  // v174: mirrors ReviewQueue's onOpen shape (report, section, key?) rather than KbView's plain
+  // Mirrors ReviewQueue's onOpen shape (report, section, key?) rather than KbView's plain
   // onOpenReport(report) -- "Review" deep-links to the field that made the row not comparable.
   onOpenReport?: (report: KbEntry, section?: string, key?: string) => void
 }
@@ -27,10 +27,10 @@ const basisSummary = (row: MaturityWallRow) => [row.consolidation, row.debt_basi
 const reviewVariant = (status: string): 'danger' | 'secondary' | 'success' =>
   status === 'unresolved' ? 'danger' : status === 'unreviewed' ? 'secondary' : 'success'
 
-/** Compare view section (v174, consult-gpt6 #8 / consult-fable #2): a deterministic, zero-model list of
- *  every saved debt_maturity extraction's total debt, amount due within a year and their share, sorted
- *  comparable-first by share. No FX conversion, no credit judgment -- an exposure filter over what the
- *  KB already has, honest about what is not yet confirmed (gpt6: don't skip confirmation for a chart). */
+/** Compare view section: a deterministic, zero-model list of every saved debt_maturity extraction's
+ *  total debt, amount due within a year and their share, sorted comparable-first by share. No FX
+ *  conversion, no credit judgment -- an exposure filter over what the KB already has, honest about
+ *  what is not yet confirmed. A chart is not a reason to skip basis confirmation. */
 export function MaturityWall({ onOpenReport }: Props) {
   const [collection, setCollection] = useCollection()
   const [wall, setWall] = useState<MaturityWallData | null>(null)

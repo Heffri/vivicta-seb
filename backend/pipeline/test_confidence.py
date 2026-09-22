@@ -1,8 +1,23 @@
-"""Self-check for evidence scoring (docs/CONFIDENCE.md). Run: python -m pipeline.test_confidence"""
+"""Self-check for evidence scoring and the deterministic reads around it (docs/CONFIDENCE.md).
+
+demo() is the bulk of it: one long run of assertions over real (trimmed) annual-report page text.
+It covers score_field's evidence flags and confidence caps, quote verification and value repair,
+income-statement row reading (by-nature statements and bank layouts included), and then the debt
+maturity note in every shape the corpus prints it in -- buckets as rows, buckets as columns, finer
+intervals summed into one bucket, calendar-year columns, one due date per instrument, sections
+closed by their own Summa rows, and repayment-timing classifications. Around those: printed nils
+(a dash is the report's explicit 0), null vs missing, the carrying/undiscounted basis switch
+(DEBT_BASIS), the wrong-table and wrong-entity guards, prose "no debt" statements, the prior_year
+and buckets_by_year metadata, and the opt-in switches EXTRACT_QUOTE_RETRY, EXTRACT_TWO_PASS and
+the bounded second pass. The test_* functions below cover the same ground for later additions.
+Section banners inside demo() mark the topics.
+
+Run: python -m pipeline.test_confidence"""
 from . import extract as x
 
 
 def demo():
+    # ---- income statement: score_field, quotes, statement rows ------------------------------
     schema = {"keywords": ["income statement"], "checks": [{"name": "gp", "expr": "abs((revenue + cost_of_sales) - gross_profit) <= 2", "identity": True}],
               "fields": [{"key": "revenue", "synonyms": ["revenue", "net sales"], "unit_hint": "currency_millions"},
                          {"key": "eps_basic", "synonyms": ["earnings per share"], "unit_hint": "currency_per_share"}]}
@@ -305,6 +320,8 @@ def demo():
         {"key": "net_profit", "value": 142, "unit": "SEK M", "period": "2025", "raw_label": "Net profit for the year", "source": {"page": 1, "quote": "Net profit for the year 142 1,571"}}]}
     out = x.extract([ncc2], [1], sch, {"fiscal_year": 2025})
     assert out["fields"][2]["value"] is None and out["checks"][0]["passed"] and all(f["confidence"] == 1.0 for f in out["fields"] if f["value"] is not None), (out["fields"], out["warnings"])
+
+    # ---- debt maturity: the identity, null buckets, explicit values -------------------------
     # Ericsson (debt maturity): the note has no >5y row, so due_after_5_years is null — a correct extraction, not a failure.
     # A check's null_as_zero lists the operands that count as 0 while they are null, as long as at least one of them is real;
     # when every listed operand is null the sum proves nothing and the check stays missing (never 0 == total).
@@ -336,7 +353,9 @@ def demo():
     assert c["passed"] and "due_after_5_years null" in c["detail"], (c, out["warnings"])
     total = next(f for f in out["fields"] if f["key"] == "total_debt")
     assert total["confidence"] == 1.0 and "arith_ok" in total["evidence"], total
-    # v011b: a printed bucket label is a known synonym — _clean_label glues digits ("Within 1 year" -> within1year), so
+
+    # ---- bucket labels: cleaning, synonyms and the sum repair -------------------------------
+    # a printed bucket label is a known synonym — _clean_label glues digits ("Within 1 year" -> within1year), so
     # _label_known must run the synonym through the same cleaning before the prefix match (en dash, ">", space variants).
     dmf = {f["key"]: f for f in dm["fields"]}
     assert x._label_known("Within 1 year", dmf["due_within_1_year"]) and x._label_known("Inom 1 år", dmf["due_within_1_year"]) and x._label_known("< 1 år", dmf["due_within_1_year"])
@@ -346,9 +365,9 @@ def demo():
     # ... so the Ericsson fixture's buckets read perfectly at full confidence too
     out = x.extract([ericsson], [1], dm, {"fiscal_year": 2025})
     assert [(f["value"], f["confidence"]) for f in out["fields"]] == [(32703, 1.0), (3538, 1.0), (29165, 1.0), (None, 0.0)], (out["fields"], out["warnings"])
-    # v012: _statement_row finds the printed bucket rows. Two defects, both in its direct helpers: the exact-match set
-    # held the synonyms verbatim (v011b fixed the prefix match only), and _row_label cut the label at the first
-    # space-digit, so "Within 1 year 3 538 4 100" matched as "Within" and "Inom 1 år …" as "Inom".
+    # _statement_row finds the printed bucket rows. Both its direct helpers have to agree on the cleaning: the
+    # exact-match set runs the synonyms through _clean_label too, and _row_label must not cut the label at the
+    # first space-digit, or "Within 1 year 3 538 4 100" matches as "Within" and "Inom 1 år …" as "Inom".
     assert x._row_label("Within 1 year 3 538 4 100") == "Within 1 year" and x._row_label("Inom 1 år 3 538 4 100") == "Inom 1 år" \
         and x._row_label("< 1 år 3 538 4 100") == "< 1 år"  # a number with label words after it is part of the label
     assert x._row_label("1–5 years 29 165 30 000") == "1–5 years" and x._row_label("Total sales 6, 10 155 113 161 921") == "Total sales"  # amounts still start where the label ends
@@ -367,9 +386,9 @@ def demo():
         ("total_debt", 32703, 1.0), ("due_within_1_year", 3538, 1.0), ("due_1_to_5_years", 29165, 1.0),
         ("due_after_5_years", None, 0.0)], (out["fields"], out["warnings"])
     assert out["checks"][0]["passed"] and "due_after_5_years null" in out["checks"][0]["detail"], out["checks"]
-    # v014: the sum-repair's own_syns (extract(), the _derived_value call) held the synonyms verbatim while the
-    # rows' labels go through _clean_label -- a part row named by a digit-bearing synonym ("Within 1 year" is
-    # within1year) could never join the field's own row, so the Essity-style join silently died for digit labels.
+    # the sum-repair's own_syns (extract(), the _derived_value call) must clean the synonyms the same way the
+    # rows' labels are cleaned -- otherwise a part row named by a digit-bearing synonym ("Within 1 year" is
+    # within1year) can never join the field's own row and the Essity-style join dies silently for digit labels.
     # "cost total" (digit-free) names the quote's own row, so own_row itself is true on both sides of the change;
     # the digit synonym names the part row that must be allowed to join.
     gp14 = {"name": "gp14", "expr": "abs((revenue + special_cost) - gross_profit) <= 2", "identity": True}
@@ -390,7 +409,9 @@ def demo():
         and cost["raw_label"] == "Cost of sales" \
         and cost["source"]["quote"] == "Within 1 year items -20 -15 Cost total -100 -90", (cost, out["warnings"])
     assert out["checks"][0]["passed"], out["checks"]
-    # v018: a currency/unit token glued to a footnote marker ("SEK1)") defeated both the currency-strip regex (no
+
+    # ---- unit and magnitude tokens glued to labels ------------------------------------------
+    # a currency/unit token glued to a footnote marker ("SEK1)") defeated both the currency-strip regex (no
     # word boundary between the letter and the digit) and the trailing note-ref regex (the closing ")" sits past
     # the digit, short of the end-of-string anchor) -- so the token survived there while the same currency word
     # without a footnote was fully stripped. Superscript digits ("SEK¹") hit the same gap once NFKC turns them
@@ -398,20 +419,22 @@ def demo():
     # 3-letter codes the note-ref regex happens to rescue by accident.
     assert x._clean_label("EPS, SEK1)") == x._clean_label("EPS, SEK") == "eps"
     assert x._clean_label("Resultat per aktie, kr¹") == x._clean_label("Resultat per aktie, kr") == "resultat per aktie"
-    assert x._clean_label("Earnings per share, MSEK2)") == x._clean_label("Earnings per share, MSEK")  # symmetric before v023 too (both kept ", msek"); after v023 both fully strip it instead, see below
+    assert x._clean_label("Earnings per share, MSEK2)") == x._clean_label("Earnings per share, MSEK")  # symmetric either way; both fully strip the magnitude-prefixed code, see below
     # not a footnote: digits that are part of the label's own meaning are untouched, exactly as before
     assert x._clean_label("1-5 years") == x._clean_label("1–5 years") == "1-5years" and x._clean_label("Within 1 year") == "within1year"
-    # v023: a magnitude prefix (k/K/m/M/b/B/t/T -- thousand/million/billion, "t/T" also covering the Swedish
+    # a magnitude prefix (k/K/m/M/b/B/t/T -- thousand/million/billion, "t/T" also covering the Swedish
     # "tusen" convention) glued directly ahead of a currency code was never stripped: \bSEK\b has no word boundary
     # between "M" and "S" in "MSEK", so "Revenue, MSEK" kept ", msek" while plain "Revenue" had nothing to strip
-    # (the gap v018's Findings flagged and left open). The bare-code strip ("EPS, SEK" -> "eps") and the
+    # (the gap the footnote fix above leaves open). The bare-code strip ("EPS, SEK" -> "eps") and the
     # digit-preserving cases above are unaffected -- this only extends the same currency alternation, still
     # anchored on both sides by \b, to allow one optional magnitude letter immediately before the code.
     assert x._clean_label("Revenue, MSEK") == x._clean_label("Revenue") == "revenue"
     assert x._clean_label("Revenue, TSEK") == x._clean_label("Revenue, KSEK") == x._clean_label("Revenue, kSEK") == "revenue"
     assert x._clean_label("Net sales, MEUR") == x._clean_label("Net sales") == "net sales"
     assert x._clean_label("Net sales (MSEK)") == x._clean_label("Net sales")
-    # v036: the dominant failure mode v035 found across a seed of 10 -- a maturity note that prints one row
+
+    # ---- maturity shapes: bucket rows vs bucket columns -------------------------------------
+    # the dominant failure mode across a seed of 10 reports -- a maturity note that prints one row
     # (often "Total") with the buckets as *columns* instead of one row per bucket. _year_column finds no year in
     # a bucket header, so it and everything built on it (_column_values, _derived_value, _between_rows) bail
     # before trying. Cloetta's own Note 21 (real text, trimmed to the header + the one row that matters):
@@ -451,7 +474,7 @@ def demo():
     got = {f["key"]: f["value"] for f in out["fields"]}
     assert got == {"total_debt": 2678, "due_within_1_year": 412, "due_1_to_5_years": 2219, "due_after_5_years": 47} and out["checks"][0]["passed"], (got, out["warnings"])  # 2027 + 2028 = 1,286 + 933
     # not every bucket-as-columns table is readable this way, and guessing wrong is worse than not fixing it -- three
-    # real shapes from the same seed that stay exactly as they were (v035's own "not fixed" verdicts, unchanged):
+    # real shapes from the same seed that stay exactly as they were:
     # XANO: the header wraps across two of _page_rows' lines ("Summa" / "inom 1 år"), scrambling column order out of
     # print order; the safety valve is the row's own column count (8) never matching however many bucket keys are found
     xano = ("FINANSIELLA SKULDER Förfallotid\nPER 2025-12-31 –30 dgr 31–90 dgr 91–360 dgr Summa Mellan 1 Mellan 3 Efter 5 år Totalt\n"
@@ -463,7 +486,7 @@ def demo():
         {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
     out = x.extract([xano], [1], dm, {"fiscal_year": 2025})
     got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
-    # v044: "Efter 5 år" is printed whole on the header line (only "Summa"/"Mellan 1"/"Mellan 3" wrap away), so
+    # "Efter 5 år" is printed whole on the header line (only "Summa"/"Mellan 1"/"Mellan 3" wrap away), so
     # due_after_5_years is a bucket the table demonstrably has, just one the safety valve correctly declined to
     # read a number for -- the check reads missing: due_after_5_years, not a false failure against a fabricated
     # due_after_5_years=0, and total_debt/due_within_1_year (independently quote- and label-verified) are no
@@ -488,7 +511,7 @@ def demo():
     # total_debt synonym (no "interest-bearing"/"borrowings") and not bare Total/Summa/Totalt either -- it also
     # includes non-interest-bearing accounts payable, so treating it as one would have been wrong, not just unproven
     assert x._bucket_total_row(x._page_rows("Total financial liabilities 3,111 3,380 778 454 2,116 32\n"), dmf["total_debt"]) == []
-    # v040: Acast (seed 2, real Note text) -- two stacked calendar-year maturity tables (this year, then a
+    # Acast (seed 2, real Note text) -- two stacked calendar-year maturity tables (this year, then a
     # prior-year comparative), each ending in a bare "Total" row. The current year's own Total row is glued to
     # trailing sidebar prose by the PDF's column layout ("...19,250 approximation of fair value." then "2024"
     # on its own line merges onto the same row), so it never reads as >=2 amounts and drops out as a candidate;
@@ -510,11 +533,11 @@ def demo():
         {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
     out = x.extract([leases, acast], [1, 2], dm, {"fiscal_year": 2025})
     got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
-    # w203: "Total lease Liability" is now a total_debt row_synonym (coverage_check's real acast_2025 p.67
+    # "Total lease Liability" is a total_debt row_synonym (coverage_check's real acast_2025 p.67
     # row this fixture already transcribes), so label_known joins the evidence set and confidence reaches 1.0.
     assert got == {"total_debt": (135382, 1.0), "due_within_1_year": (None, 0.0), "due_1_to_5_years": (None, 0.0), "due_after_5_years": (None, 0.0)}, (got, out["warnings"])
     assert any("exceed its own total 45414" in w for w in out["warnings"]), out["warnings"]  # the column reading is rejected outright, not one field silently "fixed"
-    # v040: Nelly Group (seed 2, real Note text) -- the model correctly reads due_within_1_year from its own
+    # Nelly Group (seed 2, real Note text) -- the model correctly reads due_within_1_year from its own
     # "Kortfristiga" (current) row, but the schema has no bare "kortfristiga" synonym (only the compound
     # "kortfristiga räntebärande skulder"), so the row was never recognised as due_within_1_year's own -- and
     # the neighbour-sum repair, left unrestricted, folded in "Långfristiga" (non-current) too, turning a
@@ -535,10 +558,10 @@ def demo():
     got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
     assert got == {"total_debt": (287.1, 0.5), "due_within_1_year": (36.2, 0.5), "due_1_to_5_years": (None, 0.0), "due_after_5_years": (None, 0.0)}, (got, out["warnings"])
     assert not out["warnings"], out["warnings"]  # no repair fires at all: the model's own, correctly-labelled row stands unmolested
-    # v040: a maturity table's own Total row is not immune to the report's usual "-" nil convention either --
+    # a maturity table's own Total row is not immune to the report's usual "-" nil convention either --
     # a dash inside the bucket columns (not just in the instrument rows above the total, which Cloetta's own
-    # test above already covers) must not desync col_keys from amounts, trailing or mid-row. v078 refines the
-    # reading: a dash in the selected row's OWN column for a bucket is the report's explicit 0 for that window
+    # test above already covers) must not desync col_keys from amounts, trailing or mid-row. The printed-nil
+    # rule: a dash in the selected row's OWN column for a bucket is the report's explicit 0 for that window
     # (evidence printed_nil) once the row's own arithmetic closes -- still never a fabricated number, and a
     # bucket the table prints no column for at all stays null.
     header = "Note 21 Borrowings\n31 Dec 2025\nSEKm\nRemaining term\n< 1 year\nRemaining term\nRemaining term\n1–2 years\nRemaining term\n2–5 years\n> 5 years Total\n"
@@ -546,7 +569,9 @@ def demo():
     out = x.extract([header + "Total 197 22 1,377 - 1,596\n"], [1], dm, {"fiscal_year": 2025})  # trailing dash: the >5y column prints nil
     got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
     a5 = next(f for f in out["fields"] if f["key"] == "due_after_5_years")
-    # v078: the dash column is the report's explicit 0 (printed_nil @0.5), not a null the check must guess around
+
+    # ---- printed nil: a dash is the report's own 0 ------------------------------------------
+    # the dash column is the report's explicit 0 (printed_nil @0.5), not a null the check must guess around
     assert got == {"total_debt": (1596, 1.0), "due_within_1_year": (197, 1.0), "due_1_to_5_years": (1399, 1.0), "due_after_5_years": (0, 0.5)}, (got, out["warnings"])  # the closing row identifies its bare "Total" label (identity_all_columns)
     assert a5["evidence"] == ["quote_on_page", "printed_nil", "identity_all_columns", "arith_ok", "label_known", "period_ok", "page_is_statement", "unit_ok"] \
         and a5["source"]["quote"] == "Total 197 22 1,377 - 1,596", a5
@@ -555,10 +580,10 @@ def demo():
     got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
     assert got == {"total_debt": (1583, 1.0), "due_within_1_year": (197, 1.0), "due_1_to_5_years": (1377, 1.0), "due_after_5_years": (9, 1.0)}, (got, out["warnings"])
     assert out["checks"][0]["passed"], out["checks"]
-    # v134: a model-answered 0 whose citation is a row the report prints as dashes is the report's own printed
-    # nil (v078's convention, one reading further: the model, not the bucket-column reader, did the reading).
-    # Linc p.100 "Räntebärande skulder – –" (v090's standing gap) and Rejlers' "1-2 years - -" block (v097
-    # finding 4) both died -- "computed, not read" / 0@0.25 "quote not found" -- because quote_on_page can
+    # a model-answered 0 whose citation is a row the report prints as dashes is the report's own printed
+    # nil (the same convention, one reading further: the model, not the bucket-column reader, did the reading).
+    # Linc p.100 "Räntebärande skulder – –" and Rejlers' "1-2 years - -" block both died as
+    # "computed, not read" / 0@0.25 "quote not found", because quote_on_page can
     # never verify a quote without a number token. Two conditions on the rows the quote matches, no arithmetic
     # gate (an all-dash row prints no total to close against, and nothing on it can be summed into a 0): a
     # known label, and a dash where the fiscal year reads. Refusals: an unknown label, a figure in the
@@ -587,7 +612,7 @@ def demo():
     assert x._model_zero_on_dash_row({"value": 0, "source": {"page": 1, "quote": "Räntebärande skulder - 100"}},
                                      dmf["total_debt"], ["Nettoskuld 2025-12-31 2024-12-31\nRäntebärande skulder - 100\nLikvida medel -50 -60\n"],
                                      [1], 2025) == (1, "Räntebärande skulder - 100")  # the fiscal-year column is the dash; the 100 prints in the prior-year one
-    # Rejlers (v097 finding 4): the dash bucket rows quoted as one block; the page also prints "0.8 per cent",
+    # Rejlers: the dash bucket rows quoted as one block; the page also prints "0.8 per cent",
     # which is exactly what kept the answer alive unproven at 0.25 -- the printed-nil rule outranks that fallback.
     rejlers = ("NOTE 24\nLiabilities to credit institutions\nThe Group has an overdraft facility with a limit of SEK 250\n"
                "million (250), of which SEK 27.8 million (12.1) is utilised. The interest margin is fixed at 0.8 per\n"
@@ -622,18 +647,20 @@ def demo():
         assert bad["value"] is None and bad["confidence"] == 0.0, (bad, out["warnings"])
         assert any("dropped as computed, not read" in w for w in out["warnings"]), (page, out["warnings"])
         assert not any("printed nil" in w for w in out["warnings"]), (page, out["warnings"])
-    # v044: null_as_zero, refined -- v041 finding 3 (MedCap, Ependion, same seed): a bucket the model failed to
+
+    # ---- null vs missing: when a null bucket may be read as 0 -------------------------------
+    # null_as_zero, refined (MedCap, Ependion, same seed): a bucket the model failed to
     # extract reads identically to a bucket the report never prints -- both are null -- but only the second one
     # is really a 0. Before defaulting a null bucket to 0, _check now looks for its own synonym label (the same
-    # normalize_ws digit-gluing v012/v014 already use for row labels) on the pages the check's other, real
+    # normalize_ws digit-gluing the row labels already use) on the pages the check's other, real
     # operands were sourced from, or the candidate pages; found -> leave it out of the substitution, so the check
-    # reads "missing: <field>" instead of a false failure; not found -> 0, exactly as before. v058: the search
+    # reads "missing: <field>" instead of a false failure; not found -> 0, exactly as before. The search
     # runs over the operands' OWN table -- the printed rows their quotes anchor to, from the nearest year-header
     # row above the topmost down to the bottommost -- whenever at least one anchor exists, and over those whole
     # pages otherwise; a bucket word printed by another table on a candidate page no longer blocks the 0.
-    # texts/pages/fields/schema are new, optional _check args: every call above this one omits them, so the
-    # pre-v044 unconditional zero-fill is unchanged for all of them (the full suite above this block is
-    # unmodified except the one XANO case, which hits this exact mechanism too -- see its own updated comment).
+    # texts/pages/fields/schema are optional _check args: every call above this one omits them and gets the
+    # plain unconditional zero-fill instead (the one exception is the XANO case, which hits this exact
+    # mechanism too -- see its own comment).
     c = x._check(dmc, {"total_debt": 718.7, "due_1_to_5_years": 616.5}, texts=["Totalt 718,7\n1 – 5 år 616,5\n",
                  "MSEK <1 år 1 – 2 år 2 – 4 år 4 – 5 år >5år\n"], pages=[1, 2],
                  fields=[{"key": "total_debt", "source": {"page": 1}}, {"key": "due_1_to_5_years", "source": {"page": 1}}], schema=dm)
@@ -645,13 +672,11 @@ def demo():
     # end to end, MedCap's own page text (seed3-kb, pp.101-102, relabelled 1-2 here): the model reads total_debt
     # and due_1_to_5_years verbatim off the carrying-amount table (p.101); due_within_1_year is null (its true
     # value is the sum 54.3+48.0=102.3, printed only as two separate rows) and due_after_5_years is null too
-    # (this table really has no >5y row). v044 found due_within_1_year's "<1 år" on the contractual table two
-    # pages later and kept the check at missing; v052's derivation then filled 102.3 from the rows above the
-    # "1 – 5 år" row. v058 scopes the present-label search to the operands' own table -- the contractual
-    # table's "<1 år" decides nothing any more -- and the ruling adds the month rows to the schema itself
-    # ("6 månader eller mindre", "6 – 12 månader"): the guard keeps due_within_1_year out on its own table's
-    # wording, the check reads missing, the derivation fills 102.3, and with due_after_5_years a confirmed 0
-    # the identity closes -- passed, where v044/v052 stalled at "missing: due_after_5_years".
+    # (this table really has no >5y row). The present-label search is scoped to the operands' own table, so
+    # the contractual table's "<1 år" two pages later decides nothing, and the month rows are synonyms in
+    # the schema itself ("6 månader eller mindre", "6 – 12 månader"): the guard keeps due_within_1_year out
+    # on its own table's wording, the check reads missing, the derivation fills 102.3 from the rows above the
+    # "1 – 5 år" row, and with due_after_5_years a confirmed 0 the identity closes.
     medcap101 = ("Förfallotidpunkt för upplåning Koncernen Moderbolaget\nMSEK 2025-12-31 2024-12-31 2025-12-31 2024-12-31\n"
                  "6 månader eller mindre 54,3 41,8 – –\n6 – 12 månader 48,0 19,0 – –\n1 – 5 år 616,5 316,7 – –\nTotalt 718,7 377,6 – –\n")
     medcap102 = ("Koncernen 2025-12-31\nMSEK <1 år 1 – 2 år 2 – 4 år 4 – 5 år >5år\nSkulder till kreditinstitut 59,3 97,5 59,1 – –\n"
@@ -670,13 +695,13 @@ def demo():
     bucket15 = next(f for f in out["fields"] if f["key"] == "due_1_to_5_years")
     assert total["confidence"] == 0.9 and "arith_ok" in total["evidence"], total
     assert bucket15["confidence"] == 1.0 and "arith_ok" in bucket15["evidence"], bucket15
-    # Ependion (same seed, v041 finding 3's other example): stays failed, correctly -- its bucket table (p.155)
+    # Ependion (same seed, the other example): stays failed, correctly -- its bucket table (p.155)
     # never prints a digit-form boundary at all ("Between 1 and 2 years" / "Between 2 and 3 years", spelled out,
     # scrambled by a sidebar TOC column glued onto the same lines by parse.py), and the schema has no spelled-out
     # synonym for either bucket (docs/acrylic/evidence/v041.md's own finding: "the spelled-out ... wording
     # doesn't exist in the schema at all yet regardless"). A schema-vocabulary gap, out of this lane's territory
-    # (schema untouched) -- not the null-vs-missing conflation this lane fixes. Recorded so a future schema
-    # change adding that wording is the one that should flip this case, not a regression in this mechanism.
+    # (schema untouched) -- not the null-vs-missing conflation this block is about. Recorded so a future
+    # schema change adding that wording is what flips this case, not a regression in this mechanism.
     ependion155 = ("Contracted terms\nSEK 000 31 Dec. 2025 31 Dec. 2024\nBetween Between\nWithin 12 1 and 2 and\n"
                    "months 2 years 3 years Total\nBorrowing 167,546 35,636 380,348 583,531\n")
     x.call_llm = lambda *a, **k: {"fields": [
@@ -688,10 +713,10 @@ def demo():
     assert not out["checks"][0]["passed"] and not out["checks"][0]["detail"].startswith("missing:"), out["checks"]
     within = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
     assert within["confidence"] == 0.5, within  # still capped: neither sibling bucket's label is anywhere on the page
-    # v060: Ependion's *current* page text (post-v049 parse.py fix; not the sidebar-scrambled snapshot the case
-    # above was recorded against, and a still-open gap this one doesn't touch). "Within 12 months" and the day/
-    # month-range header wording the schema's synonyms deliberately exclude from row-label matching (v046) now
-    # live in each bucket field's own header_synonyms, read only by _bucket_synonym_hits/_bucket_header, never
+    # Ependion's *current* page text (not the sidebar-scrambled snapshot the case above was recorded against,
+    # a still-open gap this one doesn't touch). "Within 12 months" and the day/month-range header wording the
+    # schema's synonyms deliberately exclude from row-label matching live in each bucket field's own
+    # header_synonyms, read only by _bucket_synonym_hits/_bucket_header, never
     # by _label_known -- label_regression stays 0 because of exactly this split. The bucket row is labelled
     # "Borrowing" (a total_debt fallback synonym, not "total"/"summa"), so _bucket_total_row's debt-row fallback
     # picks it -- and not the *other* "- Borrowing 583,531 557,173" row two lines above (a leading "- " that
@@ -712,20 +737,22 @@ def demo():
     assert out["checks"][0]["passed"], out["checks"]  # due_after_5_years null_as_zero: this table prints no such bucket
     total = next(f for f in out["fields"] if f["key"] == "total_debt")
     assert total["raw_label"] == "Borrowing" and total["source"]["quote"] == "Borrowing 167,546 35,636 380,348 583,531", total  # not the "- Borrowing" row, not Accounts payable-trade
-    # v060: Boozt's bucket row is labelled "Lease liabilities" (also a debt-row fallback synonym: the report's own
+
+    # ---- reading the buckets off one row's columns ------------------------------------------
+    # Boozt's bucket row is labelled "Lease liabilities" (also a debt-row fallback synonym: the report's own
     # total_debt *is* its lease liabilities, no other interest-bearing debt) with a header split across two of
     # _page_rows' own rows ("Maturity within" / "3 months", a bare word-wrap, not the header-transposition XANO/
     # Ework hit below) that header_synonyms now reads correctly -- both this row and the page's own bare "Total"
     # rows (whole-table sums, wrong scope regardless) read a 6-column header matching their own column count.
-    # v064: due_within_1_year (=26+78, not printed) used to stay null here -- _row_amounts read the row's own
+    # due_within_1_year (=26+78, not printed) would stay null here -- _row_amounts reads the row's own
     # adjacent 2- and 3-digit columns ("78 273") as the single Swedish-grouped number 78273 (the same ambiguity
-    # as "6, 10 155" elsewhere in this file), one column short of the header's six, so the safety valve declined
-    # rather than guess. Fixed in _row_amounts itself (ncols known, exactly one column short, exactly one
+    # as "6, 10 155" elsewhere in this file), one column short of the header's six, so the safety valve would
+    # decline rather than guess. _row_amounts handles it (ncols known, exactly one column short, exactly one
     # "NN NNN" token that splits to land exactly on ncols -- see its docstring). The page's own bare "Total 2,358
     # 1,928 92 273 63 0" row has the identical shape ("92 273" is just as splittable) but must NOT also start
     # reading as a candidate: it sums every instrument on the page (accounts payables and other liabilities
     # included, not just the lease), so a naive fix here would have _fill_bucket_columns's own hits-before-
-    # candidates row order (out of this lane's six-function territory, untouched) prefer it over the correct
+    # candidates row order prefer it over the correct
     # row and corrupt total_debt to 2358. _row_amounts's extra guard -- only split when the ordinary reading
     # already has a nil in it -- is what keeps this row declined: Boozt's own liability-type rows print "-" for
     # a bucket they have nothing in (sparse, one instrument each), but a whole-table Total is a computed sum
@@ -745,8 +772,8 @@ def demo():
     boozt_rows = x._page_rows(boozt)
     assert x._bucket_header(boozt_rows, 15, bucket_sfs, 2025) == \
         ["total", "due_within_1_year", "due_within_1_year", "due_1_to_5_years", "due_after_5_years", "due_after_5_years"]  # the header itself now reads right
-    assert x._row_amounts(boozt_rows[15], 6, nil=None) == [441, 26, 78, 273, 63, None]  # v064: ncols pins the split of "78 273" into 78 + 273
-    assert boozt_rows[18] == "Total 2,358 1,928 92 273 63 0" and len(x._row_amounts(boozt_rows[18], 6, nil=None)) != 6  # v064: same "NN NNN" shape ("92 273"), stays declined -- no nil in its own ordinary reading
+    assert x._row_amounts(boozt_rows[15], 6, nil=None) == [441, 26, 78, 273, 63, None]  # ncols pins the split of "78 273" into 78 + 273
+    assert boozt_rows[18] == "Total 2,358 1,928 92 273 63 0" and len(x._row_amounts(boozt_rows[18], 6, nil=None)) != 6  # same "NN NNN" shape ("92 273"), stays declined -- no nil in its own ordinary reading
     x.call_llm = lambda *a, **k: {"fields": [
         {"key": "total_debt", "value": 441, "unit": "SEK million", "period": "2025", "raw_label": "Lease liabilities", "source": {"page": 1, "quote": "Lease liabilities 441 26 78 273 63 -"}},
         {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
@@ -754,29 +781,26 @@ def demo():
         {"key": "due_after_5_years", "value": 63, "unit": "SEK million", "period": "2025", "raw_label": "Lease liabilities", "source": {"page": 1, "quote": "Lease liabilities 441 26 78 273 63 -"}}]}
     out = x.extract([boozt], [1], dm, {"fiscal_year": 2025})
     got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
-    # v064: due_within_1_year now fills to 26+78=104 (the bucket-columns cross-column sum, _row_amounts's own
-    # limit fixed) -- and, closing the loop, maturity_sums_to_total now passes (104+273+63-441 = -1, within the
-    # check's own +-2), which lifts total_debt/due_1_to_5_years/due_after_5_years off the 0.50 "contradicts its
-    # neighbours" cap they were pinned to while due_within_1_year was null (score_field, untouched by this lane).
+    # due_within_1_year fills to 26+78=104 (the bucket-columns cross-column sum) -- and, closing the loop,
+    # maturity_sums_to_total passes (104+273+63-441 = -1, within the check's own +-2), which lifts
+    # total_debt/due_1_to_5_years/due_after_5_years off the 0.50 "contradicts its neighbours" cap they sit
+    # under while due_within_1_year is null (score_field).
     # The model's own three answers quote that same closing row: they earn label_known by its arithmetic too
     # (identity_all_columns), not only the column-read one -- "Lease liabilities" is no synonym of total debt.
     assert got == {"total_debt": (441, 1.0), "due_within_1_year": (104, 1.0), "due_1_to_5_years": (273, 1.0), "due_after_5_years": (63, 1.0)}, (got, out["warnings"])
     assert all("identity_all_columns" in f["evidence"] for f in out["fields"]), [f["evidence"] for f in out["fields"]]
     assert out["warnings"] == ["due_within_1_year: model returned null; 104 read from 'Lease liabilities 441 26 78 273 63 -' by its column order"], out["warnings"]
-    # v083: the debt-row fallback word list moved from a private extract.py constant (_DEBT_ROW_SYNONYMS) to
-    # schema's total_debt.row_synonyms -- dmf["total_debt"] below is read straight from backend/schemas/
-    # debt_maturity.json, so this proves the schema key is what _bucket_total_row now reads, not a stale copy.
-    # Tången Industrikapital (seed8-kb/v082 Finding 1, real p.62 text): the maturity table's own row is labelled
-    # "Lån Kreditinstitut" ("Loan, Credit institutions") -- not a total_debt synonym, not bare Total/Summa, and
-    # not in the pre-v083 fallback list either, so the row was invisible to the fallback and never reached
-    # _bucket_header at all. "lån kreditinstitut" is added to row_synonyms as the exact two-word phrase actually
-    # printed (no "till"/"to"): deliberately NOT bare "lån" ("loan"), which v060's own Finding 2 already proved
-    # unsafe (Norion Bank's asset-side "Loans to credit institutions" via bare "loan"/"loans" -- see the fallback
-    # list's own comment history). The exact phrase "lån kreditinstitut" does not prefix-match a bank's own "lån
+    # The debt-row fallback word list lives in the schema's total_debt.row_synonyms, not in a private
+    # extract.py constant -- dmf["total_debt"] below is read straight from backend/schemas/debt_maturity.json,
+    # so this proves the schema key is what _bucket_total_row reads, not a stale copy.
+    # Tången Industrikapital (real p.62 text): the maturity table's own row is labelled "Lån Kreditinstitut"
+    # ("Loan, Credit institutions") -- not a total_debt synonym and not bare Total/Summa, so without a
+    # row_synonyms entry the row is invisible to the fallback and never reaches _bucket_header at all.
+    # "lån kreditinstitut" is the exact two-word phrase actually printed (no "till"/"to"): deliberately NOT
+    # bare "lån" ("loan"), which is unsafe (Norion Bank's asset-side "Loans to credit institutions" matches
+    # bare "loan"/"loans"). The exact phrase "lån kreditinstitut" does not prefix-match a bank's own "lån
     # till kreditinstitut" (asset-side lending, "till" intervenes), so it stays direction-safe the same way
-    # "bank loans" is. Two header words the same finding names are also missing from seed1-7's vocabulary:
-    # "mindre än 12 månader" (due_within_1_year) and "mellan 1 och 2 år" (due_1_to_5_years) -- "mellan 3 och 5 år"
-    # and "senare än 5 år" were already synonyms.
+    # "bank loans" is.
     tangen62_2025 = ("31 december 2025 (KSEK)\nMindre än 12 månader\nMellan 1 och 2 år\nMellan 3 och 5 år\n"
                      "Senare än 5 år Summa\nLeverantörsskulder och övriga skulder (exklusive icke finansiella skulder) 244 513 - - - 244 513\n"
                      "Lån Kreditinstitut 141 734 137 898 251 081 57 486 588 199\n"
@@ -792,16 +816,15 @@ def demo():
     assert out["checks"][0]["passed"], out["checks"]  # 141734 + (137898+251081) + 57486 == 588199, exactly
     total = next(f for f in out["fields"] if f["key"] == "total_debt")
     assert total["raw_label"] == "Lån Kreditinstitut", total  # not "Leverantörsskulder..." (not a debt synonym), not "Leasingskulder" (not in row_synonyms, not this report's total)
-    # v084: Finding 1's own real page prints BOTH fiscal years' tables, same row label each ("Lån
-    # Kreditinstitut" under "31 december 2025", and again under "31 december 2024") -- v083 left this
-    # ambiguous and unfilled (docs/acrylic/evidence/v083.md), since a bare index count can't tell which
-    # candidate is the fiscal year's own row. _bucket_total_row now reuses _bucket_row_prior_year (v066's
-    # own "this row names last year's header" test, already trusted at the write gate in
-    # _fill_bucket_columns) to drop the 2024 row from contention first: it is the sole survivor, so it
-    # wins outright, before known_total narrowing is even tried (which -- unrelated, still-open gap named
-    # in v083 -- can't help here anyway: the un-hinted _row_amounts merges this table's Swedish thousands
-    # into unrecognisable blobs). This is a real fix, not a special case for Tången: the rule is "one
-    # candidate is provably last year's, drop it", which just happens to leave one row standing here.
+    # The same real page prints BOTH fiscal years' tables, same row label each ("Lån Kreditinstitut" under
+    # "31 december 2025", and again under "31 december 2024"), and a bare index count can't tell which
+    # candidate is the fiscal year's own row (docs/acrylic/evidence/v083.md). _bucket_total_row reuses
+    # _bucket_row_prior_year (the "this row names last year's header" test, already trusted at the write
+    # gate in _fill_bucket_columns) to drop the 2024 row from contention first: it is the sole survivor,
+    # so it wins outright, before known_total narrowing is even tried (which can't help here anyway: the
+    # un-hinted _row_amounts merges this table's Swedish thousands into unrecognisable blobs). The rule is
+    # general -- "one candidate is provably last year's, drop it" -- and just happens to leave one row
+    # standing here.
     tangen62_full = tangen62_2025 + (
         "31 december 2024 (KSEK)\nMindre än 12 månader\nMellan 1 och 2 år Mellan 3 och 5 år Senare än 5 år Summa\n"
         "Leverantörsskulder och övriga skulder (exklusive icke finansiella skulder) 163 517 - - - 163 517\n"
@@ -810,7 +833,7 @@ def demo():
     warnings: list = []
     assert x._bucket_total_row(tangen_rows, dmf["total_debt"], bucket_sfs, 2025, 588199, warnings) == [tangen_rows.index("Lån Kreditinstitut 141 734 137 898 251 081 57 486 588 199")]
     assert warnings == [], warnings  # resolved outright -- no "ambiguous" warning, nothing left for known_total to narrow
-    # End to end (not just the row picker in isolation): the model returns all-null, same as v083's isolated
+    # End to end (not just the row picker in isolation): the model returns all-null, same as the isolated
     # case above, but this time on the real two-table page -- extract() must still land on the fiscal year's
     # own four figures and close the identity, exactly like the single-year replay in docs/acrylic/evidence/v083.md.
     x.call_llm = lambda *a, **k: {"fields": [
@@ -822,11 +845,11 @@ def demo():
     got = {f["key"]: f["value"] for f in out["fields"]}
     assert got == {"total_debt": 588199, "due_within_1_year": 141734, "due_1_to_5_years": 388979, "due_after_5_years": 57486}, (got, out["warnings"])
     assert out["checks"][0]["passed"], out["checks"]  # 141734 + (137898+251081) + 57486 == 588199, exactly -- the 2024 table (353022) never enters the sum
-    # Counter-example (v084): two same-labelled candidate rows that are NOT resolvable by year -- both name
+    # Counter-example: two same-labelled candidate rows that are NOT resolvable by year -- both name
     # the SAME fiscal year (a report accidentally or genuinely repeats a table; Byggmax Group's real p.88 is
     # structurally the same shape, two same-labelled "Borrowing" rows, docs/acrylic/evidence/v084.md) --
     # _bucket_row_prior_year is false for both, so the new narrowing step drops neither, and the table must
-    # stay exactly as ambiguous as pre-v084, not silently pick one.
+    # stay ambiguous, not silently pick one.
     tangen62_sameyear = tangen62_2025 + (
         "31 december 2025 (KSEK)\nMindre än 12 månader\nMellan 1 och 2 år Mellan 3 och 5 år Senare än 5 år Summa\n"
         "Leverantörsskulder och övriga skulder (exklusive icke finansiella skulder) 163 517 - - - 163 517\n"
@@ -834,13 +857,13 @@ def demo():
     warnings = []
     assert x._bucket_total_row(x._page_rows(tangen62_sameyear), dmf["total_debt"], bucket_sfs, 2025, None, warnings) == []
     assert warnings == ["total_debt: 2 candidate debt rows for the bucket table ('Lån Kreditinstitut', 'Lån Kreditinstitut') -- ambiguous, none used"], warnings
-    # v066 (a): Proact IT Group -- real Note 24 text (seed6-kb/proact_it_2025, p.103, trimmed to the two tables
+    # (a) Proact IT Group -- real Note 24 text (proact_it_2025, p.103, trimmed to the two tables
     # that matter). The note's own per-instrument date breakdown lets the model correctly sum 216,360 (16 Jul
     # 2026) + 96,098 (2026) = 312,458 for due_within_1_year, closing the identity with the already-read
     # total_debt (478,611) and due_1_to_5_years (166,153) exactly -- but the page also prints "Group | Parent
     # company" (the note's other, unrelated sub-table), so _segment_column's own Group/Parent branch picks
     # column 1 of the page's 3-column year run; the single-instrument row that is due_within_1_year's own quote
-    # reads as 0 in that column, and the pre-v066 guard threw the correct 312,458 away for it (docs/acrylic/
+    # reads as 0 in that column, and without this valve the correct 312,458 is thrown away for it (docs/acrylic/
     # evidence/v063.md gap 2).
     proact103 = (
         "Notes\nNote 24 CONT.\nOther financial Group Parent company\nliabilities measured\nat accrued\n"
@@ -881,12 +904,12 @@ def demo():
         {"due_within_1_year": 312458, "due_1_to_5_years": 166153, "total_debt": 478611}, {}, dm)
     assert not x._identity_closes("due_within_1_year", 312458, {"due_within_1_year": 312458, "total_debt": 312458}, {}, dm)
 
-    # v066 (b): Net Insight -- real Note 21 text (seed6-kb/net_insight_2025, p.101, trimmed). The model correctly
+    # (b) Net Insight -- real Note 21 text (net_insight_2025, p.101, trimmed). The model correctly
     # reads due_within_1_year=50,379 and due_after_5_years=0 off the note's own "<1 year"/">5 years" bucket rows,
     # but _fill_bucket_columns also finds the maturity table's own two-year "Total 81,489 57,647" row (2025's
     # total then 2024's, side by side) a plausible bucket-column candidate: its own header (the "<1 year"/"1-5
     # yeas"/">5 years" rows above it) has no recognised "total" column of its own (only two bucket keys, the
-    # report's own "1-5 yeas" typo keeps the third out), so the pre-v066 over-valve has no total to compare the
+    # report's own "1-5 yeas" typo keeps the third out), so an over-valve alone has no total to compare the
     # row against and lets it overwrite both fields by column order -- 2025's own total (81,489) into
     # due_within_1_year, 2024's total (57,647) into due_after_5_years.
     net_insight101 = (
@@ -918,7 +941,7 @@ def demo():
     assert any("is a Total*/Summa* row with no total column" in w for w in out["warnings"]), out["warnings"]
     assert not any("read from 'Total 81,489 57,647' by its column order" in w for w in out["warnings"]), out["warnings"]
 
-    # v066 (b), second valve: a bucket-column row whose own year is the fiscal year's predecessor must not lend
+    # (b) second valve: a bucket-column row whose own year is the fiscal year's predecessor must not lend
     # its figures to this year's buckets even when the row has its own recognised total column (so the first
     # valve above would not have caught it) -- synthetic, no seed6 company happened to hit this exact shape.
     assert x._bucket_row_prior_year(["Note 9 Borrowings 2024 2023", "Within 1 year 1-5 years Total", "Total 3,300 4,400 7,700"], 2, 2025)
@@ -930,13 +953,12 @@ def demo():
     assert got == {"total_debt": None, "due_within_1_year": None, "due_1_to_5_years": None, "due_after_5_years": None}, (got, out["warnings"])
     assert any("names fiscal year 2024, not 2025" in w for w in out["warnings"]), out["warnings"]
 
-    # v069: Ework/XANO's real header text, now correctly single-line per v068's parse.py fix (PARSER_VERSION 6,
+    # Ework/XANO's real header text, single-line since the parse.py fix (PARSER_VERSION 6,
     # docs/acrylic/evidence/v068.md) instead of matrix-transposed across two physical PDF lines -- the reason
-    # both companies stayed unfixed from v036 through v066 (the synthetic scrambled-header cases above, kept
+    # both companies stayed unfixed for so long (the synthetic scrambled-header cases above, kept
     # unchanged: still a real shape a header could be in, still correctly declined). With the header finally
     # readable in true column order, two pre-existing, unrelated-to-parsing gaps in this file's own hit
-    # collection surfaced (v068's own "downstream" section, read-only, named for whoever owns extract.py/the
-    # schema next -- this lane): XANO's plain synonym "inom 1 år" and the bare word "Summa" each also match a
+    # collection surfaced: XANO's plain synonym "inom 1 år" and the bare word "Summa" each also match a
     # piece of the one subtotal phrase "summa inom 1 år" already matched whole (10 hits, not 8); Ework's own
     # header_synonym "3 months" is a literal substring of its own "1-3 months" (1 spurious hit that happened to
     # roughly cancel out, in raw count only, the header's own separate, still-open "Due" gap below). Both fixed
@@ -946,7 +968,7 @@ def demo():
     assert x._drop_nested_hits([(0, 5, "a"), (0, 16, "b:subtotal"), (6, 16, "a")]) == [(0, 16, "b:subtotal")]
     assert x._drop_nested_hits([(0, 5, "a"), (5, 10, "b")]) == [(0, 5, "a"), (5, 10, "b")]  # adjacent, not nested: both kept
 
-    # "Due" (Ework's own column, v069's work order: add it to due_within_1_year's header_synonyms) turned out
+    # "Due" (Ework's own column -- the obvious candidate for due_within_1_year's header_synonyms) turned out
     # unsafe as a plain header_synonym entry -- that list is matched case-insensitively, with no word boundary,
     # over the whole 25-row window _bucket_header searches above a candidate row, not just the header line
     # itself, and Ework's own p.70/71 carries a dozen+ ordinary-prose "due"s in that window ("...risk due to
@@ -966,7 +988,7 @@ def demo():
                  "Summa räntebärande skulder 4 090 8 680 38 305 51 075 768 885 33 784 50 778 904 522\n")
     xano_rows = x._page_rows(xano_real)
     xano_idx = next(i for i, r in enumerate(xano_rows) if r.startswith("Summa räntebärande skulder"))
-    # red, confirmed against unmodified origin/acrylic before writing _drop_nested_hits: 10 hits (2 spurious,
+    # without _drop_nested_hits: 10 hits (2 spurious,
     # above) against the row's own 8 amounts -- declined, every field null
     assert x._bucket_header(xano_rows, xano_idx, bucket_sfs, 2025) == \
         ["_excluded", "_excluded", "_excluded", "due_within_1_year", "due_1_to_5_years", "due_1_to_5_years", "due_after_5_years", "total"]
@@ -974,15 +996,15 @@ def demo():
     out = x.extract([xano_real], [1], dm, {"fiscal_year": 2025})
     got = {f["key"]: f["value"] for f in out["fields"]}
     assert got == {"total_debt": 904522, "due_within_1_year": 51075, "due_1_to_5_years": 802669, "due_after_5_years": 50778} \
-        and out["checks"][0]["passed"], (got, out["checks"], out["warnings"])  # matches eval/labels.csv (v057) exactly
+        and out["checks"][0]["passed"], (got, out["checks"], out["warnings"])  # matches eval/labels.csv exactly
 
     # Ework: "Due" (above -- a real, sometimes-nonzero column, the Accounts payable row's own Due figure is
     # 91,284, not a synonym for anything else in the schema) plus the same dedup now reads a clean, correct
     # 7-column hit list -- but the row has 8 real columns, and nothing in the schema recognises "Carrying
-    # amount" (the report's own book-value total, v028's own total_debt basis) as distinct from "Total
-    # undiscounted value" (the buckets' own subtotal, two columns to its left): v069 left that honestly
-    # declined (its own doc, "not silently forced -- a second total slot risks summing both trailing columns
-    # into total_debt on some other company's table where they are not equal"); v076 below resolves it with
+    # amount" (the report's own book-value total, the stated total_debt basis) as distinct from "Total
+    # undiscounted value" (the buckets' own subtotal, two columns to its left), so that was left honestly
+    # declined -- not silently forced, since a second total slot risks summing both trailing columns
+    # into total_debt on some other company's table where they are not equal. The block below resolves it with
     # exactly the missing half -- the two trailing columns named apart in the schema, counted, never summed.
     ework_real = ("kSEK Due < 1 month 1-3 months 3-12 months 1-5 years > 5 years Total undiscounted value Carrying amount\n"
                   "Short-term interest-bearing liabilities* – 153,761 971 1,677 – – 156,410 156,410\n")
@@ -992,21 +1014,23 @@ def demo():
         ["due_within_1_year", "due_within_1_year", "due_within_1_year", "due_within_1_year", "due_1_to_5_years", "due_after_5_years", "total"]
     assert len(x._row_amounts(ework_rows[ework_idx], 7, nil=None)) == 8  # the row's own 8 amounts never shrink to fit a 7-column guess
 
-    # v076: the two trailing total-shaped columns separate. Ework p.70's header carries BOTH "Total undiscounted
+
+    # ---- carrying amount vs total undiscounted value ----------------------------------------
+    # The two trailing total-shaped columns separate. Ework p.70's header carries BOTH "Total undiscounted
     # value" (the buckets' own undiscounted subtotal -- with future interest it can exceed the carrying total, so
-    # it must never be summed into, or compared against, total_debt) and "Carrying amount" (v028's own stated
-    # basis: the total that ties to the balance sheet). The schema now names both shapes -- carrying wording as
+    # it must never be summed into, or compared against, total_debt) and "Carrying amount" (the stated
+    # basis: the total that ties to the balance sheet). The schema names both shapes -- carrying wording as
     # total_debt's own header_synonyms (-> the total slot), undiscounted/contractual wording as the schema's
     # explicit ignore_header_synonyms (-> an _ignore slot that is counted -- the column-count safety valve still
     # needs 8 hits for the row's 8 amounts -- but never assigned), and carrying wins the total slot when both
-    # appear on the same header line (v028), while a header with only the undiscounted column keeps today's
+    # appear on the same header line, while a header with only the undiscounted column keeps the plain
     # behaviour: its own bare "Total" word stays the total slot, the identity closing against the report's basis.
     ework_8 = ["due_within_1_year", "due_within_1_year", "due_within_1_year", "due_within_1_year",
                "due_1_to_5_years", "due_after_5_years", "_ignore", "total"]
     assert x._bucket_header(ework_rows, ework_idx, bucket_sfs, 2025, total_sf=dmf["total_debt"],
                             ignore_syns=dm["ignore_header_synonyms"]) == ework_8
     # the prose guard, on Ework's own p.70 furniture: the note title ("…– undiscounted cash flows") and a
-    # sentence ("…reflected in the carrying amount of…") sit inside the same 25-row header window -- v069's
+    # sentence ("…reflected in the carrying amount of…") sit inside the same 25-row header window -- the
     # bare-"due" lesson all over again -- and name no bucket on their own lines, so neither may add a slot.
     # (Acast/Nederman print "Carrying amount" over non-bucket year/instrument tables; same guard keeps those
     # headers reading exactly as before.)
@@ -1027,9 +1051,9 @@ def demo():
         ["due_within_1_year", "due_within_1_year", "due_within_1_year", "due_within_1_year", "due_1_to_5_years", "due_after_5_years", "total"]
     # end to end, the row read by column even with no model answer at all: the single debt-row candidate fills
     # total_debt (156,410, the Carrying amount column) and due_within_1_year (156,409 = 153,761 + 971 + 1,677,
-    # the Due column nil). v078: the row's own 1-5 years and > 5 years cells print dashes -- the report saying
+    # the Due column nil). The row's own 1-5 years and > 5 years cells print dashes -- the report saying
     # "no debt is due in those windows" -- so those buckets are the report's explicit 0 (printed_nil @0.5), and
-    # the identity closes for real instead of stalling on the v044/v058 printed-bucket-label guard's "missing".
+    # the identity closes for real instead of stalling on the printed-bucket-label guard's "missing".
     x.call_llm = lambda *a, **k: {"fields": [{"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None} for k in dmf]}
     out = x.extract([ework_real], [1], dm, {"fiscal_year": 2025})
     got = {f["key"]: f["value"] for f in out["fields"]}
@@ -1045,7 +1069,7 @@ def demo():
     # end to end with the model's own answer restored (docs/acrylic/evidence/v051/ework_2025.partB.debt_maturity.json,
     # the real pass's stored shape): total_debt already reads 156,410 (the Carrying amount column's own figure, so
     # the column read agrees and the model's own evidence stands), and the column read fills due_within_1_year --
-    # 0 (Due) + 153,761 + 971 + 1,677 = 156,409; the two dash columns are the report's explicit 0s (v078), and
+    # 0 (Due) + 153,761 + 971 + 1,677 = 156,409; the two dash columns are the report's explicit 0s, and
     # 156,409 + 0 + 0 sits within +-2 of 156,410: maturity_sums_to_total passes.
     ework_answer = [
         {"key": "total_debt", "value": 156410, "unit": "kSEK", "period": "2025", "raw_label": "Short-term interest-bearing liabilities*",
@@ -1065,13 +1089,13 @@ def demo():
     d15 = next(f for f in out["fields"] if f["key"] == "due_1_to_5_years")
     assert "printed_nil" in d15["evidence"] and d15["confidence"] == 0.5, d15  # the report's own dash, not a fabricated number
 
-    # v085: Instalco (seed8-kb/v082 Finding 2, real p.128 text): the same carrying-beside-undiscounted shape as
+    # Instalco (real p.128 text): the same carrying-beside-undiscounted shape as
     # Ework above, but split across three lines instead of one -- "Total contractual cash flows" (the
     # undiscounted group's own header) and "31/12/2025 Carrying amount receivables/ payables" (the carrying
     # column's own header) each sit on their own line, directly above "Within 6 months / 6-12 months / 1-5
-    # years / Later than 5 years", nothing between them. v076's own has_carry never sees either: both hits are
-    # stripped before that check runs (their own row names no bucket), the same gate v082/v083 both traced to
-    # and left blocked. Admitted by the contiguous-run fallback below: the walk backward from the header's own
+    # years / Later than 5 years", nothing between them. The has_carry check never sees either: both hits are
+    # stripped before that check runs (their own row names no bucket), so that gate stays blocked. Admitted
+    # by the contiguous-run fallback below: the walk backward from the header's own
     # last bucket-naming line crosses both, in order, and stops at the first line that carries neither a bucket
     # word nor a carrying/ignore word of its own ("Current Non-current").
     instalco128 = ("The Group\nCurrent Non-current\nTotal contractual cash flows\n"
@@ -1083,13 +1107,13 @@ def demo():
     assert x._bucket_header(instalco_rows, instalco_idx, bucket_sfs, 2025, total_sf=dmf["total_debt"],
                             ignore_syns=dm["ignore_header_synonyms"]) == \
         ["due_within_1_year", "due_within_1_year", "due_1_to_5_years", "due_after_5_years", "_ignore", "total"]
-    # end to end: the header now reads 6 columns matching the row's own 6 amounts (declined before this lane,
+    # end to end: the header reads 6 columns matching the row's own 6 amounts (without the fallback above,
     # 5 against 6), but the fill still does not land -- due_1_to_5_years' own undiscounted figure (3,209)
     # exceeds total_debt's own discounted "Carrying amount" (3,122) by design (future interest over the 1-5-
     # year horizon, the same undiscounted-vs-carrying gap Ework's own table has above), which
-    # _fill_bucket_columns's `over` valve (out of this lane's territory -- word-list/admission-condition only)
-    # reads as a misaligned column and declines whole. Reported, not forced: the four fields stay exactly where
-    # v082/v083 left them, now with an honest reason on record instead of a silent decline with no warning.
+    # _fill_bucket_columns's `over` valve reads as a misaligned column and declines whole. Reported, not
+    # forced: the four fields stay null, with an honest reason on record instead of a silent decline with
+    # no warning.
     x.call_llm = lambda *a, **k: {"fields": [
         {"key": "total_debt", "value": 3122, "unit": "SEK m", "period": "2025", "raw_label": "Liabilities to credit institutions",
          "source": {"page": 1, "quote": "Liabilities to credit institutions – – 3,209 – 3,209 3,122"}},
@@ -1101,7 +1125,7 @@ def demo():
     assert got == {"total_debt": 3122, "due_within_1_year": None, "due_1_to_5_years": None, "due_after_5_years": None}, (got, out["warnings"])
     assert any("due_1_to_5_years 3209 exceeds its own total 3122" in w for w in out["warnings"]), out["warnings"]
 
-    # v085 guard, real page shapes that must NOT gain a fallback slot (the contiguous run stops before reaching
+    # Guard: real page shapes that must NOT gain a fallback slot (the contiguous run stops before reaching
     # them): Ework's own real p.70 (not the synthetic ework_real above) wraps "Total undiscounted value" /
     # "Carrying amount" across a line-break so ragged pymupdf glues it into one row with the bucket words
     # themselves ("Total undis- Carrying kSEK Due < 1 month ... counted value amount 2025") -- neither phrase
@@ -1134,7 +1158,7 @@ def demo():
     # bucket-less, and each one line further back than the last, so the run (starting at "Between 1 and 2
     # years", the header's own second-to-last bucket-naming line, which has no carrying/ignore hit of its own)
     # stops immediately, before it can reach either. Without the stop, both leak in, wrongly demote the header's
-    # own real bare "Total" to _ignore, and turn this already-correct fill (v060's own ependion_real case above,
+    # own real bare "Total" to _ignore, and turn this already-correct fill (the ependion_real case above,
     # same table, clean text) into a false decline -- caught the same way, by seed5-kb's own replay.
     ependion155 = ("Financial liabilities measured at amortized cost\n- Borrowing 583,531 557,173\n"
                    "- Accounts payable-trade 164,155 154,411\n"
@@ -1156,10 +1180,12 @@ def demo():
     assert got == {"total_debt": 583531, "due_within_1_year": 167546, "due_1_to_5_years": 415984, "due_after_5_years": None}, (got, out["warnings"])
     assert out["checks"][0]["passed"], out["checks"]
 
-    # v089: the maturity basis is a user choice, not a hardcode -- DEBT_BASIS=carrying (default;
+
+    # ---- DEBT_BASIS: which total the identity closes against --------------------------------
+    # The maturity basis is a user choice, not a hardcode -- DEBT_BASIS=carrying (default;
     # everything above, byte for byte, and the extraction now says so in its own top-level "maturity_basis")
     # or "undiscounted": the same bucket columns read as always, but total_debt comes from the
-    # contractual undiscounted total column -- the schema's ignore_header_synonyms wording (v076)
+    # contractual undiscounted total column -- the schema's ignore_header_synonyms wording
     # becomes the total slot and the carrying wording becomes the ignored column -- so the identity
     # closes against the undiscounted total, and Instalco's 3,209-vs-3,122 gap, which the carrying
     # basis' over valve correctly rejects above, is on this basis the report's own read.
@@ -1172,8 +1198,8 @@ def demo():
         {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
     out = x.extract([instalco128], [1], dm, {"fiscal_year": 2025})
     assert out["maturity_basis"] == "carrying" and out["checks"][0]["passed"] is False, (out["maturity_basis"], out["checks"])
-    # the prompt names the basis (the schema carries both wordings; the carrying one is the one
-    # every extraction has carried since v028, unchanged)
+    # the prompt names the basis (the schema carries both wordings; the carrying one is the
+    # default every extraction has always used)
     sp = x.system_prompt(dm)
     assert "Read the carrying-amount table" in sp, sp[:200]
     basis_saved = x.debt_basis
@@ -1200,7 +1226,7 @@ def demo():
     assert nilw["confidence"] == 0.5 and "printed_nil" in nilw["evidence"], nilw  # the dash, still the report's own 0
     # Ework under undiscounted: the row prints the same figure in both total columns (156,410), so the
     # four fields land as under carrying -- now proven against the *undiscounted* column. The ragged
-    # real p.70 header (neither phrase contiguous, v085's own guard shape) still declines on this
+    # real p.70 header (neither phrase contiguous, the guard shape above) still declines on this
     # basis too: no basis column anywhere in it, no fill, no warning, both bases alike.
     x.call_llm = lambda *a, **k: {"fields": json.loads(json.dumps(ework_answer))}
     out = x.extract([ework_real], [1], dm, {"fiscal_year": 2025})
@@ -1214,11 +1240,13 @@ def demo():
         and not out["warnings"], (got, out["warnings"])  # untouched: no candidate ever reaches the write step
     x.debt_basis = basis_saved  # restore: every later case runs on the default carrying basis
 
-    # v095 (Karnell, seed9-kb, v088 Finding 1, real p.106 text): the maturity table's own header prints
+
+    # ---- off-grid columns and the row picker's order ----------------------------------------
+    # Karnell (real p.106 text): the maturity table's own header prints
     # "<1 year 1-3 years >3 years Total" -- "<1 year" is a bucket word, "1-3 years" a finer split of
     # due_1_to_5_years, but ">3 years" ([36 months, infinity)) is off the schema's 1/5-year grid: it crosses
     # the 5-year boundary without naming it, so 3 header keys stood against the row's 4 printed amounts and
-    # the length valve declined everything (v088: four nulls on both passes of a real, well-formed table).
+    # the length valve declined everything (four nulls on both passes of a real, well-formed table).
     # The off-grid column is now counted (4 keys, 4 amounts, alignment restored) and never assigned: on the
     # interest-bearing row its cell prints "-", which resolves the windows it covers outright -- the whole of
     # due_after_5_years sits inside the nil ">3 years" column, so it is 0, and 43.5 + 353.7 + 0 == 397.2
@@ -1247,10 +1275,10 @@ def demo():
     # the off-grid column never becomes one of the >=2 distinct bucket keys the header valve requires: prose
     # mentioning one bucket word plus ">3 years" is still not a bucket-column table
     assert x._bucket_header(x._page_rows("The loans mature over 3 years.\nWithin 1 year 5 7\n"), 1, bucket_sfs, 2025) is None
-    # end to end, the model all-null exactly as v088's two passes answered: the debt row (a row_synonyms hit)
+    # end to end, the model all-null exactly as both real passes answered: the debt row (a row_synonyms hit)
     # fills all four fields, the identity passes on explicit values, and the derived 0 carries value_derived --
     # the dash is in a column of the table's own naming (">3 years"), not the bucket's own column, so it is a
-    # derived 0, not v078's printed_nil
+    # derived 0, not a printed_nil
     x.call_llm = lambda *a, **k: {"fields": [
         {"key": "total_debt", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
         {"key": "due_within_1_year", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
@@ -1265,7 +1293,7 @@ def demo():
     assert total["raw_label"] == "Liabilities to credit institutions" and after5["raw_label"] == total["raw_label"]
     assert "value_derived" in after5["evidence"] and "printed_nil" not in after5["evidence"], after5
     assert any("the row prints a dash in its '>3 years' column" in w for w in out["warnings"]), out["warnings"]
-    # counterfactual (v095 CE1): the same table with a valued ">3 years" cell on the debt row stays honest --
+    # counterfactual: the same table with a valued ">3 years" cell on the debt row stays honest --
     # four nulls and a warning naming the boundary straddled; the split (1-5-years money vs after-5-years
     # money) is a guess neither the check nor this file can arbitrate
     ce1 = karnell106.replace("Liabilities to credit institutions 43.5 353.7 - 397.2",
@@ -1273,7 +1301,7 @@ def demo():
     out = x.extract([ce1], [1], dm, {"fiscal_year": 2025})
     assert all(f["value"] is None for f in out["fields"]), (out["fields"], out["warnings"])
     assert any("'>3 years' 173 straddles the 5-year boundary" in w for w in out["warnings"]), out["warnings"]
-    # v095 rule 2, the row picker: a debt-scoped row (the total field's own wording or a row_synonyms hit)
+    # Rule 2, the row picker: a debt-scoped row (the total field's own wording or a row_synonyms hit)
     # outranks a bare table Total whose scope is only "whatever this table sums" (Karnell's 533.5 includes
     # earn-outs, put/call options and accounts payable). Only-bare-Totals pages keep today's order exactly.
     warnings: list = []
@@ -1288,11 +1316,11 @@ def demo():
     assert warnings == [], warnings
     out = x.extract([ce2], [1], dm, {"fiscal_year": 2025})
     assert all(f["value"] is None for f in out["fields"]), (out["fields"], out["warnings"])  # no debt candidate: bare Totals only, today's order, declined on their valued ">3 years" -- baseline values
-    # rule 2's own proof is v088's rejected experiment flipped harmless: claim ">3 years" for
-    # due_after_5_years (schema copy, test-only) and the header opens either way -- before the reorder that
-    # filled the bare Total 533.5 with the identity passing (the wrong-scope value endorsed by its own
-    # check); now the debt row outranks it and the same claim fills 397.2, the dash now the bucket's own
-    # column (v078's printed_nil, not value_derived)
+    # rule 2's own proof, a rejected experiment flipped harmless: claim ">3 years" for due_after_5_years
+    # (schema copy, test-only) and the header opens either way -- without the reorder, the bare Total 533.5
+    # fills with the identity passing (the wrong-scope value endorsed by its own check); with it the debt
+    # row outranks the bare Total and the same claim fills 397.2, the dash now the bucket's own
+    # column (printed_nil, not value_derived)
     dm95 = json.loads(json.dumps(dm))
     next(f for f in dm95["fields"] if f["key"] == "due_after_5_years")["synonyms"].append(">3 years")
     out = x.extract([karnell106], [1], dm95, {"fiscal_year": 2025})
@@ -1303,7 +1331,9 @@ def demo():
     assert "printed_nil" in after5["evidence"] and "value_derived" not in after5["evidence"], after5
 
     qcalls = []
-    # v054: EXTRACT_QUOTE_RETRY (default off) -- one follow-up call for the fields whose answer cites a quote
+
+    # ---- EXTRACT_QUOTE_RETRY: one follow-up call for an unprintable quote -------------------
+    # EXTRACT_QUOTE_RETRY (default off) -- one follow-up call for the fields whose answer cites a quote
     # that is not printed on the page it names: the cited page's own _page_rows go out numbered, and the model
     # copies the printed row verbatim (or answers null: no such row). A retried field is adopted only when its
     # new quote verifies on the page it names -- null, missing or still-unverified replies keep the original
@@ -1381,7 +1411,7 @@ def demo():
         w1y = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
         assert (w1y["value"], w1y["confidence"]) == (3538, 0.25) and not any(w.startswith("quote_retry:") for w in out["warnings"]), (w1y, out["warnings"])
 
-        # a stated zero (v050's prose-negation path) is already proven by the report's own words: not retried
+        # a stated zero (the prose-negation path) is already proven by the report's own words: not retried
         prose = ("Not 18 Klassificering av finansiella instrument\n"
                  "Investmentföretaget har varken räntebärande skulder eller kundfordringar.\n")
 
@@ -1423,7 +1453,9 @@ def demo():
     assert qcalls == ["extraction"], qcalls
     w1y = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
     assert (w1y["value"], w1y["confidence"]) == (3538, 0.25) and not any(w.startswith("quote_retry:") for w in out["warnings"]), (w1y, out["warnings"])
-    # v052: a note page can stack a second table above the one the field's row sits in (MedCap p.101: a
+
+    # ---- table scope: a derivation stays inside its operands' table -------------------------
+    # A note page can stack a second table above the one the field's row sits in (MedCap p.101: a
     # receivables-ageing table over the maturity table), and the maturity header itself repeats the year across
     # Koncernen | Moderbolaget pairs. Row derivations now anchor the year header to the quoted row -- the nearest
     # year run above it (_row_year_column) -- and, when the fiscal year appears twice in that run, take the Group
@@ -1443,10 +1475,10 @@ def demo():
     assert x._row_year_column(catrows, catrows.index("Profit before tax 2,067 1,344"), 2025) == (0, 2)  # single-table page: the anchored header is the page's
     # ... end to end: the model computes due_within_1_year = 54,3 + 48,0 = 102,3 correctly but fabricates its quote,
     # so the value is dropped as computed, not read -- yet both rows are printed and are now the schema's own
-    # synonyms, so the table-scoped guard keeps the null operand out (missing), v052's above-window derivation
+    # synonyms, so the table-scoped guard keeps the null operand out (missing), the above-window derivation
     # fills 102.3 with the verified two-row quote, and once due_after_5_years is a confirmed 0 (its ">5år" lives
-    # on the contractual table, which no longer counts) the identity closes -- passed, where v044/v052 stalled
-    # at "missing: due_after_5_years".
+    # on the contractual table, which no longer counts) the identity closes -- passed, where an unscoped
+    # search stalls at "missing: due_after_5_years".
     x.call_llm = lambda *a, **k: {"fields": [
         {"key": "total_debt", "value": 718.7, "unit": "MSEK", "period": "2025", "raw_label": "Totalt", "source": {"page": 1, "quote": "Totalt 718,7 377,6 – –"}},
         {"key": "due_1_to_5_years", "value": 616.5, "unit": "MSEK", "period": "2025", "raw_label": "1 – 5 år", "source": {"page": 1, "quote": "1 – 5 år 616,5 316,7 – –"}},
@@ -1461,7 +1493,9 @@ def demo():
     total = next(f for f in out["fields"] if f["key"] == "total_debt")
     bucket15 = next(f for f in out["fields"] if f["key"] == "due_1_to_5_years")
     assert (total["value"], total["confidence"]) == (718.7, 0.9) and (bucket15["value"], bucket15["confidence"]) == (616.5, 1.0), (total, bucket15)
-    # v102: a date-form year header ("SEK million 31 Dec 2025 31 Dec 2024", Ambea p.119 Note G18) names its
+
+    # ---- year columns: which column is the fiscal year's ------------------------------------
+    # A date-form year header ("SEK million 31 Dec 2025 31 Dec 2024", Ambea p.119 Note G18) names its
     # year columns: each year may carry its balance-date wording (day + month name, either order, "31 Dec" /
     # "31 dec." / "31 december" / "Dec 31,"; the ISO and slash spellings the _year_run subs already reduce),
     # the day/month tokens are neither amount columns nor run-breakers, and the years keep print order -- the
@@ -1469,7 +1503,7 @@ def demo():
     # run at all, and the page scan fell through to a bare-year pair in prose ("... issued in 2024 or 2025",
     # the note's own last sentence) -- which named 2025 as the SECOND column, so the year correction rewrote
     # the model's correct first-column figures into the prior-year comparatives (12,643 -> 10,757,
-    # 2,308 -> 1,879; docs/acrylic/evidence/v099.md Finding 1, v088's own false "year-column corrected").
+    # 2,308 -> 1,879; docs/acrylic/evidence/v099.md Finding 1, a false "year-column corrected").
     # The reduction lives in _year_column/_row_year_column only: _year_run itself (and _segment_column,
     # _bucket_row_prior_year, _operand_table_rows through it) keep seeing the header as printed.
     assert x._year_run("SEK million 31 Dec 2025 31 Dec 2024") == []  # unchanged, by design: the selectors reduce, not the scan
@@ -1488,7 +1522,7 @@ def demo():
     assert x._year_column("Note 20 Borrowings\nMSEK\n2025", 2025) is None
     assert x._year_column("Note 21 Borrowings 31 Dec 2025", 2025) is None
     assert x._year_column("Maturity analysis 30 Apr 2026 30 Apr 2025", 2025) is None
-    # repeated date-form pairs (Proact p.103 prints Group | Parent side by side) flow into the v052 machinery
+    # repeated date-form pairs (Proact p.103 prints Group | Parent side by side) flow into the paired-column machinery
     # unchanged: the page-level default declines a repeated fiscal year, and the row-anchored header takes the
     # Group side when Group is named before Parent on the run's row or the one above it
     proact_hdr = x._page_rows("Other financial liabilities Group Parent company\n"
@@ -1497,7 +1531,7 @@ def demo():
     proact_page = "\n".join(proact_hdr)
     assert x._year_column(proact_page, 2025) is None
     assert x._row_year_column(proact_hdr, 2, 2025) == (0, 4)
-    # ... end to end on Ambea's real p.119 (trimmed to Note G18; the model answer is v088 pass 1's correct
+    # ... end to end on Ambea's real p.119 (trimmed to Note G18; the model answer is the stored pass's correct
     # read): the figures stay in the first column -- no "is not the 2025 column" correction, period_ok and
     # value_in_quote on both fields -- and the current/non-current shape leaves the buckets honestly missing.
     # Runs on the SHIPPED schema (require_explicit_values on: a null bucket stays "missing", the stored
@@ -1525,7 +1559,7 @@ def demo():
     td = next(f for f in out["fields"] if f["key"] == "total_debt")
     assert "value_in_quote" in td["evidence"] and "period_ok" in td["evidence"], td
     assert out["checks"][0]["detail"] == "missing: due_1_to_5_years", out["checks"]
-    # v051 (seed 5's live Codex rerun of this same page): a related but distinct gap from the fabricated-quote
+    # Seed 5's live rerun of this same page: a related but distinct gap from the fabricated-quote
     # case just above. There, the model's quote never verifies at all (no "+"/"=" arithmetic notation is
     # printed), so due_within_1_year is null by the time the "missing:"-driven repair loop runs, and the
     # PRE-EXISTING _between_rows call above already rescues it. Here the model instead quotes the two real rows
@@ -1535,7 +1569,7 @@ def demo():
     # counts toward the check's own missing-operand detection, which reported "missing: due_after_5_years" (the
     # one bucket that really has no row) -- so the "missing:"-only repair loop above never even looks at
     # due_within_1_year, and it would otherwise reach the Sectra-pattern drop below with nothing to rescue it.
-    # v058: the month rows are now the schema's own synonyms and the present-label search is table-scoped, so
+    # The month rows are the schema's own synonyms and the present-label search is table-scoped, so
     # due_after_5_years is a confirmed 0 and the check this case reports PASSES on the very value the
     # concatenation rescue just secured: 102.3+616.5+0 = 718.8 ≈ 718.7.
     x.call_llm = lambda *a, **k: {"fields": [
@@ -1555,8 +1589,8 @@ def demo():
     within = next(f for f in out["fields"] if f["key"] == "due_within_1_year")
     assert within["value"] is None and within["confidence"] == 0.0 and not within["evidence"], (within, out["warnings"])
     assert not out["checks"][0]["passed"], out["checks"]
-    # v058: v052's above-window derivation also fires when the within-1-year wording sits in the table's own
-    # year-header row ("inom 1 år", glued to "inom1år" like v012/v014) rather than on the bucket rows -- the
+    # The above-window derivation also fires when the within-1-year wording sits in the table's own
+    # year-header row ("inom 1 år", glued to "inom1år" as row labels are) rather than on the bucket rows -- the
     # guard keeps the null operand out either way, and the real table here is only replayed with one header
     # word changed, nothing else.
     medcap101_inom = medcap101.replace(
@@ -1572,7 +1606,7 @@ def demo():
         == "6 månader eller mindre 54,3 41,8 – – 6 – 12 månader 48,0 19,0 – –", (within, out["warnings"])
     assert within["confidence"] == 1.0 and within["raw_label"] == "6 månader eller mindre + 6 – 12 månader", within
     assert out["checks"][0]["passed"] and "abs((102.3 + 616.5 + 0 (due_after_5_years null)) - 718.7) <= 2" in out["checks"][0]["detail"], out["checks"]
-    # v058's synthetic discriminator, MedCap's carrying table (the two month rows collapsed into their single
+    # A synthetic discriminator, MedCap's carrying table (the two month rows collapsed into their single
     # "< 1 år" sum row and the Parent pair dropped, so the joined-quote/_segment_column detours stay out of the
     # way) plus the contractual cash-flow table relocated onto ONE page BELOW it: the bucket word sits past the
     # Totalt row the operands anchor, so both the page-level rule (found -> stay open) and the bottom-of-table
@@ -1591,7 +1625,9 @@ def demo():
     assert out["checks"][0]["passed"] and "0 (due_after_5_years null)" in out["checks"][0]["detail"], out["checks"]
     got = {f["key"]: (f["value"], f["confidence"]) for f in out["fields"]}
     assert got == {"total_debt": (718.7, 1.0), "due_within_1_year": (102.3, 1.0), "due_1_to_5_years": (616.5, 1.0), "due_after_5_years": (None, 0.0)}, (got, out["warnings"])  # total_debt: the identity holds with the bare-Totalt row in both columns -> identity_all_columns
-    # v043: EXTRACT_TWO_PASS (default off) -- pass 1 is a small "which candidate page" question over a
+
+    # ---- EXTRACT_TWO_PASS and _select_pages: choosing the note's pages ----------------------
+    # EXTRACT_TWO_PASS (default off) -- pass 1 is a small "which candidate page" question over a
     # head-of-page snippet of *every* candidate (not just the top-2 the single-pass window shows), pass 2
     # is the existing extraction prompt fed only the page(s) pass 1 picks. Candidate 3 (never reached by
     # the old pages[:2] window) is the real note; 1-2 are decoys.
@@ -1617,7 +1653,7 @@ def demo():
     out = x.extract([decoy1, decoy2, real, decoy4], [1, 2, 3], dm, {"fiscal_year": 2025})
     assert calls == [("extraction", True, False)], calls  # off: exactly the old single call, over pages[:2]; page 3 never shown
     assert not any(w.startswith("two_pass") for w in out["warnings"]), out["warnings"]
-    # v157: ONE hole in the identity (this answer's due_after_5_years -- the ordinary report with no
+    # ONE hole in the identity (this answer's due_after_5_years -- the ordinary report with no
     # >5-year row) keeps that single call. TWO holes is the shape of a wrong table read confidently
     # (BTS p.93's non-current-only note: a total and one bucket, nothing closed) and buys one widened
     # call over pages[:4], which is where the real maturity note sat
@@ -1636,7 +1672,7 @@ def demo():
         calls.clear()
         out = x.extract([decoy1, decoy2, real, decoy4], [1, 2, 3], dm, {"fiscal_year": 2025})
         assert calls == [("page_select", True, True), ("extraction", False, True)], calls  # pass 1 sees every candidate; pass 2 only the pages it picked
-        # v045: a single-page reply ({"pages": [3]}) is no longer taken at face value -- it is repaired with
+        # a single-page reply ({"pages": [3]}) is not taken at face value -- it is repaired with
         # the default companion (3+1=4, page 4 was never itself a candidate), so the companion page single-pass
         # always got for free (locate.candidate_pages forces pages[0]+1 into position 2) is not lost here either.
         assert "two_pass: page [3, 4] selected from candidates [1, 2, 3]" in out["warnings"], out["warnings"]
@@ -1654,7 +1690,7 @@ def demo():
     finally:
         del os.environ["EXTRACT_TWO_PASS"]
 
-    # v045: _select_pages itself -- the companion repair/validation rules, direct (no EXTRACT_TWO_PASS/extract()
+    # _select_pages itself -- the companion repair/validation rules, direct (no EXTRACT_TWO_PASS/extract()
     # wiring needed here, unlike the end-to-end checks above).
     four = ["p1 text", "p2 text", "p3 text", "p4 text"]
     x.call_llm = lambda *a, **k: {"pages": [2]}
@@ -1668,11 +1704,11 @@ def demo():
     x.call_llm = lambda *a, **k: {"pages": [2, 3]}
     assert x._select_pages(dm, [1, 2], four) == [2, 3]  # companion (3) need not itself be a candidate -- only the primary must be
     x.call_llm = lambda *a, **k: {"pages": [99]}
-    assert x._select_pages(dm, [1, 2, 3], four) is None  # primary outside the candidate list: illegal, same as v043
+    assert x._select_pages(dm, [1, 2, 3], four) is None  # primary outside the candidate list: illegal
     x.call_llm = lambda *a, **k: {"pages": [2, 3, 4]}
-    assert x._select_pages(dm, [1, 2, 3, 4], four) is None  # more than 2 pages: illegal, unchanged from v043
+    assert x._select_pages(dm, [1, 2, 3, 4], four) is None  # more than 2 pages: illegal
 
-    # v045: pass-1's own snippet -- running headers (locate.strip_boilerplate) and bare page-number lines
+    # Pass-1's own snippet -- running headers (locate.strip_boilerplate) and bare page-number lines
     # dropped, ~1200-char head, plus (Apotea's own failure mode, docs/acrylic/evidence/v043.md) any schema
     # keyword line found beyond that head, numbered, so a heading pushed past the cutoff by filler still surfaces.
     captured = {}
@@ -1694,8 +1730,8 @@ def demo():
     assert "7" not in user.splitlines(), user  # bare page-number line stripped (not just "differs per page", see locate's own comment)
     assert "\n...\n" in user  # the head/keyword-hits separator only appears once something was found beyond the head
     assert any(l.endswith(": Note 20 Borrowings") for l in user.splitlines()), user  # the heading, past the head cutoff, surfaces numbered
-    # v146 red: this is the page-select prompt assembly itself, before its zero-model page hints exist.
-    # The compact pages below preserve the discriminating title/table lines of v124's real Avarda pages:
+    # The page-select prompt assembly itself, with no zero-model page hints.
+    # The compact pages below preserve the discriminating title/table lines of the real Avarda pages:
     # p.27 is the group balance sheet and p.81 says its liquidity table is contractual/undiscounted.
     avarda = [""] * 81
     avarda[26] = ("BALANCE SHEET - GROUP\nSEK thousand Note 31 Dec 2025 31 Dec 2024\n"
@@ -1714,7 +1750,7 @@ Frozen prompt description.
 Always name TWO pages: the primary page (the one with the table itself, must be one of the candidates above) and a companion page next to it, since a table's header or rows often continue onto the neighbouring page. Default the companion to primary+1; use primary-1 instead only if the table's own heading or first rows actually sit on the page before the primary one -- the companion does not itself have to be one of the candidates above.
 
 Return ONE JSON object {"pages": [primary, companion]}, primary first. Never invent a primary page number that is not listed above."""
-    # v146-b: default off is the old rendered prompt byte-for-byte and never labels candidate pages.
+    # default off is the plain rendered prompt byte-for-byte and never labels candidate pages.
     assert captured["system"].encode("utf-8") == expected_default_page_select_prompt.encode("utf-8"), captured["system"]
     assert "[balance sheet]" not in captured["user"], captured["user"]
     assert x.PAGE_SELECT_DEBT_MATURITY_HINT not in captured["system"], captured["system"]
@@ -1724,7 +1760,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     x._select_pages(prompt_dm, [80, 81, 27], avarda)
     assert "=== PAGE 27 [balance sheet] ===" in captured["user"], captured["user"]
     assert x.PAGE_SELECT_DEBT_MATURITY_HINT in captured["system"], captured["system"]
-    # v162: the retry route can override that process-wide opt-in for one of its two runs.
+    # the retry route can override that process-wide opt-in for one of its two runs.
     captured.clear()
     x._select_pages(prompt_dm, [80, 81, 27], avarda, page_select_hints=False)
     assert "[balance sheet]" not in captured["user"], captured["user"]
@@ -1738,7 +1774,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     else:
         os.environ["PAGE_SELECT_HINTS"] = page_select_hints_env
 
-    # v146 green: all fixtures are compact, frozen title/table lines from v124's cited real pages --
+    # all fixtures are compact, frozen title/table lines from the cited real pages --
     # never a read of mutable data/kb (LESSONS 43). The range of expected tags proves title-zone scope:
     # Morrow p.74 and Synsam p.122/p.124 are relevant prose/adjacent pages but carry no qualifying title.
     assert x._page_select_tags(dm, [80, 81, 27], avarda) == {
@@ -1775,8 +1811,10 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
                    "Loans from financial institutions 2,733 2,619\n")
     assert x._page_select_tags(dm, [123, 124, 122], synsam) == {123: ["liquidity-risk / undiscounted"]}
     assert "Pages tagged liquidity-risk / undiscounted list contractual cash flows" in x.PAGE_SELECT_DEBT_MATURITY_HINT
-    # v050: a prose no-debt statement has no digit for _value_in_quote, so both provenance gates dropped the
-    # model's 0 as "computed, not read" (v048's recorded warning for Creades, seed 4, p.61 real text). The
+
+    # ---- zero_if_stated: a report that says in words it has no debt -------------------------
+    # A prose no-debt statement has no digit for _value_in_quote, so both provenance gates drop the
+    # model's 0 as "computed, not read" (the recorded warning for Creades, seed 4, p.61 real text). The
     # total_debt schema field now opts in with "zero_if_stated" (the field-level analogue of a check's
     # null_as_zero): a digit-free quote that sits verbatim on the cited page (whitespace/NBSP-insensitive;
     # quote_on_page itself requires a number token, which prose never has), names the field's subject (a
@@ -1861,7 +1899,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     assert td["value"] == 0 and td["confidence"] == 0.5 and "stated_zero" not in td["evidence"] \
         and "quote_on_page" in td["evidence"], (td, out["warnings"])  # Svolder's own stored read, byte-identical
     assert not out["checks"][0]["passed"] and out["checks"][0]["detail"].startswith("missing:"), out["checks"]
-    # Flat Capital (v035, seed 1, real p.18): the no-debt sentence sits on p.33, never a locator candidate
+    # Flat Capital (seed 1, real p.18): the no-debt sentence sits on p.33, never a locator candidate
     # ([18, 19] were) -- a p.33 sentence cited against a candidate page is not printed there, so the new rule
     # must not fire; p.18's own printed "interest-bearing liabilities ... 0 TSEK (0)" keeps the value on the
     # old printed-zero path, at the no-provenance 0.25 cap, whichever round of code ran
@@ -1878,10 +1916,10 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     td = next(f for f in out["fields"] if f["key"] == "total_debt")
     assert td["value"] == 0 and td["confidence"] == 0.25 and "stated_zero" not in td["evidence"], (td, out["warnings"])
     assert any("quote not found on page 1" in w for w in out["warnings"]), out["warnings"]
-    # v062: the subject gate (e) also reads zero_if_stated.subject_terms -- bare, generic debt words real
-    # no-debt prose uses but the label vocabulary must not (v051: Vicore Pharma and BioGaia, seed 5, both
+    # The subject gate (e) also reads zero_if_stated.subject_terms -- bare, generic debt words real
+    # no-debt prose uses but the label vocabulary must not (Vicore Pharma and BioGaia, seed 5, both
     # declined because their sentences carry only bare "loan(s)"; widening the field's own synonyms would
-    # loosen _label_known's row matching). Real seed5 page text, the exact sentences v051 recorded,
+    # loosen _label_known's row matching). Real seed5 page text, the exact recorded sentences,
     # constructed model answers -- the other four gates untouched, so this only opens sentences that are
     # verbatim on the cited page AND carry a negation word, at the same 0.5 tier as Creades.
     vicore46 = ("Refinancing risk refers to the risk that cash and cash equivalents are unavailable and that financing can\n"
@@ -1910,22 +1948,24 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     td = next(f for f in out["fields"] if f["key"] == "total_debt")
     assert td["value"] == 0 and td["confidence"] == 0.5 and "stated_zero" in td["evidence"], (td, out["warnings"])
     # the subject terms buy no licence beyond the page: a bare-loan negation sentence that is NOT printed
-    # on the cited page still drops (v050's off-page counter-example, now through the widened vocabulary)
+    # on the cited page still drops (the off-page counter-example above, through the widened vocabulary)
     x.call_llm = lambda *a, **k: zero_loan_answer("The group has no bank loans whatsoever.")
     out = x.extract([vicore46], [1], dm, {"fiscal_year": 2025})
     td = next(f for f in out["fields"] if f["key"] == "total_debt")
     assert td["value"] is None and any("dropped as computed, not read" in w for w in out["warnings"]), (td, out["warnings"])
     # known boundary, pinned on purpose: the bare subject word cannot tell borrowing from lending --
     # loans to associates are an ASSET, so this sentence says nothing about borrowings, yet it passes
-    # every gate (loan vocabulary, digit-free, verbatim on the page, negation). Reported honestly per
-    # the work order, not forced away: word-level subject matching cannot see the "to associates"
+    # every gate (loan vocabulary, digit-free, verbatim on the page, negation). Reported honestly,
+    # not forced away: word-level subject matching cannot see the "to associates"
     # complement; blocking it would need phrase-level context, a different mechanism.
     associates = "At year end the group had no loans to associates."
     x.call_llm = lambda *a, **k: zero_loan_answer(associates)
     out = x.extract([associates + "\nOther financial information follows here.\n"], [1], dm, {"fiscal_year": 2025})
     td = next(f for f in out["fields"] if f["key"] == "total_debt")
     assert td["value"] == 0 and td["confidence"] == 0.5 and "stated_zero" in td["evidence"], (td, out["warnings"])
-    # v073: a third maturity shape besides bucket-rows and bucket-columns -- a note that gives each loan/lease
+
+    # ---- date-per-instrument notes ----------------------------------------------------------
+    # A third maturity shape besides bucket-rows and bucket-columns -- a note that gives each loan/lease
     # its own printed due date, year or year-range instead of a bucket label (Proact, docs/acrylic/evidence/v063.md
     # gap 2). _maturity_bucket buckets a single point directly; a range or bare year only counts when its start
     # and end land in the SAME bucket, else "straddle" -- and a straddle must abort the whole read, not just
@@ -1941,7 +1981,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     # after a 2025-12-31 fye) into due_within_1_year and manufacture a false straddle on "2027-2030" above
     assert x._bucket_for_date(_date(2027, 1, 1), fye) == "due_1_to_5_years"
     # a row naming its own maturity three times or more is a running header/watermark glued into one row by
-    # _page_rows, never a printed instrument (Proact's own page carries exactly this artifact, v073)
+    # _page_rows, never a printed instrument (Proact's own page carries exactly this artifact)
     assert x._maturity_bucket("Proact Annual Report 2025 2025 2025", fye) is None
     assert x._maturity_bucket("liabilities measured 31 Dec 2025 31 Dec 2024 31 Dec 2025 31 Dec 2024", fye) is None
     # the balance sheet date defaults to 31 Dec of the fiscal year, or the day/month a caption states instead --
@@ -1985,7 +2025,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     # anywhere near its total); Stillfront's rows are component/duration-labelled ("Repayment within 2-5 yr."),
     # not dated; Nederman's total is read off a sentence far ABOVE its own per-instrument due-date table, with
     # nothing date-shaped in the bounded window above it -- so the derivation correctly finds nothing in all
-    # three, and the check stays exactly as honestly unresolved as it was before this lane.
+    # three, and the check stays honestly unresolved.
     hanza132 = ("Förfallotidpunkt\nMellan\n2025-12-31 Redovisat Mindre än 6 månader Mellan 1 Senare än\n"
                 "Typ av upplåning Valutor värde 6 månader och 1 år och 5 år\nBanklån SEK, EUR,\n"
                 "CNY, CZK, PLN 1 332 15 9 1 306 2\nAvbetalnings-\nkontrakt 112 18 18 76 -\nSumma 1 444 33 27 1 382 2\n")
@@ -2019,14 +2059,16 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
         out = x.extract([text], [1], dm, {"fiscal_year": 2025})
         assert all(f["value"] is None for f in out["fields"] if f["key"] != "total_debt"), (name, out["fields"])
         assert out["checks"][0]["detail"] == "missing: due_within_1_year", (name, out["checks"])
-    # v096: the bucket-ROW finer split (Rusta Note 11, docs/acrylic/evidence/v088.md findings 2 and 3):
+
+    # ---- finer interval rows summed into one bucket -----------------------------------------
+    # The bucket-ROW finer split (Rusta Note 11, docs/acrylic/evidence/v088.md findings 2 and 3):
     # a maturity table whose rows are finer intervals than the three buckets -- "0–6 months 523 /
     # 7–12 months 516 / 1–2 years 969 / 2–5 years 2,184 / >5 years 2,431 / Total 6,624" -- needs the
     # sibling rows of one bucket SUMMED (within1y = 523+516 = 1,039; 1-5y = 969+2,184 = 3,153;
     # 1,039+3,153+2,431 = 6,623 ≈ 6,624), which no existing repair does: _statement_row declines two
-    # rows matching one field (v058), _between_rows' window stops at "1–2 years" (a due_1_to_5_years
-    # synonym, so its other-field guard fires -- exactly why Rusta stayed "missing" through v088), and
-    # _fill_bucket_columns reads one row's columns, not rows. v088's schema decision also proved these
+    # rows matching one field, _between_rows' window stops at "1–2 years" (a due_1_to_5_years
+    # synonym, so its other-field guard fires -- exactly why Rusta stayed "missing"), and
+    # _fill_bucket_columns reads one row's columns, not rows. The same round also proved these
     # wordings must never join the synonym lists the column scanner reads ("0-6 months" in
     # due_within_1_year.synonyms leaks into _bucket_synonym_hits and changes _bucket_header's read),
     # so _bucket_span parses interval GEOMETRY, sharing nothing with that vocabulary. On the label:
@@ -2035,7 +2077,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     assert x._bucket_span("6 – 12 månader") == (6, 12) and x._bucket_span("1 – 5 år") == (12, 60)
     assert x._bucket_span("1–2 years") == (12, 24) and x._bucket_span("2–5 years") == (24, 60)
     assert x._bucket_span("between 1 and 2 years") == (12, 24) and x._bucket_span("mellan 1 och 5 år") == (12, 60)
-    assert x._bucket_span("mellan 1 år och 2 år") == (12, 24) and x._bucket_span("mellan 2 år och 5 år") == (24, 60)  # v104: Svedbergs' long forms, a unit per operand
+    assert x._bucket_span("mellan 1 år och 2 år") == (12, 24) and x._bucket_span("mellan 2 år och 5 år") == (24, 60)  # Svedbergs' long forms, a unit per operand
     assert x._bucket_span("mellan 3 månader och 1 år") == (3, 12) and x._bucket_span("mellan 18 månader och 2 år") == (18, 24)  # mixed units
     assert x._bucket_span("högst 2 år") == (0, 24) and x._bucket_span("mellan 5 år och 2 år") is None  # reversed bounds name no interval
     assert x._bucket_span("later than 1 year but within 3 years") == (12, 36)
@@ -2045,14 +2087,14 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     assert x._bucket_span("3–7 years") == (36, 84)  # parses fine -- crossing a boundary is the caller's abort, not a parse failure
     assert x._bucket_span("Maturity analysis – lease liabilities") is None and x._bucket_span("Total") is None
     assert x._bucket_span("Lease liabilities") is None and x._bucket_span("Repayment within 2–5 yr.") is None  # duration wording, not a maturity interval
-    assert x._bucket_span("-30 dgr") is None  # day wording is the subtotal-column mechanism's own territory (XANO, v078)
+    assert x._bucket_span("-30 dgr") is None  # day wording is the subtotal-column mechanism's own territory (XANO)
     assert x._span_bucket((7, 12)) == "due_within_1_year" and x._span_bucket((24, 60)) == "due_1_to_5_years"
     assert x._span_bucket((72, 120)) == "due_after_5_years" and x._span_bucket((36, 84)) is None  # crosses the 5-year boundary
     assert x._span_bucket((12, float("inf"))) is None  # ">1 year" spans 1-5y AND >5y: no safe split of the three buckets
     # ... end to end on Rusta's own page 115 (real text, trimmed to the leasing note; the model answer
-    # is v088 pass 1 reconstructed from the stored warnings: total 6,669 year-corrected to 6,624, the
+    # is a real pass reconstructed from the stored warnings: total 6,669 year-corrected to 6,624, the
     # model's own bucket sums 975/3,062 computed-not-read, the repair locking the single "2–5 years"
-    # row's 2,184 -- the stored red, byte-matched in docs/acrylic/evidence/v096.md). The page-level
+    # row's 2,184 -- byte-matched in docs/acrylic/evidence/v096.md). The page-level
     # year header is the P&L table's "2025/26 2024/25" below the maturity table (Rusta's own maturity
     # header "30 Apr 2026 30 Apr 2025" is not a _year_run), which is why the fixture keeps it.
     rusta115 = ("Lease liabilities\nGroup\nMaturity analysis – lease liabilities 30 Apr 2026 30 Apr 2025\n"
@@ -2086,10 +2128,10 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     # one year" / "Between 1 and 5 years" / "Later than 5 years", real text) -- every bucket's "sum" is
     # one row's own literal figure, so the finer-split derivation writes nothing and the fields are
     # exactly what the single-row paths already produce (statement-spread fills 607 and 2,016 off their
-    # own printed rows, _between_rows closes 1,924 between them -- all pre-v096 machinery, every quote a
-    # single row, no sibling join anywhere). v111: the block prints these rows under a "Parent Company"
-    # section heading, which the wrong-table guard now refuses for the Group's section -- so the same
-    # rows under a "Group" heading (the v096 mechanics unchanged, the entity switched) carry the
+    # own printed rows, _between_rows closes 1,924 between them -- none of it the finer-split machinery,
+    # every quote a single row, no sibling join anywhere). The block prints these rows under a "Parent
+    # Company" section heading, which the wrong-table guard refuses for the Group's section -- so the same
+    # rows under a "Group" heading (same mechanics, the entity switched) carry the
     # assertion, and the real parent block below asserts the refusal itself.
     rusta115_group = rusta115.replace("Parent Company\n", "Group\n")
     x.call_llm = lambda *a, **k: {"fields": [
@@ -2104,7 +2146,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
                    "due_1_to_5_years": (1924, "Between 1 and 5 years 1,924 1,949"),
                    "due_after_5_years": (2016, "Later than 5 years 2,016 2,231")}, (got, out["warnings"])
     assert out["checks"][0]["passed"] and not any("finer-split" in w for w in out["warnings"]), (out["checks"], out["warnings"])  # all buckets single-row: the derivation stayed silent
-    # v111: the real parent block (verbatim from the page) is the wrong entity for the Group's section --
+    # The real parent block (verbatim from the page) is the wrong entity for the Group's section --
     # every read of it, the model's own total citation included, is refused with the section named
     x.call_llm = lambda *a, **k: {"fields": [
         {"key": "total_debt", "value": 4547, "unit": "MSEK", "period": "2025", "raw_label": "Total",
@@ -2141,11 +2183,11 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     out = x.extract([straddle], [1], dm, {"fiscal_year": 2025})
     assert all(f["value"] is None for f in out["fields"] if f["key"] != "total_debt"), (out["fields"], out["warnings"])
     assert not any("finer-split" in w for w in out["warnings"]), out["warnings"]
-    # v104: the same derivation on a TORN side-by-side page -- Svedbergs p.132 prints the maturity table
+    # The same derivation on a TORN side-by-side page -- Svedbergs p.132 prints the maturity table
     # and the financing-changes note in two columns, and pymupdf glues the note's lines onto the maturity
     # rows (the Summa row too), so _row_amounts' last-alpha read returns the OTHER table's figures and the
     # walk reads each row's own four columns label-anchored (em-dash parent-company nils included). The
-    # labels are the Swedish long forms v097's seed-10 round watched the model sum correctly (1-5y
+    # labels are the Swedish long forms the model was watched to sum correctly (1-5y
     # 423,946 + 11,896 = 435,842) and then drop as computed-not-read: the finer rows live in the Koncernen
     # 2025 column of "Koncernen Moderbolaget / 2025 2024 2025 2024", the parent pair dashes.
     sved132 = ("Not 33 Räntebärande skulder\nKoncernen Moderbolaget Kassaflödespåverkande förändringar:\n"
@@ -2190,11 +2232,13 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     out = x.extract([straddle_sv], [1], dm, {"fiscal_year": 2025})
     assert all(f["value"] is None for f in out["fields"] if f["key"] != "total_debt"), (out["fields"], out["warnings"])
     assert not any("finer-split" in w for w in out["warnings"]), out["warnings"]
-    # v101: a debt total/bucket printed under a liabilities-negative sign convention -- net-debt and
+
+    # ---- negative sign conventions ----------------------------------------------------------
+    # A debt total/bucket printed under a liabilities-negative sign convention -- net-debt and
     # capital-management presentations print cash positive and every debt row negative -- carries its
     # magnitude with a minus, and the fields (semantics: a carrying amount of borrowings) must record
     # the magnitude. Catella p.108 and Scandi Standard p.134 real table text (trimmed; the stored
-    # baseline red -- -1,474@1.0 / -2,307 / -70 passing every gate -- is in docs/acrylic/evidence/v101.md).
+    # baseline -- -1,474@1.0 / -2,307 / -70 passing every gate -- is in docs/acrylic/evidence/v101.md).
     assert x._NET_DEBT_LABEL.search(x._clean_label("Net debt")) and x._NET_DEBT_LABEL.search(x._clean_label("Nettoskuld")) \
         and x._NET_DEBT_LABEL.search(x._clean_label("Net interest-bearing debt")) and x._NET_DEBT_LABEL.search(x._clean_label("Nettokassa / nettoskuld (-)"))
     assert not x._NET_DEBT_LABEL.search(x._clean_label("Gross debt December 31 2025 (Note 21)")) \
@@ -2264,7 +2308,9 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     assert got["total_debt"]["value"] == -500 and "sign_normalized" not in got["total_debt"]["evidence"], (got["total_debt"], out["warnings"])
     assert any("net-debt label" in w for w in out["warnings"]), out["warnings"]
 
-    # v103: the wrong-table guard. Two mis-scoped fills from v097 read their values out of the liquidity
+
+    # ---- _table_scope: refusing the wrong table ---------------------------------------------
+    # The wrong-table guard. Two mis-scoped fills read their values out of the liquidity
     # note's tables -- RVRC's p.110 "Maturity analysis regarding non-discounted liabilities" (its Total row
     # sums trade payables 119, expected returns 34 and other current liabilities 54 into total_debt, and
     # the identity endorsed it: 210+10+0 == 220, check passed) and Lime's p.72 "Liquidity risk - Group"
@@ -2305,9 +2351,9 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     ai = lime_rows.index("Amount 32,918 62,694 68,000 64,939")
     assert x._table_scope(lime_rows, None, li, "carrying", tsw) == "undiscounted"
     assert x._table_scope(lime_rows, None, ai, "undiscounted", tsw) == "all_liabilities"  # accounts payable above the grand Amount row
-    assert x._table_scope(lime_rows, None, li, "undiscounted", tsw, debt_scoped=True) == "unknown"  # v089's own read
+    assert x._table_scope(lime_rows, None, li, "undiscounted", tsw, debt_scoped=True) == "unknown"  # the undiscounted basis's own read
     # the carrying-column exemption: a table whose title says undiscounted but which prints a carrying
-    # column is readable under both bases (Ework/Instalco, v076/v085 -- the title names the OTHER column)
+    # column is readable under both bases (Ework/Instalco -- the title names the OTHER column)
     assert x._table_scope(ework_rows, None, ework_idx, "carrying", tsw) == "carrying"
     assert x._table_scope(instalco_rows, None, instalco_idx, "carrying", tsw) == "carrying"
     assert x._table_scope(instalco_rows, None, instalco_idx, "undiscounted", tsw) == "carrying"
@@ -2378,7 +2424,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
                     "Total expenses from leases recognized in the P&L 16 348 15 056\n")
     sc_rows = x._page_rows(smartcraft59)
     assert x._table_scope(sc_rows, None, 4, "carrying", tsw) == "undiscounted"
-    # end to end, RVRC -- the stored v097 pass shape: the model answered the Total row of the refused
+    # end to end, RVRC -- the stored pass shape: the model answered the Total row of the refused
     # table for all four fields (the repair had overwritten its own 12 with 220). Every one of them is
     # refused now, with a warning naming the table; the check honestly reports its missing operands
     x.call_llm = lambda *a, **k: {"fields": [
@@ -2413,7 +2459,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     out = x.extract([rvrc110, rvrc109], [1, 2], dm, {"fiscal_year": 2025})
     got = {f["key"]: f["value"] for f in out["fields"]}
     assert got["total_debt"] == 12 and got["due_within_1_year"] is None, (got, out["warnings"])
-    # end to end, Lime -- the stored v097 shape (buckets citing the liquidity row, total honestly null):
+    # end to end, Lime -- the stored shape (buckets citing the liquidity row, total honestly null):
     # both citations refused, and the column repair's own attempt on the same table declines with the
     # same reason instead of filling 66,396/85,000
     x.call_llm = lambda *a, **k: {"fields": [
@@ -2427,7 +2473,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     got = {f["key"]: f["value"] for f in out["fields"]}
     assert got == {"total_debt": None, "due_within_1_year": None, "due_1_to_5_years": None, "due_after_5_years": None}, (got, out["warnings"])
     assert any("table 'Liquidity risk - Group' is undiscounted" in w for w in out["warnings"]), out["warnings"]
-    # and the fill with the model declined everywhere (the live v097 shape): the column repair declines
+    # and the fill with the model declined everywhere (the live shape): the column repair declines
     # on the refused table -- no 66,396/85,000 fill, the refusal warning instead
     x.call_llm = lambda *a, **k: {"fields": [
         {"key": "total_debt", "value": None, "unit": None, "period": None, "raw_label": None, "source": None},
@@ -2439,7 +2485,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     assert all(v is None for v in got.values()), (got, out["warnings"])
     assert any("column reading of 'Borrowing (incl. overdraft) 15,000 51,396 60,000 25,000' declined" in w
                and "refused under the carrying basis" in w for w in out["warnings"]), out["warnings"]
-    # Smartcraft end to end, the live v097 shape (model declined, the statement-row fill read p.59's
+    # Smartcraft end to end, the live shape (model declined, the statement-row fill read p.59's
     # "Less than 1 year 13 825" rows): the guard refuses what that fill cited -- the table's own title
     # names it ("Total undiscounted lease liabilities"; the labels pin the carrying 13,439/14,809 from
     # p.58, the stored 13,825-family reads are the undiscounted ones)
@@ -2453,7 +2499,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     assert all(v is None for v in got.values()), (got, out["warnings"])
     assert sum("refused" in w for w in out["warnings"]) >= 2, out["warnings"]
     assert any("table 'Total undiscounted lease liabilities' is undiscounted" in w for w in out["warnings"]), out["warnings"]
-    # the undiscounted basis reads the liquidity table it is told to read (v089's Instalco case, above,
+    # the undiscounted basis reads the liquidity table it is told to read (the Instalco case above,
     # still passes); RVRC's all-liabilities Total stays refused on that basis too
     basis_saved = x.debt_basis
     x.debt_basis = lambda: "undiscounted"
@@ -2468,7 +2514,9 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     assert all(v is None for v in got.values()), (got, out["warnings"])
     assert any("is an all-liabilities table" in w for w in out["warnings"]), out["warnings"]
     x.debt_basis = basis_saved  # restore: the carrying default governs everything after this block
-    # v091: the prior fiscal year's four figures ride along as top-level `prior_year` metadata -- never a
+
+    # ---- prior_year metadata ----------------------------------------------------------------
+    # The prior fiscal year's four figures ride along as top-level `prior_year` metadata -- never a
     # model answer, only a deterministic re-read of the same table the current year came from, written
     # only when its own identity closes on explicit values (the shipped require_explicit_values rule,
     # applied to FY-1: a bucket with no prior-year figure is absent from the sum, never zero-filled).
@@ -2476,14 +2524,14 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     # (a) buckets-as-COLUMNS (_fill_bucket_columns' selected row): the same-labelled row of the prior
     #     year's own block on the same page (Tången p.62's "31 december 2024" table, Ework p.70's "2024"
     #     block), read with the SAME col_keys through _bucket_assign -- a bucket whose prior-year cells
-    #     all print dashes is the report's explicit 0 (v078, one year back);
+    #     all print dashes is the report's explicit 0, one year back;
     # (b) buckets-as-ROWS (the year-column tables): the prior-year COLUMN of the very rows that supplied
     #     the current values (MedCap p.101's Koncernen 2024 column), each field admitted only when the
     #     fiscal-year column of its own rows reproduces its current value -- _column_values' admission.
-    # Date-per-instrument notes (Proact, v073) and model-only answers give no prior year: no year
+    # Date-per-instrument notes (Proact) and model-only answers give no prior year: no year
     # header, no twin row, no admission -- and the >=2-buckets + closure gate has the final say anyway.
-    # Tången, end to end on v084's own two-table fixture (the model answers nothing; the current-year
-    # read is v084's): the prior year's own table prints 90,970 / (68,704 + 188,828) / 4,520 / 353,022,
+    # Tången, end to end on the two-table fixture above (the model answers nothing; the current-year
+    # read is the one asserted there): the prior year's table prints 90,970 / (68,704 + 188,828) / 4,520 / 353,022,
     # and 90,970 + 257,532 + 4,520 == 353,022 exactly.
     x.call_llm = lambda *a, **k: {"fields": [
         {"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None} for k in dmf]}
@@ -2497,14 +2545,14 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     out = x.extract([tangen62_full], [1], dm_ship, {"fiscal_year": 2025})  # the shipped schema's explicit-values rule decides the gate identically
     assert {k: v["value"] for k, v in out["prior_year"]["fields"].items()} == {
         "total_debt": 353022, "due_within_1_year": 90970, "due_1_to_5_years": 257532, "due_after_5_years": 4520}, out["prior_year"]
-    # The single-year page alone (v083's fixture): no prior-year twin row exists, and the bucket-column
+    # The single-year page alone (the fixture above): no prior-year twin row exists, and the bucket-column
     # table has no year header for a column read either -- no prior_year key at all, never a null one.
     out = x.extract([tangen62_2025], [1], dm, {"fiscal_year": 2025})
     assert "prior_year" not in out, out.get("prior_year")
     # Ework, end to end on the real p.70 shape (seed5-kb: the 2025 block, its Accounts payable and
     # Total rows, then the 2024 block; the year labels are lone lines that _page_rows glues onto the
-    # row above -- v076's own account). The model's own answer is v078's (total_debt already reads the
-    # Carrying amount column); the current-year fields are v078's, and the prior year is the 2024
+    # row above). The model's own answer is the printed-nil one above (total_debt already reads the
+    # Carrying amount column); the current-year fields are the same, and the prior year is the 2024
     # block's same-labelled row: Due nil + 30,971 + 152,377 + 11,319 = 194,667 in the carrying column,
     # both dash buckets the report's explicit 0s, closing 194,667 + 0 + 0 == 194,667 exactly.
     ework_two_years = ("Maturity structure financial liabilities – undiscounted cash flows\n"
@@ -2529,14 +2577,14 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     out = x.extract([ework_two_years], [1], dm, {"fiscal_year": 2025})
     got = {f["key"]: f["value"] for f in out["fields"]}
     assert got == {"total_debt": 156410, "due_within_1_year": 156409, "due_1_to_5_years": 0, "due_after_5_years": 0} \
-        and out["checks"][0]["passed"], (got, out["checks"], out["warnings"])  # v078's current-year read, unchanged on the bigger page
+        and out["checks"][0]["passed"], (got, out["checks"], out["warnings"])  # the same current-year read, unchanged on the bigger page
     py = out["prior_year"]
     assert py["fiscal_year"] == 2024 and py["check"]["passed"], py
     assert {k: v["value"] for k, v in py["fields"].items()} == {
         "total_debt": 194667, "due_within_1_year": 194667, "due_1_to_5_years": 0, "due_after_5_years": 0}, py
     assert all(v["source"]["quote"] == "Short-term interest-bearing liabilities* – 30,971 152,377 11,319 – – 194,667 194,667"
                for v in py["fields"].values()), py
-    # MedCap, end to end on the v052/v058 flow (real p.101 shape; the model reads total_debt and
+    # MedCap, end to end on the table-scoped flow (real p.101 shape; the model reads total_debt and
     # due_1_to_5_years off the carrying table, the derivation fills due_within_1_year from the two
     # month rows): the prior year is the Koncernen 2024 COLUMN of the same rows -- 41.8 + 19.0 = 60.8
     # within 1 year, 316.7 in 1-5 years, 377.6 total. The table prints no >5y row for EITHER year, so
@@ -2555,7 +2603,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     assert py["fields"]["due_within_1_year"]["source"] == {
         "page": 1, "quote": "6 månader eller mindre 54,3 41,8 – – 6 – 12 månader 48,0 19,0 – –"}, py["fields"]["due_within_1_year"]
     assert py["fields"]["total_debt"]["source"] == {"page": 1, "quote": "Totalt 718,7 377,6 – –"}, py["fields"]["total_debt"]
-    # Counter-example 1: a date-per-instrument note (Proact, v073's own fixture and answer) has no
+    # Counter-example 1: a date-per-instrument note (Proact's own fixture and answer above) has no
     # deterministic prior-year read -- the current-year buckets are date sums, the year-header table on
     # the page is a different table, and the admission check keeps its rows out. No prior_year key.
     x.call_llm = lambda *a, **k: {"fields": [
@@ -2580,13 +2628,15 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
         {"key": k, "value": None, "unit": None, "period": None, "raw_label": None, "source": None} for k in dmf]}
     out = x.extract([tangen_bad], [1], dm, {"fiscal_year": 2025})
     assert "prior_year" not in out, out.get("prior_year")  # 90,970 + 257,532 + 4,520 != 999,999: no key, not a failing one
-    # v110: a borrowings note split into a non-current and a current section, each closed by its own
+
+    # ---- section subtotals: two Summa rows, no grand total ----------------------------------
+    # A borrowings note split into a non-current and a current section, each closed by its own
     # Summa row, with NO third grand-total row in the block (NOTE's Not 19, real p.107 text trimmed
-    # to the note; the model answer is v088 pass 2's shape -- within1y 595,420 quote-verified,
-    # total_debt 824,281 dropped as computed-not-read, the round's named failure). The two Summa rows
+    # to the note; the model answer is a real pass's shape -- within1y 595,420 quote-verified,
+    # total_debt 824,281 dropped as computed-not-read). The two Summa rows
     # sum to 824,281 (228,861 + 595,420), each section closing on its own rows in both columns; the
     # report's own total is printed only as p.109's prose "räntebärande skulder 824,2 (630,0) MSEK" --
-    # the thousands-to-millions conversion _value_in_quote structurally cannot see (v099 finding 4).
+    # the thousands-to-millions conversion _value_in_quote structurally cannot see.
     # total_debt is written value_derived (the sum is printed nowhere); the quote is the contiguous
     # span from Summa A through Summa B, carrying both Summa rows verbatim -- a two-row join of
     # non-adjacent rows is not a page substring under quote_on_page's gap discipline, and the span is
@@ -2640,7 +2690,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     assert any("sum to 824281 (228861 + 595420)" in w and "corroborated by page 2 prose" in w for w in out["warnings"]), out["warnings"]
     # counter-example 1 (Karnov p.135, real text trimmed to the table): current / non-current / total
     # are three COLUMNS of one row, not two sectioned subtotals -- no section headings anywhere, so
-    # the walk never starts. v088 pass 1's own read stands, byte-identically.
+    # the walk never starts. The plain single-row read stands, byte-identically.
     karnov135 = ("* at December 31\nType of borrowing Interest rate* Currency\nNominal value\nin currency\n"
                  "Carrying amount,\ncurrent\nCarrying amount,\nnon-current\nTotal, carrying\namount\n"
                  "Borrowings from credit institutions December 31, 2025\n"
@@ -2716,8 +2766,8 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     got = {f["key"]: f["value"] for f in out["fields"]}
     assert got == {"total_debt": 696629, "due_within_1_year": None, "due_1_to_5_years": None, "due_after_5_years": None}, (got, out["warnings"])
     assert not any("section subtotal" in w for w in out["warnings"]), out["warnings"]
-    # v131: Enea's Note 23 continuation (p.76, real text trimmed to the note) -- the second clean
-    # instance of v108's subtotals ruling (v119), and the first whose note names NO debt word at
+    # Enea's Note 23 continuation (p.76, real text trimmed to the note) -- a second clean
+    # instance of the subtotals ruling, and the first whose note names NO debt word at
     # all: the table header row is "Financial liabilities 2025 2024 2025 2024" (the schema's lists
     # carry totals and instrument rows, never the subject line), and the section headings print the
     # non-breaking hyphen U+2011 ("Non‑current liabilities, interest‑bearing") -- untranslated, the
@@ -2827,7 +2877,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     out = x.extract([broken], [1], dm_ship, {"fiscal_year": 2025})
     assert all(f["value"] is None for f in out["fields"]), out["fields"]
     assert not any("section subtotal" in w for w in out["warnings"]), out["warnings"]
-    # v156: Sdiptech's Note 24 (real p.110 text trimmed to the note) -- v110's pair shape whose
+    # Sdiptech's Note 24 (real p.110 text trimmed to the note) -- the section-pair shape whose
     # section rows print footnote stars and small cells the no-ncols read cannot place:
     # "Contingent considerations * 597 910" reads fused as 597910 (the star breaks the all-digits
     # tail the ncols split needs, and its split-back is a nil-gated Boozt case), while "Other
@@ -2867,14 +2917,16 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     out = x.extract([broken_pair], [1], dm_ship, {"fiscal_year": 2025})
     assert all(f["value"] is None for f in out["fields"]), out["fields"]
     assert not any("section subtotal" in w for w in out["warnings"]), out["warnings"]
-    # v111: the wrong-table guard's second batch, two more _table_scope refusals under BOTH bases.
+
+    # ---- _table_scope: wrong entity, non-debt subject ---------------------------------------
+    # The wrong-table guard's second batch, two more _table_scope refusals under BOTH bases.
     # (a) non-debt-subject tables -- Volati p.177's "Timing of revenue recognition, contract liabilities":
     #     its "Within 1 year 87 87 1" is contract-liability timing, and the statement-spread fill wrote it
     #     over the model's own correct current-total 192 (Note 17 prints no maturity table at all; Salix,
     #     the same report family, is the label-pinned instance -- the label names 192 and calls the stored
     #     87 "Note 19 contract liabilities ... not debt"); (b) Parent Company sections -- Momentum p.111's
     #     parent lease maturity under a "Parent Company" heading: 2/2/0 against the Group's 622 balance-
-    #     sheet total. Every counter-example keeps its read: v052's paired Koncernen|Moderbolaget column
+    #     sheet total. Every counter-example keeps its read: MedCap's paired Koncernen|Moderbolaget column
     #     headers, a Group heading above the table, debt words in the title or rows, the carrying column.
     dsw = x._debt_subject_words(dm)
     pc = tsw["parent_company"]
@@ -2885,7 +2937,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     assert x._section_heading("Moderföretaget", pc) == "parent"
     assert x._section_heading("Group, MSEK 31 Dec 2025 31 Dec 2024", pc) == "group"  # the return to the Group
     assert x._section_heading("Group", pc) == "group" and x._section_heading("Koncernen", pc) == "group"
-    assert x._section_heading("Koncernen Moderbolaget", pc) is None  # v052's paired columns: one table, not a section
+    assert x._section_heading("Koncernen Moderbolaget", pc) is None  # MedCap's paired columns: one table, not a section
     assert x._section_heading("Förfallotidpunkt för upplåning Koncernen Moderbolaget", pc) is None  # MedCap p.101
     assert x._section_heading("Moderbolaget har inga räntebärande skulder", pc) is None  # prose, not a heading
     assert x._section_heading("Parent Company financial statements", pc) is None  # a TOC line names no section
@@ -2908,7 +2960,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     for basis in ("carrying", "undiscounted"):
         assert x._table_scope(vt_rows, None, vt_rows.index("Within 1 year 87 87 1"), basis, tsw, debt_words=dsw) == "non_debt"
         assert x._table_scope(vt_rows, None, vt_rows.index("1–2 years 2 2 –"), basis, tsw, debt_words=dsw) == "non_debt"
-    # debt words win: the work order's made-up page -- same "Contract liabilities" title, but the table's
+    # debt words win: a made-up page -- same "Contract liabilities" title, but the table's
     # own rows are the borrowings note's ("Interest-bearing liabilities") -- is NOT refused
     made_debt = ("Contract liabilities, timing of revenue\n"
                  "MSEK 2025 2024\n"
@@ -2962,7 +3014,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     ru_rows = x._page_rows(rusta_shape)
     assert x._table_scope(ru_rows, None, ru_rows.index("Total 6,624 6,669"), "carrying", tsw, debt_words=dsw) == "unknown"
     assert x._table_scope(ru_rows, None, ru_rows.index("Within one year 607 590"), "carrying", tsw, debt_words=dsw) == "parent"
-    assert x._table_scope(mc_rows, None, len(mc_rows) - 1, "carrying", tsw, debt_words=dsw) == "unknown"  # MedCap's paired columns, again with the v111 words live
+    assert x._table_scope(mc_rows, None, len(mc_rows) - 1, "carrying", tsw, debt_words=dsw) == "unknown"  # MedCap's paired columns, again with the wrong-table words live
     # end to end, Volati (real p.177 shape, trimmed): the model's own 192 (Note 17's current total, quote
     # not a printed row) survives -- the fill that used to overwrite it with the timing table's 87 refuses,
     # warning that names the table; the finer buckets stay honestly null, the total keeps its verified 3,246.
@@ -3057,13 +3109,15 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     got = {f["key"]: f["value"] for f in out["fields"]}
     assert got == {"total_debt": 622, "due_within_1_year": None, "due_1_to_5_years": None, "due_after_5_years": None}, (got, out["warnings"])
     assert sum("refused" in w and "Parent Company" in w for w in out["warnings"]) >= 3, out["warnings"]
-    # v127: CellaVision p.84's "Maturity analysis of lease liabilities" joins the refuse vocabulary. v115's
-    # live pass1 read it four-up at confidence 1.0 through a passing identity (23,300 = 12,213+8,109+2,978;
+
+    # ---- refuse vocabulary: titles that brand a table wrong-scope ---------------------------
+    # CellaVision p.84's "Maturity analysis of lease liabilities" joins the refuse vocabulary. A live pass
+    # read it four-up at confidence 1.0 through a passing identity (23,300 = 12,213+8,109+2,978;
     # raw labels unknown to the vocabulary, endorsed by identity_all_columns) against labels 25,651/13,680/
-    # 8,768/3,203 off p.92's Note C9 -- a wrong-scope table whose title carries a debt word (so the v111
-    # non-debt rule's rescue keeps it readable by design) and no refuse-marker (v103's list only had RVRC's
+    # 8,768/3,203 off p.92's Note C9 -- a wrong-scope table whose title carries a debt word (so the
+    # non-debt rule's rescue keeps it readable by design) and no refuse-marker (the list had only RVRC's
     # "maturity analysis regarding"). Both new forms are grep-real (the "of" form: 24 stems/25 pages, the
-    # "of the" form: 4 stems/4 pages); the work order's Swedish forms have zero corpus hits and are not added.
+    # "of the" form: 4 stems/4 pages); the Swedish forms have zero corpus hits and are not added.
     assert "maturity analysis of lease liabilities" in tsw["undiscounted"]
     assert "maturity analysis of the lease liabilities" in tsw["undiscounted"]
     # header level, CellaVision p.84 trimmed to its real rows: refused under the carrying basis anchored at
@@ -3094,7 +3148,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
               "- Later than one but within five years 8,109 8,876", "- Later than within five years 2,978 -"):
         assert x._table_scope(cv_rows, None, cv_rows.index(a), "carrying", tsw, debt_words=dsw) == "undiscounted", a
         assert x._table_scope(cv_rows, None, cv_rows.index(a), "undiscounted", tsw, debt_words=dsw) == "unknown", a
-    # end to end, the v115 pass1 shape: every field's citation is a printed row of the lease table -- the
+    # end to end, the live pass1 shape: every field's citation is a printed row of the lease table -- the
     # citation gate nulls all four, each warning naming the table, the check honestly missing
     x.call_llm = lambda *a, **k: {"fields": [
         {"key": "total_debt", "value": 23300, "unit": "SEK thousands", "period": "2025", "raw_label": "Total",
@@ -3144,16 +3198,18 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     for a in ("Long term 1,157 8,215", "Short term 7,370 9,198"):
         assert x._table_scope(bi_rows, None, bi_rows.index(a), "carrying", tsw, debt_words=dsw) == "unknown", a
     assert x._table_scope(bi_rows, None, bi_rows.index("Total -8,756 -8,768"), "carrying", tsw, debt_words=dsw) == "unknown"
-    # v109: the report's own calendar-year maturity columns ride along as top-level buckets_by_year
+
+    # ---- buckets_by_year: calendar-year maturity columns ------------------------------------
+    # The report's own calendar-year maturity columns ride along as top-level buckets_by_year
     # metadata -- never a model answer, only the year columns the bucket-column reader itself
     # aligned (the _bucket_year_hits header fallback behind the recorded pick), re-read on the
-    # pick's own row, one entry per printed column (a dash = the report's explicit 0, v078 one
+    # pick's own row, one entry per printed column (a dash = the report's explicit 0, one
     # window finer), gated on the schema's own identity against the extraction's total_debt within
     # the check's own +-2. The three bucket fields and their summation of the year columns are
-    # v036/v095's, byte-identical; row-shaped year tables and date/interval notes give no key.
+    # the bucket-row paths' own, byte-identical; row-shaped year tables and date/interval notes give no key.
     # Electrolux Professional, end to end on the real p.174 shape (data/kb pages.jsonl, Note 18
     # "Repayment schedule for long-term borrowings, December 31, 2025"): header "SEKm 2026 2027
-    # 2028 2029 2030 2031- Total", the Total row printing two dashes (v078's explicit 0s). The
+    # 2028 2029 2030 2031- Total", the Total row printing two dashes (the report's explicit 0s). The
     # corpus holds exactly one company whose year table passes every existing valve and closes
     # (docs/acrylic/evidence/v109.md); the model answers nothing here, so the read is purely
     # deterministic.
@@ -3168,7 +3224,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     out = x.extract([electrolux174], [1], dm, {"fiscal_year": 2025})
     got = {f["key"]: f["value"] for f in out["fields"]}
     assert got == {"total_debt": 2332, "due_within_1_year": 544, "due_1_to_5_years": 1788, "due_after_5_years": 0} \
-        and out["checks"][0]["passed"], (got, out["checks"], out["warnings"])  # v036/v078's own read, unchanged
+        and out["checks"][0]["passed"], (got, out["checks"], out["warnings"])  # the same deterministic read, unchanged
     by = out["buckets_by_year"]
     assert by["basis"] == "carrying", by
     assert [(y["label"], y["value"]) for y in by["years"]] == [
@@ -3197,7 +3253,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     out = x.extract([cloetta], [1], dm, {"fiscal_year": 2025})
     assert "buckets_by_year" not in out, out.get("buckets_by_year")
     # counter-example 2 (real, Acast p.65's own shape): the year columns ARE on the page, but the
-    # carrying column printed before them misaligns the header (v040's over-valve rejection) and
+    # carrying column printed before them misaligns the header (the over-valve rejection) and
     # the years sum to an undiscounted 701,636 against a carrying 690,785 anyway -- no key
     x.call_llm = lambda *a, **k: {"fields": [
         {"key": "total_debt", "value": 135382, "unit": "SEK thousand", "period": "2025", "raw_label": "Total lease Liability",
@@ -3214,7 +3270,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     out = x.extract([yr999], [1], dm, {"fiscal_year": 2025})
     assert {f["key"]: f["value"] for f in out["fields"]}["total_debt"] == 999, out["warnings"]
     assert "buckets_by_year" not in out, out.get("buckets_by_year")  # 120+80+0+40+0+60 != 999
-    # v109 continuation -- the ROW-shaped year table (seed 11 landed after the lane's first pass): the
+    # Continuation -- the ROW-shaped year table: the
     # report prints one figure per calendar year and pymupdf tears the rows into a single line of
     # "<year> <figure>" pairs. BTS p.92 (data/kb pages.jsonl, real text, trimmed to the two tables):
     # "Maturity analyses for liabilities to credit institutions / SEK thousands 12-31-25 2026 77,141
@@ -3242,7 +3298,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
         ("2026", 77141), ("2027", 39), ("2028", 300039), ("2029", 202539), ("2030", 39)], by
     assert all(y["source"] == {"page": 1, "quote": "SEK thousands 12-31-25 2026 77,141 2027 39 2028 300,039 2029 202,539 2030 39"}
                for y in by["years"]), by
-    # v157: the same ladder as ANSWERS, not just metadata -- 2026 -> within 1 year, 2027-2030 summed
+    # The same ladder as ANSWERS, not just metadata -- 2026 -> within 1 year, 2027-2030 summed
     # into 1-5 years. No tail row is printed, so due_after_5_years stays null; never a fabricated 0
     vals = {f["key"]: f["value"] for f in out["fields"]}
     assert (vals["due_within_1_year"], vals["due_1_to_5_years"], vals["due_after_5_years"]) == (77141, 502656, None), vals
@@ -3262,7 +3318,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     vals = {f["key"]: f["value"] for f in out["fields"]}
     assert vals["total_debt"] == 32703, out["warnings"]
     assert "buckets_by_year" not in out, out.get("buckets_by_year")  # 530+386+308+252+193+169 = 1,838 != 32,703
-    # v157: and the year ladder must not ANSWER the buckets off it either -- a lease subset is strictly
+    # and the year ladder must not ANSWER the buckets off it either -- a lease subset is strictly
     # smaller than total_debt, which is the fill's first gate (1,838 < 32,703, and 94% away from it)
     assert all(vals[k] is None for k in ("due_within_1_year", "due_1_to_5_years", "due_after_5_years")), vals
     # the same machinery with years that DO close on total_debt: the open-end tail row rides along as
@@ -3276,9 +3332,9 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     out = x.extract([yr_tail], [1], dm, {"fiscal_year": 2025})
     by = out["buckets_by_year"]
     assert [(y["label"], y["value"]) for y in by["years"]] == [
-        ("2026", 120), ("2027", 80), ("2028", 0), ("2029", 40), ("Senare", 60)], by  # the dash is the report's explicit 0 (v078)
+        ("2026", 120), ("2027", 80), ("2028", 0), ("2029", 40), ("Senare", 60)], by  # the dash is the report's explicit 0
     assert by["years"][-1]["source"]["quote"] == "Senare 60", by
-    vals = {f["key"]: f["value"] for f in out["fields"]}  # v157: the tail row is the after-5-years bucket
+    vals = {f["key"]: f["value"] for f in out["fields"]}  # the tail row is the after-5-years bucket
     assert (vals["due_within_1_year"], vals["due_1_to_5_years"], vals["due_after_5_years"]) == (120, 120, 60), vals
     # ABB p.89 (real text, trimmed): a US-GAAP borrowings note whose maturity table is a bare year
     # ladder -- no bucket synonym anywhere on it, so every bucket came back null however well the page
@@ -3373,16 +3429,18 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     out = x.extract([bts93], [1], dm, {"fiscal_year": 2025})
     assert {f["key"]: f["value"] for f in out["fields"]}["total_debt"] == 548320, out["warnings"]
     assert "buckets_by_year" not in out, out.get("buckets_by_year")
-    # v126: the note that classifies each instrument's balance by REPAYMENT TIMING instead of printing
+
+    # ---- repayment-window families ----------------------------------------------------------
+    # The note that classifies each instrument's balance by REPAYMENT TIMING instead of printing
     # bucket rows -- Stillfront Note 21, p.109 (the fixture above is this note's top half; here it is in
     # full). The model summed the note's own rows correctly (710 = the current-classified rows 675 + 35;
     # 5,152 = the five "Repayment within 2–5 yr." component rows 620 + 2,835 + 649 + 984 + 64) but no row
-    # prints either figure, so the computed-not-read guard dropped both (v118 finding 3: labels 710/5152,
+    # prints either figure, so the computed-not-read guard dropped both (labels 710/5152,
     # stored null). The rescue is window geometry, not vocabulary: every row of the page whose label
     # parses inside ONE bucket's window (_row_bucket_span -> _span_bucket), at least two of them, summed
     # in the one column where the note's own total row ties to the verified total_debt, equal to the
     # model's value -> kept as value_derived. "Repayment within 2–5 yr." parses ONLY behind the
-    # "repayment" prefix (bare yr/y stays a non-unit in _bucket_span, v096's exclusion above).
+    # "repayment" prefix (bare yr/y stays a non-unit in _bucket_span, the exclusion above).
     # The glued two-column page: _row_bucket_span reads the wording at the row's figure edge.
     assert x._row_bucket_span("0–6 months 523 490") == ((0, 6), "0–6 months")  # clean interval rows: unchanged _bucket_span territory
     assert x._row_bucket_span("Bond loans 2,835 2,829 Repayment within 2–5 yr. 620 1,170") == ((24, 60), "Repayment within 2–5 yr.")
@@ -3452,7 +3510,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     # ("Other interest-bearing liabilities 22" has no timing split on the page) -- the labels' own values
     assert not out["checks"][0]["passed"] and "abs((710 + 5152 + 4) - 5887) <= 2" in out["checks"][0]["detail"], out["checks"]
     # the same answers with the model's multi-row-merged quotes: the suffix of a merged quote verifies
-    # (v051's MedCap mechanism), so both forms reach the same guard -- and the same rescue
+    # (the MedCap mechanism above), so both forms reach the same guard -- and the same rescue
     merged = [dict(f, source={"page": 1, "quote": q}) for f, q in zip(sf_v126, [
         "Total 5,887 7,053",
         "Current liability 675 862 Current liability 35 40",
@@ -3491,7 +3549,7 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
         assert got["due_1_to_5_years"]["value"] is None, (name, got["due_1_to_5_years"], out["warnings"])
         assert any("dropped as computed, not read" in w for w in out["warnings"]), (name, out["warnings"])
         assert not any("kept as value_derived" in w for w in out["warnings"]), (name, out["warnings"])
-    # v156: the window family derives on a NULL answer (v126's family, v096's adoption) -- the same
+    # The window family derives on a NULL answer -- the same
     # family and column gates, and the closure gate in place of the model's own value: family sum +
     # the other buckets' already-read values (null ones at 0) must reach the tied total through
     # maturity_sums_to_total. Two "Repayment within 1 yr." rows closing on the verified 150 prove
@@ -3564,13 +3622,15 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     assert x._window_subtotal_row("Total Repayment within 2–5 yr. 200 190", "due_1_to_5_years")
     assert not x._window_subtotal_row("Total Repayment within 2–5 yr. 200 190", "due_within_1_year")
     assert not x._window_subtotal_row("Total 150 999", "due_1_to_5_years")  # no window wording: no subtotal of any window
-    assert not x._window_subtotal_row("Summa inom 1 år 100", "due_within_1_year")  # no v126 wording: nobody's guard
-    # v125: the model's own printed sub-total survives a column-order read from another table. Viscaria
+    assert not x._window_subtotal_row("Summa inom 1 år 100", "due_within_1_year")  # no repayment-window wording: nobody's guard
+
+    # ---- a printed sub-total beats a column read --------------------------------------------
+    # The model's own printed sub-total survives a column-order read from another table. Viscaria
     # (real pages, trimmed; renumbered p.100 -> 1, p.101 -> 2, p.110 -> 3, the walk order the stored
-    # seed-rerun-v118 run had): the model answers Note 22's own printed current sub-total 661.8 and
+    # stored rerun had): the model answers Note 22's own printed current sub-total 661.8 and
     # total 677.8 (the label's values); the bucket-column read on p.100 -- the liquidity note's
     # undiscounted per-instrument table, reached through the lease row's row_synonyms candidacy
-    # (v088's Volati family) -- used to overwrite w1y with 2.2 ("661.8 disagrees with the maturity
+    # (the Volati family) -- used to overwrite w1y with 2.2 ("661.8 disagrees with the maturity
     # table; 2.2 read from 'Lease liabilities 0.7 2.2 3.0 2.6 -' by its column order"). Three gates,
     # all required: 661.8 printed verbatim in the candidate window, the row printing it a sub-total/
     # total shape (Total/current), and the read from another table (another page, or a same-page table
@@ -3650,11 +3710,13 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     assert got == {"total_debt": 677.8, "due_within_1_year": 661.8, "due_1_to_5_years": 5.6, "due_after_5_years": None}, (got, out["warnings"])
     assert any("kept the model's own 661.8 -- printed on page 1 as 'Total current liabilities 661.8 2.5'" in w
                for w in out["warnings"]), out["warnings"]
-    # v144: MTG p.142 is a comparative gross-values table.  The 2024 lease row's final two
+
+    # ---- comparative gross-value tables -----------------------------------------------------
+    # MTG p.142 is a comparative gross-values table.  The 2024 lease row's final two
     # cells are separate values, but the four recognised headers make _row_amounts read them
     # as the Swedish-looking 85,151.  Its three bucket cells total only 225, so that row cannot
     # replace the model's own 3,487 carrying amount.  This frozen fixture is the relevant real
-    # text; do not couple the test to the mutable data/kb corpus (v130).
+    # text; do not couple the test to the mutable data/kb corpus.
     mtg142 = ("Group notes\n"
               "Note 16 cont.\n"
               "Terms and payback period, gross values\n"
@@ -3728,12 +3790,12 @@ Return ONE JSON object {"pages": [primary, companion]}, primary first. Never inv
     out = x.extract([closed], [1], dm, {"fiscal_year": 2025})
     assert next(f for f in out["fields"] if f["key"] == "total_debt")["value"] == 1000, out["warnings"]
     # and the read inside the very table the model cited is untouched (Cloetta's disagree case above:
-    # the cited row IS the read row) -- v052's paired columns and v068's prior-year column along with it
+    # the cited row IS the read row) -- the paired columns and prior-year column along with it
     print("confidence self-check ok")
 
 
 def test_confidence_never_exceeds_one():
-    """v097 found 1.2: a derived value whose stitched quote also contained the number earned value_in_quote AND
+    """A derived value whose stitched quote also contained the number earned value_in_quote AND
     value_derived. score_field keeps the derived marker only and clamps the sum at 1.0."""
     from . import extract as x
     f = {"key": "due_within_1_year", "value": 1039, "unit": "MSEK", "period": "2025", "raw_label": "0-6 months + 7-12 months",
@@ -3746,7 +3808,7 @@ def test_confidence_never_exceeds_one():
 
 
 def test_scale_only_model_unit_gets_statement_currency():
-    """w208: ``In millions`` plus dollar rows becomes USD millions, never per-character USD."""
+    """``In millions`` plus dollar rows becomes USD millions, never per-character USD."""
     page = ("Consolidated Statements of Operations\nYear Ended\n"
             "December 27, 2025 December 28, 2024\n(In millions)\n"
             "Net revenue $ 34,639 $ 25,785\n")
@@ -3769,7 +3831,7 @@ def test_scale_only_model_unit_gets_statement_currency():
 
 
 def test_torn_bucket_headers():
-    """v151: torn CTT bucket labels and BICO's orphan year rows are rejoined conservatively."""
+    """Torn CTT bucket labels and BICO's orphan year rows are rejoined conservatively."""
     import json
     import pathlib
 
@@ -3835,7 +3897,7 @@ def test_torn_bucket_headers():
 
 
 def test_financial_liabilities_rollforward_total():
-    """v155: AcadeMedia's current roll-forward beats a sibling generic currency total."""
+    """AcadeMedia's current roll-forward beats a sibling generic currency total."""
     import copy
     import json
     import pathlib
@@ -3877,7 +3939,7 @@ def test_financial_liabilities_rollforward_total():
 
 
 def test_cash_flow_citation_refusal():
-    """v155: a cash-flow movement closing balance is not carrying debt."""
+    """A cash-flow movement closing balance is not carrying debt."""
     import copy
     import json
     import pathlib
@@ -3928,7 +3990,7 @@ def test_cash_flow_citation_refusal():
 
 
 def test_gross_value_prior_year_citation_refusal():
-    """v155: an MTG-style prior gross-value block cannot stand in for FY2025 debt."""
+    """An MTG-style prior gross-value block cannot stand in for FY2025 debt."""
     import copy
     import json
     import pathlib
@@ -3961,7 +4023,7 @@ def test_gross_value_prior_year_citation_refusal():
 
 
 def test_note_citation_preference():
-    """v157: a literal note row can improve provenance without changing the figure."""
+    """A literal note row can improve provenance without changing the figure."""
     schema = {
         "name": "debt_maturity",
         "keywords": ["borrowings"],
@@ -4067,7 +4129,7 @@ def test_bucket_row_label_known():
 
 
 def test_balance_sheet_tie():
-    """v166: balance-sheet rows are independent zero-weight evidence for a debt total.
+    """Balance-sheet rows are independent zero-weight evidence for a debt total.
 
     Frozen excerpts preserve the real KABE, Net Insight, Cavotec, Ericsson and Dynavox shapes without
     coupling this test to mutable KB text.  KABE demonstrates the two narrowly added Swedish row labels;
@@ -4136,12 +4198,12 @@ def test_balance_sheet_tie():
     print("balance-sheet tie ok")
 
 def test_absent_in_table_bucket():
-    """v165: a bucket the maturity table prints no column for is the report's own explicit absence, not the
+    """A bucket the maturity table prints no column for is the report's own explicit absence, not the
     model's silence. Ependion's contracted-terms table (real p.155 shape): columns Within 12 months / Between
     1 and 2 years / Between 2 and 3 years / Total -- no after-five-years column exists, so due_after_5_years
     stays null but carries evidence ["absent_in_table"] with the header row as its source, and the identity
     counts it as 0 (167,546 + 415,984 + 0 == 583,531 within the check's own rounding). A bucket the table
-    DOES print a column for (here as a dash) keeps v078's honest rules: no dash-to-0 without the row's own
+    DOES print a column for (here as a dash) keeps the printed-nil rules: no dash-to-0 without the row's own
     arithmetic, and no absent_in_table either -- its null is a different, printed kind."""
     import json
     import pathlib
@@ -4176,7 +4238,7 @@ def test_absent_in_table_bucket():
     assert "missing" not in check["detail"] and "due_after_5_years" in check["detail"], check
 
     # A column the table DOES print but whose cell is a dash is not "absent": the header names it, so the
-    # bucket has its own printed column and keeps the v078 rules -- no 0 without the row's own arithmetic,
+    # bucket has its own printed column and keeps the printed-nil rules -- no 0 without the row's own arithmetic,
     # no absent_in_table. And with another operand still an unanswered null, the identity's verdict stays
     # "missing: <that field>" instead of silently passing on the one proven absence.
     dashed = ("Contracted terms\n"
@@ -4208,7 +4270,7 @@ def test_absent_in_table_bucket():
 
 
 def test_fixed_pages_skip_selection():
-    """v177: analyst-supplied pages are the complete model window, even when two-pass is enabled."""
+    """Analyst-supplied pages are the complete model window, even when two-pass is enabled."""
     import json
     import os
     import pathlib
@@ -4236,7 +4298,7 @@ def test_fixed_pages_skip_selection():
 
 
 def test_scan_all_is_separate_and_opt_in():
-    """m02: brute-force comparison scans stay opt-in and never replace fixed-page fills."""
+    """Brute-force comparison scans stay opt-in and never replace fixed-page fills."""
     import json
     import os
     import pathlib
@@ -4287,7 +4349,7 @@ def test_scan_all_is_separate_and_opt_in():
 
 
 def test_heldout_parent_continuation_and_unmarked_lease_schedule():
-    """v186: held-out wrong tables stay outside the Group debt result."""
+    """Held-out wrong tables stay outside the Group debt result."""
     import json
     import pathlib
 
@@ -4393,7 +4455,7 @@ def test_heldout_parent_continuation_and_unmarked_lease_schedule():
 
 
 def test_missing_reasons_for_honest_debt_nulls():
-    """v181: known mapping gaps explain a null without changing any debt value."""
+    """Known mapping gaps explain a null without changing any debt value."""
     import json
     import pathlib
 
@@ -4482,7 +4544,7 @@ def test_missing_reasons_for_honest_debt_nulls():
 
 
 def test_fulltext_sweep_finds_numeric_synonym_rows_and_skips_tried_or_ocr_pages():
-    """w198: every reconstructed row is searchable, but tried/pending pages never repeat."""
+    """Every reconstructed row is searchable, but tried/pending pages never repeat."""
     income = {"key": "net_profit", "label": "Profit for the year",
               "synonyms": ["profit for the year", "net income"]}
     texts = ["Narrative only"] * 80
@@ -4500,7 +4562,7 @@ def test_fulltext_sweep_finds_numeric_synonym_rows_and_skips_tried_or_ocr_pages(
 
 
 def test_fulltext_sweep_ranks_hit_count_then_page_and_caps_three():
-    """w198: hit count wins, page number breaks ties, and no field gets more than three pages."""
+    """Hit count wins, page number breaks ties, and no field gets more than three pages."""
     field = {"key": "revenue", "label": "Revenue", "synonyms": ["revenue"]}
     texts = ["Revenue 1", "Revenue 2\nRevenue 3", "Revenue 4", "Revenue 5", "Revenue without a figure"]
     swept = x.sweep_pages(texts, field)
@@ -4509,7 +4571,7 @@ def test_fulltext_sweep_ranks_hit_count_then_page_and_caps_three():
 
 
 def test_fulltext_sweep_finds_current_and_noncurrent_lease_liability_rows():
-    """w203: coverage_check's 12 label pages with no numeric synonym row (docs/acrylic/evidence/w203.md).
+    """coverage_check's 12 label pages with no numeric synonym row (docs/acrylic/evidence/w203.md).
     smartcraft_2025 p.58: the company's whole interest-bearing debt is its lease liabilities (p.32
     prose: no bank loans), and Note 24's roll-forward prints the current/1-5y split as bare
     'Current lease liabilities' / 'Non-current lease liabilit(y/ies)' rows -- the bucket-window
@@ -4531,7 +4593,7 @@ def test_fulltext_sweep_finds_current_and_noncurrent_lease_liability_rows():
 
 
 def test_fulltext_sweep_finds_interest_bearing_loans_row():
-    """w203: dynavox_2025 p.133's Note 23 financial-instruments-by-category table carries the group's
+    """dynavox_2025 p.133's Note 23 financial-instruments-by-category table carries the group's
     borrowings total as 'Interest-bearing loans' -- a wording total_debt's prior synonyms
     ('borrowings', 'bank loan(s)', 'interest-bearing liabilities') do not prefix-match."""
     import json
@@ -4546,7 +4608,7 @@ def test_fulltext_sweep_finds_interest_bearing_loans_row():
 
 
 def test_fulltext_sweep_finds_total_lease_liability_row():
-    """w203: acast_2025 p.67's Note 29 leases table is the group's only interest-bearing debt (prose:
+    """acast_2025 p.67's Note 29 leases table is the group's only interest-bearing debt (prose:
     no significant loans) and sums current+non-current to 'Total lease Liability' -- capitalised
     mid-phrase exactly as printed, and not a prefix match on the existing 'lease liabilit(y/ies)'
     row_synonyms (which do not start with 'total')."""
@@ -4561,7 +4623,7 @@ def test_fulltext_sweep_finds_total_lease_liability_row():
 
 
 def test_fulltext_sweep_finds_us_gaap_due_in_rows():
-    """w208: the bounded second pass can discover NVIDIA's US-GAAP maturity schedule."""
+    """The bounded second pass can discover NVIDIA's US-GAAP maturity schedule."""
     import json
     import pathlib
     dm = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
@@ -4580,7 +4642,7 @@ def test_fulltext_sweep_finds_us_gaap_due_in_rows():
 
 
 def test_us_gaap_due_in_schedule_fills_only_closed_shape():
-    """w208: four explicit US-GAAP rows may safely form the three product buckets."""
+    """Four explicit US-GAAP rows may safely form the three product buckets."""
     import json
     import pathlib
     dm = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
@@ -4618,7 +4680,7 @@ def test_us_gaap_due_in_schedule_fills_only_closed_shape():
 
 
 def test_numbered_noncurrent_ladder_joins_current_loans():
-    """w208: a fiscal+2 non-current ladder closes with the note's current loan rows."""
+    """A fiscal+2 non-current ladder closes with the note's current loan rows."""
     import json
     import pathlib
     dm = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
@@ -4667,7 +4729,7 @@ def _second_pass_result(schema, keys):
 
 
 def test_second_pass_fills_required_field_from_full_candidate_pages():
-    """w197: a required null receives one bounded, synonym-aware fixed-page retry."""
+    """A required null receives one bounded, synonym-aware fixed-page retry."""
     schema = {"name": "income_statement", "title": "Income statement", "description": "Group statement",
               "value_convention": "As printed", "fields": [
                   {"key": "revenue", "label": "Revenue", "description": "Group revenue",
@@ -4698,7 +4760,7 @@ def test_second_pass_fills_required_field_from_full_candidate_pages():
 
 
 def test_second_pass_retries_a_locator_miss_on_fulltext_sweep_pages():
-    """w198: a required null gets one final fixed-page read of untried synonym-hit pages."""
+    """A required null gets one final fixed-page read of untried synonym-hit pages."""
     schema = {"name": "income_statement", "title": "Income statement", "description": "Group statement",
               "value_convention": "As printed", "fields": [
                   {"key": "net_profit", "label": "Profit for the year", "description": "Group result",
@@ -4731,7 +4793,7 @@ def test_second_pass_retries_a_locator_miss_on_fulltext_sweep_pages():
 
 
 def test_second_pass_rejects_a_quote_not_on_its_page():
-    """w197: a second-pass number without its own printed quote remains a null."""
+    """A second-pass number without its own printed quote remains a null."""
     schema = {"name": "income_statement", "title": "Income statement", "description": "Group statement",
               "value_convention": "As printed", "fields": [
                   {"key": "revenue", "label": "Revenue", "description": "Group revenue",
@@ -4753,7 +4815,7 @@ def test_second_pass_rejects_a_quote_not_on_its_page():
 
 
 def test_second_pass_skips_optional_nulls():
-    """w197: optional schema fields do not spend a retry call."""
+    """Optional schema fields do not spend a retry call."""
     schema = {"name": "income_statement", "title": "Income statement", "description": "Group statement",
               "value_convention": "As printed", "fields": [
                   {"key": "cost_of_sales", "label": "Cost of sales", "description": "Optional line",
@@ -4770,7 +4832,7 @@ def test_second_pass_skips_optional_nulls():
 
 
 def test_second_pass_caps_required_nulls_and_off_switch_makes_zero_calls():
-    """w197: at most three keys retry; default/off make no calls and an explicit opt-in does."""
+    """At most three keys retry; default/off make no calls and an explicit opt-in does."""
     import os
     import app
 

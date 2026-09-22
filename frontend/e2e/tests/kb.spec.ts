@@ -5,8 +5,8 @@ import { railTab } from '../support/nav'
 import { trackPageErrors } from '../support/page-errors'
 import { gotoWithTone, TONES } from '../support/tone'
 
-// Fully mocked (w199): proves the KB page's building-poll stops on its own instead of re-fetching
-// the whole KB every 2 s for as long as any row says building (the w195 poll storm). Two building
+// Fully mocked: proves the KB page's building-poll stops on its own instead of re-fetching
+// the whole KB every 2 s for as long as any row says building. Two building
 // listings, then a ready one — the third scheduled poll must never fire.
 const kbEntry = (status: string) => ({
   stem: 'acme_2025', report_id: 'lib-acme_2025', company: 'Acme', fiscal_year: 2025, pages: 3,
@@ -60,7 +60,7 @@ test('kb: building poll backs off, then stops for good once a listing has no bui
 // The real-library smoke case requires the Atlas saved extraction.
 const ATLAS_EXTRACTION = path.resolve(import.meta.dirname, '../../../data/kb/atlas_copco_2025/extractions/income_statement.json')
 const REASON = 'Atlas Copco saved income statement is not present'
-// v180: the maturity wall card needs a saved debt_maturity extraction in the default collection.
+// The maturity wall card needs a saved debt_maturity extraction in the default collection.
 const ERICSSON_DEBT = path.resolve(import.meta.dirname, '../../../data/kb/ericsson_2025/extractions/debt_maturity.json')
 const WALL_REASON = 'Ericsson saved debt maturity extraction is not present'
 
@@ -131,7 +131,7 @@ for (const tone of TONES) {
     expect(errors).toEqual([])
   })
 
-  // v180: the KB page's "Maturity wall" card — one bar per company grouped by sector. On the seed
+  // The KB page's "Maturity wall" card — one bar per company grouped by sector. On the seed
   // KB the default collection's single debt report (Ericsson) has buckets that do not reconcile,
   // so the card must show one group, its count line, and the honest grey "buckets incomplete" mark.
   test(`kb: maturity wall card groups the collection by sector [${tone}]`, async ({ page }) => {
@@ -142,7 +142,7 @@ for (const tone of TONES) {
     await railTab(page, 'Knowledge base').click()
     // The toolbar (and with it the Maturity wall button) only renders once GET /api/kb lands, which
     // takes seconds cold for 206 stems — ride it out here rather than repeating the pre-existing
-    // 5 s-budget smoke failures (docs/acrylic/evidence/v165.md).
+    // 5 s-budget smoke failures (see docs/acrylic/evidence/v165.md).
     await expect(page.getByRole('heading', { name: /reports/ })).toBeVisible({ timeout: 20000 })
     await expect(page.getByRole('button', { name: 'Maturity wall' })).toBeVisible({ timeout: 20000 })
 

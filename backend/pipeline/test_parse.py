@@ -127,7 +127,7 @@ def case_two_tables(mod):
 
 
 def case_stacked_header_columns(mod):
-    # (e) three adjacent wrapped header cells (Ependion p.155's maturity table, v049b): each cell's own
+    # (e) three adjacent wrapped header cells (Ependion p.155's maturity table): each cell's own
     # stacked fragments must chain into one phrase, and neighboring cells must never interleave. Pymupdf
     # groups these fragments into blocks by its own layout heuristic, which this test does not control and
     # which changed between pymupdf releases for this exact page (one block under 1.27.2.3, five under
@@ -149,7 +149,7 @@ def case_stacked_header_columns(mod):
 
 
 def columns(mod=p):
-    """v049: the word-level rebuild is column-aware. Three layouts the page-wide baseline merge got wrong."""
+    """The word-level rebuild is column-aware. Three layouts the page-wide baseline merge got wrong."""
     case_sidebar(mod)
     case_full_width_table(mod)
     case_two_tables(mod)
@@ -157,13 +157,13 @@ def columns(mod=p):
 
 
 def stacking(mod=p):
-    """v049b: stacked-cell chaining does not depend on pymupdf's own block partition."""
+    """Stacked-cell chaining does not depend on pymupdf's own block partition."""
     case_stacked_header_columns(mod)
     print("parse stacking self-check ok")
 
 
 def case_transposed_header(mod):
-    # (g) a table header matrix-transposed across two physical lines (v060/v068: Ework p.70, XANO p.84):
+    # (g) a table header matrix-transposed across two physical lines (Ework p.70, XANO p.84):
     # every column's single/first line sits at one height, every column's second line (only the columns
     # that need one) sits at another, so plain reading order glues "top halves, then everything else"
     # into two lines matching no real column order. A data row with >=3 bare amounts fixes each column's
@@ -191,7 +191,7 @@ def case_header_conflict_declines(mod):
     # a header word that cannot be matched to any column within tolerance (a stray label wandered into
     # the table's own column region) must not be forced onto the nearest one -- the rebuild declines and
     # both original lines survive untouched, the same restraint extract.py's own column-count safety
-    # valve uses (v036).
+    # valve uses.
     col1, col2, col3 = 260, 330, 400
     items = [
         ("text", (60, 400), "Total"),
@@ -212,7 +212,7 @@ def case_header_conflict_declines(mod):
 
 
 def headers(mod=p):
-    """v068: a two-line, matrix-transposed table header is rebuilt into true column order; a header
+    """A two-line, matrix-transposed table header is rebuilt into true column order; a header
     whose words don't unambiguously match the data row's own columns is left exactly as printed."""
     case_transposed_header(mod)
     case_header_conflict_declines(mod)

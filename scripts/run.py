@@ -8,7 +8,7 @@ when frontend/dist is missing/stale (skipped otherwise), then starts the backend
 that also serves the built frontend (FRONTEND_DIST) on one port -- same origin, no proxy, no CORS --
 and opens it in a browser. Ctrl+C stops it and kills the backend process it started.
 
-Wrapped by run.bat (Windows) / run.sh (mac/Linux) at the repo root -- see README.md "Quick start".
+Wrapped by run.bat (Windows) / run.sh (mac/Linux) at the repo root -- see README.md "Install / run".
 --reinstall recreates backend/.venv and frontend/node_modules and rebuilds frontend/dist.
 
 Model provider: unset by default -> the backend answers with fixture data (no model calls, ever from
@@ -209,7 +209,7 @@ def print_mode_banner(port: int) -> None:
 
 def start_backend(vpy: Path, port: int) -> subprocess.Popen:
     env = os.environ.copy()
-    env["FRONTEND_DIST"] = str(DIST_DIR)  # single-port hosting: backend serves the built frontend too (app.py, v030)
+    env["FRONTEND_DIST"] = str(DIST_DIR)  # single-port hosting: backend serves the built frontend too (app.py)
     kwargs = {} if os.name == "nt" else {"start_new_session": True}  # POSIX: own process group, so kill_process_tree() can killpg it alone
     return subprocess.Popen(
         [str(vpy), "-m", "uvicorn", "app:app", "--host", "127.0.0.1", "--port", str(port)],

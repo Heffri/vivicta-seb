@@ -1,7 +1,7 @@
 """Replay stored KB extractions through extract() -- baseline code vs worktree code, zero model calls.
 
-    python scripts/replay_check.py                                  # income_statement, data/kb, old = origin/acrylic
-    python scripts/replay_check.py --section debt_maturity --section income_statement
+    python scripts/replay_check.py --baseline <git-ref>             # income_statement, data/kb
+    python scripts/replay_check.py --section debt_maturity --section income_statement --baseline <git-ref>
     python scripts/replay_check.py --kb <dir> --kb <dir> --baseline <git-ref> --only stem1,stem2 --out <file>
 
 For every <kb>/<stem>/extractions/<section>.json the stored fields are fed back as the model's own
@@ -22,6 +22,9 @@ received as `pages`; else the deduped sorted set of the stored fields' source.pa
 With EXTRACT_TWO_PASS off the replay's window is that list's first two pages, which for a two-pass
 run whose selection was not its first two candidates differs from the original window -- equally on
 both sides, and never against a stored-value comparison (none is made).
+
+The default --baseline, origin/acrylic, no longer exists in this repository: pass --baseline
+explicitly.
 
 Compared per field: value (by repr, so 5 vs 5.0 shows), confidence, the evidence set; per check:
 passed + detail up to the first " | " (the "missing: <field>" prefix, or the check's own text); and

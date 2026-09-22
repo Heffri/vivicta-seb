@@ -21,7 +21,7 @@ const tooltipCls =
 const segCls =
   'group relative h-full min-w-1.5 shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1'
 
-/** One row of the Compare matrix (v020): a horizontal three-segment bar per column, each
+/** One row of the Compare matrix: a horizontal three-segment bar per column, each
  *  segment sized to its bucket's share of total_debt — the same bucket judgment as
  *  MaturityChart (results view), reused rather than re-decided. Renders unconditionally;
  *  CompareView only mounts it once every successful column is bucket-shaped. */
@@ -41,7 +41,7 @@ export function MaturityBar({ extraction }: { extraction: Extraction }) {
   const denom = Math.max(total ?? 0, sum, 1e-9)
   const sliverPct = mismatch && shortfall > SUM_TOLERANCE ? (shortfall / denom) * 100 : 0
   // Sum overshooting total (or total missing) has no free space to draw a sliver in —
-  // ring the whole bar instead, per the work order's explicit fallback.
+  // ring the whole bar instead.
   const outlineOnly = mismatch && sliverPct === 0
 
   return (
