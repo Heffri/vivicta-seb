@@ -169,12 +169,28 @@ def fill_texts(report_id: str) -> list[str]:
 
 
 def library_index() -> list[dict]:
-    """index.json entries whose PDF is actually on disk."""
+    """index.json entries whose PDF is present *and readable*.
+
+    A killed write may leave a filename behind. Never advertise that as a cached report: the
+    fetch route can retry it, while /api/library and /from-library stay safe and deterministic.
+    """
     index = LIBRARY / "index.json"
     if not index.is_file():
         return []  # an isolated ARP_DATA_DIR starts with an empty report cache
     entries = json.loads(index.read_text(encoding="utf-8"))
-    return [e for e in entries if (LIBRARY / e["file"]).exists()]
+    out = []
+    for e in entries:
+        filename = e.get("file") if isinstance(e, dict) else None
+        if not isinstance(filename, str) or Path(filename).name != filename:
+            continue
+        path = LIBRARY / filename
+        try:
+            with pymupdf.open(path) as doc:
+                if doc.is_pdf and doc.page_count > 0:
+                    out.append(e)
+        except Exception:
+            continue
+    return out
 
 
 def get_report(report_id: str) -> dict:
@@ -333,6 +349,8 @@ def fetch_report(body: FetchBody):
         try:
             # A confirmed candidate's url is tried first; then the connected model searches official sources; feeds are fallback discovery.
             entry = fetch.fetch_report(body.company, body.year, LIBRARY, body.country, body.hint, url=body.url)
+        except fetch.ReportStoreError as e:
+            return JSONResponse({"detail": str(e), "tried": [body.url] if body.url else []}, status_code=503)
         except LookupError as e:
             if saved:  # the PDF is wanted but unreachable: the git-synced page text still extracts; the Source panel says the PDF is missing
                 return get_report(saved_report_id(saved[0]["stem"]))
