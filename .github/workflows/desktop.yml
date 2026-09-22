@@ -108,7 +108,10 @@ jobs:
           $tag = "desktop-$env:RELEASE_CHANNEL"
           gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
           if ($LASTEXITCODE -ne 0) {
-            gh release create $tag --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Desktop ($env:RELEASE_CHANNEL)" --notes "Automatic desktop updates from the $env:RELEASE_CHANNEL branch." --prerelease
+            # main is the public download, so it is a full release and shows up as "Latest";
+            # demo stays a prerelease so it never competes for that slot.
+            $flags = if ($env:RELEASE_CHANNEL -eq 'main') { @() } else { @('--prerelease') }
+            gh release create $tag --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Desktop ($env:RELEASE_CHANNEL)" --notes "Automatic desktop updates from the $env:RELEASE_CHANNEL branch." @flags
             if ($LASTEXITCODE -ne 0) { throw 'Could not create release' }
           }
           $assets = @(Get-ChildItem desktop/dist -File | Where-Object { $_.Extension -in '.exe', '.blockmap' } | ForEach-Object FullName)

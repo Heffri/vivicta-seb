@@ -5,7 +5,9 @@ if (!/^1\.\d+\.\d+$/.test(version || '')) throw new Error('RELEASE_VERSION must 
 module.exports = {
   extends: './electron-builder.yml',
   appId: channel === 'demo' ? 'com.vivicta.annual-report-parser' : 'com.vivicta.annual-report-parser.main',
-  nsis: { artifactName: `annual-report-parser-${channel}-setup-${version}.exe` },
+  // Stable filename, so every run clobbers the same asset and the release page shows exactly
+  // one installer — the current build. latest.yml carries the version for auto-update.
+  nsis: { artifactName: `annual-report-parser-${channel}-setup.exe` },
   productName: channel === 'demo' ? 'Annual Report Parser Demo' : 'Annual Report Parser',
   extraMetadata: {
     version,

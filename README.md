@@ -32,12 +32,16 @@ script — the two bundled samples, a three-minute line-by-line, and the demo-da
 ## Install / run — three entry points
 
 1. **Windows installer** (double-click, no toolchain): grab the Setup exe from the
-   [`desktop-demo` release](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-demo) —
-   CI-built, checks for updates on startup and applies them on exit (the [`desktop-main`
-   feed](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-main) tracks `main`).
-   Unsigned, so SmartScreen asks: "More info" → "Run anyway". Starts on fixture (demo) data; pick
-   a real provider in Settings. The old portable `desktop-0.3.4` zip cannot update itself — use
-   the installer instead. Details: [`desktop/README.md`](desktop/README.md).
+   [latest release](https://github.com/Heffri/vivicta-seb/releases/latest). Open to anyone, no
+   login. CI rebuilds it from every push to `main`, so that link is always the current `main`;
+   the app checks for updates on startup and applies them on exit. Everything it needs ships
+   inside the installer — the Python backend and its dependencies, the Electron runtime, the
+   frontend, the 206-report saved library and the OCR language data — so there is nothing to
+   install alongside it (~165 MB). Unsigned, so SmartScreen asks: "More info" → "Run anyway".
+   Starts on fixture (demo) data; pick a real provider in Settings. The
+   [`desktop-demo`](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-demo) prerelease
+   is the frozen demo-day build, and the old portable `desktop-0.3.4` zip cannot update itself —
+   prefer the latest release. Details: [`desktop/README.md`](desktop/README.md).
 2. **`run.bat` (Windows) / `./run.sh` (macOS/Linux)** from a clone of this repo: first run sets up
    a Python venv, installs dependencies, builds the frontend, and opens the app in your browser on
    one port — about 2–4 minutes; later runs take seconds. Ctrl+C stops it (on Windows,
@@ -175,9 +179,10 @@ Python modules and `desktop/updates.test.js` — then builds and publishes the W
 ## Desktop app
 
 A double-click Windows app instead of a browser tab — same frontend, a packaged `backend.exe`, real
-OS acrylic material on Windows 11. Install it from the [`desktop-demo`
-release](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-demo) (auto-updating), or build
-it from `desktop/`: [`desktop/README.md`](desktop/README.md).
+OS acrylic material on Windows 11. Install it from the [latest
+release](https://github.com/Heffri/vivicta-seb/releases/latest) — self-contained and auto-updating,
+rebuilt from every push to `main` — or build it from `desktop/`:
+[`desktop/README.md`](desktop/README.md).
 
 ## The saved library (`data/kb/`)
 
