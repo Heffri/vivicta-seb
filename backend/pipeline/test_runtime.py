@@ -217,6 +217,22 @@ class RuntimeChecks(unittest.TestCase):
             self.client.post(f"/api/knowledge/{self.stem}/open")
             self.assertEqual(read.call_count, 1)
 
+    def test_config_echoes_extraction_switches(self):
+        """w212: GET /api/config echoes the two extraction switches that previously had no API
+        surface at all (w207's demo-checklist gap), read exactly the way the pipeline reads them:
+        second_pass is w197's bounded retry (default off), scan_all is m02's offline full-report
+        scan (off by default, echoed for confirmation only -- it stays env-only by design)."""
+        self.assertFalse(self.client.get("/api/config").json()["second_pass"])
+        self.assertFalse(self.client.get("/api/config").json()["scan_all"])
+        with patch.dict(os.environ, {"EXTRACT_SECOND_PASS": "1", "EXTRACT_SCAN_ALL": "1"}):
+            echo = self.client.get("/api/config").json()
+            self.assertTrue(echo["second_pass"])
+            self.assertTrue(echo["scan_all"])
+        with patch.dict(os.environ, {"EXTRACT_SECOND_PASS": "0", "EXTRACT_SCAN_ALL": "0"}):
+            echo = self.client.get("/api/config").json()
+            self.assertFalse(echo["second_pass"])
+            self.assertFalse(echo["scan_all"])
+
     def test_upload_over_budget_422_then_ocr_full_retry(self):
         """v191(a)(b): a scanned upload whose bounded candidate set alone exceeds OCR_PAGE_BUDGET is
         refused with a structured 422 naming how many pages full OCR needs; the same bytes with

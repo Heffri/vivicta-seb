@@ -53,6 +53,10 @@ export type DesktopConfig = {
   // basis above (every non-fixture provider passes it through); unlike two-pass, /api/config
   // echoes the live value as `merge_runs`, which is what the status row shows.
   mergeRuns: 'off' | 'union' | 'majority'
+  // EXTRACT_SECOND_PASS passthrough (w212) -- w197's bounded second pass + w198's full-text sweep
+  // ("Deep search for missing figures"), model-independent like mergeRuns (every non-fixture
+  // provider passes it through, Ollama included) and echoed by /api/config as `second_pass`.
+  secondPass: boolean
   // v100: visual theme -- Solid (default, Sebastijan's 09-18 opaque surfaces) or Acrylic
   // (v001-v006b glass + the desktop shell's real Windows material). Persisted in config.json like
   // maturityBasis but never an env var: desktop/main.js reads it to build the window with the

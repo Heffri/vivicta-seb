@@ -24,6 +24,7 @@ const DEFAULT_CONFIG: DesktopConfig = {
   extractTwoPass: true, // matches desktop/settings.js's own DEFAULTS -- see its comment for why
   maturityBasis: 'carrying', // v089, same -- the backend's own default since v028
   mergeRuns: 'off', // v140, same -- v133's EXTRACT_MERGE_RUNS default off (the single-run route)
+  secondPass: false, // w212, same -- w197's bounded retry default off; the UI default follows the w211 ruling
   theme: 'solid', // v100, same -- desktop/settings.js's own DEFAULTS; never reaches the backend
 }
 
@@ -104,6 +105,22 @@ function StatusRow({ status, error, twoPass }: { status: Config | null; error: s
               // shows what the backend would actually run with, browser mirror included.
               <span className="text-muted-foreground">
                 merge <span className="text-foreground">{status.merge_runs}</span>
+              </span>
+            )}
+            {status.second_pass !== undefined && (
+              // w212: the deep-search switch is the same deal as merge -- /api/config echoes the
+              // live EXTRACT_SECOND_PASS, so the strip shows what the backend would run with
+              // (browser mirror included). `!== undefined`, not truthiness: a plain false is the
+              // normal off state and must still render.
+              <span className="text-muted-foreground">
+                deep search <span className="text-foreground">{status.second_pass ? 'on' : 'off'}</span>
+              </span>
+            )}
+            {status.scan_all !== undefined && (
+              // w212: m02's offline full-report scan, echoed for confirmation only (DEMO.md's
+              // checklist) -- it has no Settings control by design, so off is its expected state.
+              <span className="text-muted-foreground">
+                scan all <span className="text-foreground">{status.scan_all ? 'on' : 'off'}</span>
               </span>
             )}
           </>
@@ -213,6 +230,35 @@ function MergeRunsControl({ value, onChange }: { value: DesktopConfig['mergeRuns
         </Field>
         <p className="text-xs text-muted-foreground">
           Union: run twice, keep the better-evidenced field. Majority: also count the saved extraction; skips the second run when the first matches it. Doubles model calls.
+        </p>
+      </CardContent>
+    </Card>
+  )
+}
+
+// w212: w197's bounded second pass + w198's full-text sweep (EXTRACT_SECOND_PASS) as a user
+// option, modeled on MergeRunsControl (same card, same Segmented primitive, default off per
+// w197's measurement -- the UI default follows the w211 ruling if that lane lands one).
+// Model-independent like the merge: the retry rides the same fixed_pages seam as the analyst
+// fill, so every non-fixture provider passes it through, Ollama included.
+function DeepSearchControl({ value, onChange }: { value: boolean; onChange: (value: boolean) => void }) {
+  return (
+    <Card size="sm">
+      <CardContent className="space-y-2">
+        <Field caption="Deep search for missing figures">
+          <Segmented
+            aria-label="Deep search for missing figures"
+            className="w-full sm:w-auto"
+            value={value ? 'on' : 'off'}
+            onChange={(v) => onChange(v === 'on')}
+            options={[
+              { value: 'on', label: 'On' },
+              { value: 'off', label: 'Off' },
+            ]}
+          />
+        </Field>
+        <p className="text-xs text-muted-foreground">
+          When a required figure is still empty, scan the whole document for the figure&rsquo;s own wording and ask the model once more for just that field &mdash; the citation must be on the page. Costs a few extra model calls per report.
         </p>
       </CardContent>
     </Card>
@@ -599,6 +645,7 @@ function DesktopSettings({ api, onConfigChange }: { api: ArpSettingsApi; onConfi
             {form.provider !== 'fixture' && form.provider !== 'ollama' && <TwoPassToggle checked={form.extractTwoPass} onChange={v => update({ extractTwoPass: v })} />}
             <MaturityBasisSelect value={form.maturityBasis} onChange={v => update({ maturityBasis: v })} />
             <MergeRunsControl value={form.mergeRuns} onChange={v => update({ mergeRuns: v })} />
+            <DeepSearchControl value={form.secondPass} onChange={v => update({ secondPass: v })} />
           </div> },
           { value: 'appearance', label: 'Appearance', icon: Palette, content: <div className="max-w-xl"><ThemeSelect onThemeChange={t => update({ theme: t })} /></div> },
           ]} footer={view !== 'appearance' && <>

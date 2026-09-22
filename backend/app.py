@@ -1187,7 +1187,13 @@ def config():
             "llm": _llm_configured(), "provider": llm.provider() if _llm_configured() else "fixture",
             "retrieval": kb.retrieval_mode(),  # v034: "hybrid" | "bm25" | "fixture"
             "maturity_basis": extract_mod.debt_basis(),  # v089: "carrying" (default) | "undiscounted", env DEBT_BASIS
-            "merge_runs": merge.mode()}  # v140: "off" (default) | "union" | "majority", env EXTRACT_MERGE_RUNS
+            "merge_runs": merge.mode(),  # v140: "off" (default) | "union" | "majority", env EXTRACT_MERGE_RUNS
+            # w212: live echoes of the two extraction switches that had no API surface (w207's gap).
+            # second_pass is w197's bounded required-field retry + w198's full-text sweep (default
+            # off, same reading as apply_second_pass); scan_all is m02's offline full-report scan --
+            # echoed so the demo checklist can confirm it, but it stays env-only by design.
+            "second_pass": os.getenv("EXTRACT_SECOND_PASS", "0") == "1",
+            "scan_all": os.getenv("EXTRACT_SCAN_ALL", "0") == "1"}
 
 
 @app.get("/api/reports/{report_id}/extraction.csv")
