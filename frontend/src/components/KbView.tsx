@@ -1,5 +1,5 @@
 import { Database, Download, Loader2, Search } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { type ApiError, getChunks, rebuildIndex, openKnowledge, pdfUrl, getConfig, getKb, getLibrary, getSchemas, kbExportCsvUrl, kbExportPptxUrl, openKbExtraction, type Config } from '@/api'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -15,6 +15,13 @@ type Props = { onOpen: (results: Result[]) => void; onOpenReport: (report: KbEnt
 
 const NO_PDF_DESC_ID = 'kb-no-pdf-desc'
 const NO_PDF_TITLE = 'Saved figures and page text are available; the original PDF is not cached'
+// Polling while any Embeddings cell says "building": a growing gap instead of a fixed 2 s (the w195
+// storm: one stuck building row re-fetched the whole 206-stem KB every 2 s for 45 minutes), and a
+// hard stop after 10 checks — a backend that keeps saying building without ever finishing gets a
+// refresh-to-retry notice, not an endless poll.
+const POLL_BASE_MS = 2000
+const POLL_MAX_DELAY_MS = 16000
+const POLL_MAX_ATTEMPTS = 10
 
 // Everything the parser has learnt so far: one row per report in data/kb, opened from disk without a model call.
 export function KbView({ onOpen, onOpenReport }: Props) {
@@ -32,6 +39,9 @@ export function KbView({ onOpen, onOpenReport }: Props) {
   const [pdfFiles, setPdfFiles] = useState<Set<string> | null>(null)
   const [pdfOnly, setPdfOnly] = useState(false)
   const [inspected, setInspected] = useState<KbEntry | null>(null)
+  const pollAttempts = useRef(0)
+  const pollDelay = useRef(POLL_BASE_MS)
+  const [gaveUp, setGaveUp] = useState(false)
   const build = async (stem: string) => {
     setBusy(stem)
     setError(null)
@@ -40,11 +50,27 @@ export function KbView({ onOpen, onOpenReport }: Props) {
     finally { setBusy(null) }
   }
   useEffect(() => {
-    if (!entries?.some((e) => e.status === 'building')) return
+    if (!entries?.some((e) => e.status === 'building')) {
+      pollAttempts.current = 0
+      pollDelay.current = POLL_BASE_MS
+      return
+    }
+    if (pollAttempts.current >= POLL_MAX_ATTEMPTS) return
     let stale = false
+    const delay = pollDelay.current
     const timer = setTimeout(() => {
-      getKb(collection).then((rows) => { if (!stale) setEntries(rows) }).catch((e: Error) => { if (!stale) setError(e.message) })
-    }, 2000)
+      pollAttempts.current += 1
+      pollDelay.current = Math.min(delay * 2, POLL_MAX_DELAY_MS)
+      getKb(collection).then((rows) => {
+        if (stale) return
+        setEntries(rows)
+        if (rows.some((e) => e.status === 'building')) {
+          if (pollAttempts.current >= POLL_MAX_ATTEMPTS) setGaveUp(true)
+        } else {
+          setGaveUp(false)
+        }
+      }).catch((e: Error) => { if (!stale) setError(e.message) })
+    }, delay)
     return () => { stale = true; clearTimeout(timer) }
   }, [entries, collection])
 
@@ -165,6 +191,12 @@ export function KbView({ onOpen, onOpenReport }: Props) {
         >
           {error}
         </ErrorBlock>
+      )}
+
+      {gaveUp && entries?.some((e) => e.status === 'building') && (
+        <p role="status" className="text-sm text-muted-foreground">
+          Indexing did not finish — refresh the page to retry.
+        </p>
       )}
 
       {!entries && !error && <LoadingLine>Loading…</LoadingLine>}
