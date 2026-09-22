@@ -353,6 +353,7 @@ def retrieval_mode() -> str:
 # at the 212 reports here and linear from there. Bound it (LRU, or postings on disk) if a library
 # gets large enough that the process footprint matters more than the warm search it buys.
 _bm25_cache: dict[str, tuple[tuple, dict]] = {}  # stem -> ((pages.jsonl mtime, newest extraction mtime), index)
+_bm25_build = threading.Lock()  # one builder at a time, so warm() and a query never build the same stem twice
 
 
 def _bm25(stem: str) -> dict:
@@ -371,17 +372,20 @@ def _bm25(stem: str) -> dict:
     key = (str(d), CHUNKER_VERSION, pages.stat().st_mtime_ns, tuple((p.name, p.stat().st_mtime_ns, p.stat().st_size) for p in exs))
     if stem in _bm25_cache and _bm25_cache[stem][0] == key:
         return _bm25_cache[stem][1]
-    rows = chunks(stem)
-    postings: dict[str, array] = {}
-    dls: list[int] = []
-    for i, r in enumerate(rows):
-        bag = _bag(r["text"])
-        dls.append(sum(bag.values()))
-        for t, f in bag.items():
-            postings.setdefault(t, array("i")).extend((i, f))
-    idx = {"rows": rows, "postings": postings, "dls": dls}
-    _bm25_cache[stem] = (key, idx)
-    return idx
+    with _bm25_build:
+        if stem in _bm25_cache and _bm25_cache[stem][0] == key:  # warm() built it while we waited
+            return _bm25_cache[stem][1]
+        rows = chunks(stem)
+        postings: dict[str, array] = {}
+        dls: list[int] = []
+        for i, r in enumerate(rows):
+            bag = _bag(r["text"])
+            dls.append(sum(bag.values()))
+            for t, f in bag.items():
+                postings.setdefault(t, array("i")).extend((i, f))
+        idx = {"rows": rows, "postings": postings, "dls": dls}
+        _bm25_cache[stem] = (key, idx)
+        return idx
 
 
 def warm() -> threading.Thread | None:
@@ -404,8 +408,9 @@ def warm() -> threading.Thread | None:
             except Exception:  # a report can be deleted or rewritten mid-warm; the query path rebuilds
                 pass
 
-    # ponytail: no lock. _bm25_cache[stem] = ... is one dict store, so a query racing the warm-up
-    # either sees the finished index or builds its own -- duplicated work, never a partial read.
+    # A question asked during these ~18 s waits on _bm25_build rather than racing it. Without that
+    # lock both threads build the same stems and the first question came out slower (40.7 s) than
+    # with no warm-up at all.
     t = threading.Thread(target=run, daemon=True, name="bm25-warm")
     t.start()
     return t
