@@ -7,9 +7,7 @@ const answer = { answer: 'Revenue was 100 [ABB FY2025 p.1].', citations: [{ repo
 async function mockLibrary(page: Page) {
   await page.route('**/api/**', async route => {
     const url = new URL(route.request().url())
-    const all = url.searchParams.get('collection_name') === 'all'
-    const midcap = url.searchParams.get('collection_name') === 'midcap'
-    const entries = midcap ? [acast] : all ? [abb, acast] : [abb]
+    const entries = [abb, acast]
     const json = url.pathname === '/api/config' ? { provider: 'codex', model: 'test', retrieval: 'bm25' }
       : url.pathname === '/api/companies' ? entries.map(entry => ({ name: entry.company, ticker: entry.company.toUpperCase(), sector: 'Industrials', cached_years: [] }))
       : url.pathname === '/api/kb' ? entries
@@ -20,55 +18,33 @@ async function mockLibrary(page: Page) {
   })
 }
 
-test('Extract and Ask can use all companies, and the choice follows navigation', async ({ page }) => {
+// Every surface reads the same unnarrowed catalogue -- Extract, Ask and Knowledge base all see
+// both saved reports, with nothing to pick between and nothing that could hide one of them.
+test('Extract, Ask and Knowledge base all see every saved report', async ({ page }) => {
   await mockLibrary(page)
-  const scopes: string[] = []
-  page.on('request', request => { if (request.url().includes('/api/companies?')) scopes.push(new URL(request.url()).searchParams.get('collection_name')!) })
+  const scoped: string[] = []
+  page.on('request', request => {
+    const url = new URL(request.url())
+    if (url.searchParams.has('collection_name')) scoped.push(url.pathname)
+  })
   await page.goto('/')
   await expect(page.getByRole('button', { name: /ABB ABB/ })).toBeVisible()
-  await expect(page.getByRole('button', { name: /Acast ACAST/ })).toHaveCount(0)
-  await page.getByRole('button', { name: 'All companies', exact: true }).click()
   await expect(page.getByRole('button', { name: /Acast ACAST/ })).toBeVisible()
-  await page.getByRole('button', { name: 'All companies', exact: true }).click()
-  await expect(page.getByRole('button', { name: /Acast ACAST/ })).toBeVisible()
-  expect(scopes).toContain('all')
   await page.getByRole('tab', { name: 'Ask', exact: true }).click()
   await expect(page.getByText('Scope: Saved text from 2 reports', { exact: true })).toBeVisible()
-  await page.getByRole('group', { name: 'Collection' }).getByRole('button', { name: 'All', exact: true }).click()
-  await expect(page.getByRole('combobox', { name: 'Question', exact: true })).toBeVisible()
   await page.getByRole('combobox', { name: 'Question', exact: true }).fill('@Aca')
   await expect(page.getByRole('option', { name: 'Acast' })).toBeVisible()
   await page.getByRole('tab', { name: 'Knowledge base', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Saved reports', exact: true })).toBeVisible()
   await expect(page.getByText('2 / 2', { exact: true })).toBeVisible()
+  expect(scoped).toEqual([])
 })
 
-test('SEB Mid Cap keeps the KB list within its collection', async ({ page }) => {
-  await mockLibrary(page)
-  const kbScopes: string[] = []
-  page.on('request', request => {
-    const url = new URL(request.url())
-    if (url.pathname === '/api/kb') kbScopes.push(url.searchParams.get('collection_name')!)
-  })
-  await page.goto('/')
-  await page.getByRole('button', { name: 'SEB Mid Cap (132)', exact: true }).click()
-  await expect(page.getByRole('button', { name: /Acast ACAST/ })).toBeVisible()
-  await expect(page.getByRole('button', { name: /ABB ABB/ })).toHaveCount(0)
-  await page.getByRole('tab', { name: 'Knowledge base', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Saved reports', exact: true })).toBeVisible()
-  await expect(page.getByText('1 / 1', { exact: true })).toBeVisible()
-  await expect(page.getByRole('row', { name: /Acast.*2025/ })).toBeVisible()
-  await expect(page.getByRole('row', { name: /ABB/ })).toHaveCount(0)
-  expect(kbScopes).toContain('midcap')
-})
-
-test('Company map and Review follow the selected collection', async ({ page }) => {
+test('Company map and Review cover every saved report', async ({ page }) => {
   const queue = (entry: typeof abb) => [{ report: entry, section: 'income_statement', kind: 'field', key: 'revenue', detail: `Review ${entry.company} revenue` }]
   await page.route('**/api/**', async route => {
     const url = new URL(route.request().url())
-    const all = url.searchParams.get('collection_name') === 'all'
-    const midcap = url.searchParams.get('collection_name') === 'midcap'
-    const entries = midcap ? [acast] : all ? [abb, acast] : [abb]
+    const entries = [abb, acast]
     const json = url.pathname === '/api/config' ? { provider: 'codex', model: 'test', retrieval: 'bm25' }
       : url.pathname === '/api/kb' ? entries
       : url.pathname === '/api/review-queue' ? entries.flatMap(queue)
@@ -79,15 +55,11 @@ test('Company map and Review follow the selected collection', async ({ page }) =
   await page.goto('/')
   await page.getByRole('tab', { name: 'Company map', exact: true }).click()
   const map = page.getByRole('region', { name: 'Interactive company graph' })
-  await expect(map.locator('[data-node-id^="company:"]')).toHaveCount(1)
-  await page.getByRole('group', { name: 'Collection' }).getByRole('button', { name: 'All', exact: true }).click()
   await expect(map.locator('[data-node-id^="company:"]')).toHaveCount(2)
 
   await page.getByRole('tab', { name: 'Review', exact: true }).click()
   await expect(page.getByRole('article')).toHaveCount(2)
-  await page.getByRole('group', { name: 'Collection' }).getByRole('button', { name: 'SEB Mid Cap (132)', exact: true }).click()
-  await expect(page.getByRole('article')).toHaveCount(1)
-  await expect(page.getByRole('status')).toContainText('SEB Mid Cap universe · 1 statement · 1 outstanding check')
+  await expect(page.getByRole('status')).toContainText('2 statements · 2 outstanding checks')
 })
 
 test('Review groups checks by exact report and statement, retaining filters and details', async ({ page }) => {
@@ -99,14 +71,14 @@ test('Review groups checks by exact report and statement, retaining filters and 
   ] }))
   await page.goto('/')
   await page.getByRole('tab', { name: 'Review', exact: true }).click()
-  await expect(page.getByText('Wallenberg collection · 3 statements · 5 outstanding checks', { exact: true })).toBeVisible()
+  await expect(page.getByText('3 statements · 5 outstanding checks', { exact: true })).toBeVisible()
   await expect(page.getByRole('article')).toHaveCount(3)
   const statement = page.getByRole('article', { name: 'ABB 2025 income statement' })
   await statement.getByText('Show outstanding checks', { exact: true }).click()
   for (const key of ['entity', 'period', 'currency']) await expect(statement.getByText(`Confirm ${key}`, { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Reporting basis', exact: true }).click()
   await expect(page.getByRole('article')).toHaveCount(1)
-  await expect(page.getByText('Wallenberg collection · 1 statement · 3 outstanding checks', { exact: true })).toBeVisible()
+  await expect(page.getByText('1 statement · 3 outstanding checks', { exact: true })).toBeVisible()
   await page.getByRole('combobox', { name: 'Company', exact: true }).click()
   await page.getByRole('option', { name: 'Acast', exact: true }).click()
   await expect(page.getByText('No checks match these filters.')).toBeVisible()

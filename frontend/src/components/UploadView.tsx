@@ -8,8 +8,6 @@ import { ErrorBlock } from '@/components/ui/state'
 import { BatchProgress } from '@/components/upload/BatchProgress'
 import { CachedReports } from '@/components/upload/CachedReports'
 import { CompanySearch } from '@/components/upload/CompanySearch'
-import { CollectionPicker } from '@/components/CollectionPicker'
-import { useCollection } from '@/hooks/useCollection'
 import type { Batch, BatchSpec } from '@/hooks/useBatch'
 import type { ReportSearch } from '@/hooks/useReportSearch'
 import { Dropzone } from '@/components/upload/Dropzone'
@@ -35,7 +33,6 @@ const SAMPLE_SECTION = 'debt_maturity'
 const isPdf = (f: File) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
 
 export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onViewResults, onDone, onNavigate }: Props) {
-  const [collection, setCollection] = useCollection()
   const [schemas, setSchemas] = useState<Schema[]>([])
   const [schemasError, setSchemasError] = useState<string | null>(null)
   const [section, setSection] = useState<string | null>(null)
@@ -66,7 +63,7 @@ export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onView
   useEffect(() => {
     let stale = false
     const t = setTimeout(() => {
-      getCompanies(query, collection)
+      getCompanies(query)
         .then((list) => {
           if (stale) return
           setCompanies(list)
@@ -78,7 +75,7 @@ export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onView
       stale = true
       clearTimeout(t)
     }
-  }, [query, collection])
+  }, [query])
 
   useEffect(() => {
     getSchemas()
@@ -96,10 +93,10 @@ export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onView
 
   useEffect(() => {
     let alive = true
-    getLibrary(collection).then(rows => { if (alive) { setLibrary(rows); setLibraryError(null) } })
+    getLibrary().then(rows => { if (alive) { setLibrary(rows); setLibraryError(null) } })
       .catch((e: Error) => { if (alive) setLibraryError(e.message) })
     return () => { alive = false }
-  }, [collection])
+  }, [])
 
   // Reject non-PDFs individually (named in the error) and keep the rest; re-picking/re-dropping appends.
   const pickFiles = (incoming: File[]) => {
@@ -232,10 +229,7 @@ export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onView
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Extract" title="Extract report data" description="Choose a source, then select the statement to extract." actions={<CollectionPicker companies value={collection} disabled={busy} onChange={value => {
-        if (value === collection) return
-        setCollection(value); setPicked([]); setSelected(new Set()); setCompanies([]); setLibrary([]); setError(null)
-      }} />} />
+      <PageHeader eyebrow="Extract" title="Extract report data" description="Choose a source, then select the statement to extract." />
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <Button variant="outline" size="sm" disabled={busy} onClick={() => void openSample()}><BookOpenCheck className="size-3.5" />Open a real debt sample · saved result, zero model calls</Button>
@@ -251,7 +245,7 @@ export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onView
 
       <Workspace label="Report source" value={sourceView} onChange={setSourceView} pages={[
         { value: 'find', label: 'Find a company', icon: FileSearch, count: picked.length, content: <CompanySearch
-          collection={collection} query={query} year={year} companies={companies} dirError={dirError} picked={picked} busy={busy} canRun={!!section}
+          query={query} year={year} companies={companies} dirError={dirError} picked={picked} busy={busy} canRun={!!section}
           discovery={discovery} discovering={discovering} trace={trace} onQueryChange={setQuery} onYearChange={setYear} onTogglePick={togglePick}
           onOpenReportedCompany={openReportedCompany} onDiscover={discover} onUseCandidate={useCandidate} /> },
         { value: 'saved', label: 'Saved reports', icon: Files, count: selected.size, content: <CachedReports

@@ -1,16 +1,22 @@
-"""Exercise every Extract > Wallenberg directory option against a running backend.
+"""Exercise every company on the Wallenberg roster against a running backend.
 
-Downloads reports and checks deterministic candidate-page retrieval; does not run
-model extraction or overwrite reviews. Writes resumable JSON evidence after each result.
+The roster is read from pipeline/collection.py, the only place it lives now that the app
+itself never filters by it. Downloads reports and checks deterministic candidate-page
+retrieval; does not run model extraction or overwrite reviews. Writes resumable JSON
+evidence after each result.
 """
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import datetime
 import json
 from pathlib import Path
+import sys
 import time
 import urllib.error
 import urllib.request
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
+from pipeline import collection  # noqa: E402
 
 
 def main():
@@ -36,7 +42,7 @@ def main():
                 body = {"detail": raw[:2000] or str(error)}
             return error.code, body
 
-    _, companies = call("/api/companies?collection_name=wallenberg")
+    companies = [{"name": name, "collection_group": group} for name, group in collection.NAMES.values()]
     results = json.loads(args.output.read_text(encoding="utf-8"))["results"] if args.retry_failed and args.output.exists() else []
     completed = {r["company"] for r in results if r.get("pdf_available") and r.get("candidate_status") == 200}
     results = [r for r in results if r["company"] in completed]
@@ -51,7 +57,7 @@ def main():
                 rid = body["report_id"]
                 status, candidates = call(f"/api/reports/{rid}/candidates?section=debt_maturity")
                 result.update(candidate_status=status, candidate_pages=[p["page"] for p in candidates] if status == 200 else [], candidate_error=candidates if status != 200 else None)
-                _, catalog = call("/api/kb?collection_name=wallenberg")
+                _, catalog = call("/api/kb")
                 result["pdf_available"] = next((e["pdf_available"] for e in catalog if e["report_id"] == rid), False)
             else:
                 result["pdf_available"] = False

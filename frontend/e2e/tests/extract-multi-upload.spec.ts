@@ -33,12 +33,11 @@ for (const tone of TONES) {
     await expect(page.getByText('2 of 2 reports extracted')).toBeVisible()
     await expect(page.locator('table thead th')).toHaveCount(3) // Field + 2 report columns
 
-    // The "Upcoming maturities" section is collection-wide (data/kb), independent of the two
-    // uploaded fixture reports above it. Wallenberg has only one saved debt_maturity extraction, so
-    // switch to All for a pool wide enough to prove the threshold filter actually removes rows.
+    // The "Upcoming maturities" section spans every saved report in data/kb, independent of the
+    // two uploaded fixture reports above it -- a pool wide enough to prove the threshold filter
+    // actually removes rows.
     await expect(page.getByRole('heading', { name: 'Upcoming maturities', exact: false })).toBeVisible({ timeout: 20000 })
     await expect(page.getByText(/comparable$|comparable ·/)).toBeVisible()
-    await page.getByRole('group', { name: 'Collection' }).getByRole('button', { name: 'All', exact: true }).click()
     const wallRows = page.getByRole('table').filter({ has: page.getByRole('columnheader', { name: 'Share' }) }).locator('tbody tr')
     await expect.poll(async () => wallRows.count(), { timeout: 20000 }).toBeGreaterThan(5)
     const beforeFilter = await wallRows.count()

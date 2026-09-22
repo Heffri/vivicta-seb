@@ -364,18 +364,18 @@ with tempfile.TemporaryDirectory() as tmp:
             kb.save_report(stem, {'company': company, 'fiscal_year': 2025, 'pages': 1, 'sha256': 'test'}, ['Saved statement text'])
             kb.save_extraction(stem, 'debt_maturity', workbench.decorate(x, app.load_schema('debt_maturity')))
         client = TestClient(app.app)
-        rows = list(csv.DictReader(io.StringIO(client.get('/api/kb/export.csv?section=debt_maturity&collection=wallenberg').text)))
-        assert len(rows) == 2 and {row['stem'] for row in rows} == {'abb_2025', 'ericsson_2025'}
+        rows = list(csv.DictReader(io.StringIO(client.get('/api/kb/export.csv?section=debt_maturity').text)))
+        assert len(rows) == 3 and {row['stem'] for row in rows} == {'abb_2025', 'ericsson_2025', 'outside_2025'}
         assert {'company', 'stem', 'review_status', 'human_review', 'ready'} <= set(rows[0])
         abb = next(row for row in rows if row['stem'] == 'abb_2025')
         assert abb['review_status'] == 'confirmed' and abb['human_review'] == 'yes'
-        filtered = client.get('/api/kb/export.csv?section=debt_maturity&collection=all&q=volvo')
+        filtered = client.get('/api/kb/export.csv?section=debt_maturity&q=volvo')
         assert filtered.status_code == 200 and [row['stem'] for row in csv.DictReader(io.StringIO(filtered.text))] == ['outside_2025']
         # The deck carries a "Maturity wall by sector" page between the summary table and the
         # per-company slides. _sector_map is frozen so the sectors don't depend on data/ content.
         with patch.object(ppt, '_sector_map', return_value={'abb ltd': 'Industrials', 'ericsson': 'Telecommunications', 'volvo': 'Industrials'}):
-            deck = Presentation(io.BytesIO(client.get('/api/kb/export.pptx?section=debt_maturity&collection=wallenberg').content))
-        assert len(deck.slides) == 4
+            deck = Presentation(io.BytesIO(client.get('/api/kb/export.pptx?section=debt_maturity').content))
+        assert len(deck.slides) == 5
         assert any(shape.has_table and shape.table.cell(0, 0).text == 'Company' for shape in deck.slides[0].shapes)
         wall_slide = deck.slides[1]
         texts = ' | '.join(shape.text_frame.text for shape in wall_slide.shapes if shape.has_text_frame)
@@ -386,28 +386,26 @@ with tempfile.TemporaryDirectory() as tmp:
         # company row may show the missing-total label.
         assert sum(1 for shape in wall_slide.shapes if shape.has_text_frame and 'not read' in shape.text_frame.text) == 1
         bars = [shape for shape in wall_slide.shapes if shape.shape_type == MSO_SHAPE_TYPE.AUTO_SHAPE]
-        assert len(bars) == 2  # one horizontal bar per saved company on the page
+        assert len(bars) == 3  # one horizontal bar per saved company on the page
         # The visible filter accepts non-ASCII company names; never put its raw bytes in a Latin-1 response header.
         with patch.object(app, 'kb_export_extractions', return_value=[statement('debt_maturity')]):
-            unicode_filter = client.get('/api/kb/export.csv', params={'section': 'debt_maturity', 'collection': 'all', 'q': 'Å'})
+            unicode_filter = client.get('/api/kb/export.csv', params={'section': 'debt_maturity', 'q': 'Å'})
         assert unicode_filter.status_code == 200
-        assert unicode_filter.headers['content-disposition'] == 'attachment; filename="kb_debt_maturity_all.csv"'
+        assert unicode_filter.headers['content-disposition'] == 'attachment; filename="kb_debt_maturity.csv"'
         # GET /api/kb/maturity-wall -- same decorated extracts as the exports above, so the
-        # collection filter and the reviewed/unreviewed split already set up here double as its test.
-        wall = client.get('/api/kb/maturity-wall?collection=wallenberg').json()
-        assert wall['coverage'] == {'total': 2, 'comparable': 1, 'missing_total': 0, 'missing_w1y': 0, 'basis_unconfirmed': 0}
-        assert {r['stem'] for r in wall['rows']} == {'abb_2025', 'ericsson_2025'}
+        # reviewed/unreviewed split already set up here doubles as its test.
+        wall = client.get('/api/kb/maturity-wall').json()
+        assert wall['coverage'] == {'total': 3, 'comparable': 1, 'missing_total': 0, 'missing_w1y': 0, 'basis_unconfirmed': 0}
+        assert {r['stem'] for r in wall['rows']} == {'abb_2025', 'ericsson_2025', 'outside_2025'}
         assert next(r for r in wall['rows'] if r['stem'] == 'abb_2025')['comparable']
         assert not next(r for r in wall['rows'] if r['stem'] == 'ericsson_2025')['comparable']
-        wall_all = client.get('/api/kb/maturity-wall?collection=all').json()
-        assert wall_all['coverage']['total'] == 3 and {r['stem'] for r in wall_all['rows']} == {'abb_2025', 'ericsson_2025', 'outside_2025'}
         # Every row names its data/companies.json sector and whether its buckets are complete
         # (stored identity check passed AND total AND <1y present); COMPANIES is patched inline --
         # fixtures never trust the universe file's live content. 3 companies, 2 sectors, one incomplete.
         with patch.object(app, 'COMPANIES', [{'name': 'ABB Ltd', 'sector': 'Industrials'},
                                              {'name': 'Ericsson', 'sector': 'Telecommunications'},
                                              {'name': 'Volvo', 'sector': 'Industrials'}]):
-            wall = client.get('/api/kb/maturity-wall?collection=all').json()
+            wall = client.get('/api/kb/maturity-wall').json()
         rows = {r['stem']: r for r in wall['rows']}
         assert rows['abb_2025']['sector'] == 'Industrials' and rows['abb_2025']['complete'] and rows['abb_2025']['share'] == 0.2
         assert rows['ericsson_2025']['sector'] == 'Telecommunications' and not rows['ericsson_2025']['complete'] and rows['ericsson_2025']['share'] == 0.2
@@ -418,11 +416,11 @@ with tempfile.TemporaryDirectory() as tmp:
         # A company the universe file doesn't know has no sector: it groups under null, sorted last,
         # and its counts still count -- only incomplete buckets are excluded from median/min/max.
         with patch.object(app, 'COMPANIES', [{'name': 'ABB Ltd', 'sector': 'Industrials'}]):
-            wall = client.get('/api/kb/maturity-wall?collection=wallenberg').json()
-        assert {r['stem']: r['sector'] for r in wall['rows']} == {'abb_2025': 'Industrials', 'ericsson_2025': None}
+            wall = client.get('/api/kb/maturity-wall').json()
+        assert {r['stem']: r['sector'] for r in wall['rows']} == {'abb_2025': 'Industrials', 'ericsson_2025': None, 'outside_2025': None}
         assert [s['sector'] for s in wall['sectors']] == ['Industrials', None]
         assert wall['sectors'][0] == {'sector': 'Industrials', 'companies': 1, 'complete': 1, 'median_share': 0.2, 'min': 0.2, 'max': 0.2}
-        assert wall['sectors'][1] == {'sector': None, 'companies': 1, 'complete': 0, 'median_share': None, 'min': None, 'max': None}
+        assert wall['sectors'][1] == {'sector': None, 'companies': 2, 'complete': 1, 'median_share': 0.5, 'min': 0.5, 'max': 0.5}
 
 # The sector wall page paginates at 30 row-units (companies + sector headers). 35 one-sector
 # companies spill onto two "Maturity wall by sector" pages between the summary and the per-company

@@ -139,7 +139,7 @@ for (const tone of ['light', 'dark']) test(`review queue, basis and saved compar
   })
   await page.goto('/')
   await page.getByRole('tab', { name: 'Review', exact: true }).click()
-  await expect(page.getByText('Wallenberg collection · 1 statement · 1 outstanding check', { exact: true })).toBeVisible()
+  await expect(page.getByText('1 statement · 1 outstanding check', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Review statement' }).click()
   await expect(page.getByText('1 need a human', { exact: true })).toBeVisible()
   await page.getByRole('navigation', { name: 'Report workspace' }).getByRole('button', { name: /Checks & review/ }).click()
@@ -167,7 +167,7 @@ for (const tone of ['light', 'dark']) test(`review queue, basis and saved compar
   await expect(page.getByRole('link', { name: 'Export CSV' })).toHaveAttribute('href', /section=income_statement&previous_stem=atlas_2024/)
   await page.getByRole('button', { name: 'Back to reports' }).click()
   // basis confirmation never touched `issues`, so the revenue field issue is still outstanding on remount
-  await expect(page.getByText('Wallenberg collection · 1 statement · 1 outstanding check', { exact: true })).toBeVisible()
+  await expect(page.getByText('1 statement · 1 outstanding check', { exact: true })).toBeVisible()
   expect(downloads).toBe(0)
   expect(errors).toEqual([])
 })

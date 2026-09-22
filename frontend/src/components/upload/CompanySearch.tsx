@@ -6,7 +6,6 @@ import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader,
 import { ErrorBlock } from '@/components/ui/state'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import type { Collection } from '@/hooks/useCollection'
 import type { SearchTrace } from '@/hooks/useReportSearch'
 import type { Candidate, Company, Discovery } from '@/types'
 import { Face } from './Face'
@@ -16,7 +15,6 @@ const YEARS = Array.from({ length: new Date().getFullYear() - 1899 }, (_, i) => 
 const YEAR_LABELS = Object.fromEntries(YEARS.map(year => [year, year]))
 
 type CompanySearchProps = {
-  collection: Collection
   query: string
   year: string
   companies: Company[]
@@ -38,7 +36,6 @@ type CompanySearchProps = {
 // Path 1: pick listed companies (/fetch pulls the PDF on demand), or Enter/search → /discover resolves
 // the typed text to concrete legal entities as cards; the user confirms one before anything downloads.
 export function CompanySearch({
-  collection,
   query,
   year,
   companies,
@@ -74,8 +71,8 @@ export function CompanySearch({
       .filter(Boolean)
       .join(' · ')
   return (
-    <Face label="Find a company" hint={collection === 'all' ? 'Local matches below · AI search works worldwide' : collection === 'midcap' ? 'SEB Mid Cap matches below · AI search works worldwide' : 'Wallenberg matches below · AI search works worldwide'}>
-      {collection === 'wallenberg' && <p className="mb-3 text-xs text-muted-foreground">Includes private companies. Some do not publish public standalone annual reports; you can upload a report you already have.</p>}
+    <Face label="Find a company" hint="Local matches below · AI search works worldwide">
+      <p className="mb-3 text-xs text-muted-foreground">Includes private companies. Some do not publish public standalone annual reports; you can upload a report you already have.</p>
       <div className="flex gap-2">
         <Input
           id="company-q"

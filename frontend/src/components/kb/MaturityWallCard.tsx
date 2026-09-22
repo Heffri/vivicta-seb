@@ -4,14 +4,9 @@ import { getMaturityWall } from '@/api'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ErrorBlock, LoadingLine } from '@/components/ui/state'
-import type { Collection } from '@/hooks/useCollection'
 import type { KbEntry, MaturityWall, MaturityWallRow } from '@/types'
 
-type Props = { collection: Collection; entries: KbEntry[]; onOpenReport: (report: KbEntry) => void }
-
-// Same wording the KB header and Compare's Upcoming maturities use for the shared collection choice.
-const collectionLabel = (collection: Collection) =>
-  collection === 'wallenberg' ? 'Wallenberg collection' : collection === 'midcap' ? 'SEB Mid Cap universe' : 'all saved reports'
+type Props = { entries: KbEntry[]; onOpenReport: (report: KbEntry) => void }
 
 // The one mark vocabulary of results/MaturityChart.tsx, turned 90°: primary bars the identity check
 // vouches for, hover one step brighter via the raw accent, hairline grid, four text tones.
@@ -49,18 +44,15 @@ const hbarPath = (x: number, y: number, w: number, h: number) => {
   return `M${x} ${y} h${w - r} q${r} 0 ${r} ${r} v${h - 2 * r} q0 ${r} -${r} ${r} h${-(w - r)} Z`
 }
 
-/** The KB page's "Maturity wall" card, beside the collection switch.
+/** The KB page's "Maturity wall" card.
  *  The sector view of GET /api/kb/maturity-wall — one bar per company (due_within_1_year /
  *  total_debt), grouped by sector, honest about buckets that do not reconcile (grey, labelled)
  *  and totals never read ("not read"). Nothing is inferred; a missing bucket is never a 0.
- *  Clicking a row opens that company through KbView's existing Open action. The collection comes
- *  from the KbView picker as a prop — a second useCollection() instance here would read localStorage
- *  once on mount and never follow the picker beside it. Data loads only when the card is opened —
- *  the KB list is expensive enough already. */
-export function MaturityWallCard({ collection, entries, onOpenReport }: Props) {
+ *  Clicking a row opens that company through KbView's existing Open action. Data loads only when
+ *  the card is opened — the KB list is expensive enough already. */
+export function MaturityWallCard({ entries, onOpenReport }: Props) {
   const [open, setOpen] = useState(false)
   const [wall, setWall] = useState<MaturityWall | null>(null)
-  const [loadedFor, setLoadedFor] = useState<Collection | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [hovered, setHovered] = useState<string | null>(null)
 
@@ -68,13 +60,13 @@ export function MaturityWallCard({ collection, entries, onOpenReport }: Props) {
     if (!open) return
     let stale = false
     setError(null)
-    getMaturityWall(collection)
-      .then((w) => { if (!stale) { setWall(w); setLoadedFor(collection) } })
+    getMaturityWall()
+      .then((w) => { if (!stale) setWall(w) })
       .catch((e: Error) => { if (!stale) setError(e.message) })
     return () => { stale = true }
-  }, [open, collection])
+  }, [open])
 
-  const rows = loadedFor === collection ? wall?.rows ?? [] : []
+  const rows = wall?.rows ?? []
   // Sector blocks: alphabetical with the unknown-sector block last; within a block complete
   // companies first by share descending — the same order the deck's sector pages draw.
   const map = new Map<string | null, MaturityWallRow[]>()
@@ -106,15 +98,15 @@ export function MaturityWallCard({ collection, entries, onOpenReport }: Props) {
       {open && (
         <Card role="region" aria-label="Maturity wall" className="w-full space-y-3 p-4">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight">Maturity wall · {collectionLabel(collection)}</h2>
+            <h2 className="text-lg font-semibold tracking-tight">Maturity wall</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
               share of debt due within 1 year · {completeN} of {rows.length} companies with complete buckets
             </p>
           </div>
           {error && <ErrorBlock>{error}</ErrorBlock>}
-          {!error && loadedFor !== collection && <LoadingLine>Loading saved debt maturity extractions…</LoadingLine>}
-          {!error && loadedFor === collection && rows.length === 0 && (
-            <p className="text-sm text-muted-foreground">No saved debt maturity extractions in {collectionLabel(collection)} yet.</p>
+          {!error && !wall && <LoadingLine>Loading saved debt maturity extractions…</LoadingLine>}
+          {!error && wall && rows.length === 0 && (
+            <p className="text-sm text-muted-foreground">No saved debt maturity extractions yet.</p>
           )}
           {!error && rows.length > 0 && (
             <div className="max-h-[70vh] overflow-y-auto">

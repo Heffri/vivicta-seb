@@ -443,6 +443,13 @@ def search(stems: list[str], query: str, k=8, *, keyword_only=False) -> list[dic
     idxs = {s: _bm25(s) for s in stems}
     n = sum(len(ix["dls"]) for ix in idxs.values()) or 1
     avgdl = sum(sum(ix["dls"]) for ix in idxs.values()) / n or 1.0
+    # Document frequency is a property of the whole query corpus, so compute it once per term.
+    # It used to be recomputed inside the per-stem loop, which made retrieval O(stems^2): fine at
+    # the 11 stems a filtered library showed, 19s cold once every saved report is in scope.
+    idfs = {}
+    for t in set(terms):
+        df = sum(len(idxs[s2]["postings"][t]) for s2 in stems if t in idxs[s2]["postings"])
+        idfs[t] = math.log(1.0 + (n - df + 0.5) / (df + 0.5))
     cand: list[tuple[float, float, float, str, dict]] = []  # (cosine raw, BM25 raw, share, stem, row)
     for s in stems:
         ix = idxs[s]
@@ -451,8 +458,7 @@ def search(stems: list[str], query: str, k=8, *, keyword_only=False) -> list[dic
             pl = ix["postings"].get(t)
             if not pl:
                 continue
-            df = sum(len(idxs[s2]["postings"][t]) for s2 in stems if t in idxs[s2]["postings"])
-            idf = math.log(1.0 + (n - df + 0.5) / (df + 0.5))
+            idf = idfs[t]
             for i, f in pl:
                 hits[i] = hits.get(i, 0) + 1  # distinct query terms on this chunk -> the share/ride-along rule
                 part[i] = part.get(i, 0.0) + idf * f * (BM25_K1 + 1.0) / (f + BM25_K1 * (1.0 - BM25_B + BM25_B * dls[i] / avgdl))

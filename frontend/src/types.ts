@@ -69,7 +69,7 @@ export type LibraryEntry = {
   language: 'en' | 'sv';
   pages: number;
   source_url: string | null;
-  tags: string[];           // collections, e.g. ["wallenberg", "industrials"]; UI offers each tag as a one-click set
+  tags: string[];           // curation labels, e.g. ["wallenberg", "industrials"]; UI offers each tag as a one-click set
   note?: string | null;     // e.g. "image-only PDF, no text layer"
 };
 

@@ -18,7 +18,7 @@ A record of the build shown on demo day, not a description of current `main`.
 
 ## The two saved samples (and one honest incomplete case)
 
-All three open from **Knowledge base** with **Collection → All**, zero model calls, and — because a
+All three open straight from **Knowledge base**, zero model calls, and — because a
 saved report opens without the PDF (only page images need it) — fully offline. Their
 verification chips read "Needs review": no human has confirmed the basis yet, so present them as
 **Draft**, never as analyst-approved.
@@ -56,7 +56,7 @@ after everything below has already succeeded.
   sentence it was read from." On the first **Extract** screen, click **Open a real debt sample**;
   it opens the saved Karnell record directly. Say so up front: *this extraction is saved from an
   earlier run — pre-extracted, not happening live.* The equivalent manual route is **Knowledge
-  base → Collection: All → search "karnell" → Open**.
+  base → search "karnell" → Open**.
 - **0:20–1:00 — the evidence chain.** In Results, click the **Due 1–5 years** row: the source panel
   shows **page 106** and the verbatim quote `Liabilities to credit institutions 43.5 353.7 - 397.2`
   with the value highlighted. Open **Maturity profile** and point at the chart, then open **Checks & review** and point at the check: 43.5 + 353.7 + 0 =
@@ -126,13 +126,12 @@ after everything below has already succeeded.
   `EXTRACT_SCAN_ALL` still has no Settings toggle by design, but `GET /api/config`'s `scan_all`
   field now echoes it (`false`) — confirm it reads `false` (or that the demo machine's environment
   has neither variable set).
-- **Collection on stage.** The KB page defaults to the Wallenberg collection; switch to **All**
-  (or pre-filter) before the audience sees it, so nobody thinks the Mid Cap companies are missing.
-  Stable packaged ports mean this choice — and the light/dark tone — now survive an in-demo app
-  restart, so there is no need to redo it after a relaunch.
+- **Nothing to set up on stage.** Every surface lists all of `data/kb/` with no scope to choose,
+  so what the audience sees is what the machine has. Nothing can be left on the wrong setting and
+  quietly make the library look smaller than it is — the failure this replaced.
 - **Private-roster members open straight to the parent.** If the directory or Company map shows a
-  private holding with no standalone annual report (e.g. Sarnova under the Wallenberg/Investor
-  collection), say so before clicking: "this company doesn't file its own annual report — we go
+  private holding with no standalone annual report (e.g. Sarnova, a private Investor holding),
+  say so before clicking: "this company doesn't file its own annual report — we go
   straight to the parent's report, at the page that covers it." Opening that row lands on the saved
   parent record (Investor AB, page 41) with zero AI search triggered.
 - **Package sanity, if demoing the installer.** Launch the packaged exe once the morning of,

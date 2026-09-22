@@ -381,12 +381,9 @@ async def upload_report(file: UploadFile = File(...), ocr: Literal["bounded", "f
 
 
 @app.get("/api/library")
-def list_library(collection_name: Literal["all", "wallenberg", "midcap"] = "all"):
-    in_scope = collection.scope(collection_name)
+def list_library():
     out = []
     for e in library_index():
-        if not in_scope(e.get("company")):
-            continue
         if e["file"] not in library_pages:
             with pymupdf.open(LIBRARY / e["file"]) as doc:
                 library_pages[e["file"]] = doc.page_count
@@ -520,12 +517,12 @@ def report_from_library(body: LibraryBody):
 
 
 @app.get("/api/companies")
-def list_companies(q: str = "", collection_name: Literal["all", "wallenberg", "midcap"] = "all"):
+def list_companies(q: str = ""):
     cached: dict[str, list[int]] = {}
     for e in library_index():
         cached.setdefault(collection.identity(e["company"]), []).append(e["fiscal_year"])
     q = q.strip().lower()
-    directory = collection.directory(COMPANIES, collection_name)
+    directory = collection.directory(COMPANIES)
     hits = [c for c in directory if q in c["name"].lower() or q in c["ticker"].lower()]
     hits.sort(key=lambda c: (not c["name"].lower().startswith(q), c["name"]))  # prefix matches first
     def reported_page(company):
@@ -964,14 +961,11 @@ def ask(body: AskBody):
 
 
 @app.get("/api/kb")
-def list_kb(collection_name: Literal["all", "wallenberg", "midcap"] = "all"):
+def list_kb():
     normalize = lambda name: re.sub(r"[\W_]+", " ", name.casefold()).strip()
     sectors = {normalize(c["name"]): c.get("sector") for c in COMPANIES}
-    in_scope = collection.scope(collection_name)
     out = []
     for e in kb.entries():
-        if not in_scope(e.get("company")):
-            continue
         report_id = saved_report_id(e["stem"])
         get_report(report_id)
         out.append(e | {"report_id": report_id, "pdf_available": pdf_available(report_id),
@@ -980,15 +974,12 @@ def list_kb(collection_name: Literal["all", "wallenberg", "midcap"] = "all"):
     return out
 
 
-def kb_export_extractions(section: str, collection_name: Literal["all", "wallenberg", "midcap"], q: str = "") -> list[dict]:
+def kb_export_extractions(section: str, q: str = "") -> list[dict]:
     """Load saved extracts directly: whole-universe exports never need a PDF or a model call."""
     schema = load_schema(section)
     query = q.strip().casefold()
-    in_scope = collection.scope(collection_name)
     out = []
     for entry in kb.entries():
-        if not in_scope(entry.get("company")):
-            continue
         if query and query not in (entry.get("company") or "").casefold() and query not in entry["stem"].casefold():
             continue
         path = kb.kb_dir() / entry["stem"] / "extractions" / f"{section}.json"
@@ -1039,47 +1030,47 @@ def universe_csv_row(x: dict) -> list:
 UNIVERSE_CSV_HEADER = CSV_HEADER + ["stem", *ppt.BUCKET_ORDER, "review_status", "human_review", "ready", "human_source_page", "human_source_quote", "components"]
 
 
-def kb_export_filename(section: str, collection_name: str, q: str, extension: str) -> str:
+def kb_export_filename(section: str, q: str, extension: str) -> str:
     """Keep the browser download name ASCII-safe even when the visible KB filter is not."""
     filter_suffix = re.sub(r"[^A-Za-z0-9_-]+", "-", q.strip()).strip("-")
-    return f"kb_{section}_{collection_name}{'_' + filter_suffix if filter_suffix else ''}.{extension}"
+    return f"kb_{section}{'_' + filter_suffix if filter_suffix else ''}.{extension}"
 
 
 @app.get("/api/kb/export.csv")
-def kb_export_csv(section: str = "debt_maturity", collection_name: Literal["all", "wallenberg", "midcap"] = Query("all", alias="collection"), q: str = ""):
-    rows = kb_export_extractions(section, collection_name, q)
+def kb_export_csv(section: str = "debt_maturity", q: str = ""):
+    rows = kb_export_extractions(section, q)
     if not rows:
-        raise HTTPException(404, f"No saved {section!r} extractions match this collection and filter")
+        raise HTTPException(404, f"No saved {section!r} extractions match this filter")
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow(UNIVERSE_CSV_HEADER)
     writer.writerows(universe_csv_row(x) for x in rows)
     return Response(buf.getvalue(), media_type="text/csv; charset=utf-8",
-                    headers={"Content-Disposition": f'attachment; filename="{kb_export_filename(section, collection_name, q, "csv")}"'})
+                    headers={"Content-Disposition": f'attachment; filename="{kb_export_filename(section, q, "csv")}"'})
 
 
 @app.get("/api/kb/export.pptx")
-def kb_export_pptx(section: str = "debt_maturity", collection_name: Literal["all", "wallenberg", "midcap"] = Query("all", alias="collection"), q: str = ""):
-    extractions = kb_export_extractions(section, collection_name, q)
+def kb_export_pptx(section: str = "debt_maturity", q: str = ""):
+    extractions = kb_export_extractions(section, q)
     if not extractions:
-        raise HTTPException(404, f"No saved {section!r} extractions match this collection and filter")
+        raise HTTPException(404, f"No saved {section!r} extractions match this filter")
     data = ppt.build_deck(extractions, [ppt.summary_row(x) for x in extractions])
     return Response(data, media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                    headers={"Content-Disposition": f'attachment; filename="{kb_export_filename(section, collection_name, q, "pptx")}"'})
+                    headers={"Content-Disposition": f'attachment; filename="{kb_export_filename(section, q, "pptx")}"'})
 
 
 @app.get("/api/kb/maturity-wall")
-def kb_maturity_wall(section: Literal["debt_maturity"] = "debt_maturity", collection_name: Literal["all", "wallenberg", "midcap"] = Query("all", alias="collection")):
-    """Deterministic upcoming-maturities list over the saved collection -- reads the same decorated
-    extracts as the CSV/PPTX exports, zero model calls. 200 with empty rows when the collection has no
-    debt_maturity extractions yet -- the empty state is the frontend's to render, not a 404.
+def kb_maturity_wall(section: Literal["debt_maturity"] = "debt_maturity"):
+    """Deterministic upcoming-maturities list over every saved report -- reads the same decorated
+    extracts as the CSV/PPTX exports, zero model calls. 200 with empty rows when nothing has a
+    debt_maturity extraction yet -- the empty state is the frontend's to render, not a 404.
     Every row also carries its data/companies.json `sector` (None when the company is not in the
     universe file) and a `complete` flag (ppt.complete_buckets: the stored identity check passed and both
     total_debt and due_within_1_year are present), aggregated per sector as `sectors` -- companies/complete
     counts plus median/min/max share over complete companies only, never over guessed figures."""
     normalize = lambda name: re.sub(r"[\W_]+", " ", name.casefold()).strip()  # same mapping as list_kb
     sector_of = {normalize(c["name"]): c.get("sector") for c in COMPANIES}
-    extracts = kb_export_extractions(section, collection_name)
+    extracts = kb_export_extractions(section)
     wall = workbench.maturity_wall(extracts)
     by_stem = {x["stem"]: x for x in extracts}
     for row in wall["rows"]:
@@ -1238,12 +1229,21 @@ def review_basis(report_id: str, body: BasisBody):
 
 
 @app.get("/api/review-queue")
-def review_queue(collection_name: Literal["all", "wallenberg", "midcap"] = "wallenberg"):
+def review_queue():
+    """Every unresolved issue across the whole knowledge base, report by report.
+
+    Reads saved extracts the way the whole-KB exports do. Going through kb_extraction instead
+    re-registered every report, hashed its PDF and built a full model system prompt (few-shot
+    examples globbed off disk) per section -- all to compute a `stale` flag no caller here reads.
+    That was ~5 s once nothing narrowed the list; this is ~0.5 s."""
+    saved = {schema["name"]: {x["stem"]: x for x in kb_export_extractions(schema["name"])}
+             for schema in list_schemas()}
     out = []
-    for report in list_kb(collection_name):
+    for report in list_kb():
         for section in report["sections"]:
-            x = kb_extraction(report["stem"], section)
-            out.extend({"report": report, "section": section, **issue} for issue in x["issues"])
+            x = saved.get(section, {}).get(report["stem"])
+            if x:
+                out.extend({"report": report, "section": section, **issue} for issue in x["issues"])
     return out
 
 

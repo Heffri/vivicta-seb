@@ -4,10 +4,11 @@ import { expect, test } from '@playwright/test'
 // cached PDF, downloads when only text is saved, and falls back to saved text if the download fails).
 test('directory picks fetch once with the PDF download on', async ({ page }) => {
   const fetched: any[] = []
-  const scopes: string[] = []
+  const scoped: string[] = []
   await page.route('**/api/**', async route => {
     const url = new URL(route.request().url())
-    if (['/api/companies', '/api/library', '/api/kb'].includes(url.pathname)) scopes.push(url.searchParams.get('collection_name') ?? '')
+    // Nothing narrows the catalogue any more: no surface may send a collection_name.
+    if (url.searchParams.has('collection_name')) scoped.push(url.pathname)
     if (url.pathname === '/api/reports/fetch') {
       fetched.push(route.request().postDataJSON())
       await new Promise(r => setTimeout(r, 300)) // keep the progress line visible long enough to assert on it
@@ -27,7 +28,7 @@ test('directory picks fetch once with the PDF download on', async ({ page }) => 
   await page.getByRole('button', { name: 'View results (1)', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Atlas Copco', exact: true })).toBeVisible() // results view: the fetch + extract went through
   expect(fetched.map(request => [request.company, request.year, request.download_pdf])).toEqual([['Atlas Copco', 2025, true]])
-  expect(scopes.every(scope => scope === 'wallenberg')).toBe(true)
+  expect(scoped).toEqual([])
 })
 
 test('a fetch error is shown with the URLs tried, never retried', async ({ page }) => {

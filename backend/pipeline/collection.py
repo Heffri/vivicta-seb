@@ -1,13 +1,10 @@
-"""Curated Wallenberg and data-derived SEB Mid Cap collections.
+"""Company-name identity, plus the curated Wallenberg roster the company directory merges in.
 Sources: https://www.investorab.com/our-companies/ and https://fam.se/
-A holdings collection, not a claim of majority ownership or an exhaustive family tree.
+A holdings roster, not a claim of majority ownership or an exhaustive family tree.
 Kept with application code so existing installations receive roster updates.
 """
-import json
 import re
 import unicodedata
-
-from . import paths
 
 GROUPS = {
     'Holding companies': ['Investor AB', 'FAM AB'],
@@ -49,36 +46,9 @@ def identity(name):
     key = normalize(name)
     return ALIASES.get(key, key)
 
-def _midcap_members():
-    companies = json.loads(paths.companies_path().read_text(encoding='utf-8'))
-    return frozenset(identity(company['name']) for company in companies if company.get('market') == 'Mid Cap')
-
-
-# Read the source once at application startup. Do not duplicate this roster in code: the data
-# directory is the authoritative SEB universe, while identity() handles catalog spelling variants.
-MIDCAP = _midcap_members()
-
-
-def members(collection_name):
-    if collection_name == 'wallenberg':
-        return frozenset(NAMES)
-    if collection_name == 'midcap':
-        return MIDCAP
-    if collection_name == 'all':
-        return None
-    raise ValueError(f'unknown collection: {collection_name}')
-
-
-def scope(collection_name):
-    names = members(collection_name)
-    return lambda name: names is None or identity(name) in names
-
-
-def member(name, collection_name='wallenberg'):
-    # Preserve the Wallenberg group metadata used by existing callers and tests.
-    if collection_name == 'wallenberg':
-        return NAMES.get(identity(name))
-    return scope(collection_name)(name)
+def member(name):
+    """The roster entry for a company, as (display name, group), or None. Prompt context only."""
+    return NAMES.get(identity(name))
 
 
 def report_metadata(name):
@@ -93,17 +63,17 @@ def reported_members(report_owner):
             for name, metadata in NO_STANDALONE_REPORTS.items() if metadata['reports_in'] == report_owner]
 
 
-def directory(companies, collection_name='wallenberg'):
-    if collection_name == 'all':
-        return companies
-    if collection_name == 'midcap':
-        in_scope = scope(collection_name)
-        return [company for company in companies if in_scope(company['name'])]
-    existing = {identity(c['name']): c for c in companies}
-    rows = []
+def directory(companies):
+    """The whole catalogue, plus the roster names it does not list. Those extra rows are the only
+    way private holdings such as Moelnlycke are findable at all -- they have no catalogue entry --
+    so they are merged in rather than filtered for, and nothing is ever hidden."""
+    existing = {identity(c['name']) for c in companies}
+    extra = []
     for key, (name, group) in NAMES.items():
-        row = dict(existing.get(key, {'ticker': '', 'sector': None, 'isin': None}), name=name, collection_group=group)
+        if key in existing:
+            continue
+        row = {'ticker': '', 'sector': None, 'isin': None, 'name': name, 'collection_group': group}
         if metadata := report_metadata(name):
             row.update(metadata)
-        rows.append(row)
-    return rows
+        extra.append(row)
+    return companies + extra

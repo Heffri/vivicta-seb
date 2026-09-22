@@ -23,7 +23,7 @@ SEB. Full brief, meeting notes and the team: [`docs/CHALLENGE.md`](docs/CHALLENG
 ## Try it in one minute — no model, no download
 
 The repo ships 206 saved reports; 105 carry a stored `debt_maturity` extraction. Start the app by
-any entry point below, open **Knowledge base** → set **Collection: All** → search `karnell` →
+any entry point below, open **Knowledge base** → search `karnell` →
 **Open** → click a figure: page number, verbatim quote, the sum check, review and PPTX/CSV export
 all work offline, zero model calls. (Only page *images* need the PDF on disk.) The full demo
 script — the two bundled samples, a three-minute line-by-line, and the demo-day checklist — is
@@ -188,9 +188,9 @@ rebuilt from every push to `main` — or build it from `desktop/`:
 ## The saved library (`data/kb/`)
 
 `data/kb/` is a committed cache: report metadata, source page text, saved extractions and reviews,
-which the app opens without re-extracting. In **Knowledge base**, choose **Collection → All** for
-the full library; Extract and Ask share that choice, and Extract also offers **All companies**. Ask
-lists saved text, nonempty extracted figures and downloaded PDFs separately, and excludes catalog
+which the app opens without re-extracting. Every surface shows all of it — there is no scope to
+pick and nothing that can hide a saved report, so two installations with the same `data/` show the
+same reports. Ask lists saved text, nonempty extracted figures and downloaded PDFs separately, and excludes catalog
 entries with no readable page text. In Extract, typing a company name and pressing Enter has the
 connected model resolve the text to concrete companies — "intel" becomes Intel Corporation
 (NASDAQ: INTC) — shown as cards with ticker, country and the report it found; **Use this company**

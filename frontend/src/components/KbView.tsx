@@ -6,9 +6,7 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { PageHeader, Workspace } from '@/components/ui/workspace'
 import { ErrorBlock, LoadingLine } from '@/components/ui/state'
-import { CollectionPicker } from '@/components/CollectionPicker'
 import { MaturityWallCard } from '@/components/kb/MaturityWallCard'
-import { useCollection, type Collection } from '@/hooks/useCollection'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { ChunkPage, KbEntry, Result, Schema } from '@/types'
 
@@ -34,7 +32,6 @@ export function KbView({ onOpen, onOpenReport, revision = 0 }: Props) {
   const [busy, setBusy] = useState<string | null>(null)
   const [notCached, setNotCached] = useState(false) // last error was the 409 "PDF no longer cached"
   const [query, setQuery] = useState('')
-  const [collection, setCollection] = useCollection('all', 'arp-kb-view-collection')
   const [refresh, setRefresh] = useState(0)
   // Basenames present in data/reports/ right now (GET /api/library, disk-backed). null = not known yet — either
   // still loading or the call failed (old backend / network); either way fall back to "everything openable".
@@ -48,7 +45,7 @@ export function KbView({ onOpen, onOpenReport, revision = 0 }: Props) {
   const build = async (stem: string) => {
     setBusy(stem)
     setError(null)
-    try { await rebuildIndex(stem); setEntries(await getKb(collection)) }
+    try { await rebuildIndex(stem); setEntries(await getKb()) }
     catch (e) { setError((e as Error).message) }
     finally { setBusy(null) }
   }
@@ -64,7 +61,7 @@ export function KbView({ onOpen, onOpenReport, revision = 0 }: Props) {
     const timer = setTimeout(() => {
       pollAttempts.current += 1
       pollDelay.current = Math.min(delay * 2, POLL_MAX_DELAY_MS)
-      getKb(collection).then((rows) => {
+      getKb().then((rows) => {
         if (stale) return
         setEntries(rows)
         if (rows.some((e) => e.status === 'building')) {
@@ -75,14 +72,14 @@ export function KbView({ onOpen, onOpenReport, revision = 0 }: Props) {
       }).catch((e: Error) => { if (!stale) setError(e.message) })
     }, delay)
     return () => { stale = true; clearTimeout(timer) }
-  }, [entries, collection])
+  }, [entries])
 
   useEffect(() => {
     let active = true
-    getKb(collection).then(rows => { if (active) { setEntries(rows); setError(null) } })
+    getKb().then(rows => { if (active) { setEntries(rows); setError(null) } })
       .catch((e: Error) => { if (active) setError(e.message) })
     return () => { active = false }
-  }, [collection, revision, refresh])
+  }, [revision, refresh])
 
   useEffect(() => {
     getSchemas().then(setSchemas).catch(() => {})
@@ -91,18 +88,12 @@ export function KbView({ onOpen, onOpenReport, revision = 0 }: Props) {
 
   useEffect(() => {
     let active = true
-    getLibrary('all')
+    getLibrary()
       .then((lib) => { if (active) setPdfFiles(new Set(lib.map((l) => l.file))) })
       .catch(() => {}) // fixture-era backend or a blip: stay null, every row stays openable
     return () => { active = false }
   }, [revision, refresh])
 
-  const switchCollection = (c: Collection) => {
-    if (c === collection) return
-    setCollection(c) // the [collection] effect refetches; the previous list stays up until it lands
-    setSelected(new Set()) // selected stems may be invisible in the other collection — never keep them
-    setError(null)
-  }
 
   // Same join the backend's own GET /api/kb/{stem}/{section} 409 check uses (app.py: file == f"{stem}.pdf").
   const hasPdf = (stem: string) => entries?.find((entry) => entry.stem === stem)?.pdf_available ?? (!pdfFiles || pdfFiles.has(`${stem}.pdf`))
@@ -255,8 +246,8 @@ export function KbView({ onOpen, onOpenReport, revision = 0 }: Props) {
         <details className="group relative">
           <summary className={`${buttonVariants({ variant: 'outline' })} cursor-pointer list-none [&::-webkit-details-marker]:hidden`}><Download /> Export all</summary>
           <div className="absolute right-0 z-20 mt-1 flex min-w-40 flex-col gap-1 rounded-lg border bg-popover p-1 shadow-md">
-            <a href={kbExportCsvUrl(exportSection, collection, query)} download className={buttonVariants({ size: 'sm', variant: 'ghost' })}>CSV</a>
-            <a href={kbExportPptxUrl(exportSection, collection, query)} download className={buttonVariants({ size: 'sm', variant: 'ghost' })}>PPTX deck</a>
+            <a href={kbExportCsvUrl(exportSection, query)} download className={buttonVariants({ size: 'sm', variant: 'ghost' })}>CSV</a>
+            <a href={kbExportPptxUrl(exportSection, query)} download className={buttonVariants({ size: 'sm', variant: 'ghost' })}>PPTX deck</a>
           </div>
         </details>
       </div>} />
@@ -280,8 +271,7 @@ export function KbView({ onOpen, onOpenReport, revision = 0 }: Props) {
 
       {gaveUp && entries?.some((entry) => entry.status === 'building') && <p role="status" className="text-sm text-muted-foreground">Indexing did not finish — refresh the page to retry.</p>}
 
-      {collection !== 'all' && <div role="status" className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm"><span>This collection hides reports from other companies, including reports found by web search.</span><Button variant="outline" size="xs" onClick={() => switchCollection('all')}>Show all saved reports</Button></div>}
-      {entries && entries.length === 0 && <p className="text-sm text-muted-foreground">{collection === 'all' ? 'No saved reports yet. Fetch or upload a report in Extract.' : 'No saved reports in this collection.'}</p>}
+      {entries && entries.length === 0 && <p className="text-sm text-muted-foreground">No saved reports yet. Fetch or upload a report in Extract.</p>}
 
       <Workspace label="Knowledge base workspace" value={view} onChange={setView} toolbar={<div className="flex flex-wrap items-center gap-3">
           <div className="relative w-full sm:w-72">
@@ -298,8 +288,7 @@ export function KbView({ onOpen, onOpenReport, revision = 0 }: Props) {
           <span className="text-xs text-muted-foreground tabular-nums">
             {filtered.length} / {entries?.length ?? 0}
           </span>
-          <CollectionPicker value={collection} onChange={switchCollection} />
-          <MaturityWallCard collection={collection} entries={entries ?? []} onOpenReport={onOpenReport} />
+          <MaturityWallCard entries={entries ?? []} onOpenReport={onOpenReport} />
           <label
             className={`flex items-center gap-1.5 text-xs ${pdfFiles ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}
             title={pdfFiles ? undefined : 'PDF cache list unavailable — cannot filter by it'}

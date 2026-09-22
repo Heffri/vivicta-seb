@@ -1,5 +1,4 @@
 import type { ChunkPage, Answer, Company, Discovery, Extraction, FieldFill, IndexStatus, Job, KbEntry, LibraryEntry, MaturityWall, Report, ReviewComponent, Schema } from './types'
-import type { Collection } from './hooks/useCollection'
 
 export type FetchAttempt = { url: string; reason: string; kind: string }
 export type ReportListing = { url: string; company: string; fiscal_year: number; title: string; evidence: string; access: 'manual_download' }
@@ -34,7 +33,7 @@ export function uploadReport(file: File, ocr?: 'full') {
   return request<Report>(`/api/reports${ocr ? '?ocr=full' : ''}`, { method: 'POST', body })
 }
 
-export const getLibrary = (collection: Collection = 'wallenberg') => request<LibraryEntry[]>(`/api/library?collection_name=${collection}`)
+export const getLibrary = () => request<LibraryEntry[]>('/api/library')
 
 export const registerLibraryReport = (file: string, ocr?: 'full') =>
   request<Report>('/api/reports/from-library', {
@@ -43,7 +42,7 @@ export const registerLibraryReport = (file: string, ocr?: 'full') =>
     body: JSON.stringify({ file, ...(ocr ? { ocr } : {}) }),
   })
 
-export const getCompanies = (q: string, collection: Collection = 'wallenberg') => request<Company[]>(`/api/companies?q=${encodeURIComponent(q)}&collection_name=${collection}`)
+export const getCompanies = (q: string) => request<Company[]>(`/api/companies?q=${encodeURIComponent(q)}`)
 
 // Which legal entities a typed query could mean (a deterministic saved report returns before model search);
 // force_web is the explicit analyst override. job_id (optional): getJob polls this call's progress.
@@ -147,18 +146,15 @@ export type Config = {
   scan_all?: boolean // the backend's live EXTRACT_SCAN_ALL (the offline scan, env-only by design); absent on older backends
 }
 export const getConfig = () => request<Config>('/api/config')
-// The KB page's collection switch. Wallenberg remains the UI default; midcap is the 132-company
-// SEB universe from data/companies.json. The backend default is 'all' — pass one explicitly.
-export const getKb = (collection: Collection = 'wallenberg') =>
-  request<KbEntry[]>(`/api/kb?collection_name=${collection}`)
+export const getKb = () => request<KbEntry[]>('/api/kb')
 // Whole-universe exports stay browser downloads, matching the existing per-report CSV/PPTX links.
 // `q` follows KbView's visible company/stem filter; no client-side data reconstruction is needed.
-const kbExportParams = (section: string, collection: Collection, q = '') =>
-  new URLSearchParams({ section, collection, ...(q.trim() ? { q: q.trim() } : {}) })
-export const kbExportCsvUrl = (section: string, collection: Collection, q = '') =>
-  `/api/kb/export.csv?${kbExportParams(section, collection, q)}`
-export const kbExportPptxUrl = (section: string, collection: Collection, q = '') =>
-  `/api/kb/export.pptx?${kbExportParams(section, collection, q)}`
+const kbExportParams = (section: string, q = '') =>
+  new URLSearchParams({ section, ...(q.trim() ? { q: q.trim() } : {}) })
+export const kbExportCsvUrl = (section: string, q = '') =>
+  `/api/kb/export.csv?${kbExportParams(section, q)}`
+export const kbExportPptxUrl = (section: string, q = '') =>
+  `/api/kb/export.pptx?${kbExportParams(section, q)}`
 // Stored extraction, no model call; the backend re-registers the PDF so pageUrl/csvUrl work.
 export const openKbExtraction = (stem: string, section: string) =>
   request<Extraction>(`/api/kb/${encodeURIComponent(stem)}/${encodeURIComponent(section)}`)
@@ -169,9 +165,8 @@ export const getKbPage = (stem: string, page: number) =>
 export const restoreSourcePdf = (stem: string) =>
   request<Report>(`/api/kb/${encodeURIComponent(stem)}/pdf`, { method: 'POST' })
 
-// Deterministic upcoming-maturities list over the saved collection (Compare view). Zero model calls.
-export const getMaturityWall = (collection: Collection = 'wallenberg') =>
-  request<MaturityWall>(`/api/kb/maturity-wall?collection=${collection}`)
+// Deterministic upcoming-maturities list over every saved report (Compare view). Zero model calls.
+export const getMaturityWall = () => request<MaturityWall>('/api/kb/maturity-wall')
 
 export const reviewField = (reportId: string, body: { section: string; key: string; expected: import('./types').Field; decision: import('./types').HumanReview['decision']; reviewer: string; note: string; value?: number | string | null; unit?: string | null; period?: string | null; source_page?: number; source_quote?: string; components?: ReviewComponent[] }) =>
   request<Extraction>(`/api/reports/${encodeURIComponent(reportId)}/review`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
@@ -183,7 +178,7 @@ export const fillField = (reportId: string, section: string, field: string, page
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ field, pages }),
   })
 
-export const getReviewQueue = (collection: Collection = 'wallenberg') => request<import('./types').QueueIssue[]>(`/api/review-queue?collection_name=${collection}`)
+export const getReviewQueue = () => request<import('./types').QueueIssue[]>('/api/review-queue')
 export const saveBasis = (reportId: string, body: { section: string; expected: Partial<import('./types').Basis>; values: Record<string, string>; reviewer: string; note: string }) =>
   request<Extraction>(`/api/reports/${encodeURIComponent(reportId)}/basis`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 export const getComparison = (stem: string, section: string, previous?: string) =>

@@ -1,13 +1,11 @@
 import { FileText, Filter, Network, MessageCircle, Minus, Plus, RotateCcw, Search } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { getKb } from '@/api'
-import { CollectionPicker } from '@/components/CollectionPicker'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PageHeader, Workspace } from '@/components/ui/workspace'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ErrorBlock, LoadingLine } from '@/components/ui/state'
-import { useCollection } from '@/hooks/useCollection'
 import type { KbEntry } from '@/types'
 
 type Props = { onAsk: (company: string) => void; onOpenReport: (report: KbEntry) => void }
@@ -17,7 +15,6 @@ const polar = (angle: number, radius: number): Point => ({ x: Math.cos(angle) * 
 
 export function KnowledgeMap({ onAsk, onOpenReport }: Props) {
   const [view, setView] = useState<'map' | 'reports'>('map')
-  const [collection, setCollection] = useCollection()
   const [entries, setEntries] = useState<KbEntry[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
@@ -33,9 +30,9 @@ export function KnowledgeMap({ onAsk, onOpenReport }: Props) {
 
   useEffect(() => {
     let stale = false
-    getKb(collection).then(data => { if (!stale) setEntries(data) }).catch((e: Error) => { if (!stale) setError(e.message) })
+    getKb().then(data => { if (!stale) setEntries(data) }).catch((e: Error) => { if (!stale) setError(e.message) })
     return () => { stale = true }
-  }, [collection])
+  }, [])
   useEffect(() => {
     const element = svg.current
     if (!element) return
@@ -78,7 +75,9 @@ export function KnowledgeMap({ onAsk, onOpenReport }: Props) {
   sectors.forEach((s, i) => {
     const angle = -Math.PI / 2 + i * 2 * Math.PI / sectors.length
     positions[`sector:${s}`] = polar(angle, sectors.length === 1 ? 150 : 240)
-    const members = companies.filter(([, c]) => c.sector === s)
+    // Lay out only what is drawn: the search and sector filters are how 200+ saved companies are
+    // made legible, and laying out the full set left the matches sitting in their unfiltered slots.
+    const members = filtered.filter(([, c]) => c.sector === s)
     members.forEach(([key], j) => {
       const spread = Math.min(1.4, 2 * Math.PI / sectors.length * 0.85)
       positions[key] = polar(angle + ((j + 0.5) / members.length - 0.5) * spread, 365 + (j % 3) * 48)
@@ -109,13 +108,11 @@ export function KnowledgeMap({ onAsk, onOpenReport }: Props) {
   }
   const edge = (from: string, to: string, color: string, selectedEdge = false) => <line key={`${from}-${to}`} x1={positions[from].x} y1={positions[from].y} x2={positions[to].x} y2={positions[to].y} stroke={color} strokeOpacity={selectedEdge ? 0.7 : 0.2} strokeWidth={selectedEdge ? 2 : 1} />
 
-  const collectionLabel = collection === 'midcap' ? 'SEB Mid Cap universe' : collection === 'all' ? 'All saved reports' : 'Wallenberg collection'
-
   return <div className="space-y-5">
-    <PageHeader eyebrow={collectionLabel} title="Company map" description="Explore sectors and companies, then open their saved reports." actions={<CollectionPicker value={collection} onChange={value => { if (value !== collection) { setEntries(null); setError(null); setCollection(value) } }} />} />
+    <PageHeader eyebrow="Knowledge base" title="Company map" description="Explore sectors and companies, then open their saved reports." />
     {error && <ErrorBlock>{error}</ErrorBlock>}
     {!entries && !error && <LoadingLine>Mapping your stored reports…</LoadingLine>}
-    {entries?.length === 0 && <p>{collectionLabel} has no saved reports yet. Extract or index one to get started.</p>}
+    {entries?.length === 0 && <p>No saved reports yet. Extract or index one to get started.</p>}
     {!!entries?.length && <>
       <Workspace label="Company workspace" value={view} onChange={setView} toolbar={<div className="flex w-full flex-wrap items-center gap-2">
         <Input type="search" icon={<Search />} aria-label="Search companies or reports" placeholder="Search companies or reports…" value={query} onChange={e => setQuery(e.target.value)} className="min-w-52 flex-1" />

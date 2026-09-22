@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react'
 import { getComparison, getReviewQueue, saveBasis } from '@/api'
-import { CollectionPicker } from '@/components/CollectionPicker'
-import { useCollection } from '@/hooks/useCollection'
 import type { Comparison, Extraction, KbEntry, QueueIssue } from '@/types'
 import { Button } from '@/components/ui/button'
 import { PageHeader, Workspace } from '@/components/ui/workspace'
@@ -77,10 +75,9 @@ const issueCategory = (issue: QueueIssue) => {
 }
 
 export function ReviewQueue({ onOpen, filters, onFiltersChange }: { onOpen: (report: KbEntry, section: string, key?: string) => void; filters: ReviewFilters; onFiltersChange: (filters: ReviewFilters) => void }) {
-  const [collection, setCollection] = useCollection()
   const [issues, setIssues] = useState<QueueIssue[] | null>(null)
   const [error, setError] = useState('')
-  useEffect(() => { let stale = false; getReviewQueue(collection).then(r => { if (!stale) setIssues(r) }).catch(e => { if (!stale) setError(e.message) }); return () => { stale = true } }, [collection])
+  useEffect(() => { let stale = false; getReviewQueue().then(r => { if (!stale) setIssues(r) }).catch(e => { if (!stale) setError(e.message) }); return () => { stale = true } }, [])
   const value = (i: QueueIssue, k: string) => k === 'company' ? i.report.company ?? i.report.stem : k === 'year' ? String(i.report.fiscal_year ?? '') : k === 'section' ? i.section : i.kind
   const visible = issues?.filter(i => Object.entries(filters).every(([k, v]) => !v || value(i, k) === v))
   const groups = new Map<string, { report: KbEntry; section: string; issues: QueueIssue[] }>()
@@ -90,12 +87,11 @@ export function ReviewQueue({ onOpen, filters, onFiltersChange }: { onOpen: (rep
     groups.get(key)!.issues.push(issue)
   }
   const target = (issue: QueueIssue) => issue.kind === 'field' ? issue.key : issue.kind === 'basis' ? '@basis' : '@checks'
-  const collectionLabel = collection === 'midcap' ? 'SEB Mid Cap universe' : collection === 'all' ? 'All saved reports' : 'Wallenberg collection'
   const content = <>
     {error && <ErrorBlock>{error}</ErrorBlock>}
     {!issues && !error && <LoadingLine>Loading review queue…</LoadingLine>}
-    {issues && <p role="status" className="text-sm text-muted-foreground">{collectionLabel} · {groups.size} {groups.size === 1 ? 'statement' : 'statements'} · {visible?.length} outstanding {visible?.length === 1 ? 'check' : 'checks'}</p>}
-    {issues && !visible?.length && <p className="text-sm text-muted-foreground">{issues.length ? 'No checks match these filters.' : 'No outstanding checks in this collection.'}</p>}
+    {issues && <p role="status" className="text-sm text-muted-foreground">{groups.size} {groups.size === 1 ? 'statement' : 'statements'} · {visible?.length} outstanding {visible?.length === 1 ? 'check' : 'checks'}</p>}
+    {issues && !visible?.length && <p className="text-sm text-muted-foreground">{issues.length ? 'No checks match these filters.' : 'No outstanding checks.'}</p>}
     <div className="space-y-3">{[...groups].map(([key, group]) => <article key={key} aria-label={`${group.report.company ?? group.report.stem} ${group.report.fiscal_year ?? ''} ${group.section.replaceAll('_', ' ')}`} className="rounded-xl border bg-card p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h2 className="font-medium">{group.report.company ?? group.report.stem} · {group.report.fiscal_year ?? 'Year unknown'}</h2><p className="mt-1 text-sm text-muted-foreground">{group.section.replaceAll('_', ' ')} · {group.issues.length} outstanding {group.issues.length === 1 ? 'check' : 'checks'}</p></div>
@@ -110,7 +106,7 @@ export function ReviewQueue({ onOpen, filters, onFiltersChange }: { onOpen: (rep
     </article>)}</div>
   </>
   return <div className="space-y-6">
-    <PageHeader eyebrow="Review" title="Review statements" description={`Resolve outstanding checks in ${collectionLabel} against saved figures and their sources.`} actions={<CollectionPicker value={collection} onChange={next => { if (next !== collection) { setIssues(null); setError(''); setCollection(next) } }} />} />
+    <PageHeader eyebrow="Review" title="Review statements" description="Resolve outstanding checks against saved figures and their sources." />
     <Workspace label="Review workspace" value={filters.kind} onChange={kind => onFiltersChange({ ...filters, kind })}
       toolbar={<div className="grid w-full gap-3 sm:grid-cols-3">{['company', 'year', 'section'].map(k => <OptionSelect key={k} label={k === 'year' ? 'Fiscal year' : k === 'section' ? 'Statement' : 'Company'} value={filters[k as keyof ReviewFilters]} onChange={next => onFiltersChange({ ...filters, [k]: next })} options={[{ value: '', label: 'All' }, ...[...new Set(issues?.map(i => value(i, k)))].sort().map(item => ({ value: item, label: item.replaceAll('_', ' ') }))]} />)}</div>}
       pages={[

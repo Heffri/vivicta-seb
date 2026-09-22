@@ -201,7 +201,7 @@ def demo():
                     patch.object(app, "library_paths", {}), patch.object(app, "library_pages", {}):
                 assert app.library_index() == []
                 client = TestClient(app.app)
-                assert client.get("/api/library?collection_name=all").json() == []
+                assert client.get("/api/library").json() == []
                 assert client.post("/api/reports/from-library", json={"file": broken_entry["file"]}).status_code == 404
 
             dest = tmp / "reports"

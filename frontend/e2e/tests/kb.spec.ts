@@ -86,31 +86,22 @@ for (const tone of TONES) {
     expect(errors).toEqual([])
   })
 
-  test(`kb: collection switch Wallenberg -> All -> back [${tone}]`, async ({ page }) => {
+  test(`kb: every saved report is listed, and a reload still lists them [${tone}]`, async ({ page }) => {
     const errors = trackPageErrors(page)
     await gotoWithTone(page, tone)
 
     await railTab(page, 'Knowledge base').click()
     await expect(page.getByRole('heading', { name: /reports/ })).toBeVisible()
+    // The whole of data/kb, never a subset — the count keeps growing as other tests upload, so
+    // this is a floor, not an exact number.
     const rows = page.locator('tbody tr')
-    await expect(rows).toHaveCount(11, { timeout: 20000 })
+    await expect.poll(async () => rows.count(), { timeout: 20000 }).toBeGreaterThanOrEqual(190)
 
-    const collection = page.getByRole('group', { name: 'Collection' })
-    await collection.getByRole('button', { name: 'All', exact: true }).click()
-    // The heading's collection label flips with state, not with the fetch — wait for the row count
-    // to actually change (it keeps growing as other tests upload, so no exact number here).
-    await expect.poll(async () => rows.count(), { timeout: 20000 }).toBeGreaterThan(11)
-    expect(await rows.count()).toBeGreaterThanOrEqual(190)
-
-    // The choice sticks across a reload (localStorage arp-kb-collection); the reload lands on the
-    // default Extract tab, so go back to Knowledge base before reading the header.
+    // Nothing is persisted that could narrow the list on the next visit; the reload lands on the
+    // default Extract tab, so go back to Knowledge base before counting again.
     await page.reload()
     await railTab(page, 'Knowledge base').click()
-    await expect(collection.getByRole('button', { name: 'All', exact: true })).toHaveAttribute('aria-pressed', 'true', { timeout: 20000 })
-
-    await collection.getByRole('button', { name: 'Wallenberg', exact: true }).click()
-    await expect(collection.getByRole('button', { name: 'Wallenberg', exact: true })).toHaveAttribute('aria-pressed', 'true', { timeout: 20000 })
-    await expect(rows).toHaveCount(11)
+    await expect.poll(async () => rows.count(), { timeout: 20000 }).toBeGreaterThanOrEqual(190)
 
     expect(errors).toEqual([])
   })

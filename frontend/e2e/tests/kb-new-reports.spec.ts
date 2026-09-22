@@ -9,7 +9,7 @@ async function mockCatalog(page: Page, state: { saved: boolean; extracted: boole
   await page.route('**/api/**', async route => {
     const url = new URL(route.request().url())
     const path = url.pathname
-    if (path === '/api/kb') return route.fulfill({ json: state.saved && url.searchParams.get('collection_name') === 'all'
+    if (path === '/api/kb') return route.fulfill({ json: state.saved
       ? [{ ...entry, sections: state.extracted ? ['income_statement'] : [] }] : [] })
     if (path === '/api/reports/discover') return route.fulfill({ json: { candidates: [{ legal_name: company, ticker: 'NHI', country: 'US', exchange: 'NASDAQ', document_title: 'Annual report 2025', document_type: 'annual report', url: 'https://example.com/report.pdf', reason: 'Matching company', saved: false }], note: null } })
     if (path === '/api/reports/fetch') {
@@ -26,15 +26,6 @@ async function mockCatalog(page: Page, state: { saved: boolean; extracted: boole
       : path === '/api/library' && state.saved ? [{ ...report, file: `${stem}.pdf`, tags: [], language: 'en', source_url: null }] : [] })
   })
 }
-
-test('Knowledge base defaults to all reports independently of the Extract collection', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('arp-kb-collection', 'wallenberg'))
-  await mockCatalog(page, { saved: true, extracted: true })
-  await page.goto('/')
-  await page.getByRole('tab', { name: 'Knowledge base', exact: true }).click()
-  await expect(page.getByRole('row').filter({ hasText: company })).toBeVisible()
-  expect(await page.evaluate(() => localStorage.getItem('arp-kb-collection'))).toBe('wallenberg')
-})
 
 test('a discovered report and its completed extraction appear while Knowledge base stays open', async ({ page }) => {
   const state = { saved: false, extracted: false }
@@ -54,17 +45,13 @@ test('a discovered report and its completed extraction appear while Knowledge ba
   await expect(page.getByRole('tab', { name: 'Knowledge base', exact: true })).toHaveAttribute('aria-selected', 'true')
 })
 
-test('empty collection keeps an escape to all reports and Refresh picks up newly saved reports', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('arp-kb-view-collection', 'wallenberg'))
+test('an empty knowledge base says so, and Refresh picks up newly saved reports', async ({ page }) => {
   const state = { saved: false, extracted: true }
   await mockCatalog(page, state)
   await page.goto('/')
   await page.getByRole('tab', { name: 'Knowledge base', exact: true }).click()
-  await expect(page.getByText('No saved reports in this collection.', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Show all saved reports', exact: true }).click()
   await expect(page.getByText('No saved reports yet. Fetch or upload a report in Extract.', { exact: true })).toBeVisible()
   state.saved = true
   await page.getByRole('button', { name: 'Refresh', exact: true }).click()
   await expect(page.getByRole('row').filter({ hasText: company })).toBeVisible()
-  expect(await page.evaluate(() => localStorage.getItem('arp-kb-view-collection'))).toBe('all')
 })

@@ -11,10 +11,11 @@ assert collection.identity('Swedish Orphan Biovitrum AB') == collection.identity
 assert collection.member('Volvo') is None
 assert len(collection.directory([])) == 35
 assert len(collection.NO_STANDALONE) == 13
-assert len(collection.members('midcap')) == 132
-assert collection.member('Acast', 'midcap')
-assert not collection.member('ABB', 'midcap')
-assert len(collection.directory(app.COMPANIES, 'midcap')) == 132
+# The directory never filters: it is the catalogue plus every roster name the catalogue omits, so
+# private holdings stay findable and nothing a user saved is ever hidden.
+directory_names = {collection.identity(c['name']) for c in collection.directory(app.COMPANIES)}
+assert set(collection.NAMES) <= directory_names
+assert {collection.identity(c['name']) for c in app.COMPANIES} <= directory_names
 with tempfile.TemporaryDirectory() as tmp:
     root = Path(tmp)
     library = root / 'reports'
@@ -28,15 +29,12 @@ with tempfile.TemporaryDirectory() as tmp:
         kb.save_extraction('acast_2025', 'income_statement', saved)
         client = TestClient(app.app)
         with patch.object(app.fetch, 'fetch_report', side_effect=AssertionError('Unexpected PDF download')):
-            assert len(client.get('/api/kb?collection_name=wallenberg').json()) == 1
-            assert len(client.get('/api/kb?collection_name=midcap').json()) == 1
             assert len(client.get('/api/kb').json()) == 3
-            assert len(client.get('/api/companies?collection_name=wallenberg').json()) == 35
             # Parent coverage is retained as context, without blocking standalone accounts.
             kb.save_report('investor_2025', {'company': 'Investor AB', 'fiscal_year': 2025, 'pages': 2, 'sha256': 'investor'}, [
                 'Investor annual report 2025', 'Patricia Industries reports on Sarnova.',
             ])
-            sarnova = client.get('/api/companies?q=sarnova&collection_name=wallenberg').json()
+            sarnova = client.get('/api/companies?q=sarnova').json()
             assert sarnova == [
                 {
                     'name': 'Sarnova', 'ticker': '', 'sector': None, 'isin': None, 'cached_years': [],
@@ -44,7 +42,7 @@ with tempfile.TemporaryDirectory() as tmp:
                     'collection_group': 'Patricia Industries', 'report_stem': 'investor_2025',
                 }
             ], sarnova
-            investor = next(entry for entry in client.get('/api/kb?collection_name=wallenberg').json()
+            investor = next(entry for entry in client.get('/api/kb').json()
                             if entry['stem'] == 'investor_2025')
             assert investor['reported_members'] == [
                 {'name': 'Atlas Antibodies', 'collection_group': 'Patricia Industries'},
@@ -68,11 +66,13 @@ with tempfile.TemporaryDirectory() as tmp:
                     missing = client.post('/api/reports/fetch', json={'company': company, 'year': 2025})
                     assert missing.status_code == 404 and missing.json()['code'] == 'report_unavailable', missing.text
                     download.assert_called_once()
-            assert [company['name'] for company in client.get('/api/companies?q=acast&collection_name=midcap').json()] == ['Acast']
-            assert client.get('/api/review-queue?collection_name=midcap').status_code == 200
-            export = client.get('/api/kb/export.csv?section=income_statement&collection=midcap')
+            assert [company['name'] for company in client.get('/api/companies?q=acast').json()] == ['Acast']
+            assert client.get('/api/review-queue').status_code == 200
+            # `q` is the only export filter left, and it still narrows to one company.
+            export = client.get('/api/kb/export.csv?section=income_statement&q=acast')
             assert export.status_code == 200 and 'Acast' in export.text and 'ABB' not in export.text
-            assert client.get('/api/library?collection_name=wallenberg').json() == []
+            assert 'ABB' in client.get('/api/kb/export.csv?section=income_statement').text
+            assert client.get('/api/library').json() == []
             # download_pdf defaults to true (the PDF is always wanted); false is the text-only reuse of a saved report
             response = client.post('/api/reports/fetch', json={'company': 'ABB', 'year': 2025, 'download_pdf': False})
             assert response.status_code == 200, response.text
@@ -114,4 +114,4 @@ with tempfile.TemporaryDirectory() as tmp:
         stages = [e['stage'] for e in job['events']]
         assert stages == ['directory', 'directory', 'done'], stages
         assert 'saved report found, web search skipped' in job['events'][1]['text'], job
-print('Wallenberg scope, saved-text reuse, review preservation, discover and always-download passed')
+print('Roster merge, saved-text reuse, review preservation, discover and always-download passed')

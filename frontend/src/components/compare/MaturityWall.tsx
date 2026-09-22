@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { getKb, getMaturityWall } from '@/api'
-import { CollectionPicker } from '@/components/CollectionPicker'
 import { fmtValue } from '@/components/ResultsView'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -8,7 +7,6 @@ import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { ErrorBlock, LoadingLine } from '@/components/ui/state'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { useCollection, type Collection } from '@/hooks/useCollection'
 import type { KbEntry, MaturityWall as MaturityWallData, MaturityWallRow } from '@/types'
 
 const DEFAULT_THRESHOLD = 30
@@ -18,9 +16,6 @@ type Props = {
   // onOpenReport(report) -- "Review" deep-links to the field that made the row not comparable.
   onOpenReport?: (report: KbEntry, section?: string, key?: string) => void
 }
-
-const collectionLabel = (collection: Collection) =>
-  collection === 'wallenberg' ? 'Wallenberg collection' : collection === 'midcap' ? 'SEB Mid Cap universe' : 'all saved reports'
 
 const basisSummary = (row: MaturityWallRow) => [row.consolidation, row.debt_basis, row.leases && `Leases ${row.leases === 'Included' ? 'in' : 'out'}`].filter(Boolean)
 
@@ -32,7 +27,6 @@ const reviewVariant = (status: string): 'danger' | 'secondary' | 'success' =>
  *  conversion, no credit judgment -- an exposure filter over what the KB already has, honest about
  *  what is not yet confirmed. A chart is not a reason to skip basis confirmation. */
 export function MaturityWall({ onOpenReport }: Props) {
-  const [collection, setCollection] = useCollection()
   const [wall, setWall] = useState<MaturityWallData | null>(null)
   const [entries, setEntries] = useState<Map<string, KbEntry>>(new Map())
   const [error, setError] = useState<string | null>(null)
@@ -41,7 +35,7 @@ export function MaturityWall({ onOpenReport }: Props) {
   useEffect(() => {
     let stale = false
     setError(null)
-    Promise.all([getMaturityWall(collection), getKb(collection)])
+    Promise.all([getMaturityWall(), getKb()])
       .then(([w, kb]) => {
         if (stale) return
         setWall(w)
@@ -49,7 +43,7 @@ export function MaturityWall({ onOpenReport }: Props) {
       })
       .catch((e: Error) => { if (!stale) setError(e.message) })
     return () => { stale = true }
-  }, [collection])
+  }, [])
 
   const rows = wall?.rows ?? []
   const shown = rows.filter((r) => r.share === null || r.share * 100 >= threshold)
@@ -62,7 +56,7 @@ export function MaturityWall({ onOpenReport }: Props) {
     <Card className="overflow-x-auto py-4">
       <div className="flex flex-wrap items-center justify-between gap-3 px-4">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight">Upcoming maturities · {collectionLabel(collection)}</h2>
+          <h2 className="text-lg font-semibold tracking-tight">Upcoming maturities</h2>
           {wall && (
             <p className="mt-0.5 text-xs text-muted-foreground">
               {wall.coverage.comparable} of {wall.coverage.total} comparable
@@ -73,7 +67,6 @@ export function MaturityWall({ onOpenReport }: Props) {
           )}
         </div>
         <div className="flex items-center gap-3">
-          <CollectionPicker value={collection} onChange={setCollection} />
           <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span className="whitespace-nowrap">Due &lt;1y ≥</span>
             <Input
@@ -94,7 +87,7 @@ export function MaturityWall({ onOpenReport }: Props) {
         {error && <ErrorBlock>{error}</ErrorBlock>}
         {!error && !wall && <LoadingLine>Loading saved debt maturity extractions…</LoadingLine>}
         {!error && wall && rows.length === 0 && (
-          <p className="text-sm text-muted-foreground">No saved debt maturity extractions in {collectionLabel(collection)} yet.</p>
+          <p className="text-sm text-muted-foreground">No saved debt maturity extractions yet.</p>
         )}
         {!error && wall && rows.length > 0 && shown.length === 0 && (
           <p className="text-sm text-muted-foreground">No company's amount due within 1 year reaches {threshold}% of total debt.</p>
