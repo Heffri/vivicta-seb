@@ -33,6 +33,19 @@ export type Candidate = {          // one entity POST /api/reports/discover prop
 
 export type Discovery = { candidates: Candidate[]; note: string | null };
 
+export type JobEvent = { t: number; stage: string; text: string; data?: Record<string, unknown> };
+// data (v194): download carries { bytes, total: number | null }; model_search carries { queries: string[] } and/or
+// { candidates / urls }, whichever the stage produced — see docs/API.md's Progress tracking section
+export type Job = {                // GET /api/jobs/{job_id} (v194)
+  job_id: string;
+  stage: string;             // directory | mfn | nasdaq | ddg | model_search | ir_page | download | verify | done | failed
+  started: number;           // unix seconds
+  updated: number;
+  done: boolean;
+  error: string | null;      // the failed event's own text; null until then
+  events: JobEvent[];
+};
+
 export type LibraryEntry = {
   file: string;             // basename in data/reports/, e.g. "atlas_copco_2025.pdf"; key for from-library
   company: string;          // display name, curated in data/reports/index.json

@@ -10,7 +10,7 @@ import tempfile
 import warnings
 from pathlib import Path
 
-from . import llm
+from . import jobs, llm
 
 SCHEMA = {"type": "object", "properties": {"fields": {"type": "array"}}, "required": ["fields"]}
 REPLY = {"fields": [{"key": "revenue", "value": 1}]}
@@ -37,6 +37,15 @@ if debug:
     with open(debug, "w", encoding="utf-8") as f:
         json.dump({"args": args, "stdin": stdin_text, "schema": schema_seen}, f)
 print(json.dumps({"type": "session_configured"}))  # a real --json event; unparsed here, -o carries the reply
+# v194: FAKE_CODEX_SEARCH_QUERIES (JSON list of query-lists) replays one item.completed web_search
+# event per entry, the shape a real `codex --search exec --json` call actually prints (probed against
+# gpt-5.6-terra, 2026-09-22) -- unset in every pre-v194 test, so this changes no existing assertion.
+search_queries = os.environ.get("FAKE_CODEX_SEARCH_QUERIES")
+if search_queries and "--search" in args:
+    for i, qs in enumerate(json.loads(search_queries)):
+        item = {"id": f"item_{i}", "type": "web_search", "query": "; ".join(qs), "action": {"type": "search", "queries": qs}}
+        print(json.dumps({"type": "item.started", "item": item}))
+        print(json.dumps({"type": "item.completed", "item": item}))
 mode = os.environ.get("FAKE_CODEX_MODE", "ok")
 if mode == "reject-schema":
     if schema_seen is not None:  # a CLI build that does not know the flag
@@ -73,7 +82,7 @@ def _fake_codex(dir: Path) -> Path:
 
 def demo_codex():
     env_keys = ("CODEX_BIN", "LLM_PROVIDER", "LLM_MODEL", "LLM_TIMEOUT", "PATH", "LLM_STRICT_SCHEMA",
-                "FAKE_CODEX_MODE", "FAKE_CODEX_REPLY", "FAKE_CODEX_DEBUG")
+                "FAKE_CODEX_MODE", "FAKE_CODEX_REPLY", "FAKE_CODEX_DEBUG", "FAKE_CODEX_SEARCH_QUERIES")
     saved = {k: os.environ.get(k) for k in env_keys}
     try:
         with tempfile.TemporaryDirectory(prefix="test-llm-") as tmpdir:
@@ -131,6 +140,28 @@ def demo_codex():
             call = json.loads(debug.read_text(encoding="utf-8"))
             args = call["args"]
             assert args[args.index("--search") + 1] == "exec", args  # top-level flag, before the subcommand
+
+            # v194: job_id (optional) turns the web_search tool's own query terms into job-progress
+            # events, parsed from the --json event stream; two identical consecutive query lists (the
+            # real CLI's own shape, see fake_codex_impl's comment) fold into a single event
+            os.environ["FAKE_CODEX_SEARCH_QUERIES"] = json.dumps([
+                ["site:example.com annual report 2025", "Example Co 2025 annual report pdf"],
+                ["site:example.com annual report 2025", "Example Co 2025 annual report pdf"],
+            ])
+            assert jobs.get("job-search-1") is None
+            content = llm.web_lookup("s", "u", SCHEMA, job_id="job-search-1")
+            assert json.loads(content) == {"candidates": [{"url": "https://ir.example.com/ar.pdf"}]}, content
+            job = jobs.get("job-search-1")
+            search_events = [e for e in job["events"] if e["stage"] == "model_search"]
+            assert len(search_events) == 1, "two identical consecutive query sets must fold into one event"
+            assert search_events[0]["data"]["queries"] == ["site:example.com annual report 2025", "Example Co 2025 annual report pdf"], search_events
+
+            # without a job_id, web_lookup behaves exactly as before and never touches the jobs table
+            before = len(jobs._jobs)
+            content = llm.web_lookup("s", "u", SCHEMA)
+            assert json.loads(content) == {"candidates": [{"url": "https://ir.example.com/ar.pdf"}]}, content
+            assert len(jobs._jobs) == before, "web_lookup without a job_id must not create a job"
+            del os.environ["FAKE_CODEX_SEARCH_QUERIES"]
 
             # LLM_STRICT_SCHEMA (v121, opt-in): default is byte-for-byte today's call -- every assertion
             # above ran with the switch unset, and this one pins the flag's absence explicitly

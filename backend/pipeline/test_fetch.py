@@ -19,7 +19,7 @@ from unittest.mock import patch
 import pymupdf as fitz
 
 import app
-from . import fetch
+from . import fetch, jobs
 
 COMPANY, YEAR = "Nestle", 2025
 GOOD_PATH, GONE_PATH = "/nestle-annual-report-2025.pdf", "/deleted.pdf"
@@ -124,8 +124,8 @@ class _FakeWebLookup:
     def __init__(self):
         self.calls = []
 
-    def __call__(self, system, user, schema, name="web_lookup"):
-        self.calls.append({"system": system, "user": user, "schema": schema})
+    def __call__(self, system, user, schema, name="web_lookup", job_id=None):
+        self.calls.append({"system": system, "user": user, "schema": schema, "job_id": job_id})
         key = "FAKE_WEB_REPLY_IR_PAGE" if system == fetch.IR_PAGE_SYSTEM and "FAKE_WEB_REPLY_IR_PAGE" in os.environ else "FAKE_WEB_REPLY"
         reply = os.environ[key]
         if reply == "raise":
@@ -174,10 +174,14 @@ def demo():
             good_url, gone_url = _url(base, GOOD_PATH), _url(base, GONE_PATH)
 
             fake = _FakeWebLookup()
-            patched["web_lookup"] = fetch.llm.web_lookup, fake
+            # v194 fix: this used to store (original, replacement) 2-tuples and the restore loop below
+            # set the attribute back to the whole tuple, not just `original` -- harmless as long as
+            # nothing called fetch.llm.web_lookup/fetch._candidates again in this process after demo()
+            # returned, which held until demo_candidates_events() below started doing exactly that.
+            patched["web_lookup"] = fetch.llm.web_lookup
             fetch.llm.web_lookup = fake
-            patched["_candidates"] = fetch._candidates, (lambda company, year: [])
-            fetch._candidates = lambda company, year: []
+            patched["_candidates"] = fetch._candidates
+            fetch._candidates = lambda company, year, job_id=None: []
 
             # An isolated ARP_DATA_DIR may begin with no reports/index.json. Treat that
             # as an empty cache so the fetch route can proceed to discovery rather than 500.
@@ -201,7 +205,7 @@ def demo():
             # 2. happy path: the model's first candidate is name-filtered (interim), the second is a
             #    real PDF on the loopback server -> registered with the model-search note + foreign tag
             os.environ["LLM_PROVIDER"] = "codex"
-            fetch._candidates = lambda company, year: (_ for _ in ()).throw(AssertionError('AI success must not scrape feeds'))
+            fetch._candidates = lambda company, year, job_id=None: (_ for _ in ()).throw(AssertionError('AI success must not scrape feeds'))
             os.environ["FAKE_WEB_REPLY"] = _reply([
                 {"url": INTERIM_URL, "title": "Q4 interim", "reason": "wrong report"},
                 {"url": good_url, "title": "Annual Report 2025", "reason": "official IR pdf"},
@@ -224,7 +228,7 @@ def demo():
             again = fetch.fetch_report(COMPANY, YEAR, dest)
             assert again["tried"] == [] and again["file"] == entry["file"], again
             assert len(fake.calls) == 1, "cache hit must not re-search"
-            fetch._candidates = lambda company, year: []
+            fetch._candidates = lambda company, year, job_id=None: []
 
             # 4. unparseable model reply -> the 404 detail says the search itself failed
             dest2 = tmp / "reports2"
@@ -278,13 +282,13 @@ def demo():
 
             # 9. Legacy sources remain available after AI discovery fails.
             dest3 = tmp / "reports3"
-            fetch._candidates = lambda company, year: [good_url]
+            fetch._candidates = lambda company, year, job_id=None: [good_url]
             os.environ["FAKE_WEB_REPLY"] = "raise"
             calls_before = len(fake.calls)
             entry3 = fetch.fetch_report(COMPANY, YEAR, dest3)
             assert entry3["source_url"] == good_url and entry3["tags"] == ["fetched"] and entry3["note"] is None, entry3
             assert len(fake.calls) == calls_before + 2, "model discovery precedes feed fallback"
-            fetch._candidates = lambda company, year: []  # back to "nothing above the model layer" for 10-12
+            fetch._candidates = lambda company, year, job_id=None: []  # back to "nothing above the model layer" for 10-12
 
             # 10. v080 fifth source: the model names the issuer's IR page instead of a direct PDF --
             #     fetch_report crawls it, drops the interim link (no IS_AR match) and registers the
@@ -426,7 +430,7 @@ def demo():
                                                "Outlook: management expectations for 2025 and the years beyond."] * 2,
                                  filler_pages=45)
             mtg_url = _url(base, mtg_path)
-            fetch._candidates = lambda company, year: [mtg_url]
+            fetch._candidates = lambda company, year, job_id=None: [mtg_url]
             try:
                 fetch.fetch_report("Modern Times Group", 2025, dest12)
                 assert False, "expected LookupError: the FY2021 document must not pass the anchored year check"
@@ -612,6 +616,70 @@ def demo():
             other_url = _url(base, "/unrelated-with-mtg-in-body.pdf")
             entry15 = fetch.fetch_report(COMPANY, YEAR, tmp / "reports15", url=other_url)
             assert entry15["source_url"] == good_url and entry15["tried"] == [other_url, good_url], entry15["tried"]
+
+            # 31. v194: discover(job_id=...) records directory -> model_search -> done, with the
+            #     model's suggested candidates riding on the model_search event's own data
+            os.environ["FAKE_WEB_REPLY"] = _reply([
+                {"legal_name": "Nestle Ltd", "ticker": "NESN", "exchange": "SIX", "country": "CH", "org_number_or_lei": None,
+                 "fiscal_year_end": "Dec", "document_title": "Annual Report 2025", "document_type": "annual report", "url": good_url, "reason": "the Swiss parent"},
+            ])
+            found = fetch.discover("nestle", YEAR, dest_dir=dest, job_id="job-discover-1")
+            job = jobs.get("job-discover-1")
+            assert job["job_id"] == "job-discover-1" and job["done"] is True and job["stage"] == "done" and job["error"] is None, job
+            stages = [e["stage"] for e in job["events"]]
+            assert stages[:2] == ["directory", "directory"] and "model_search" in stages and stages[-1] == "done", stages
+            search_events = [e for e in job["events"] if e["stage"] == "model_search"]
+            assert any(e.get("data", {}).get("candidates") for e in search_events), search_events
+
+            # 32. v194: fetch_report(job_id=...) end to end through the model-search path -- a verify
+            #     event with the real page count, and a download event whose total matches the
+            #     loopback server's real Content-Length (the byte-progress path actually ran, not
+            #     just "did not crash")
+            dest16 = tmp / "reports16"
+            os.environ["FAKE_WEB_REPLY"] = _reply([{"url": good_url, "title": "Annual Report 2025", "reason": "official IR pdf"}])
+            entry16 = fetch.fetch_report(COMPANY, YEAR, dest16, job_id="job-fetch-model-1")
+            assert entry16["source_url"] == good_url, entry16
+            job = jobs.get("job-fetch-model-1")
+            assert job["done"] is True and job["stage"] == "done" and job["error"] is None, job
+            stages = [e["stage"] for e in job["events"]]
+            assert stages[0] == "directory" and "model_search" in stages and "verify" in stages and "download" in stages and stages[-1] == "done", stages
+            verify_events = [e for e in job["events"] if e["stage"] == "verify"]
+            assert any(e["text"] == f"{good_url} -> ok (90 pages)" for e in verify_events), verify_events
+            download_events = [e for e in job["events"] if e["stage"] == "download"]
+            real_size = (tmp / "public" / GOOD_PATH.lstrip("/")).stat().st_size
+            assert download_events[-1]["data"] == {"bytes": real_size, "total": real_size}, (download_events[-1], real_size)
+
+            # 33. v194: _get()'s own chunked-read path -- a file big enough to cross the throttle
+            #     threshold produces more than the one final event, bytes increase monotonically, and
+            #     the last event's bytes/total match the real file size exactly
+            big_path = tmp / "public" / "big.bin"
+            big_path.write_bytes(os.urandom(fetch.DOWNLOAD_CHUNK * fetch.DOWNLOAD_STEP_EVERY * 3))
+            data = fetch._get(_url(base, "/big.bin"), job_id="job-get-chunks", label="big.bin")
+            assert len(data) == big_path.stat().st_size
+            dl = [e for e in jobs.get("job-get-chunks")["events"] if e["stage"] == "download"]
+            assert len(dl) >= 2, "a large enough file must produce more than just the final event"
+            assert [e["data"]["bytes"] for e in dl] == sorted(e["data"]["bytes"] for e in dl), "bytes must increase monotonically"
+            assert dl[-1]["data"]["bytes"] == dl[-1]["data"]["total"] == big_path.stat().st_size, dl[-1]
+            assert dl[0]["text"].startswith("downloading ") and dl[-1]["text"].startswith("downloaded "), dl
+
+            # 34. v194: every source failing still ends with a "failed" job event carrying the same
+            #     detail the /fetch route's own 404 would show
+            dest17 = tmp / "reports17"
+            fetch._candidates = lambda company, year, job_id=None: []  # explicit, not relying on case 20's leftover patch
+            os.environ["FAKE_WEB_REPLY"] = "raise"
+            try:
+                fetch.fetch_report(COMPANY, YEAR, dest17, job_id="job-fetch-failed-1")
+                assert False, "expected LookupError"
+            except LookupError:
+                pass
+            job = jobs.get("job-fetch-failed-1")
+            assert job["done"] is True and job["stage"] == "failed" and job["error"], job
+            assert job["error"].startswith(f"no annual report found for {COMPANY} {YEAR}"), job["error"]
+
+            # 35. v194: without a job_id, none of the above touches the jobs table at all
+            before = len(jobs._jobs)
+            fetch.fetch_report(COMPANY, YEAR, tmp / "reports18", url=good_url)
+            assert len(jobs._jobs) == before, "a job_id-less call must not create a job"
     finally:
         for k, v in saved.items():
             if v is None:
@@ -630,5 +698,30 @@ def demo():
     print("fetch self-check ok")
 
 
+def demo_candidates_events():
+    """v194: _candidates() itself -- not the fetch_report()-level mock the main demo() uses throughout
+    -- reports mfn -> nasdaq -> ddg in order, and its dedupe/cap computation is unchanged (same URLs,
+    same order a plain `_mfn(...) + _nasdaq(...)` / `_crawl(...) + _ddg(...)` merge always produced)."""
+    saved = {name: getattr(fetch, name) for name in ("_mfn", "_nasdaq", "_crawl", "_ddg")}
+    try:
+        fetch._mfn = lambda company, year: ["https://mfn.example/a.pdf", "https://mfn.example/b.pdf"]
+        fetch._nasdaq = lambda company, year: ["https://mfn.example/b.pdf", "https://nasdaq.example/c.pdf"]  # "b" overlaps mfn: one entry, not two
+        fetch._crawl = lambda company, year: ["https://crawl.example/d.pdf"]
+        fetch._ddg = lambda company, year: ["https://mfn.example/a.pdf", "https://ddg.example/e.pdf"]  # "a" is already a feed: dropped from the second half
+        urls = list(fetch._candidates("Acme", 2025, job_id="job-candidates-1"))
+        assert urls == ["https://mfn.example/a.pdf", "https://mfn.example/b.pdf", "https://nasdaq.example/c.pdf",
+                        "https://crawl.example/d.pdf", "https://ddg.example/e.pdf"], urls
+        job = jobs.get("job-candidates-1")
+        stages = [e["stage"] for e in job["events"]]
+        assert stages == ["mfn", "nasdaq", "nasdaq", "ddg", "ddg"], stages
+        assert "3 feed candidate(s)" in job["events"][2]["text"], job["events"][2]
+        assert "2 more candidate(s)" in job["events"][4]["text"], job["events"][4]
+    finally:
+        for name, original in saved.items():
+            setattr(fetch, name, original)
+    print("fetch._candidates job-events self-check ok")
+
+
 if __name__ == "__main__":
     demo()
+    demo_candidates_events()

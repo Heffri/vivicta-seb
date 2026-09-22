@@ -13,6 +13,7 @@ import { Titlebar } from './components/shell/Titlebar'
 import { useHeadingFocus } from './components/shell/useHeadingFocus'
 import { useTone } from './components/shell/useTone'
 import { useBatch } from './hooks/useBatch'
+import { useReportSearch } from './hooks/useReportSearch'
 import { ResultsView } from './components/ResultsView'
 import { SettingsView } from './components/SettingsView'
 import { UploadView } from './components/UploadView'
@@ -65,6 +66,9 @@ export default function App() {
   const batch = useBatch({
     onSettle: (rs) => setResults(rs),
   })
+  // v194: same lift as batch above -- query/discovery/progress-trace state lives here so switching
+  // away from Extract and back doesn't drop a search or the fetch that follows confirming a candidate.
+  const reportSearch = useReportSearch()
   const submitBatch: typeof batch.start = (specs, section, sectionTitle, eta) => {
     setSavedReport(null)
     setResults([])
@@ -98,7 +102,7 @@ export default function App() {
         <main id="content" tabIndex={-1} className="min-w-0 flex-1 overflow-y-auto">
           <div className="mx-auto max-w-6xl px-6 py-10">
             {tab === 'extract' && (
-              <UploadView batch={batch} onSubmit={submitBatch} resultsCount={results.filter((r) => r.extraction).length} onViewResults={viewResults} onDone={done} onNavigate={setTab} />
+              <UploadView batch={batch} reportSearch={reportSearch} onSubmit={submitBatch} resultsCount={results.filter((r) => r.extraction).length} onViewResults={viewResults} onDone={done} onNavigate={setTab} />
             )}
             {tab === 'results' && savedReport && <SavedReportView initialSection={reportOrigin === 'review' ? reviewTarget.section : undefined} initialField={reportOrigin === 'review' ? reviewTarget.key : undefined} key={`${savedReport.stem}:${reviewTarget.section}:${reviewTarget.key}`} report={savedReport} onBack={() => setTab(reportOrigin)} onReset={reset} />}
             {tab === 'results' && !savedReport && shown?.extraction && (
