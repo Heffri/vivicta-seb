@@ -1,0 +1,64 @@
+{
+  "company": "Sandvik",
+  "tone": "dark",
+  "ms": 24311,
+  "stagesSeen": [
+    "directory",
+    "model_search",
+    "done"
+  ],
+  "lastJob": {
+    "stage": "done",
+    "started": 1790066304.925083,
+    "updated": 1790066328.2450345,
+    "done": true,
+    "error": null,
+    "events": [
+      {
+        "t": 1790066304.925083,
+        "stage": "directory",
+        "text": "checking saved reports for Sandvik (2025)"
+      },
+      {
+        "t": 1790066305.1170516,
+        "stage": "directory",
+        "text": "1 saved match(es)"
+      },
+      {
+        "t": 1790066305.1170516,
+        "stage": "model_search",
+        "text": "asking the connected model to search the web"
+      },
+      {
+        "t": 1790066328.2397873,
+        "stage": "model_search",
+        "text": "model searched: site:home.sandvik \"Annual Report 2025\" PDF Sandvik; Sandvik AB annual report 2025 pdf org number 556000-3468",
+        "data": {
+          "queries": [
+            "site:home.sandvik \"Annual Report 2025\" PDF Sandvik",
+            "Sandvik AB annual report 2025 pdf org number 556000-3468"
+          ]
+        }
+      },
+      {
+        "t": 1790066328.2450345,
+        "stage": "model_search",
+        "text": "model suggested 1 entity",
+        "data": {
+          "candidates": [
+            {
+              "legal_name": "Sandvik Aktiebolag (publ)",
+              "url": "https://www.annualreport.sandvik/en/2025/_assets/downloads/entire-en-svk-ar25.pdf"
+            }
+          ]
+        }
+      },
+      {
+        "t": 1790066328.2450345,
+        "stage": "done",
+        "text": "2 candidate(s)"
+      }
+    ],
+    "job_id": "2db8d77f-2c00-4ac6-8cd4-bcb31a65940d"
+  }
+}

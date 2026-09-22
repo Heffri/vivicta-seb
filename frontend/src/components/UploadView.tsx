@@ -1,6 +1,6 @@
 import { BookOpenCheck, Info, Loader2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { type ApiError, discoverCompanies, fetchReport, getCompanies, getConfig, getLibrary, getSchemas, openKbExtraction, registerLibraryReport, uploadReport } from '@/api'
+import { type ApiError, fetchReport, getCompanies, getConfig, getLibrary, getSchemas, openKbExtraction, registerLibraryReport, uploadReport } from '@/api'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ErrorBlock } from '@/components/ui/state'
@@ -10,12 +10,14 @@ import { CompanySearch } from '@/components/upload/CompanySearch'
 import { CollectionPicker } from '@/components/CollectionPicker'
 import { useCollection } from '@/hooks/useCollection'
 import type { Batch, BatchSpec } from '@/hooks/useBatch'
+import type { ReportSearch } from '@/hooks/useReportSearch'
 import { Dropzone } from '@/components/upload/Dropzone'
 import type { Tab } from '@/components/shell/tabs'
-import type { Candidate, Company, Discovery, LibraryEntry, Result, Schema } from '@/types'
+import type { Candidate, Company, LibraryEntry, Result, Schema } from '@/types'
 
 type Props = {
   batch: Batch
+  reportSearch: ReportSearch
   onSubmit: (specs: BatchSpec[], section: string, sectionTitle: string, eta: string) => void
   resultsCount: number
   onViewResults: () => void
@@ -31,7 +33,7 @@ const SAMPLE_SECTION = 'debt_maturity'
 
 const isPdf = (f: File) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
 
-export function UploadView({ batch, onSubmit, resultsCount, onViewResults, onDone, onNavigate }: Props) {
+export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onViewResults, onDone, onNavigate }: Props) {
   const [collection, setCollection] = useCollection()
   const [schemas, setSchemas] = useState<Schema[]>([])
   const [schemasError, setSchemasError] = useState<string | null>(null)
@@ -39,13 +41,12 @@ export function UploadView({ batch, onSubmit, resultsCount, onViewResults, onDon
   const [library, setLibrary] = useState<LibraryEntry[]>([])
   const [libraryError, setLibraryError] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set()) // LibraryEntry.file
-  const [query, setQuery] = useState('')
-  const [year, setYear] = useState('2025')
+  // v194: query/year/discovery/discovering/trace lifted to the App level (useReportSearch) so a
+  // search, and the fetch that follows confirming a candidate, survive switching away from Extract.
+  const { query, year, discovery, discovering, trace, setQuery, setYear, discover, trackJob } = reportSearch
   const [companies, setCompanies] = useState<Company[]>([])
   const [dirError, setDirError] = useState<string | null>(null)
   const [provider, setProvider] = useState<string | null>(null) // backend /api/config provider; null = not loaded yet
-  const [discovery, setDiscovery] = useState<Discovery | null>(null) // /discover candidates for the current query+year
-  const [discovering, setDiscovering] = useState(false)
   const [picked, setPicked] = useState<Company[]>([]) // directory picks, deduped by name
   const [files, setFiles] = useState<File[]>([]) // uploads, in drop/pick order, deduped by name+size
   const [dragging, setDragging] = useState(false)
@@ -154,9 +155,11 @@ export function UploadView({ batch, onSubmit, resultsCount, onViewResults, onDon
         : ''
 
   // The PDF is always wanted (page images, quote checks): the backend reuses a cached PDF, downloads one
-  // when only text is saved, and falls back to that saved text if the download fails.
-  const fetchWithDownload = (company: string, opts: { country?: string | null; url?: string | null; ocr?: 'full' } = {}) =>
-    fetchReport(company, Number(yearRef.current), { ...opts, download_pdf: true })
+  // when only text is saved, and falls back to that saved text if the download fails. jobId (v194,
+  // optional): only the AI-searched candidate path (useCandidate below) tracks it — a plain directory
+  // pick's fetch stays as before, untracked.
+  const fetchWithDownload = (company: string, opts: { country?: string | null; url?: string | null; ocr?: 'full' } = {}, jobId?: string) =>
+    fetchReport(company, Number(yearRef.current), { ...opts, download_pdf: true, job_id: jobId })
 
   // Stored extraction from the knowledge base (supervisor add-on): no model call, works without the
   // original PDF (v092). The result was extracted previously and still awaits its basis
@@ -193,24 +196,17 @@ export function UploadView({ batch, onSubmit, resultsCount, onViewResults, onDon
     onSubmit(specs, section, sectionTitle, eta)
   }
 
-  // Enter/search → which legal entities the typed text could mean; a confirmed card then fetches + extracts.
-  const discover = (hint?: string) => {
-    setDiscovering(true)
-    setError(null)
-    discoverCompanies(query.trim(), Number(year), hint ? { hint } : undefined)
-      .then(setDiscovery)
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setDiscovering(false))
-  }
-
-  // A confirmed candidate runs immediately, independent of any directory picks still queued.
+  // A confirmed candidate runs immediately, independent of any directory picks still queued. Wrapped
+  // in trackJob (v194) so CompanySearch's trace panel follows straight through from "resolving the
+  // company" into "fetching its report" — the same App-level state, just a new job_id and label.
   const useCandidate = (c: Candidate) =>
     runBatch(
       [
         {
           label: c.legal_name,
           prep: `Opening ${c.legal_name} annual report ${yearRef.current}…`,
-          getReport: (opts?: { ocr?: 'full' }) => fetchWithDownload(c.legal_name, { country: c.country, url: c.url, ...opts }),
+          getReport: (opts?: { ocr?: 'full' }) =>
+            trackJob('fetch', `Fetching ${c.legal_name}’s annual report`, (jobId) => fetchWithDownload(c.legal_name, { country: c.country, url: c.url, ...opts }, jobId)),
         },
       ],
       true,
@@ -284,8 +280,9 @@ export function UploadView({ batch, onSubmit, resultsCount, onViewResults, onDon
             canRun={!!section}
             discovery={discovery}
             discovering={discovering}
-            onQueryChange={(q) => { setQuery(q); setDiscovery(null) }}
-            onYearChange={(y) => { setYear(y); setDiscovery(null) }}
+            trace={trace}
+            onQueryChange={setQuery}
+            onYearChange={setYear}
             onTogglePick={togglePick}
             onDiscover={discover}
             onUseCandidate={useCandidate}
