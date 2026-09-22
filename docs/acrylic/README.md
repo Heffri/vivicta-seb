@@ -62,12 +62,12 @@ verify — locator, parser, label matching. `main` hasn't moved; nothing here ha
     stored 16/40 → **19/40** fields on the 18 newly-labelled stems — raw fresh runs 14/40
     ([v136](evidence/v136.md)); stored 23/69 → **31/69** fields (pages 17/62 → 23/62) on the 28
     remaining value-miss stems ([v160](evidence/v160.md)).
-  - **Held-out Small Cap first extraction — round 1** (its 9 non-empty wrong values were
-    subsequently attributed in [v185-heldout-attribution](evidence/v185-heldout-attribution.md)
-    and guarded in [v186](evidence/v186.md)): blind labels for 10 FY2025 reports were committed
-    before outputs were opened; shipped-default `off` scored **26/40 (65.0%)** values and
-    **8/17 (47.1%)** cited pages (5 empty, 9 non-empty-wrong), while non-default `majority`
-    comparison scored 27/40 and 8/17. Small n, no market extrapolation ([v178](evidence/v178.md)).
+  - **Held-out Small Cap first extraction**: round 1 was blind at first run (26/40 values, 8/17
+    pages), then attributed in [v185-heldout-attribution](evidence/v185-heldout-attribution.md) and
+    used for the [v186](evidence/v186.md) guards; round 2 is the current blind held-out sample and
+    scored **36/40 (90.0%)** values, **14/17 (82.4%)** pages (1 empty, 3 non-empty-wrong) for both
+    shipped-default `off` and non-default `majority`; small n, no market extrapolation
+    ([v178](evidence/v178.md), [v190](evidence/v190.md)).
   - **Error nature** (stored debt misses, each named): of 40 value misses, **34 empty** (not read /
     declined) vs **6 non-empty wrong**; the label audit found **0 label errors**, **2
     report-internal disagreements** (Green Landscaping, Volati — the report itself prints two

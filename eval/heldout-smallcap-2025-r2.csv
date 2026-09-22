@@ -1,0 +1,41 @@
+report_file,section,key,expected_value,expected_page,notes
+vivesto_2025.pdf,debt_maturity,total_debt,13000,50,"held-out: not for tuning; 13,000 tkr loan from the main owner is the reported borrowing total."
+vivesto_2025.pdf,debt_maturity,due_within_1_year,13000,50,"held-out: not for tuning; the 13,000 tkr owner loan is current at the balance-sheet date."
+vivesto_2025.pdf,debt_maturity,due_1_to_5_years,null,,held-out: not for tuning; no carrying-amount maturity bucket beyond current is printed.
+vivesto_2025.pdf,debt_maturity,due_after_5_years,null,,held-out: not for tuning; no carrying-amount maturity bucket beyond current is printed.
+naxs_2025.pdf,debt_maturity,total_debt,null,,held-out: not for tuning; the Group says it has no significant financial liabilities but does not print a borrowing total.
+naxs_2025.pdf,debt_maturity,due_within_1_year,null,,held-out: not for tuning; no debt-maturity bucket is printed.
+naxs_2025.pdf,debt_maturity,due_1_to_5_years,null,,held-out: not for tuning; no debt-maturity bucket is printed.
+naxs_2025.pdf,debt_maturity,due_after_5_years,null,,held-out: not for tuning; no debt-maturity bucket is printed.
+active_biotech_2025.pdf,debt_maturity,total_debt,1735,80,"held-out: not for tuning; Group total interest-bearing liabilities are lease liabilities, SEK thousands."
+active_biotech_2025.pdf,debt_maturity,due_within_1_year,1605,80,"held-out: not for tuning; Group current lease liabilities, SEK thousands."
+active_biotech_2025.pdf,debt_maturity,due_1_to_5_years,null,,held-out: not for tuning; only the contractual-undiscounted term analysis prints the later lease bucket.
+active_biotech_2025.pdf,debt_maturity,due_after_5_years,null,,held-out: not for tuning; no carrying-amount maturity bucket is printed.
+ascelia_pharma_2025.pdf,debt_maturity,total_debt,0,65,held-out: not for tuning; Group states it holds no interest-bearing liabilities at the balance-sheet date.
+ascelia_pharma_2025.pdf,debt_maturity,due_within_1_year,null,,held-out: not for tuning; no debt-maturity bucket is printed.
+ascelia_pharma_2025.pdf,debt_maturity,due_1_to_5_years,null,,held-out: not for tuning; no debt-maturity bucket is printed.
+ascelia_pharma_2025.pdf,debt_maturity,due_after_5_years,null,,held-out: not for tuning; no debt-maturity bucket is printed.
+catena_media_2025.pdf,debt_maturity,total_debt,0,74,held-out: not for tuning; the borrowing note states there were no outstanding group borrowings at year end.
+catena_media_2025.pdf,debt_maturity,due_within_1_year,null,,held-out: not for tuning; no debt-maturity bucket is printed.
+catena_media_2025.pdf,debt_maturity,due_1_to_5_years,null,,held-out: not for tuning; no debt-maturity bucket is printed.
+catena_media_2025.pdf,debt_maturity,due_after_5_years,null,,held-out: not for tuning; no debt-maturity bucket is printed.
+bong_2025.pdf,debt_maturity,total_debt,345487,64,held-out: not for tuning; Group total borrowings in TSEK.
+bong_2025.pdf,debt_maturity,due_within_1_year,85540,64,held-out: not for tuning; Group short-term borrowings in TSEK.
+bong_2025.pdf,debt_maturity,due_1_to_5_years,222347,64,"held-out: not for tuning; Group long-term maturities combine 61,526 TSEK in 1-2 years and 160,821 TSEK in 2-5 years."
+bong_2025.pdf,debt_maturity,due_after_5_years,37601,64,held-out: not for tuning; Group long-term borrowings due after five years in TSEK; displayed components differ from total by one TSEK from rounding.
+duroc_2025.pdf,debt_maturity,total_debt,304.7,105,"held-out: not for tuning; Group total interest-bearing debt in Mkr, including IFRS 16 lease debt."
+duroc_2025.pdf,debt_maturity,due_within_1_year,156.2,105,held-out: not for tuning; Group total short-term interest-bearing debt in Mkr.
+duroc_2025.pdf,debt_maturity,due_1_to_5_years,null,,"held-out: not for tuning; only a credit-institution subset, not all Group debt, is bucketed beyond current."
+duroc_2025.pdf,debt_maturity,due_after_5_years,null,,"held-out: not for tuning; only a credit-institution subset, not all Group debt, is bucketed beyond current."
+stockwik_2025.pdf,debt_maturity,total_debt,455.8,47,"held-out: not for tuning; Group interest-bearing liabilities in MSEK, including lease debt."
+stockwik_2025.pdf,debt_maturity,due_within_1_year,null,,"held-out: not for tuning; the maturity amounts include interest and other contractual costs, so they are not carrying-amount buckets."
+stockwik_2025.pdf,debt_maturity,due_1_to_5_years,null,,"held-out: not for tuning; the maturity amounts include interest and other contractual costs, so they are not carrying-amount buckets."
+stockwik_2025.pdf,debt_maturity,due_after_5_years,null,,"held-out: not for tuning; the maturity amounts include interest and other contractual costs, so they are not carrying-amount buckets."
+xspray_pharma_2025.pdf,debt_maturity,total_debt,121316,79,"held-out: not for tuning; Group borrowing carrying amount in SEK thousands, net of accrued loan fees."
+xspray_pharma_2025.pdf,debt_maturity,due_within_1_year,null,,held-out: not for tuning; the reported borrowing matures after one year.
+xspray_pharma_2025.pdf,debt_maturity,due_1_to_5_years,121316,79,held-out: not for tuning; Group borrowing carrying amount matures on 15 February 2027.
+xspray_pharma_2025.pdf,debt_maturity,due_after_5_years,null,,held-out: not for tuning; no carrying-amount maturity bucket after five years is printed.
+pion_2025.pdf,debt_maturity,total_debt,22903,76,held-out: not for tuning; Group short-term debt to credit institutions in TSEK.
+pion_2025.pdf,debt_maturity,due_within_1_year,22903,76,held-out: not for tuning; the Group credit-institution debt falls due in 1-30 days.
+pion_2025.pdf,debt_maturity,due_1_to_5_years,null,,held-out: not for tuning; no carrying-amount maturity bucket beyond current is printed.
+pion_2025.pdf,debt_maturity,due_after_5_years,null,,held-out: not for tuning; no carrying-amount maturity bucket beyond current is printed.
