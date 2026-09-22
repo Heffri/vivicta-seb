@@ -27,6 +27,7 @@ type CompanySearchProps = {
   onQueryChange: (query: string) => void
   onYearChange: (year: string) => void
   onTogglePick: (company: Company) => void
+  onOpenReportedCompany: (company: Company) => void
   onDiscover: (hint?: string, forceWeb?: boolean) => void
   onUseCandidate: (candidate: Candidate) => void
 }
@@ -48,6 +49,7 @@ export function CompanySearch({
   onQueryChange,
   onYearChange,
   onTogglePick,
+  onOpenReportedCompany,
   onDiscover,
   onUseCandidate,
 }: CompanySearchProps) {
@@ -118,13 +120,19 @@ export function CompanySearch({
           {companies.length === 0 && <li className="px-3 py-2 text-xs text-muted-foreground">No local matches. Press Enter for AI search.</li>}
           {companies.map((c) => {
             const on = picked.some((p) => p.name === c.name)
+            const privateHolding = c.no_standalone_report === true
+            const reportLabel = privateHolding && c.reports_in && c.collection_group
+              ? `Private company — reported inside ${c.reports_in}'s annual report (${c.collection_group})`
+              : null
             return (
               <li key={c.name}>
                 <button
                   type="button"
-                  disabled={busy}
+                  disabled={busy || (privateHolding && !c.report_stem)}
                   aria-pressed={on}
-                  onClick={() => onTogglePick(c)}
+                  aria-label={privateHolding ? `Open ${c.reports_in} report for ${c.name}` : undefined}
+                  title={privateHolding && !c.report_stem ? `${c.reports_in}'s parent report is not saved locally` : undefined}
+                  onClick={() => privateHolding ? onOpenReportedCompany(c) : onTogglePick(c)}
                   className={`flex w-full flex-wrap items-center gap-1.5 px-3 py-1.5 text-left transition-colors hover:bg-muted/50 disabled:opacity-60 ${
                     on ? 'bg-primary/10' : ''
                   }`}
@@ -133,6 +141,7 @@ export function CompanySearch({
                   <span className="font-medium">{c.name}</span>
                   <span className="text-xs text-muted-foreground">{c.ticker}</span>
                   {c.sector && <span className="text-xs text-muted-foreground">· {c.sector}</span>}
+                  {reportLabel && <span className="basis-full text-xs text-muted-foreground">{reportLabel}</span>}
                   {c.cached_years.includes(Number(year)) && (
                     <Badge variant="secondary" className="ml-auto">
                       cached

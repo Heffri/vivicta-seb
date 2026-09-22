@@ -17,12 +17,34 @@ GROUPS = {
     'FAM holdings': ['SKF', 'Stora Enso', 'Munters', 'IPCO', 'Kopparfors Skogar', 'The Grand Group', 'Höganäs', 'Nefab', 'Kivra'],
 }
 
+# These names belong in the holdings directory, but naming them there must not imply that each has
+# its own annual report.  The Patricia subsidiaries are disclosed in Investor AB's report; the three
+# FAM holdings below are likewise represented in FAM's holding report rather than as a standalone
+# issuer report.  Keep this separate from GROUPS: GROUPS remains the source-of-truth roster and this
+# small map adds only report-availability facts to those existing members.
+NO_STANDALONE_REPORTS = {
+    'Atlas Antibodies': {'reports_in': 'Investor AB', 'collection_group': 'Patricia Industries', 'report_stem': 'investor_2025'},
+    'BraunAbility': {'reports_in': 'Investor AB', 'collection_group': 'Patricia Industries', 'report_stem': 'investor_2025'},
+    'Laborie': {'reports_in': 'Investor AB', 'collection_group': 'Patricia Industries', 'report_stem': 'investor_2025'},
+    'Mölnlycke': {'reports_in': 'Investor AB', 'collection_group': 'Patricia Industries', 'report_stem': 'investor_2025'},
+    'Nova Biomedical': {'reports_in': 'Investor AB', 'collection_group': 'Patricia Industries', 'report_stem': 'investor_2025'},
+    'Permobil': {'reports_in': 'Investor AB', 'collection_group': 'Patricia Industries', 'report_stem': 'investor_2025'},
+    'Piab': {'reports_in': 'Investor AB', 'collection_group': 'Patricia Industries', 'report_stem': 'investor_2025'},
+    'Sarnova': {'reports_in': 'Investor AB', 'collection_group': 'Patricia Industries', 'report_stem': 'investor_2025'},
+    '3 Scandinavia': {'reports_in': 'Investor AB', 'collection_group': 'Patricia Industries', 'report_stem': 'investor_2025'},
+    'Vectura': {'reports_in': 'Investor AB', 'collection_group': 'Patricia Industries', 'report_stem': 'investor_2025'},
+    'Kopparfors Skogar': {'reports_in': 'FAM AB', 'collection_group': 'FAM holdings', 'report_stem': None},
+    'The Grand Group': {'reports_in': 'FAM AB', 'collection_group': 'FAM holdings', 'report_stem': None},
+    'Kivra': {'reports_in': 'FAM AB', 'collection_group': 'FAM holdings', 'report_stem': None},
+}
+
 def normalize(name):
     text = ''.join(c for c in unicodedata.normalize('NFKD', name or '') if not unicodedata.combining(c)).casefold()
     words = re.sub(r'[^a-z0-9]+', ' ', text).split()
     return ' '.join(w for w in words if w not in {'ab', 'oyj', 'plc', 'ltd', 'inc', 'group', 'publ', 'svenska'})
 
 NAMES = {normalize(name): (name, group) for group, names in GROUPS.items() for name in names}
+NO_STANDALONE = {normalize(name): metadata for name, metadata in NO_STANDALONE_REPORTS.items()}
 ALIASES = {'swedish orphan biovitrum': 'sobi', 'skandinaviska enskilda banken': 'seb', 'molnlycke health care': 'molnlycke', 'grand': 'the grand'}
 
 def identity(name):
@@ -61,6 +83,18 @@ def member(name, collection_name='wallenberg'):
     return scope(collection_name)(name)
 
 
+def report_metadata(name):
+    """Private-holding report availability for one roster name, or None for standalone issuers."""
+    metadata = NO_STANDALONE.get(identity(name))
+    return dict(metadata) | {'no_standalone_report': True} if metadata else None
+
+
+def reported_members(report_owner):
+    """Private roster names disclosed in a saved parent report (for KB/map context)."""
+    return [dict(name=name, collection_group=metadata['collection_group'])
+            for name, metadata in NO_STANDALONE_REPORTS.items() if metadata['reports_in'] == report_owner]
+
+
 def directory(companies, collection_name='wallenberg'):
     if collection_name == 'all':
         return companies
@@ -68,5 +102,10 @@ def directory(companies, collection_name='wallenberg'):
         in_scope = scope(collection_name)
         return [company for company in companies if in_scope(company['name'])]
     existing = {identity(c['name']): c for c in companies}
-    return [dict(existing.get(key, {'ticker': '', 'sector': None, 'isin': None}), name=name, collection_group=group)
-            for key, (name, group) in NAMES.items()]
+    rows = []
+    for key, (name, group) in NAMES.items():
+        row = dict(existing.get(key, {'ticker': '', 'sector': None, 'isin': None}), name=name, collection_group=group)
+        if metadata := report_metadata(name):
+            row.update(metadata)
+        rows.append(row)
+    return rows

@@ -29,7 +29,7 @@ for (const tone of TONES) {
     await chip.waitFor({ timeout: 20000 })
     await chip.click()
 
-    await expect(page.getByText('Page 64, cited in an answer below', { exact: false })).toBeVisible()
+    await expect(page.getByText('Page 64, opened from a linked report', { exact: false })).toBeVisible()
 
     // Touch the standalone Ask tab too (this test's flow otherwise only visits the embedded
     // AskPanel inside Results) so every rail tab gets a pageerror check somewhere in the suite.

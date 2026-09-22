@@ -59,6 +59,12 @@ export function KnowledgeMap({ onAsk, onOpenReport }: Props) {
   const filtered = companies.filter(([, c]) => (!sector || c.sector === sector) && (!q || c.name.toLocaleLowerCase().includes(q) || c.reports.some(r => r.stem.toLocaleLowerCase().includes(q))))
   const current = filtered.find(([key]) => key === selected) ?? filtered[0]
   const company = current?.[1]
+  const reportedMembers = [...new Map((company?.reports.flatMap(report => report.reported_members ?? []) ?? [])
+    .map(member => [`${member.collection_group}:${member.name}`, member])).values()]
+  const reportedByGroup = reportedMembers.reduce((groups, member) => {
+    groups.set(member.collection_group, [...(groups.get(member.collection_group) ?? []), member.name])
+    return groups
+  }, new Map<string, string[]>())
   const colorFor = (s: string) => COLORS[sectors.indexOf(s) % COLORS.length]
   const reset = () => { setZoom(1); setPan({ x: 0, y: 0 }); setMoved({}) }
 
@@ -156,6 +162,9 @@ export function KnowledgeMap({ onAsk, onOpenReport }: Props) {
         {company && <aside aria-label="Company reports" className="min-w-0 rounded-2xl border bg-card p-5">
           <p className="text-xs uppercase text-muted-foreground">{company.sector}</p><h2 className="mt-2 break-words text-xl font-semibold">{company.name}</h2>
           <p className="mt-2 text-sm text-muted-foreground">{company.reports.length} {company.reports.length === 1 ? 'report' : 'reports'} · {company.reports.reduce((n, r) => n + r.pages, 0).toLocaleString()} stored pages</p>
+          {[...reportedByGroup].map(([group, members]) => <p key={group} className="mt-3 text-xs text-muted-foreground">
+            Private companies — reported inside {company.name}'s annual report ({group}): {members.join(', ')}.
+          </p>)}
           {company.company && <Button className="mt-4" onClick={() => onAsk(company.company!)}><MessageCircle />Ask about company</Button>}
           <div className="mt-5 space-y-3">{[...company.reports].sort((a, b) => (b.fiscal_year ?? 0) - (a.fiscal_year ?? 0)).map(report => <article key={report.stem} className="rounded-xl border p-3">
             <h3 className="flex items-center gap-2 text-sm font-medium"><FileText className="size-4" />{report.fiscal_year ?? 'Year unknown'} report</h3>
