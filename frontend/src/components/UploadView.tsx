@@ -263,7 +263,11 @@ export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onView
         <div className="flex flex-wrap items-end gap-x-4 gap-y-3 px-5 py-4">
           <div className="w-full max-w-80 space-y-1 min-[1280px]:flex-1">
             <label htmlFor="section" className="text-xs text-muted-foreground">Section</label>
-            <Select value={section} onValueChange={setSection} items={Object.fromEntries(schemas.map(schema => [schema.name, schema.title]))} disabled={busy || schemas.length === 0}>
+            <Select value={section} onValueChange={(value) => {
+              if (value === section) return
+              batch.reset()
+              setSection(value)
+            }} items={Object.fromEntries(schemas.map(schema => [schema.name, schema.title]))} disabled={busy || schemas.length === 0}>
               <SelectTrigger id="section" className="w-full"><SelectValue placeholder={schemasError ? 'No sections available' : 'Loading sections…'} /></SelectTrigger>
               <SelectContent>{schemas.map(schema => <SelectItem key={schema.name} value={schema.name}>{schema.title}</SelectItem>)}</SelectContent>
             </Select>
@@ -272,7 +276,7 @@ export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onView
           <Button onClick={() => runBatch()} disabled={!canExtract}>{busy && <Loader2 className="animate-spin" />}{count > 1 ? `Extract ${count} reports` : 'Extract'}</Button>
         </div>
         <BatchProgress items={batch.items} busy={busy} stopRequested={batch.stopRequested} resultsCount={resultsCount}
-          onStopAfterCurrent={batch.stopAfterCurrent} onRetry={(id, opts) => void batch.retry(id, opts)} onViewResults={onViewResults} onNavigate={onNavigate} />
+          onStopAfterCurrent={batch.stopAfterCurrent} onExtractAgain={() => runBatch()} onRetry={(id, opts) => void batch.retry(id, opts)} onViewResults={onViewResults} onNavigate={onNavigate} />
         {error && <div className="border-t border-border px-5 py-4"><ErrorBlock>{error}</ErrorBlock></div>}
       </div>} />
     </div>
