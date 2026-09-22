@@ -126,8 +126,9 @@ after everything below has already succeeded.
   `EXTRACT_SCAN_ALL` still has no Settings toggle by design, but `GET /api/config`'s `scan_all`
   field now echoes it (`false`) — confirm it reads `false` (or that the demo machine's environment
   has neither variable set).
-- **Collection on stage.** The KB page defaults to the Wallenberg collection; switch to **All**
-  (or pre-filter) before the audience sees it, so nobody thinks the Mid Cap companies are missing.
+- **Collection on stage.** The KB page opens on **All** saved reports (`4c94188`), so the Mid Cap
+  companies are visible from the start; narrow to Wallenberg or SEB Mid Cap from the KB tab's own
+  Collection switch if a smaller list tells the story better.
   Stable packaged ports mean this choice — and the light/dark tone — now survive an in-demo app
   restart, so there is no need to redo it after a relaunch.
 - **Private-roster members open straight to the parent.** If the directory or Company map shows a
