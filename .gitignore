@@ -1,5 +1,6 @@
 # data
 data/reports/*.pdf
+data/reports/replaced/
 data/uploads/
 # derived, rebuilt by POST /index; meta.json, pages.jsonl, extractions/ stay committed
 data/kb/*/embeddings.jsonl

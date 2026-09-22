@@ -23,7 +23,8 @@ def normalize(name):
     return ' '.join(w for w in words if w not in {'ab', 'oyj', 'plc', 'ltd', 'inc', 'group', 'publ', 'svenska'})
 
 NAMES = {normalize(name): (name, group) for group, names in GROUPS.items() for name in names}
-ALIASES = {'swedish orphan biovitrum': 'sobi', 'skandinaviska enskilda banken': 'seb', 'molnlycke health care': 'molnlycke', 'grand': 'the grand'}
+ALIASES = {'swedish orphan biovitrum': 'sobi', 'skandinaviska enskilda banken': 'seb', 'molnlycke health care': 'molnlycke', 'grand': 'the grand',
+           'vectura fastigheter': 'vectura', 'hi3g scandinavia': '3 scandinavia'}
 
 def identity(name):
     key = normalize(name)

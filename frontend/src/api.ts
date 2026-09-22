@@ -1,16 +1,19 @@
 import type { ChunkPage, Answer, Company, Discovery, Extraction, FieldFill, IndexStatus, KbEntry, LibraryEntry, MaturityWall, Report, ReviewComponent, Schema } from './types'
 import type { Collection } from './hooks/useCollection'
 
-export type ApiError = Error & { status: number; tried?: string[] }
+export type FetchAttempt = { url: string; reason: string; kind: string }
+export type ApiError = Error & { status: number; code?: string; tried?: string[]; attempts?: FetchAttempt[] }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init)
   if (!res.ok) {
     // Errors are JSON { detail } per docs/API.md (fetch 404s add tried[]); fall back to status text for proxy/network errors.
-    const body: { detail?: string; tried?: string[] } = await res.json().catch(() => ({}))
+    const body: { detail?: string; code?: string; tried?: string[]; attempts?: FetchAttempt[] } = await res.json().catch(() => ({}))
     throw Object.assign(new Error(body.detail ?? `${res.status} ${res.statusText}`), {
       status: res.status,
       tried: body.tried,
+      code: body.code,
+      attempts: body.attempts,
     }) satisfies ApiError
   }
   return res.json() as Promise<T>
@@ -108,6 +111,13 @@ export const pptxUrl = (reportId: string, section?: string, previous?: string, p
 export const pdfUrl = (reportId: string, page?: number) =>
   `/api/reports/${reportId}/pdf${page ? `#page=${page}` : ''}`
 
+const evidenceParams = (quotes: string[]) => new URLSearchParams(quotes.map(quote => ['quote', quote]))
+export type PageEvidence = { page: number; width: number; height: number; keywords: [number, number, number, number][]; numbers: [number, number, number, number][]; matched_quotes: number; total_quotes: number }
+export const getPageEvidence = (reportId: string, page: number, quotes: string[]) =>
+  request<PageEvidence>(`/api/reports/${encodeURIComponent(reportId)}/pages/${page}/evidence?${evidenceParams(quotes)}`)
+export const highlightedPdfUrl = (reportId: string, page: number, quotes: string[]) =>
+  `/api/reports/${encodeURIComponent(reportId)}/pdf?page=${page}&${evidenceParams(quotes)}#page=${page}`
+
 // provider added in v031 (backend/app.py); this type lagged behind until v033's Settings view needed it.
 // retrieval (v034, consumed by KbView since v059) is how /ask retrieves: embeddings+keywords or keywords only.
 // Optional: main.tsx's SetSettingsResult (desktop save path) predates it and is outside lane territory —
@@ -141,6 +151,9 @@ export const openKbExtraction = (stem: string, section: string) =>
 
 export const getKbPage = (stem: string, page: number) =>
   request<{ page: number; text: string }>(`/api/kb/${encodeURIComponent(stem)}/pages/${page}`)
+
+export const restoreSourcePdf = (stem: string) =>
+  request<Report>(`/api/kb/${encodeURIComponent(stem)}/pdf`, { method: 'POST' })
 
 // v174: deterministic upcoming-maturities list over the saved collection (Compare view). Zero model calls.
 export const getMaturityWall = (collection: Collection = 'wallenberg') =>

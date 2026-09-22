@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { type ApiError, type CandidatePage, extractSection, formatPageRanges, getCandidates } from '@/api'
+import { type ApiError, type CandidatePage, type FetchAttempt, extractSection, formatPageRanges, getCandidates } from '@/api'
 import type { Report, Result } from '@/types'
 
 // v171 (consult item 6): the extraction queue's state used to live inside UploadView, so switching
@@ -17,7 +17,7 @@ export type BatchStage = 'queued' | 'registering' | 'candidates' | 'extracting' 
 // explicit download). 422 = no text candidates (needs OCR or a different file). 502 = the model
 // provider itself failed. Everything else (400 bad file, 404 unknown company, network errors) is
 // 'other' — the raw message is still shown, just without a canned next step.
-export type BatchErrorKind = 'review-protected' | 'download-needed' | 'needs-ocr' | 'provider-failed' | 'other'
+export type BatchErrorKind = 'review-protected' | 'download-needed' | 'needs-ocr' | 'provider-failed' | 'report-unavailable' | 'download-failed' | 'other'
 export type BatchWait = { pages: string; total: number; heading: string }
 
 // What UploadView knows how to build for one queued report; the hook doesn't need to know whether
@@ -41,10 +41,13 @@ export type BatchItem = BatchSpec & {
   result: Result | null // set once done or failed; null while queued/running
   errorKind: BatchErrorKind | null
   tried: string[] | undefined // /fetch 404's attempted URLs, when the backend reports them
+  attempts?: FetchAttempt[]
   retrying: boolean
 }
 
-function classify(stage: 'fetch' | 'extract', status: number | undefined): BatchErrorKind {
+function classify(stage: 'fetch' | 'extract', status: number | undefined, code?: string): BatchErrorKind {
+  if (code === 'report_unavailable' || (stage === 'fetch' && status === 404)) return 'report-unavailable'
+  if (code === 'download_failed') return 'download-failed'
   if (status === 409) return stage === 'fetch' ? 'download-needed' : 'review-protected'
   if (status === 422) return 'needs-ocr'
   if (status === 502) return 'provider-failed'
@@ -79,7 +82,7 @@ export function useBatch({ onSettle }: Handlers) {
   const runItem = async (id: string) => {
     const before = itemsRef.current.find((it) => it.id === id)
     if (!before) return
-    patch(id, (it) => ({ ...it, stage: 'registering', startedAt: performance.now(), finishedAt: null, wait: null, errorKind: null, tried: undefined }))
+    patch(id, (it) => ({ ...it, stage: 'registering', startedAt: performance.now(), finishedAt: null, wait: null, errorKind: null, tried: undefined, attempts: undefined }))
     let report: Report
     try {
       report = await before.getReport()
@@ -89,8 +92,9 @@ export function useBatch({ onSettle }: Handlers) {
         ...it,
         stage: 'failed',
         finishedAt: performance.now(),
-        errorKind: classify('fetch', err.status),
+        errorKind: classify('fetch', err.status, err.code),
         tried: err.tried,
+        attempts: err.attempts,
         result: { label: before.label, sectionTitle: before.sectionTitle, error: err.message },
       }))
       notifySettle()
