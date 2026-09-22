@@ -414,6 +414,8 @@ Same variables point at Azure OpenAI / OpenAI / OpenRouter with no code change.
 
 `PAGE_SELECT_HINTS=1` opts debt-maturity pass-1 into the candidate-page markers and carrying-versus-liquidity prompt sentence; unset (the default) retains the prior page-select prompt byte-for-byte. `PAGE_SELECT_HINTS=retry` requires `EXTRACT_MERGE_RUNS=union|majority`: run 1 stays unhinted, and run 2 gets the markers only when run 1's first identity check fails or any schema field is null (an exact majority match still skips run 2). A hinted retry records `"hints": "run2"` in the merged result.
 
+`EXTRACT_SECOND_PASS=1` is the default bounded retry for **required** fields that are still null after the ordinary extraction (and any configured merge). It makes at most three separate fixed-page calls per report, one field at a time, on the locator's first two or three candidate pages with their complete extracted text and that field's schema synonyms. The follow-up can write a value only when the normal quote-on-page, value-in-quote, known-label and debt scope guards accept it; otherwise the null remains a null. Accepted fields add `second_pass` to their evidence. Set `EXTRACT_SECOND_PASS=0` to make no follow-up calls. Extraction `timings` reports `second_pass_calls` and `second_pass` seconds alongside the aggregate `model`, `validate` and `attempts` totals.
+
 ## Global Ask and company map
 
 Ask searches saved page text and extracted facts. `@Company` is a UI scope selector, resolved
@@ -465,7 +467,7 @@ Comparison responses include saved `candidates`, `previous_stem`, `current_year`
   source/model/settings cache. `reuse_saved: true` still opens the saved result,
   including human reviews. Force never replaces human-reviewed fields or definitions.
 - Extraction responses add `cached`, `stale`, `model`, `provider`, and `timings`
-  (`total`, `model`, `validate`, `attempts`). Opening a saved result reports zero model
+  (`total`, `model`, `validate`, `attempts`, `second_pass_calls`, `second_pass`). Opening a saved result reports zero model
   calls and its current load time. `stale` compares pipeline, report, prompt and model
   configuration. Saved files with invalid structure return 409.
 - `EMBED_BASE_URL`, `EMBED_API_KEY` and `EMBED_TIMEOUT` independently configure

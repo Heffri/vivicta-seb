@@ -575,7 +575,7 @@ def _check(check: dict, values: dict, texts: list[str] | None = None, pages: lis
     return out
 
 
-EXTRACT_VERSION = "2026-09-21"  # bump when a pipeline change should invalidate saved extractions; the cache key used to hash 7 source files, so every commit re-ran every section (27 s each)
+EXTRACT_VERSION = "2026-09-22"  # bump when a pipeline change should invalidate saved extractions; the cache key used to hash 7 source files, so every commit re-ran every section (27 s each)
 
 WEIGHTS = {"quote_on_page": 0.35, "value_in_quote": 0.20, "arith_ok": 0.20, "label_known": 0.10,
            "period_ok": 0.05, "page_is_statement": 0.05, "unit_ok": 0.05,  # docs/CONFIDENCE.md; sums to 1.0
@@ -4714,3 +4714,130 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
         out["buckets_by_year"] = by_year  # v109: the report's own calendar-year columns, identity-gated on total_debt; no key at all when the report prints named buckets or the years cannot be read deterministically
     out["timings"] = {"model": round(model_seconds, 3), "attempts": attempts, "validate": round(time.perf_counter() - extraction_started - model_seconds, 3)}
     return out
+
+
+# EXTRACT_SECOND_PASS is deliberately a narrow follow-up, rather than another whole-report run. The
+# first extraction has already had all its normal selection and repair opportunities; this retry asks
+# once per still-empty required field, on only the locator's first three pages, and lets fixed_pages
+# run the ordinary provenance/scope gates before a candidate can replace that null.
+SECOND_PASS_MAX_FIELDS = 3
+SECOND_PASS_GAAP_HINT = "US GAAP / IFRS common labels may differ; match the field meaning, not just its exact English wording."
+
+
+def _second_pass_schema(schema: dict, sf: dict) -> dict:
+    """A one-field view of the ordinary schema, with its complete synonym vocabulary made explicit.
+
+    ``extract(..., fixed_pages=True)`` keeps the response contract and every validation pass in one
+    place.  Removing arithmetic checks here is intentional: a one-field answer cannot prove an
+    identity on its own; the full result is rechecked only after an accepted candidate is copied back.
+    """
+    synonyms = [str(word) for word in sf.get("synonyms", []) if str(word).strip()]
+    field = dict(sf)
+    description = _basis_text(sf, debt_basis())
+    field["description"] = " ".join(part for part in (
+        description,
+        "Synonyms to search verbatim: " + "; ".join(synonyms) + "." if synonyms else "",
+        SECOND_PASS_GAAP_HINT,
+    ) if part)
+    return {**schema, "fields": [field], "checks": []}
+
+
+def _second_pass_scope_ok(field: dict, sf: dict, schema: dict, texts: list[str]) -> bool:
+    """Keep the debt wrong-table refusal explicit at the write-back seam too.
+
+    ``extract`` already applies this guard.  Checking it here means a future fixed-page caller cannot
+    accidentally turn an otherwise-valid quote from a parent, lease or undiscounted table into an
+    automatic correction merely by changing the extraction internals.
+    """
+    scope_words = schema.get("table_scope_words")
+    source = field.get("source") or {}
+    page, quote = source.get("page"), source.get("quote") or ""
+    if not scope_words:
+        return True
+    if not isinstance(page, int) or not 1 <= page <= len(texts):
+        return False
+    rows = _page_rows(texts[page - 1])
+    index = next((i for i, row in enumerate(rows) if row == quote or quote_on_page(quote, row)), None)
+    if index is None:
+        return False
+    identity = _identity_parts(schema)
+    total_sf = next((candidate for candidate in schema.get("fields", [])
+                     if identity and candidate.get("key") == identity[0]), None)
+    total_vocabulary = {"synonyms": (total_sf or {}).get("synonyms", []) + (total_sf or {}).get("row_synonyms", [])}
+    scope = _table_scope(rows, None, index, debt_basis(), scope_words,
+                         debt_scoped=_label_known(_row_label(rows[index]), total_vocabulary),
+                         debt_words=_debt_subject_words(schema))
+    return scope not in _REFUSED_SCOPES
+
+
+def _recheck_after_second_pass(result: dict, schema: dict, texts: list[str], pages: list[int]) -> None:
+    """Use the same full-result arithmetic input as the two-run merge's recheck."""
+    fields = result.get("fields", [])
+    values = {field["key"]: field["value"] for field in fields
+              if isinstance(field, dict) and isinstance(field.get("value"), (int, float))
+              and not isinstance(field.get("value"), bool)}
+    defaults = {sf["key"]: sf["default"] for sf in schema.get("fields", []) if "default" in sf}
+    stated_zeros = {field["key"] for field in fields if isinstance(field, dict)
+                    and "stated_zero" in field.get("evidence", [])}
+    result["checks"] = [_check(check, {**defaults, **values}, texts=texts, pages=pages, fields=fields,
+                               schema=schema, stated_zeros=stated_zeros)
+                        for check in schema.get("checks", [])]
+
+
+def second_pass(result: dict, texts: list[str], pages: list[int], schema: dict, report_meta: dict) -> dict:
+    """Fill at most three required first-pass nulls with one fixed-window model call each.
+
+    A candidate is eligible only if the normal fixed-page extraction has retained it and it still has
+    a literal quote/value/known-label trail on one of the supplied locator pages.  Null, malformed,
+    out-of-window and wrong-scope replies leave the first-pass null untouched.
+    """
+    started = time.perf_counter()
+    window = []
+    for page in pages:
+        if isinstance(page, int) and not isinstance(page, bool) and 1 <= page <= len(texts) and page not in window:
+            window.append(page)
+        if len(window) == 3:
+            break
+    by_key = {field.get("key"): field for field in result.get("fields", []) if isinstance(field, dict)}
+    wanted = [sf for sf in schema.get("fields", [])
+              if not sf.get("optional") and by_key.get(sf.get("key"), {}).get("value") is None][:SECOND_PASS_MAX_FIELDS]
+    stats = {"calls": 0, "seconds": 0.0, "model": 0.0, "validate": 0.0}
+    if not window or not wanted:
+        return stats
+
+    for sf in wanted:
+        follow_up = extract(texts, window, _second_pass_schema(schema, sf), report_meta, fixed_pages=True)
+        timings = follow_up.get("timings", {})
+        stats["calls"] += timings.get("attempts", 0)
+        stats["model"] += timings.get("model", 0.0)
+        stats["validate"] += timings.get("validate", 0.0)
+        candidate = next((field for field in follow_up.get("fields", []) if field.get("key") == sf["key"]), None)
+        source = candidate.get("source") if isinstance(candidate, dict) else None
+        page = source.get("page") if isinstance(source, dict) else None
+        quote = source.get("quote") if isinstance(source, dict) else ""
+        vocabulary = {**sf, "synonyms": sf.get("synonyms", []) + sf.get("row_synonyms", []) + [sf.get("label", "")]}
+        accepted = bool(
+            candidate and candidate.get("value") is not None and isinstance(page, int) and page in window
+            and "quote_on_page" in candidate.get("evidence", []) and "value_in_quote" in candidate.get("evidence", [])
+            and "label_known" in candidate.get("evidence", []) and quote_on_page(quote, texts[page - 1])
+            and _value_in_quote(candidate["value"], quote) and _label_known(candidate.get("raw_label"), vocabulary)
+            and _second_pass_scope_ok(candidate, sf, schema, texts)
+        )
+        if not accepted:
+            result.setdefault("warnings", []).append(
+                f"second_pass: {sf['key']} remained null; no candidate passed the existing provenance and scope guards"
+            )
+            continue
+        candidate.setdefault("evidence", []).append("second_pass")
+        for index, field in enumerate(result.get("fields", [])):
+            if isinstance(field, dict) and field.get("key") == sf["key"] and field.get("value") is None:
+                result["fields"][index] = candidate
+                result.setdefault("warnings", []).append(
+                    f"second_pass: {sf['key']} filled from locator pages {window} with page {page}"
+                )
+                break
+    _recheck_after_second_pass(result, schema, texts, pages)
+    stats["seconds"] = round(time.perf_counter() - started, 3)
+    stats["model"] = round(stats["model"], 3)
+    stats["validate"] = round(stats["validate"], 3)
+    return stats
