@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { railTab } from '../support/nav'
 import { trackPageErrors } from '../support/page-errors'
 import { gotoWithTone, TONES } from '../support/tone'
@@ -60,9 +60,39 @@ test('kb: building poll backs off, then stops for good once a listing has no bui
 // The real-library smoke case requires the Atlas saved extraction.
 const ATLAS_EXTRACTION = path.resolve(import.meta.dirname, '../../../data/kb/atlas_copco_2025/extractions/income_statement.json')
 const REASON = 'Atlas Copco saved income statement is not present'
-// The maturity wall card needs a saved debt_maturity extraction in the default collection.
-const ERICSSON_DEBT = path.resolve(import.meta.dirname, '../../../data/kb/ericsson_2025/extractions/debt_maturity.json')
-const WALL_REASON = 'Ericsson saved debt maturity extraction is not present'
+
+// Self-built collection fixtures. The KB view's own picker (arp-kb-view-collection) defaults to
+// All and is independent of the rest of the app by design (see "Knowledge base defaults to all
+// reports independently of the Extract collection" in kb-new-reports.spec.ts and the "keep its
+// collection filter independent of Extract" note in docs/historical-report-discovery-handoff.md) —
+// so these tests build their own small roster instead of asserting against the live data/kb
+// company count, which only ever grows as other tests and lanes save reports into it.
+const scopedEntry = (stem: string, company: string, sections: string[] = ['income_statement']) => ({
+  stem, report_id: `lib-${stem}`, company, fiscal_year: 2025, pages: 4, sections,
+  indexed: false, status: 'missing', reason: 'No embeddings built', embed_model: null, dimensions: null,
+  chunks: 0, page_chunks: 0, fact_chunks: 0, built_at: null, sector: null,
+  pdf_available: false, text_available: true, figures_available: true,
+})
+const WALLENBERG_MEMBERS = [scopedEntry('w1_2025', 'Wallenberg One'), scopedEntry('w2_2025', 'Wallenberg Two')]
+const OUTSIDE_MEMBERS = [scopedEntry('o1_2025', 'Outsider One'), scopedEntry('o2_2025', 'Outsider Two'), scopedEntry('o3_2025', 'Outsider Three')]
+const ALL_MEMBERS = [...WALLENBERG_MEMBERS, ...OUTSIDE_MEMBERS]
+
+async function mockKbScopes(page: Page) {
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/kb') {
+      const scope = url.searchParams.get('collection_name')
+      return route.fulfill({ json: scope === 'wallenberg' ? WALLENBERG_MEMBERS : scope === 'midcap' ? [] : ALL_MEMBERS })
+    }
+    if (url.pathname === '/api/config') {
+      return route.fulfill({ json: { provider: 'codex', model: 'test', embed_model: 'bge-m3', base_url: null, llm: true, retrieval: 'hybrid' } })
+    }
+    if (url.pathname === '/api/schemas') {
+      return route.fulfill({ json: [{ name: 'income_statement', title: 'Income statement' }] })
+    }
+    return route.fulfill({ json: [] })
+  })
+}
 
 for (const tone of TONES) {
   test(`kb: filter "atlas" -> Open -> Results [${tone}]`, async ({ page }) => {
@@ -86,31 +116,32 @@ for (const tone of TONES) {
     expect(errors).toEqual([])
   })
 
-  test(`kb: collection switch Wallenberg -> All -> back [${tone}]`, async ({ page }) => {
+  test(`kb: collection switch All -> Wallenberg -> back [${tone}]`, async ({ page }) => {
     const errors = trackPageErrors(page)
+    await mockKbScopes(page)
     await gotoWithTone(page, tone)
 
     await railTab(page, 'Knowledge base').click()
     await expect(page.getByRole('heading', { name: /reports/ })).toBeVisible()
     const rows = page.locator('tbody tr')
-    await expect(rows).toHaveCount(11, { timeout: 20000 })
+    // Fresh session, no persisted preference: the KB view's own default is All, not Wallenberg.
+    await expect(rows).toHaveCount(ALL_MEMBERS.length)
 
     const collection = page.getByRole('group', { name: 'Collection' })
-    await collection.getByRole('button', { name: 'All', exact: true }).click()
-    // The heading's collection label flips with state, not with the fetch — wait for the row count
-    // to actually change (it keeps growing as other tests upload, so no exact number here).
-    await expect.poll(async () => rows.count(), { timeout: 20000 }).toBeGreaterThan(11)
-    expect(await rows.count()).toBeGreaterThanOrEqual(190)
+    await collection.getByRole('button', { name: 'Wallenberg', exact: true }).click()
+    await expect(rows).toHaveCount(WALLENBERG_MEMBERS.length)
+    for (const member of WALLENBERG_MEMBERS) await expect(rows.filter({ hasText: member.company })).toHaveCount(1)
 
-    // The choice sticks across a reload (localStorage arp-kb-collection); the reload lands on the
-    // default Extract tab, so go back to Knowledge base before reading the header.
+    // The choice sticks across a reload (localStorage arp-kb-view-collection); the reload lands on
+    // the default Extract tab, so go back to Knowledge base before reading the header.
     await page.reload()
     await railTab(page, 'Knowledge base').click()
-    await expect(collection.getByRole('button', { name: 'All', exact: true })).toHaveAttribute('aria-pressed', 'true', { timeout: 20000 })
-
-    await collection.getByRole('button', { name: 'Wallenberg', exact: true }).click()
     await expect(collection.getByRole('button', { name: 'Wallenberg', exact: true })).toHaveAttribute('aria-pressed', 'true', { timeout: 20000 })
-    await expect(rows).toHaveCount(11)
+    await expect(rows).toHaveCount(WALLENBERG_MEMBERS.length)
+
+    await collection.getByRole('button', { name: 'All', exact: true }).click()
+    await expect(collection.getByRole('button', { name: 'All', exact: true })).toHaveAttribute('aria-pressed', 'true', { timeout: 20000 })
+    await expect(rows).toHaveCount(ALL_MEMBERS.length)
 
     expect(errors).toEqual([])
   })
@@ -131,20 +162,37 @@ for (const tone of TONES) {
     expect(errors).toEqual([])
   })
 
-  // The KB page's "Maturity wall" card — one bar per company grouped by sector. On the seed
-  // KB the default collection's single debt report (Ericsson) has buckets that do not reconcile,
-  // so the card must show one group, its count line, and the honest grey "buckets incomplete" mark.
+  // The KB page's "Maturity wall" card — one bar per company grouped by sector, honest about
+  // buckets that do not reconcile. Self-built: one fictional debt_maturity report is enough to
+  // prove the grouping/labelling logic without depending on which real companies currently have a
+  // saved debt_maturity extraction in data/kb.
   test(`kb: maturity wall card groups the collection by sector [${tone}]`, async ({ page }) => {
-    test.skip(!existsSync(ERICSSON_DEBT), WALL_REASON)
     const errors = trackPageErrors(page)
+    const wallEntry = scopedEntry('fjord_metals_2025', 'Fjord Metals', ['debt_maturity'])
+    const wallRow = {
+      stem: wallEntry.stem, report_id: wallEntry.report_id, company: wallEntry.company, fiscal_year: 2025,
+      total: { value: 32703, unit: 'MSEK' }, due_within_1_year: { value: 3538, unit: 'MSEK' }, share: 0.1082,
+      basis_confirmed: false, consolidation: null, debt_basis: null, leases: null, review_status: 'unreviewed',
+      comparable: false, reason: 'Basis not confirmed: entity level, period, debt basis and lease scope must be reviewed first.',
+      sector: 'Materials', complete: false,
+    }
+    const extraction = { report_id: wallEntry.report_id, company: wallEntry.company, fiscal_year: 2025, currency: 'MSEK', section: 'debt_maturity', fields: [], checks: [], warnings: [] }
+    await page.route('**/api/**', async (route) => {
+      const url = new URL(route.request().url())
+      if (url.pathname === '/api/kb') return route.fulfill({ json: [wallEntry] })
+      if (url.pathname === '/api/kb/maturity-wall') {
+        return route.fulfill({ json: { rows: [wallRow], coverage: { total: 1, comparable: 0, missing_total: 0, missing_w1y: 0, basis_unconfirmed: 1 }, sectors: [{ sector: 'Materials', companies: 1, complete: 0, median_share: null, min: null, max: null }] } })
+      }
+      if (url.pathname === `/api/kb/${wallEntry.stem}/debt_maturity`) return route.fulfill({ json: extraction })
+      if (url.pathname === '/api/config') return route.fulfill({ json: { provider: 'codex', model: 'test', embed_model: 'bge-m3', base_url: null, llm: true, retrieval: 'hybrid' } })
+      if (url.pathname === '/api/schemas') return route.fulfill({ json: [{ name: 'income_statement', title: 'Income statement' }, { name: 'debt_maturity', title: 'Debt maturity' }] })
+      return route.fulfill({ json: [] })
+    })
     await gotoWithTone(page, tone)
 
     await railTab(page, 'Knowledge base').click()
-    // The toolbar (and with it the Maturity wall button) only renders once GET /api/kb lands, which
-    // takes seconds cold for 206 stems — ride it out here rather than repeating the pre-existing
-    // 5 s-budget smoke failures (see docs/acrylic/evidence/v165.md).
-    await expect(page.getByRole('heading', { name: /reports/ })).toBeVisible({ timeout: 20000 })
-    await expect(page.getByRole('button', { name: 'Maturity wall' })).toBeVisible({ timeout: 20000 })
+    await expect(page.getByRole('heading', { name: /reports/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Maturity wall' })).toBeVisible()
 
     await page.getByRole('button', { name: 'Maturity wall' }).click()
     const card = page.getByRole('region', { name: 'Maturity wall' })
@@ -153,13 +201,13 @@ for (const tone of TONES) {
 
     const sectors = card.getByRole('heading', { name: /^Sector / })
     await expect(sectors).toHaveCount(1)
-    await expect(sectors.first()).toContainText('Telecommunications')
+    await expect(sectors.first()).toContainText('Materials')
     // svg text, not getByText: the row's hidden <title> tooltip carries the same words
     await expect(card.locator('svg text').filter({ hasText: 'buckets incomplete' }).first()).toBeVisible()
 
     // A company row opens that company through the KB view's existing Open action.
-    await card.getByRole('button', { name: /^Ericsson/ }).click()
-    await expect(page.getByRole('heading', { name: 'Ericsson', exact: false })).toBeVisible({ timeout: 20000 })
+    await card.getByRole('button', { name: /^Fjord Metals/ }).click()
+    await expect(page.getByRole('heading', { name: 'Fjord Metals', exact: false })).toBeVisible()
 
     expect(errors).toEqual([])
   })
