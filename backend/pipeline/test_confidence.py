@@ -4405,6 +4405,24 @@ def test_missing_reasons_for_honest_debt_nulls():
     print("missing debt reasons red/green cases ok")
 
 
+def test_fulltext_sweep_finds_numeric_synonym_rows_and_skips_tried_or_ocr_pages():
+    """w198: every reconstructed row is searchable, but tried/pending pages never repeat."""
+    income = {"key": "net_profit", "label": "Profit for the year",
+              "synonyms": ["profit for the year", "net income"]}
+    texts = ["Narrative only"] * 80
+    texts[1] = "Net income 10 9\nNet income 8 7"  # more hits, but the locator already tried it
+    texts[70] = "Net income 99 88"  # a matching scanned page whose OCR is still pending
+    texts[71] = "AMD CONSOLIDATED STATEMENTS\nNET INCOME $ 1,641 $ 854"
+    swept = x.sweep_pages(texts, income, tried_pages=[2], ocr_pending=[71])
+    assert swept["pages"] == [72], swept
+    assert swept["hits"] == {72: 1} and swept["ocr_pending_skipped"] == 1, swept
+
+    debt = {"key": "total_debt", "label": "Total debt", "synonyms": ["total debt"],
+            "row_synonyms": ["räntebärande skulder"]}
+    swedish = x.sweep_pages(["RÄNTEBÄRANDE SKULDER 1 234 900"], debt)
+    assert swedish["pages"] == [1] and swedish["hits"] == {1: 1}, swedish
+
+
 if __name__ == "__main__":
     test_bucket_row_label_known()
     test_confidence_never_exceeds_one()
@@ -4417,5 +4435,6 @@ if __name__ == "__main__":
     test_fixed_pages_skip_selection()
     test_heldout_parent_continuation_and_unmarked_lease_schedule()
     test_missing_reasons_for_honest_debt_nulls()
+    test_fulltext_sweep_finds_numeric_synonym_rows_and_skips_tried_or_ocr_pages()
     test_balance_sheet_tie()
     demo()

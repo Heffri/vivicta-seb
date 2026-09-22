@@ -882,6 +882,42 @@ def _label_known(label, sf: dict) -> bool:
     return any(rl.startswith(cleans) for s in sf.get("synonyms", []) if (cleans := _clean_label(s)))  # a synonym that cleans away to nothing would prefix-match everything
 
 
+def sweep_pages(texts: list[str], field: dict, tried_pages=(), top_n: int = 3,
+                ocr_pending=()) -> dict:
+    """Rank untried pages containing numeric rows labelled with a field synonym.
+
+    This is the zero-model full-document fallback: it reconstructs the same ``_page_rows`` that
+    extraction validates, and delegates label comparison to ``_label_known`` so case, ligatures,
+    Swedish characters, result/profit wording and maturity-window digits receive exactly the normal
+    guard's normalization.  One matching row is one hit; multiple overlapping synonyms cannot
+    inflate a page.  ``ocr_pending`` pages deliberately have no text yet and are counted, not guessed.
+    """
+    tried = {page for page in tried_pages
+             if isinstance(page, int) and not isinstance(page, bool)}
+    pending = {page for page in ocr_pending
+               if isinstance(page, int) and not isinstance(page, bool)}
+    vocabulary = [*field.get("synonyms", []), *field.get("row_synonyms", [])]
+    known = {**field, "synonyms": list(dict.fromkeys(str(word) for word in vocabulary if str(word).strip()))}
+    hits: dict[int, int] = {}
+    skipped = 0
+    for page, text in enumerate(texts, 1):
+        if page in pending:
+            skipped += 1
+            continue
+        if page in tried:
+            continue
+        count = 0
+        for row in _page_rows(text):
+            label = _row_label(row)
+            tail = row[len(label):]
+            if re.search(r"\d", tail) and _label_known(label, known):
+                count += 1
+        if count:
+            hits[page] = count
+    ranked = sorted(hits, key=lambda page: (-hits[page], page))
+    return {"pages": ranked[:max(0, top_n)], "hits": hits, "ocr_pending_skipped": skipped}
+
+
 _BS_CURRENT = re.compile(r"\b(?:current|short[ -]?term|kortfristig\w*)\b", re.I)
 _BS_NONCURRENT = re.compile(r"\b(?:non[ -]?current|long[ -]?term|långfristig\w*)\b", re.I)
 _BS_LEASE = re.compile(r"\b(?:lease liabilities?|leaseskulder|leasingskulder)\b", re.I)
