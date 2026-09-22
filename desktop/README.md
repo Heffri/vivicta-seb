@@ -121,8 +121,11 @@ a live window it persists the choice and the UI asks for a relaunch.
 Pushes to `main` and `demo` build the frontend, Python backend and Windows NSIS installer in
 GitHub Actions. Each branch publishes its own update feed:
 
-- [Main installer releases](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-main)
-- [Demo installer releases](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-demo)
+- [Main installer releases](https://github.com/Heffri/vivicta-seb/releases/latest) — the public
+  download, always the current `main`. One installer, under a stable filename that each build
+  replaces; `latest.yml` beside it carries the version the updater compares against.
+- [Demo installer releases](https://github.com/Heffri/vivicta-seb/releases/tag/desktop-demo) —
+  kept a prerelease, so it never takes the "Latest" slot from main.
 
 Install the Setup executable once. Only the installed app updates itself; the portable exe does
 not. Installed copies check on startup and hourly, download in the background, and apply on normal
