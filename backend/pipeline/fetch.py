@@ -170,8 +170,13 @@ def _filename_clear(label, *patterns):
 
 def _collection_context(company):
     member = collection.member(company)
-    return (f"\nCompany context: {member[0]} in the Wallenberg collection ({member[1]}). "
-            "Find this entity's own accounts, not a similarly named business or the owner's report.") if member else ""
+    if not member:
+        return ""
+    context = f"\nCompany context: {member[0]} in the Wallenberg collection ({member[1]}). "
+    if metadata := collection.report_metadata(company):
+        context += (f"This holding has no standalone report and is reported inside "
+                    f"{metadata['reports_in']}'s annual report. ")
+    return context + "Find this entity's own accounts, not a similarly named business or the owner's report."
 
 
 def _candidate_clear(url, title):

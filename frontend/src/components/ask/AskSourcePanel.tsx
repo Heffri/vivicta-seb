@@ -26,7 +26,8 @@ function FormattedPage({ text, quotes }: { text: string; quotes: string[] }) {
   }, [text, quotes])
   return <>
     {!ranges.length && quotes.length > 0 && <p className="text-xs text-muted-foreground">The cited passage could not be located in this saved page. See the excerpt above.</p>}
-    <div ref={container} aria-label="Formatted source page" tabIndex={0} className="max-h-[65vh] overflow-auto rounded-xl border bg-card px-4 py-5 sm:px-6">
+    <div role="region" aria-label="Saved source text">
+      <div ref={container} aria-label="Formatted source page" tabIndex={0} className="max-h-[65vh] overflow-auto rounded-xl border bg-card px-4 py-5 sm:px-6">
       {sourceDocument(text).map((block, i) => block.type === 'table'
         ? <table key={i} className="my-4 w-full min-w-[420px] border-collapse text-sm tabular-nums">
           <caption className="sr-only">Financial statement from the saved report</caption>
@@ -37,6 +38,7 @@ function FormattedPage({ text, quotes }: { text: string; quotes: string[] }) {
           </tr>)}</tbody>
         </table>
         : <div key={i} className="my-3 space-y-1 text-sm leading-relaxed">{block.lines.map(line => <div key={line.start} data-cited={supported([line])} className={line.text ? 'min-h-5 whitespace-pre-wrap break-words' : 'h-2'}><EvidenceText span={line} ranges={ranges} /></div>)}</div>)}
+      </div>
     </div>
   </>
 }
