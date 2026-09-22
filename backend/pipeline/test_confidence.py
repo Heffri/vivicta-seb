@@ -4405,6 +4405,147 @@ def test_missing_reasons_for_honest_debt_nulls():
     print("missing debt reasons red/green cases ok")
 
 
+def _second_pass_result(schema, keys):
+    return {
+        "report_id": "second-pass-test", "company": "Second Pass Test", "fiscal_year": 2025,
+        "currency": "MSEK", "section": schema["name"],
+        "fields": [{"key": field["key"], "label": field["label"], "value": None, "unit": None,
+                    "period": None, "raw_label": None, "source": None, "confidence": 0.0, "evidence": []}
+                   for field in schema["fields"] if field["key"] in keys],
+        "checks": [], "warnings": [], "timings": {"model": 0, "validate": 0, "attempts": 0},
+    }
+
+
+def test_second_pass_fills_required_field_from_full_candidate_pages():
+    """w197: a required null receives one bounded, synonym-aware fixed-page retry."""
+    schema = {"name": "income_statement", "title": "Income statement", "description": "Group statement",
+              "value_convention": "As printed", "fields": [
+                  {"key": "revenue", "label": "Revenue", "description": "Group revenue",
+                   "synonyms": ["revenue", "net turnover"], "unit_hint": "currency_millions"},
+                  {"key": "discontinued", "label": "Discontinued", "description": "Optional line",
+                   "synonyms": ["discontinued operations"], "unit_hint": "currency_millions", "optional": True},
+              ], "checks": []}
+    result = _second_pass_result(schema, {"revenue", "discontinued"})
+    long_page = "Consolidated income statement\nMSEK\n2025 2024\n" + ("table detail\n" * 150) + "Net turnover 123 120\n"
+    seen = []
+    old = x.call_llm
+    try:
+        def reply(system, user, *args, **kwargs):
+            seen.append((system, user))
+            return {"fields": [{"key": "revenue", "label": "Revenue", "value": 123, "unit": "MSEK",
+                                "period": "2025", "raw_label": "Net turnover",
+                                "source": {"page": 3, "quote": "Net turnover 123 120"}, "confidence": 0}]}
+        x.call_llm = reply
+        stats = x.second_pass(result, ["Front matter", "Continuation", long_page], [1, 2, 3], schema,
+                              {"fiscal_year": 2025, "stem": "second-pass-test"})
+    finally:
+        x.call_llm = old
+    field = next(f for f in result["fields"] if f["key"] == "revenue")
+    assert stats["calls"] == 1 and len(seen) == 1, (stats, seen)
+    assert field["value"] == 123 and field["source"]["page"] == 3 and "second_pass" in field["evidence"], field
+    assert "net turnover" in seen[0][0].lower() and "US GAAP / IFRS" in seen[0][0], seen[0][0]
+    assert "Net turnover 123 120" in seen[0][1] and "table detail" in seen[0][1], seen[0][1]
+
+
+def test_second_pass_rejects_a_quote_not_on_its_page():
+    """w197: a second-pass number without its own printed quote remains a null."""
+    schema = {"name": "income_statement", "title": "Income statement", "description": "Group statement",
+              "value_convention": "As printed", "fields": [
+                  {"key": "revenue", "label": "Revenue", "description": "Group revenue",
+                   "synonyms": ["revenue"], "unit_hint": "currency_millions"},
+              ], "checks": []}
+    result = _second_pass_result(schema, {"revenue"})
+    old = x.call_llm
+    try:
+        x.call_llm = lambda *args, **kwargs: {"fields": [
+            {"key": "revenue", "label": "Revenue", "value": 999, "unit": "MSEK", "period": "2025",
+             "raw_label": "Revenue", "source": {"page": 1, "quote": "Revenue 999"}, "confidence": 0}
+        ]}
+        stats = x.second_pass(result, ["Consolidated income statement\nMSEK\n2025 2024\nOther income 100 90"], [1],
+                              schema, {"fiscal_year": 2025, "stem": "second-pass-test"})
+    finally:
+        x.call_llm = old
+    field = result["fields"][0]
+    assert stats["calls"] == 1 and field["value"] is None and "second_pass" not in field["evidence"], (stats, field, result["warnings"])
+
+
+def test_second_pass_skips_optional_nulls():
+    """w197: optional schema fields do not spend a retry call."""
+    schema = {"name": "income_statement", "title": "Income statement", "description": "Group statement",
+              "value_convention": "As printed", "fields": [
+                  {"key": "cost_of_sales", "label": "Cost of sales", "description": "Optional line",
+                   "synonyms": ["cost of sales"], "unit_hint": "currency_millions", "optional": True},
+              ], "checks": []}
+    result = _second_pass_result(schema, {"cost_of_sales"})
+    old = x.call_llm
+    try:
+        x.call_llm = lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("optional field called"))
+        stats = x.second_pass(result, ["No cost row"], [1], schema, {"fiscal_year": 2025, "stem": "second-pass-test"})
+    finally:
+        x.call_llm = old
+    assert stats["calls"] == 0 and result["fields"][0]["value"] is None, (stats, result)
+
+
+def test_second_pass_caps_required_nulls_and_off_switch_makes_zero_calls():
+    """w197: at most three keys retry; default/off make no calls and an explicit opt-in does."""
+    import os
+    import app
+
+    fields = [{"key": key, "label": key.title(), "description": key, "synonyms": [key.replace("_", " ")],
+               "unit_hint": "currency_millions"} for key in ("first", "second", "third", "fourth")]
+    schema = {"name": "income_statement", "title": "Income statement", "description": "Group statement",
+              "value_convention": "As printed", "fields": fields, "checks": []}
+    result = _second_pass_result(schema, {field["key"] for field in fields})
+    page = "Consolidated income statement\nMSEK\n2025 2024\n" + "\n".join(f"{field['key'].title()} {i} {i - 1}" for i, field in enumerate(fields, 1))
+    called, old = [], x.call_llm
+    try:
+        def reply(system, user, *args, **kwargs):
+            key = next(field["key"] for field in fields if f"- {field['key']} |" in system)
+            value = next(i for i, field in enumerate(fields, 1) if field["key"] == key)
+            called.append(key)
+            return {"fields": [{"key": key, "label": key.title(), "value": value, "unit": "MSEK",
+                                "period": "2025", "raw_label": key.title(),
+                                "source": {"page": 1, "quote": f"{key.title()} {value} {value - 1}"}, "confidence": 0}]}
+        x.call_llm = reply
+        stats = x.second_pass(result, [page], [1], schema, {"fiscal_year": 2025, "stem": "second-pass-test"})
+    finally:
+        x.call_llm = old
+    assert stats["calls"] == 3 and called == ["first", "second", "third"], (stats, called)
+    assert next(f for f in result["fields"] if f["key"] == "fourth")["value"] is None, result["fields"]
+
+    old_switch, old_second = os.environ.get("EXTRACT_SECOND_PASS"), app.extract_mod.second_pass
+    try:
+        os.environ["EXTRACT_SECOND_PASS"] = "0"
+        app.extract_mod.second_pass = lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("off switch called"))
+        off_result = _second_pass_result(schema, {"first"})
+        stats = app.apply_second_pass(off_result, [page], [1], schema, {"fiscal_year": 2025, "stem": "second-pass-test"})
+        assert stats == {"calls": 0, "seconds": 0.0, "model": 0.0, "validate": 0.0}, stats
+        assert off_result["timings"]["second_pass_calls"] == 0 and off_result["timings"]["second_pass"] == 0.0, off_result["timings"]
+
+        os.environ.pop("EXTRACT_SECOND_PASS")
+        app.extract_mod.second_pass = lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("default-off switch called"))
+        default_result = _second_pass_result(schema, {"first"})
+        stats = app.apply_second_pass(default_result, [page], [1], schema, {"fiscal_year": 2025, "stem": "second-pass-test"})
+        assert stats == {"calls": 0, "seconds": 0.0, "model": 0.0, "validate": 0.0}, stats
+        assert default_result["timings"]["second_pass_calls"] == 0 and default_result["timings"]["second_pass"] == 0.0, default_result["timings"]
+
+        os.environ["EXTRACT_SECOND_PASS"] = "1"
+        route_calls = []
+        app.extract_mod.second_pass = lambda *args, **kwargs: route_calls.append(args) or {
+            "calls": 2, "seconds": 3.25, "model": 3.0, "validate": 0.25}
+        on_result = _second_pass_result(schema, {"first"})
+        stats = app.apply_second_pass(on_result, [page], [1], schema, {"fiscal_year": 2025, "stem": "second-pass-test"})
+        assert route_calls and stats["calls"] == 2, (route_calls, stats)
+        assert on_result["timings"] == {"model": 3.0, "validate": 0.25, "attempts": 2,
+                                        "second_pass_calls": 2, "second_pass": 3.25}, on_result["timings"]
+    finally:
+        app.extract_mod.second_pass = old_second
+        if old_switch is None:
+            os.environ.pop("EXTRACT_SECOND_PASS", None)
+        else:
+            os.environ["EXTRACT_SECOND_PASS"] = old_switch
+
+
 if __name__ == "__main__":
     test_bucket_row_label_known()
     test_confidence_never_exceeds_one()
@@ -4417,5 +4558,9 @@ if __name__ == "__main__":
     test_fixed_pages_skip_selection()
     test_heldout_parent_continuation_and_unmarked_lease_schedule()
     test_missing_reasons_for_honest_debt_nulls()
+    test_second_pass_fills_required_field_from_full_candidate_pages()
+    test_second_pass_rejects_a_quote_not_on_its_page()
+    test_second_pass_skips_optional_nulls()
+    test_second_pass_caps_required_nulls_and_off_switch_makes_zero_calls()
     test_balance_sheet_tie()
     demo()
