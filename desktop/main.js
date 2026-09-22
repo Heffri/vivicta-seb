@@ -13,8 +13,10 @@ const isDev = !app.isPackaged
 const isWindows = process.platform === 'win32'
 const DEV_PORT = 8000 // frontend/vite.config.ts hardcodes its /api proxy to :8000 and is outside
 // this lane's territory (see desktop/README.md "Dev mode port"), so dev mode's backend binds
-// that exact port instead of a random free one. Packaged mode has no such constraint (the
-// backend serves the frontend itself, same origin, same port — see startBackend/loadShell).
+// that exact port instead of a random free one. Packaged mode serves the frontend itself, so it
+// can use this stable sequence as a stable browser origin for one userData directory.
+const PACKAGED_BACKEND_PORTS = Array.from({ length: 16 }, (_unused, index) => 47_311 + index)
+const BACKEND_PORT_CONFIG_KEY = 'backendPort'
 
 let mainWindow = null
 let overlayTone = 'dark' // v117: last tone the renderer reported over arp:tone-changed (drives glyph color)
@@ -101,6 +103,64 @@ function findFreePort() {
       srv.close(() => resolve(address.port))
     })
   })
+}
+
+function isValidPort(port) {
+  return Number.isInteger(port) && port > 0 && port <= 65_535
+}
+
+function loadRememberedBackendPort(userDataDir) {
+  try {
+    const config = JSON.parse(fs.readFileSync(path.join(userDataDir, 'config.json'), 'utf8'))
+    return isValidPort(config?.[BACKEND_PORT_CONFIG_KEY]) ? config[BACKEND_PORT_CONFIG_KEY] : undefined
+  } catch {
+    return undefined
+  }
+}
+
+// settings.saveConfig() deliberately owns the model/theme keys; this additive key is written here
+// because it belongs to the shell's browser origin rather than to a renderer setting. It is only a
+// preference: a read-only or corrupt config must not prevent the backend from starting.
+function rememberBackendPort(userDataDir, port) {
+  if (!isValidPort(port)) return
+  try {
+    let config = {}
+    try {
+      const parsed = JSON.parse(fs.readFileSync(path.join(userDataDir, 'config.json'), 'utf8'))
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) config = parsed
+    } catch {
+      /* first launch or a corrupt config: settings.loadConfig() will use defaults as well */
+    }
+    config[BACKEND_PORT_CONFIG_KEY] = port
+    fs.mkdirSync(userDataDir, { recursive: true })
+    fs.writeFileSync(path.join(userDataDir, 'config.json'), JSON.stringify(config, null, 2), 'utf8')
+  } catch {
+    /* a usable port is more important than a best-effort preference write */
+  }
+}
+
+function isPortAvailable(port) {
+  return new Promise((resolve) => {
+    const srv = net.createServer()
+    srv.unref()
+    srv.once('error', () => resolve(false))
+    srv.listen(port, '127.0.0.1', () => srv.close(() => resolve(true)))
+  })
+}
+
+// Check a held-over fallback before the standard sequence so a given userData directory keeps the
+// same origin after another local app forced it off :47311. Every candidate is probed before spawn;
+// that avoids the old "reuse whatever answered /api/config" path when another desktop instance owns
+// the preferred port. A bind can still race another process after this probe, just as findFreePort()
+// did before; the normal startup health check remains the authority for that rare case.
+async function choosePackagedPort(rememberedPort, { isPortAvailable: available = isPortAvailable, findRandomPort = findFreePort } = {}) {
+  const candidates = [rememberedPort, ...PACKAGED_BACKEND_PORTS].filter(
+    (port, index, list) => isValidPort(port) && list.indexOf(port) === index,
+  )
+  for (const port of candidates) {
+    if (await available(port)) return port
+  }
+  return findRandomPort()
 }
 
 function httpGetOk(url) {
@@ -240,7 +300,10 @@ async function launchBackendOnPort(env, port) {
 }
 
 async function startBackend(env) {
-  const port = isDev ? DEV_PORT : await findFreePort()
+  if (isDev) return launchBackendOnPort(env, DEV_PORT)
+  const userDataDir = app.getPath('userData')
+  const port = await choosePackagedPort(loadRememberedBackendPort(userDataDir))
+  rememberBackendPort(userDataDir, port)
   return launchBackendOnPort(env, port)
 }
 
@@ -284,8 +347,10 @@ async function applySettings(cfg) {
         'stop it by hand, then relaunch the app so it can apply new settings.',
     }
   }
-  const clean = settings.saveConfig(app.getPath('userData'), cfg)
+  const userDataDir = app.getPath('userData')
+  const clean = settings.saveConfig(userDataDir, cfg)
   const port = currentBackend.port
+  rememberBackendPort(userDataDir, port)
   await stopProcess(currentBackend.proc)
   const env = { ...backendBaseEnv, ...settings.envForConfig(clean) }
   let launched
@@ -324,6 +389,7 @@ function applyTheme(theme) {
   const wantAcrylic = wanted === 'acrylic' && supportsAcrylic()
   const userDataDir = app.getPath('userData')
   const clean = settings.saveConfig(userDataDir, { ...settings.loadConfig(userDataDir), theme: wanted })
+  rememberBackendPort(userDataDir, currentBackend.port)
   let appliedNow = false
   if (mainWindow && !mainWindow.isDestroyed()) {
     if (typeof mainWindow.setBackgroundMaterial === 'function') {

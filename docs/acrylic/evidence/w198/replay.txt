@@ -1,0 +1,416 @@
+replay_check: baseline origin/acrylic, sections ['debt_maturity', 'income_statement'], worktree extract.py; stored fields fed back as the model answer, zero model calls
+  kb: data/kb
+  kb/4c_2025                                   income_statement same
+  kb/aak_2025                                  income_statement same
+  kb/abb_2025                                  income_statement same
+  kb/academedia_2025                           debt_maturity    same
+  kb/acast_2025                                debt_maturity    same
+  kb/acroud_2025                               income_statement same
+  kb/addnode_2025                              income_statement same
+  kb/addtech_2025                              income_statement same
+  kb/afry_2025                                 income_statement same
+  kb/alfa_laval_2025                           income_statement same
+  kb/alligo_2025                               debt_maturity    same
+  kb/alvotech_2025                             income_statement same
+  kb/ambea_2025                                debt_maturity    same
+  kb/apotea_2025                               debt_maturity    same
+  kb/aq_2025                                   income_statement same
+  kb/arctic_paper_2025                         debt_maturity    same
+  kb/arion_banki_2025                          income_statement same
+  kb/arjo_2025                                 debt_maturity    same
+  kb/asker_healthcare_2025                     income_statement same
+  kb/asmodee_2025                              income_statement same
+  kb/atlas_copco_2025                          income_statement same
+  kb/atrium_ljungberg_2025                     income_statement same
+  kb/attendo_2025                              debt_maturity    same
+  kb/avanza_bank_holding_2025                  income_statement same
+  kb/avarda_bank_2025                          debt_maturity    same
+  kb/axfood_2025                               income_statement same
+  kb/beijer_alma_2025                          income_statement same
+  kb/beijer_ref_2025                           income_statement same
+  kb/bergman_beving_2025                       debt_maturity    same
+  kb/betsson_2025                              income_statement same
+  kb/better_collective_2025                    debt_maturity    same
+  kb/bhg_2025                                  debt_maturity    same
+  kb/bico_2025                                 debt_maturity    same
+  kb/bilia_2025                                income_statement same
+  kb/billerud_2025                             income_statement same
+  kb/bioarctic_2025                            income_statement same
+  kb/biogaia_2025                              debt_maturity    same
+  kb/bioinvent_international_2025              debt_maturity    same
+  kb/boliden_2025                              income_statement same
+  kb/bonava_2025                               debt_maturity    same
+  kb/bonesupport_holding_2025                  income_statement same
+  kb/boozt_2025                                debt_maturity    same
+  kb/bravida_holding_2025                      income_statement same
+  kb/bts_2025                                  debt_maturity    same
+  kb/bufab_2025                                income_statement same
+  kb/bure_equity_2025                          income_statement same
+  kb/byggmastare_a_j_ahlstrom_h_2025           debt_maturity    same
+  kb/byggmax_2025                              debt_maturity    same
+  kb/camurus_2025                              income_statement same
+  kb/castellum_2025                            income_statement same
+  kb/catella_2025                              debt_maturity    same
+  kb/catena_2025                               income_statement same
+  kb/cavotec_2025                              debt_maturity    same
+  kb/cellavision_2025                          debt_maturity    same
+  kb/clas_ohlson_2025                          income_statement same
+  kb/cloetta_2025                              debt_maturity    same
+  kb/coor_service_management_hold_2025         debt_maturity    same
+  kb/corem_property_2025                       income_statement same
+  kb/creades_2025                              debt_maturity    same
+  kb/ctt_systems_2025                          debt_maturity    same
+  kb/dometic_2025                              income_statement same
+  kb/duni_2025                                 debt_maturity    same
+  kb/dustin_2025                               debt_maturity    same
+  kb/dynavox_2025                              debt_maturity    same
+  kb/egetis_therapeutics_2025                  debt_maturity    same
+  kb/elanders_2025                             debt_maturity    same
+  kb/electrolux_professional_2025              income_statement same
+  kb/elekta_2025                               income_statement same
+  kb/enea_2025                                 debt_maturity    same
+  kb/engcon_2025                               income_statement same
+  kb/enity_holding_2025                        debt_maturity    same
+  kb/ependion_2025                             debt_maturity    same
+  kb/ericsson_2025                             debt_maturity    same
+  kb/ericsson_2025                             income_statement same
+  kb/essity_2025                               income_statement same
+  kb/evolution_2025                            income_statement same
+  kb/ework_2025                                debt_maturity    same
+  kb/fagerhult_2025                            debt_maturity    same
+  kb/fasadgruppen_2025                         debt_maturity    same
+  kb/fenix_outdoor_international_2025          income_statement same
+  kb/flat_capital_2025                         debt_maturity    same
+  kb/flerie_2025                               debt_maturity    same
+  kb/fm_mattsson_2025                          debt_maturity    same
+  kb/gentoo_media_2025                         debt_maturity    same
+  kb/getinge_2025                              income_statement same
+  kb/green_landscaping_2025                    debt_maturity    same
+  kb/gruvaktiebolaget_viscaria_2025            debt_maturity    same
+  kb/hacksaw_2025                              income_statement same
+  kb/hansa_biopharma_2025                      debt_maturity    same
+  kb/hanza_2025                                debt_maturity    same
+  kb/hexagon_2025                              income_statement same
+  kb/hexatronic_2025                           debt_maturity    same
+  kb/hexpol_2025                               income_statement same
+  kb/hms_networks_2025                         income_statement same
+  kb/hoist_finance_2025                        debt_maturity    same
+  kb/holmen_2025                               income_statement same
+  kb/hufvudstaden_2025                         income_statement same
+  kb/humana_2025                               debt_maturity    same
+  kb/humble_2025                               debt_maturity    same
+  kb/husqvarna_2025                            income_statement same
+  kb/instalco_2025                             debt_maturity    same
+  kb/international_petroleum_corp_2025         income_statement same
+  kb/intrum_2025                               debt_maturity    same
+  kb/investor_2025                             income_statement same
+  kb/inwido_2025                               debt_maturity    same
+  kb/itab_2025                                 debt_maturity    same
+  kb/kabe_2025                                 debt_maturity    same
+  kb/karnell_2025                              debt_maturity    same
+  kb/karnov_2025                               debt_maturity    same
+  kb/knowit_2025                               debt_maturity    same
+  kb/lagercrantz_2025                          income_statement same
+  kb/lifco_2025                                income_statement same
+  kb/lime_technologies_2025                    debt_maturity    same
+  kb/linc_2025                                 debt_maturity    same
+  kb/lindab_international_2025                 income_statement same
+  kb/loomis_2025                               income_statement same
+  kb/lundbergforetagen_2025                    income_statement same
+  kb/lundin_mining_corporation_2025            income_statement same
+  kb/medcap_2025                               debt_maturity    same
+  kb/medicover_2025                            income_statement same
+  kb/meko_2025                                 debt_maturity    same
+  kb/meren_energy_2025                         debt_maturity    same
+  kb/mildef_2025                               debt_maturity    same
+  kb/mips_2025                                 income_statement same
+  kb/modern_times_2025                         debt_maturity    same
+  kb/modern_times_2025                         income_statement same
+  kb/momentum_2025                             debt_maturity    same
+  kb/morrow_bank_2025                          debt_maturity    same
+  kb/mycronic_2025                             income_statement same
+  kb/ncab_2025                                 debt_maturity    same
+  kb/ncc_2025                                  income_statement same
+  kb/nederman_holding_2025                     debt_maturity    same
+  kb/nelly_2025                                debt_maturity    same
+  kb/net_insight_2025                          debt_maturity    same
+  kb/new_wave_2025                             income_statement same
+  kb/noba_bank_2025                            income_statement same
+  kb/nobia_2025                                debt_maturity    same
+  kb/nolato_2025                               income_statement same
+  kb/nordea_bank_abp_2025                      income_statement same
+  kb/nordnet_2025                              income_statement same
+  kb/norion_bank_2025                          debt_maturity    same
+  kb/note_2025                                 debt_maturity    same
+  kb/oem_international_2025                    income_statement same
+  kb/orron_energy_2025                         debt_maturity    same
+  kb/ovzon_2025                                debt_maturity    same
+  kb/pandox_2025                               income_statement same
+  kb/paradox_interactive_2025                  income_statement same
+  kb/peab_2025                                 income_statement same
+  kb/powercell_sweden_2025                     debt_maturity    same
+  kb/proact_it_2025                            debt_maturity    same
+  kb/ratos_2025                                debt_maturity    same
+  kb/raysearch_laboratories_2025               debt_maturity    same
+  kb/rejlers_2025                              debt_maturity    same
+  kb/roko_2025                                 income_statement same
+  kb/rusta_2025                                debt_maturity    same
+  kb/rvrc_holding_2025                         debt_maturity    same
+  kb/saab_2025_sv                              income_statement same
+  kb/sagax_2025                                income_statement same
+  kb/salix_2025                                debt_maturity    same
+  kb/sandvik_2025                              income_statement same
+  kb/sca_2025                                  income_statement same
+  kb/scandi_standard_2025                      debt_maturity    same
+  kb/scandic_hotels_2025                       income_statement same
+  kb/sdiptech_2025                             debt_maturity    same
+  kb/seb_2025                                  income_statement same
+  kb/sectra_2025                               income_statement same
+  kb/securitas_2025                            income_statement same
+  kb/skanska_2025                              income_statement same
+  kb/skf_2025                                  income_statement same
+  kb/smartcraft_2025                           debt_maturity    same
+  kb/ssab_2025                                 income_statement same
+  kb/stillfront_2025                           debt_maturity    same
+  kb/stora_enso_2025                           income_statement same
+  kb/storskogen_2025                           income_statement same
+  kb/storytel_2025                             debt_maturity    same
+  kb/sv_handelsbanken_2025                     income_statement same
+  kb/svedbergs_2025                            debt_maturity    same
+  kb/svolder_2025                              debt_maturity    same
+  kb/sweco_2025                                income_statement same
+  kb/swedbank_2025                             income_statement same
+  kb/synsam_2025                               debt_maturity    same
+  kb/systemair_2025                            income_statement same
+  kb/tangen_industrikapital_2025               debt_maturity    same
+  kb/tele2_2025                                income_statement same
+  kb/telia_2025                                income_statement same
+  kb/thule_2025                                income_statement same
+  kb/traction_2025                             debt_maturity    same
+  kb/traton_2025                               income_statement same
+  kb/trelleborg_2025                           income_statement same
+  kb/truecaller_2025                           income_statement same
+  kb/vbg_2025                                  debt_maturity    same
+  kb/vef_2025                                  debt_maturity    same
+  kb/verisure_2025                             income_statement same
+  kb/viaplay_2025                              debt_maturity    same
+  kb/vicore_pharma_holding_2025                debt_maturity    same
+  kb/vitec_software_2025                       income_statement same
+  kb/vitrolife_2025                            income_statement same
+  kb/viva_wine_2025                            debt_maturity    same
+  kb/vnv_global_2025                           debt_maturity    same
+  kb/volati_2025                               debt_maturity    same
+  kb/volvo_2025                                income_statement same
+  kb/volvo_car_2025                            income_statement same
+  kb/wihlborgs_fastigheter_2025                income_statement same
+  kb/xano_industri_2025                        debt_maturity    same
+  kb/xvivo_perfusion_2025                      debt_maturity    same
+  kb/yubico_2025                               income_statement same
+
+totals: companies=206 same=206 changed=0 not_replayable=206
+  not replayable: kb/4c_2025: no debt_maturity
+  not replayable: kb/aak_2025: no debt_maturity
+  not replayable: kb/abb_2025: no debt_maturity
+  not replayable: kb/academedia_2025: no income_statement
+  not replayable: kb/acast_2025: no income_statement
+  not replayable: kb/acroud_2025: no debt_maturity
+  not replayable: kb/addnode_2025: no debt_maturity
+  not replayable: kb/addtech_2025: no debt_maturity
+  not replayable: kb/afry_2025: no debt_maturity
+  not replayable: kb/alfa_laval_2025: no debt_maturity
+  not replayable: kb/alligo_2025: no income_statement
+  not replayable: kb/alvotech_2025: no debt_maturity
+  not replayable: kb/ambea_2025: no income_statement
+  not replayable: kb/apotea_2025: no income_statement
+  not replayable: kb/aq_2025: no debt_maturity
+  not replayable: kb/arctic_paper_2025: no income_statement
+  not replayable: kb/arion_banki_2025: no debt_maturity
+  not replayable: kb/arjo_2025: no income_statement
+  not replayable: kb/asker_healthcare_2025: no debt_maturity
+  not replayable: kb/asmodee_2025: no debt_maturity
+  not replayable: kb/atlas_copco_2025: no debt_maturity
+  not replayable: kb/atrium_ljungberg_2025: no debt_maturity
+  not replayable: kb/attendo_2025: no income_statement
+  not replayable: kb/avanza_bank_holding_2025: no debt_maturity
+  not replayable: kb/avarda_bank_2025: no income_statement
+  not replayable: kb/axfood_2025: no debt_maturity
+  not replayable: kb/beijer_alma_2025: no debt_maturity
+  not replayable: kb/beijer_ref_2025: no debt_maturity
+  not replayable: kb/bergman_beving_2025: no income_statement
+  not replayable: kb/betsson_2025: no debt_maturity
+  not replayable: kb/better_collective_2025: no income_statement
+  not replayable: kb/bhg_2025: no income_statement
+  not replayable: kb/bico_2025: no income_statement
+  not replayable: kb/bilia_2025: no debt_maturity
+  not replayable: kb/billerud_2025: no debt_maturity
+  not replayable: kb/bioarctic_2025: no debt_maturity
+  not replayable: kb/biogaia_2025: no income_statement
+  not replayable: kb/bioinvent_international_2025: no income_statement
+  not replayable: kb/boliden_2025: no debt_maturity
+  not replayable: kb/bonava_2025: no income_statement
+  not replayable: kb/bonesupport_holding_2025: no debt_maturity
+  not replayable: kb/boozt_2025: no income_statement
+  not replayable: kb/bravida_holding_2025: no debt_maturity
+  not replayable: kb/bts_2025: no income_statement
+  not replayable: kb/bufab_2025: no debt_maturity
+  not replayable: kb/bure_equity_2025: no debt_maturity
+  not replayable: kb/byggmastare_a_j_ahlstrom_h_2025: no income_statement
+  not replayable: kb/byggmax_2025: no income_statement
+  not replayable: kb/camurus_2025: no debt_maturity
+  not replayable: kb/castellum_2025: no debt_maturity
+  not replayable: kb/catella_2025: no income_statement
+  not replayable: kb/catena_2025: no debt_maturity
+  not replayable: kb/cavotec_2025: no income_statement
+  not replayable: kb/cellavision_2025: no income_statement
+  not replayable: kb/clas_ohlson_2025: no debt_maturity
+  not replayable: kb/cloetta_2025: no income_statement
+  not replayable: kb/coor_service_management_hold_2025: no income_statement
+  not replayable: kb/corem_property_2025: no debt_maturity
+  not replayable: kb/creades_2025: no income_statement
+  not replayable: kb/ctt_systems_2025: no income_statement
+  not replayable: kb/dometic_2025: no debt_maturity
+  not replayable: kb/duni_2025: no income_statement
+  not replayable: kb/dustin_2025: no income_statement
+  not replayable: kb/dynavox_2025: no income_statement
+  not replayable: kb/egetis_therapeutics_2025: no income_statement
+  not replayable: kb/elanders_2025: no income_statement
+  not replayable: kb/electrolux_professional_2025: no debt_maturity
+  not replayable: kb/elekta_2025: no debt_maturity
+  not replayable: kb/enea_2025: no income_statement
+  not replayable: kb/engcon_2025: no debt_maturity
+  not replayable: kb/enity_holding_2025: no income_statement
+  not replayable: kb/ependion_2025: no income_statement
+  not replayable: kb/essity_2025: no debt_maturity
+  not replayable: kb/evolution_2025: no debt_maturity
+  not replayable: kb/ework_2025: no income_statement
+  not replayable: kb/fagerhult_2025: no income_statement
+  not replayable: kb/fasadgruppen_2025: no income_statement
+  not replayable: kb/fenix_outdoor_international_2025: no debt_maturity
+  not replayable: kb/flat_capital_2025: no income_statement
+  not replayable: kb/flerie_2025: no income_statement
+  not replayable: kb/fm_mattsson_2025: no income_statement
+  not replayable: kb/gentoo_media_2025: no income_statement
+  not replayable: kb/getinge_2025: no debt_maturity
+  not replayable: kb/green_landscaping_2025: no income_statement
+  not replayable: kb/gruvaktiebolaget_viscaria_2025: no income_statement
+  not replayable: kb/hacksaw_2025: no debt_maturity
+  not replayable: kb/hansa_biopharma_2025: no income_statement
+  not replayable: kb/hanza_2025: no income_statement
+  not replayable: kb/hexagon_2025: no debt_maturity
+  not replayable: kb/hexatronic_2025: no income_statement
+  not replayable: kb/hexpol_2025: no debt_maturity
+  not replayable: kb/hms_networks_2025: no debt_maturity
+  not replayable: kb/hoist_finance_2025: no income_statement
+  not replayable: kb/holmen_2025: no debt_maturity
+  not replayable: kb/hufvudstaden_2025: no debt_maturity
+  not replayable: kb/humana_2025: no income_statement
+  not replayable: kb/humble_2025: no income_statement
+  not replayable: kb/husqvarna_2025: no debt_maturity
+  not replayable: kb/instalco_2025: no income_statement
+  not replayable: kb/international_petroleum_corp_2025: no debt_maturity
+  not replayable: kb/intrum_2025: no income_statement
+  not replayable: kb/investor_2025: no debt_maturity
+  not replayable: kb/inwido_2025: no income_statement
+  not replayable: kb/itab_2025: no income_statement
+  not replayable: kb/kabe_2025: no income_statement
+  not replayable: kb/karnell_2025: no income_statement
+  not replayable: kb/karnov_2025: no income_statement
+  not replayable: kb/knowit_2025: no income_statement
+  not replayable: kb/lagercrantz_2025: no debt_maturity
+  not replayable: kb/lifco_2025: no debt_maturity
+  not replayable: kb/lime_technologies_2025: no income_statement
+  not replayable: kb/linc_2025: no income_statement
+  not replayable: kb/lindab_international_2025: no debt_maturity
+  not replayable: kb/loomis_2025: no debt_maturity
+  not replayable: kb/lundbergforetagen_2025: no debt_maturity
+  not replayable: kb/lundin_mining_corporation_2025: no debt_maturity
+  not replayable: kb/medcap_2025: no income_statement
+  not replayable: kb/medicover_2025: no debt_maturity
+  not replayable: kb/meko_2025: no income_statement
+  not replayable: kb/meren_energy_2025: no income_statement
+  not replayable: kb/mildef_2025: no income_statement
+  not replayable: kb/mips_2025: no debt_maturity
+  not replayable: kb/momentum_2025: no income_statement
+  not replayable: kb/morrow_bank_2025: no income_statement
+  not replayable: kb/mycronic_2025: no debt_maturity
+  not replayable: kb/ncab_2025: no income_statement
+  not replayable: kb/ncc_2025: no debt_maturity
+  not replayable: kb/nederman_holding_2025: no income_statement
+  not replayable: kb/nelly_2025: no income_statement
+  not replayable: kb/net_insight_2025: no income_statement
+  not replayable: kb/new_wave_2025: no debt_maturity
+  not replayable: kb/noba_bank_2025: no debt_maturity
+  not replayable: kb/nobia_2025: no income_statement
+  not replayable: kb/nolato_2025: no debt_maturity
+  not replayable: kb/nordea_bank_abp_2025: no debt_maturity
+  not replayable: kb/nordnet_2025: no debt_maturity
+  not replayable: kb/norion_bank_2025: no income_statement
+  not replayable: kb/note_2025: no income_statement
+  not replayable: kb/oem_international_2025: no debt_maturity
+  not replayable: kb/oresund_2025: no candidate pages derivable
+  not replayable: kb/oresund_2025: no income_statement
+  not replayable: kb/orron_energy_2025: no income_statement
+  not replayable: kb/ovzon_2025: no income_statement
+  not replayable: kb/pandox_2025: no debt_maturity
+  not replayable: kb/paradox_interactive_2025: no debt_maturity
+  not replayable: kb/peab_2025: no debt_maturity
+  not replayable: kb/powercell_sweden_2025: no income_statement
+  not replayable: kb/proact_it_2025: no income_statement
+  not replayable: kb/ratos_2025: no income_statement
+  not replayable: kb/raysearch_laboratories_2025: no income_statement
+  not replayable: kb/rejlers_2025: no income_statement
+  not replayable: kb/roko_2025: no debt_maturity
+  not replayable: kb/rusta_2025: no income_statement
+  not replayable: kb/rvrc_holding_2025: no income_statement
+  not replayable: kb/saab_2025: no debt_maturity
+  not replayable: kb/saab_2025: no income_statement
+  not replayable: kb/saab_2025_sv: no debt_maturity
+  not replayable: kb/sagax_2025: no debt_maturity
+  not replayable: kb/salix_2025: no income_statement
+  not replayable: kb/sandvik_2025: no debt_maturity
+  not replayable: kb/sca_2025: no debt_maturity
+  not replayable: kb/scandi_standard_2025: no income_statement
+  not replayable: kb/scandic_hotels_2025: no debt_maturity
+  not replayable: kb/sdiptech_2025: no income_statement
+  not replayable: kb/seb_2025: no debt_maturity
+  not replayable: kb/sectra_2025: no debt_maturity
+  not replayable: kb/securitas_2025: no debt_maturity
+  not replayable: kb/skanska_2025: no debt_maturity
+  not replayable: kb/skf_2025: no debt_maturity
+  not replayable: kb/smartcraft_2025: no income_statement
+  not replayable: kb/ssab_2025: no debt_maturity
+  not replayable: kb/stillfront_2025: no income_statement
+  not replayable: kb/stora_enso_2025: no debt_maturity
+  not replayable: kb/storskogen_2025: no debt_maturity
+  not replayable: kb/storytel_2025: no income_statement
+  not replayable: kb/sv_handelsbanken_2025: no debt_maturity
+  not replayable: kb/svedbergs_2025: no income_statement
+  not replayable: kb/svolder_2025: no income_statement
+  not replayable: kb/sweco_2025: no debt_maturity
+  not replayable: kb/swedbank_2025: no debt_maturity
+  not replayable: kb/synsam_2025: no income_statement
+  not replayable: kb/systemair_2025: no debt_maturity
+  not replayable: kb/tangen_industrikapital_2025: no income_statement
+  not replayable: kb/tele2_2025: no debt_maturity
+  not replayable: kb/telia_2025: no debt_maturity
+  not replayable: kb/thule_2025: no debt_maturity
+  not replayable: kb/traction_2025: no income_statement
+  not replayable: kb/traton_2025: no debt_maturity
+  not replayable: kb/trelleborg_2025: no debt_maturity
+  not replayable: kb/truecaller_2025: no debt_maturity
+  not replayable: kb/vbg_2025: no income_statement
+  not replayable: kb/vef_2025: no income_statement
+  not replayable: kb/verisure_2025: no debt_maturity
+  not replayable: kb/viaplay_2025: no income_statement
+  not replayable: kb/vicore_pharma_holding_2025: no income_statement
+  not replayable: kb/vitec_software_2025: no debt_maturity
+  not replayable: kb/vitrolife_2025: no debt_maturity
+  not replayable: kb/viva_wine_2025: no income_statement
+  not replayable: kb/vnv_global_2025: no income_statement
+  not replayable: kb/volati_2025: no income_statement
+  not replayable: kb/volvo_2025: no debt_maturity
+  not replayable: kb/volvo_car_2025: no debt_maturity
+  not replayable: kb/wihlborgs_fastigheter_2025: no debt_maturity
+  not replayable: kb/xano_industri_2025: no income_statement
+  not replayable: kb/xvivo_perfusion_2025: no income_statement
+  not replayable: kb/yubico_2025: no debt_maturity

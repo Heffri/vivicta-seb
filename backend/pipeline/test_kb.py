@@ -4,6 +4,7 @@ PDF (v092). Run: python -m pipeline.test_kb"""
 import json
 import os
 import tempfile
+import threading
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -558,10 +559,100 @@ def test_entry_cache_write_visibility():
     print('Entry cache: new sections and stems are visible on the next call')
 
 
+# ---- w199: status=building only while a real write is in progress ---------------------------
+
+def test_status_building_only_during_real_writes():
+    """w199 (QA w195's poll storm): with no index task running -- fixture mode has none, embeddings
+    are simply unavailable -- the status must be "missing", never "building", and a transient lock
+    overlap must not survive the listing that observed it: the entry cache used to keep serving a
+    building status it had picked up while a real write held the lock, which kept the frontend
+    polling every 2 s forever. A held write lock still reports building, truthfully, while it runs."""
+    from . import kb
+    with tempfile.TemporaryDirectory() as tmp:
+        stem = _seed(kb, tmp)
+        assert kb.index_status(stem)["status"] == "missing", "quiet fixture stem is not missing"
+        kb.entries()  # warm the entry cache with the quiet status
+
+        acquired, release = threading.Event(), threading.Event()
+
+        def writer():  # stands in for index()/save_report's real write: holds the stem lock only
+            with kb.report_lock(stem):
+                acquired.set()
+                release.wait(5)
+
+        t = threading.Thread(target=writer)
+        t.start()
+        assert acquired.wait(5)
+        try:
+            during = kb.index_status(stem)
+            assert during["status"] == "building" and during["reason"] == "Report update in progress", during
+            listing = {e["stem"]: e for e in kb.entries()}
+            assert listing[stem]["status"] == "building", listing[stem]
+        finally:
+            release.set()
+            t.join(5)
+        # the write is over and nothing was written: the quiet status must come straight back --
+        # before w199 the entry cache kept serving the building it had cached mid-write
+        after = kb.index_status(stem)
+        assert after["status"] == "missing", after
+        cached = {e["stem"]: e for e in kb.entries()}
+        assert cached[stem]["status"] == "missing", cached[stem]
+    print("kb status building only during real writes ok")
+
+
+def test_concurrent_reads_never_report_building():
+    """w199: overlapping listings -- the poll storm's shape -- must never manufacture status
+    "building" for a stem nobody is writing: readers used to hash under the write lock, so one
+    listing's slow hash made every sibling listing's non-blocking acquire fail. The index here is
+    real and fat enough that the hashing is exactly where the old code collided."""
+    from . import kb
+    with tempfile.TemporaryDirectory() as tmp:
+        with _env(LLM_BASE_URL="http://x/v1"):
+            _seed(kb, tmp)  # acme_2025: a second, never-indexed stem whose quiet status is "missing"
+            kb.save_report("bulk_2025", {"company": "Bulk", "pages": 400, "sha256": "bulk"}, [f"page {n} text with revenue figures and operating profit for the year. " * 8 for n in range(400)])
+            calls: list = []
+            orig = kb.embed
+            kb.embed = _fake_embed(kb, calls)
+            try:
+                assert kb.index("bulk_2025")["cached"] is False
+            finally:
+                kb.embed = orig
+            quiet = kb.index_status("bulk_2025")["status"]
+            assert quiet == "ready", quiet
+            expected = {"bulk_2025": quiet, "acme_2025": kb.index_status("acme_2025")["status"]}
+            observations: list = []
+            barrier = threading.Barrier(8)
+
+            def reader():
+                barrier.wait()
+                for _ in range(4):
+                    observations.append(("bulk_2025", kb.index_status("bulk_2025")["status"]))
+                    observations.extend((e["stem"], e["status"]) for e in kb.entries())
+
+            threads = [threading.Thread(target=reader) for _ in range(8)]
+            try:
+                for t in threads:
+                    t.start()
+                for t in threads:
+                    t.join(30)
+            finally:
+                for t in threads:
+                    if t.is_alive():
+                        raise AssertionError("reader thread deadlocked")
+            assert observations, "no status observations recorded"
+            per_stem = {s for s, _ in observations}
+            assert per_stem == set(expected), sorted(per_stem)
+            assert all(status == expected[s] for s, status in observations), \
+                f"concurrent reads manufactured other statuses: {sorted(set(observations))}"
+    print("kb concurrent reads never report building ok")
+
+
 if __name__ == "__main__":
     test_catalog_content_availability()
     test_entry_cache_warm_call_reads_no_files()
     test_entry_cache_write_visibility()
+    test_status_building_only_during_real_writes()
+    test_concurrent_reads_never_report_building()
     demo()
     test_retrieval_modes()
     test_bm25_ranking()

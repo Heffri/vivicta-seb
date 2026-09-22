@@ -1,0 +1,16 @@
+PASS pipeline.test_confidence
+PASS pipeline.test_debt_selection
+PASS pipeline.test_fetch
+PASS pipeline.test_global_ask
+PASS pipeline.test_jobs
+PASS pipeline.test_kb
+PASS pipeline.test_llm
+PASS pipeline.test_locate
+PASS pipeline.test_maturity_ocr
+PASS pipeline.test_merge
+PASS pipeline.test_parse
+PASS pipeline.test_paths
+PASS pipeline.test_runtime
+PASS test_collection
+PASS test_human_review
+PASS test_workbench
