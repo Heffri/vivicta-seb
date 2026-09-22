@@ -350,7 +350,33 @@ def list_companies(q: str = "", collection_name: Literal["all", "wallenberg", "m
     directory = collection.directory(COMPANIES, collection_name)
     hits = [c for c in directory if q in c["name"].lower() or q in c["ticker"].lower()]
     hits.sort(key=lambda c: (not c["name"].lower().startswith(q), c["name"]))  # prefix matches first
-    return [c | {"cached_years": sorted(set(cached.get(collection.identity(c["name"]), [])))} for c in hits[:50]]
+    def reported_page(company):
+        metadata = collection.report_metadata(company)
+        stem = metadata and metadata.get("report_stem")
+        if not stem:
+            return None
+        try:
+            pages = kb._pages(stem)
+        except Exception:
+            return None
+        member_words = collection.identity(company).split()
+        group_key = collection.identity(metadata["collection_group"])
+        def normalized(text):
+            return collection.normalize(text)
+        def mentions(text, words):
+            haystack = f" {normalized(text)} "
+            return bool(words) and all(f" {word} " in haystack for word in words)
+        # Prefer the parent report's named portfolio-section heading over a casual earlier mention.
+        # The group appears in every page's navigation chrome, so it must occur near the opening
+        # content instead of merely somewhere in the stored page text.  Fall back to the first exact
+        # saved-text hit when a report has no repeated section heading.
+        for page, text in pages.items():
+            if mentions(text, member_words) and 0 <= normalized(text).find(group_key) <= 500:
+                return page
+        return next((page for page, text in pages.items() if mentions(text, member_words)), None)
+    return [c | {"cached_years": sorted(set(cached.get(collection.identity(c["name"]), []))),
+                 **({"report_page": reported_page(c["name"])} if c.get("no_standalone_report") else {})}
+            for c in hits[:50]]
 
 
 @app.post("/api/reports/discover")
@@ -365,6 +391,13 @@ def discover_companies(body: DiscoverBody):
 @app.post("/api/reports/fetch")
 def fetch_report(body: FetchBody):
     check_query(body)
+    if private := collection.report_metadata(body.company):
+        # Keep the API boundary aligned with pipeline.fetch.fetch_report(): no supplied URL, model
+        # result, feed or cache entry may turn a private holding into a standalone-report request.
+        detail = fetch.private_report_note(private)
+        jobs.step(body.job_id, "failed", detail)
+        return JSONResponse({"detail": detail, "reports_in": private["reports_in"],
+                             "report_stem": private.get("report_stem")}, status_code=409)
     if body.url and (len(body.url) > 2000 or not body.url.startswith(("http://", "https://"))):
         raise HTTPException(400, "bad url")
     slug = fetch.slugify(body.company)
@@ -719,7 +752,8 @@ def list_kb(collection_name: Literal["all", "wallenberg", "midcap"] = "all"):
         report_id = saved_report_id(e["stem"])
         get_report(report_id)
         out.append(e | {"report_id": report_id, "pdf_available": pdf_path(report_id).is_file(),
-                        "sector": sectors.get(normalize(e.get("company") or ""))})
+                        "sector": sectors.get(normalize(e.get("company") or "")),
+                        "reported_members": collection.reported_members(e.get("company"))})
     return out
 
 
