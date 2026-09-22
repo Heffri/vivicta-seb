@@ -32,6 +32,14 @@ const prepare = fs.readFileSync(path.join(here, 'scripts', 'prepare-resources.js
 for (const name of ['eng.traineddata', 'swe.traineddata', 'LICENSE']) {
   assert.ok(prepare.includes(name), `prepare-resources.js must stage ${name}`)
 }
+// w214: the language packs themselves are committed (tessdata_fast, Apache-2.0), so packaging
+// copies the repo copy on every machine; the network path in stageTessdata is only a fallback.
+for (const name of ['eng.traineddata', 'swe.traineddata', 'LICENSE']) {
+  assert.ok(
+    fs.existsSync(path.join(here, '..', 'data', 'tessdata', name)),
+    `data/tessdata/${name} must be committed to the repo`,
+  )
+}
 const main = fs.readFileSync(path.join(here, 'main.js'), 'utf8')
 assert.match(main, /process\.resourcesPath, 'tessdata'/, 'the packaged backend must be pointed at resources/tessdata')
 assert.match(

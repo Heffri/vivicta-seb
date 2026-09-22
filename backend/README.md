@@ -380,9 +380,11 @@ semantic retrieval with Codex or Claude extraction. Pull the model once with
 remains available. The Knowledge base view shows index status, model, dimensions,
 passage/fact counts, chunk inspection and Rebuild.
 
-For scanned/outlined PDFs in a source checkout, run `python scripts/setup_ocr.py`
-from the repository root. Desktop releases bundle the English/Swedish language files.
-`OCR_LANGUAGE` defaults to `eng+swe`; `TESSDATA_PREFIX` can point at another local
+The English/Swedish OCR language files are committed under `data/tessdata`
+(tessdata_fast, Apache-2.0), so a clone can OCR scanned/outlined PDFs with no
+download step; desktop releases bundle the same files. `scripts/setup_ocr.py`
+re-downloads them if deleted and can fetch further languages. `OCR_LANGUAGE`
+defaults to `eng+swe`; `TESSDATA_PREFIX` can point at another local
 language-data directory. OCR results are cached with provenance and settings.
 
 Run `python -m pipeline.test_runtime` and `python -m pipeline.test_maturity_ocr`
