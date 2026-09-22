@@ -22,6 +22,9 @@ test('directory picks fetch once with the PDF download on', async ({ page }) => 
   expect(fetched).toEqual([]) // picking queues, nothing is fetched yet
   await page.getByRole('button', { name: 'Extract', exact: true }).click()
   await expect(page.getByText(/Opening Atlas Copco annual report 2025/)).toBeVisible()
+  // v171 keeps the completed batch on Extract so its per-report outcome remains inspectable.
+  // Opening Results is explicit, rather than an implicit navigation at the moment it settles.
+  await page.getByRole('button', { name: 'View results (1)', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Atlas Copco', exact: true })).toBeVisible() // results view: the fetch + extract went through
   expect(fetched.map(request => [request.company, request.year, request.download_pdf])).toEqual([['Atlas Copco', 2025, true]])
   expect(scopes.every(scope => scope === 'wallenberg')).toBe(true)
