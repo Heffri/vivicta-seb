@@ -94,7 +94,8 @@
       "row_synonyms": [
         "borrowing", "borrowings", "bank loans", "bank loan",
         "interest-bearing liabilities", "interest bearing liabilities", "short-term interest-bearing liabilities",
-        "lease liabilities", "lease liability",
+        "interest-bearing loans", "interest-bearing loan",
+        "lease liabilities", "lease liability", "total lease liabilities", "total lease liability",
         "upplåning", "räntebärande skulder",
         "lån kreditinstitut", "liabilities to credit institutions",
         "skulder till kreditinstitut", "leaseskulder"
@@ -121,6 +122,9 @@
         "inom 1 år", "inom ett år", "förfaller inom 1 år", "< 1 år", "kortfristiga räntebärande skulder",
         "borrowings, current", "total borrowings in current liabilities"
       ],
+      "row_synonyms": [
+        "current lease liabilit"
+      ],
       "header_synonyms": [
         "within 12 months", "< 1 month", "1-3 months",
         "3 months", "three to twelve months",
@@ -143,6 +147,9 @@
         "between 4 and 5 years", "between 2 and 5 years",
         "1-5 år", "1–5 år", "mellan 1 och 5 år", "mellan ett och fem år", "inom fem år",
         "1-2 år", "mellan 1 och 3 år", "mellan 3 och 5 år", "2-5 år"
+      ],
+      "row_synonyms": [
+        "non-current lease liabilit"
       ],
       "header_synonyms": [
         "3-5 years", "mellan 1 och 2 år"
