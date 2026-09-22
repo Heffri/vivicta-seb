@@ -99,6 +99,37 @@ def test_no_bare_liability_class_keywords():
         check(not (kws & bare), f"{schema_name}: bare keyword(s) {sorted(kws & bare)} -- use a phrase")
 
 
+def test_amd_item_8_statement_beats_supplementary_label():
+    """AMD FY2025's printed p.60 (PDF p.72) is an income statement, not an excluded supplement.
+
+    The Item 8 heading contains the US 10-K boilerplate ``supplementary data`` before the
+    actual ``Consolidated Statements of Operations`` title.  It must retain the ordinary
+    heading/table score, otherwise ten weaker discussion pages crowd the statement out of
+    the top-ten candidate list.
+    """
+    schema = json.loads((pathlib.Path(__file__).resolve().parents[1] / "schemas" / "income_statement.json").read_text(
+        encoding="utf-8"))
+    # Compact fixture from AMD FY2025 PDF p.72 (printed p.60).  The ten preceding pages
+    # model the discussion/note pages that really outranked it before this regression fix.
+    decoys = [
+        f"Management discussion {n}\nNet revenue {100 + n} 90\nGross profit {80 + n} 70\n"
+        f"Operating income {60 + n} 50\nProfit before tax {40 + n} 30\n"
+        for n in range(10)
+    ]
+    amd_statement = (
+        "ITEM 8. FINANCIAL STATEMENTS AND SUPPLEMENTARY DATA\n"
+        "Advanced Micro Devices, Inc.\nConsolidated Statements of Operations\n"
+        "Year Ended December 27, 2025 December 28, 2024\n"
+        "Net revenue $ 34,639 $ 25,785\nCost of sales 16,456 12,114\n"
+        "Gross profit 17,152 12,725\nOperating income 3,694 1,900\n"
+        "Other income (expense), net 577 181\n"
+        "Income from continuing operations before income taxes 4,140 1,989\n"
+        "Income tax provision (benefit) (103) 381\nNet income $ 4,335 $ 1,641\n"
+    )
+    pages = locate.candidate_pages([*decoys, amd_statement], schema, fiscal_year=2025)
+    check(11 in pages, f"AMD Item 8 statement was excluded from candidates: {pages}")
+
+
 def main():
     test_companion_is_second()
     test_no_scored_page_dropped_for_budget()
@@ -106,6 +137,7 @@ def main():
     test_balance_sheet_page_joins_last()
     test_parent_and_summary_balance_sheets_not_companions()
     test_no_bare_liability_class_keywords()
+    test_amd_item_8_statement_beats_supplementary_label()
     print("locate self-check ok")
 
 
