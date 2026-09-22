@@ -122,6 +122,7 @@ function loadRememberedBackendPort(userDataDir) {
 // because it belongs to the shell's browser origin rather than to a renderer setting. It is only a
 // preference: a read-only or corrupt config must not prevent the backend from starting.
 function rememberBackendPort(userDataDir, port) {
+  if (!isValidPort(port)) return
   try {
     let config = {}
     try {
@@ -346,8 +347,10 @@ async function applySettings(cfg) {
         'stop it by hand, then relaunch the app so it can apply new settings.',
     }
   }
-  const clean = settings.saveConfig(app.getPath('userData'), cfg)
+  const userDataDir = app.getPath('userData')
+  const clean = settings.saveConfig(userDataDir, cfg)
   const port = currentBackend.port
+  rememberBackendPort(userDataDir, port)
   await stopProcess(currentBackend.proc)
   const env = { ...backendBaseEnv, ...settings.envForConfig(clean) }
   let launched
@@ -386,6 +389,7 @@ function applyTheme(theme) {
   const wantAcrylic = wanted === 'acrylic' && supportsAcrylic()
   const userDataDir = app.getPath('userData')
   const clean = settings.saveConfig(userDataDir, { ...settings.loadConfig(userDataDir), theme: wanted })
+  rememberBackendPort(userDataDir, currentBackend.port)
   let appliedNow = false
   if (mainWindow && !mainWindow.isDestroyed()) {
     if (typeof mainWindow.setBackgroundMaterial === 'function') {
