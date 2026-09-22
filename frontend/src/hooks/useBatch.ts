@@ -192,7 +192,16 @@ export function useBatch({ onSettle }: Handlers) {
     patch(id, (it) => ({ ...it, retrying: false }))
   }
 
-  return { items, busy, stopRequested, start, stopAfterCurrent, retry }
+  // Section changes are disabled while a batch runs, so reset only ever discards a settled batch.
+  // Leaving its failure visible until the analyst deliberately changes section or starts again keeps
+  // the error actionable without allowing that terminal row to block the next independent run.
+  const reset = () => {
+    commit([])
+    stopRef.current = false
+    setStopRequested(false)
+  }
+
+  return { items, busy, stopRequested, start, stopAfterCurrent, retry, reset }
 }
 
 export type Batch = ReturnType<typeof useBatch>
