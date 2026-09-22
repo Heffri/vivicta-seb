@@ -112,6 +112,8 @@ after everything below has already succeeded.
   Ask on BM25 alone is fine; only hybrid retrieval needs an embeddings endpoint indexed in advance.
 - **Extraction switches off for demo day.** `EXTRACT_SECOND_PASS` unset, `EXTRACT_SCAN_ALL` unset,
   `EXTRACT_MERGE_RUNS=off` (keep it off for the encore too — union/majority doubles the wait). The
+  round-2 decision run rejected second-pass-by-default: it added two non-empty wrong values, no
+  correct fill, and averaged +2.5 calls / +18.4 model seconds per report. The
   full-report scan alone can run 77–110 model calls per report/section and stays an offline
   diagnostic tool, never a production default. How to confirm: `EXTRACT_MERGE_RUNS` shows on the
   Settings page's status row and in `GET /api/config`'s `merge_runs` field; `EXTRACT_SECOND_PASS`

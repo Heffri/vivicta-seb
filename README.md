@@ -175,9 +175,12 @@ non-empty-wrong); it was subsequently used to develop guard/tuning work and is n
 current held-out benchmark. **Round 2** (`seed=2`, excluding round 1's extracted-or-skipped
 companies) is the current held-out benchmark: shipped-default `off` scored **36/40 (90.0%)** values
 and **14/17 (82.4%)** cited pages (**1 empty**, **3 non-empty-wrong**), and the same frozen labels
-under non-default `majority` scored the same 36/40 and 14/17. Neither n=10 measurement is a
-market-accuracy claim, and neither is extrapolated into one; see
-[v178](docs/acrylic/evidence/v178.md) and [v190](docs/acrylic/evidence/v190.md).
+under non-default `majority` scored the same 36/40 and 14/17. A later decision run with the bounded
+`EXTRACT_SECOND_PASS=1` scored **29/40** values and **12/17** pages (**3 empty**, **8
+non-empty-wrong**) at an average **+2.5 calls / +18.4 model seconds per report**, so that switch
+remains off by default. Neither n=10 measurement is a market-accuracy claim, and neither is
+extrapolated into one; see [v178](docs/acrylic/evidence/v178.md),
+[v190](docs/acrylic/evidence/v190.md), and [w211](docs/acrylic/evidence/w211.md).
 
 **5) The boundary.** The 105 labelled companies have been used repeatedly to debug and tune this
 pipeline — none of the numbers above is an out-of-the-box market-accuracy claim, and we do not
