@@ -1,8 +1,11 @@
-import { FileText, MessageCircle, Minus, Plus, RotateCcw, Search } from 'lucide-react'
+import { FileText, Filter, Network, MessageCircle, Minus, Plus, RotateCcw, Search } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { getKb } from '@/api'
 import { CollectionPicker } from '@/components/CollectionPicker'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { PageHeader, Workspace } from '@/components/ui/workspace'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ErrorBlock, LoadingLine } from '@/components/ui/state'
 import { useCollection } from '@/hooks/useCollection'
 import type { KbEntry } from '@/types'
@@ -13,6 +16,7 @@ const COLORS = ['#3b82f6', '#a855f7', '#14b8a6', '#f59e0b', '#ec4899', '#6366f1'
 const polar = (angle: number, radius: number): Point => ({ x: Math.cos(angle) * radius, y: Math.sin(angle) * radius })
 
 export function KnowledgeMap({ onAsk, onOpenReport }: Props) {
+  const [view, setView] = useState<'map' | 'reports'>('map')
   const [collection, setCollection] = useCollection()
   const [entries, setEntries] = useState<KbEntry[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -102,18 +106,26 @@ export function KnowledgeMap({ onAsk, onOpenReport }: Props) {
   const collectionLabel = collection === 'midcap' ? 'SEB Mid Cap universe' : collection === 'all' ? 'All saved reports' : 'Wallenberg collection'
 
   return <div className="space-y-5">
-    <header className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs uppercase tracking-widest text-muted-foreground">{collectionLabel}</p><h1 className="mt-1 text-2xl font-semibold">Knowledge map</h1><p className="mt-2 text-sm text-muted-foreground">Explore connected sectors, companies and reports. Drag nodes or the background. Scroll to zoom.</p></div><CollectionPicker value={collection} onChange={value => { if (value !== collection) { setEntries(null); setError(null); setCollection(value) } }} /></header>
+    <PageHeader eyebrow={collectionLabel} title="Company map" description="Explore sectors and companies, then open their saved reports." actions={<CollectionPicker value={collection} onChange={value => { if (value !== collection) { setEntries(null); setError(null); setCollection(value) } }} />} />
     {error && <ErrorBlock>{error}</ErrorBlock>}
     {!entries && !error && <LoadingLine>Mapping your stored reports…</LoadingLine>}
     {entries?.length === 0 && <p>{collectionLabel} has no saved reports yet. Extract or index one to get started.</p>}
     {!!entries?.length && <>
-      <div className="flex flex-wrap items-center gap-3">
-        <label className="relative min-w-52 flex-1"><Search className="absolute left-3 top-3 size-4 text-muted-foreground" aria-hidden /><input type="search" aria-label="Search companies or reports" placeholder="Find a company or report…" value={query} onChange={e => setQuery(e.target.value)} className="h-10 w-full rounded-lg border bg-background pl-9 pr-3 text-sm" /></label>
-        <select aria-label="Select company" value={current?.[0] ?? ''} onChange={e => setSelected(e.target.value)} className="h-10 max-w-full rounded-lg border bg-background px-3 text-sm"><option value="" disabled>{filtered.length ? 'Select company' : 'No matches'}</option>{filtered.map(([key, c]) => <option key={key} value={key}>{c.name}</option>)}</select>
-        {sector && <Button variant="outline" onClick={() => setSector(null)}>Show all sectors</Button>}
-        <span className="text-xs text-muted-foreground">{companies.length} companies · {entries.length} reports</span>
-      </div>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
+      <Workspace label="Company workspace" value={view} onChange={setView} toolbar={<div className="flex w-full flex-wrap items-center gap-2">
+        <Input type="search" icon={<Search />} aria-label="Search companies or reports" placeholder="Search companies or reports…" value={query} onChange={e => setQuery(e.target.value)} className="min-w-52 flex-1" />
+        <Filter className="ml-1 size-3.5 text-muted-foreground" aria-hidden />
+        <Select value={sector ?? 'all'} onValueChange={value => { setSector(value === 'all' ? null : value); setSelected(null) }} items={Object.fromEntries([['all', 'All sectors'], ...sectors.map(value => [value, value])])}>
+          <SelectTrigger aria-label="Filter companies by sector" className="min-w-32 max-w-full"><SelectValue /></SelectTrigger>
+          <SelectContent><SelectItem value="all">All sectors</SelectItem>{sectors.map(value => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent>
+        </Select>
+        <Select value={current?.[0] ?? null} onValueChange={value => value && setSelected(value)} items={Object.fromEntries(filtered.map(([key, item]) => [key, item.name]))} disabled={!filtered.length}>
+          <SelectTrigger aria-label="Select company" className="min-w-44 max-w-full"><SelectValue placeholder={filtered.length ? 'Select company' : 'No matches'} /></SelectTrigger>
+          <SelectContent>{filtered.map(([key, item]) => <SelectItem key={key} value={key}>{item.name}</SelectItem>)}</SelectContent>
+        </Select>
+        <span className="ml-auto text-xs text-muted-foreground tabular-nums">{filtered.length} of {companies.length} companies · {entries.length} reports</span>
+      </div>} pages={[
+        { value: 'map', label: 'Map', icon: Network, content: <>
+          <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted-foreground">Drag to explore. Scroll to zoom.</p>{company && <Button variant="outline" size="sm" onClick={() => setView('reports')}>View {company.name} reports</Button>}</div>
         <section aria-label="Interactive company graph" className="relative min-w-0 overflow-hidden rounded-2xl border bg-background">
           <div className="absolute left-3 top-3 z-10 flex items-center gap-1 rounded-lg border bg-card p-1">
             <Button size="icon" variant="ghost" aria-label="Zoom in" onClick={() => setZoom(z => Math.min(4, z * 1.25))}><Plus /></Button>
@@ -153,17 +165,18 @@ export function KnowledgeMap({ onAsk, onOpenReport }: Props) {
           <p className="px-4 pb-4 text-xs text-muted-foreground">Lines show recorded sector membership and report ownership, not business relationships. Select a company to reveal its reports.</p>
           {!filtered.length && <p role="status" className="absolute inset-x-0 bottom-16 text-center text-sm">No matching companies. Clear the search or choose another sector.</p>}
         </section>
-        {company && <aside aria-label="Company reports" className="min-w-0 rounded-2xl border bg-card p-5">
+        </> },
+        { value: 'reports', label: 'Company reports', icon: FileText, count: company?.reports.length, content: company ? <aside aria-label="Company reports" className="min-w-0 space-y-5">
           <p className="text-xs uppercase text-muted-foreground">{company.sector}</p><h2 className="mt-2 break-words text-xl font-semibold">{company.name}</h2>
           <p className="mt-2 text-sm text-muted-foreground">{company.reports.length} {company.reports.length === 1 ? 'report' : 'reports'} · {company.reports.reduce((n, r) => n + r.pages, 0).toLocaleString()} stored pages</p>
           {company.company && <Button className="mt-4" onClick={() => onAsk(company.company!)}><MessageCircle />Ask about company</Button>}
-          <div className="mt-5 space-y-3">{[...company.reports].sort((a, b) => (b.fiscal_year ?? 0) - (a.fiscal_year ?? 0)).map(report => <article key={report.stem} className="rounded-xl border p-3">
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{[...company.reports].sort((a, b) => (b.fiscal_year ?? 0) - (a.fiscal_year ?? 0)).map(report => <article key={report.stem} className="rounded-xl border p-3">
             <h3 className="flex items-center gap-2 text-sm font-medium"><FileText className="size-4" />{report.fiscal_year ?? 'Year unknown'} report</h3>
             <p className="my-2 text-xs text-muted-foreground">{report.pages} pages · {report.pdf_available ? 'PDF available' : 'Saved text only'}</p>
             <Button size="sm" variant="outline" onClick={() => onOpenReport(report)}>Open report</Button>
           </article>)}</div>
-        </aside>}
-      </div>
+        </aside> : <p className="text-sm text-muted-foreground">Select a matching company to view its reports.</p> },
+      ]} />
     </>}
   </div>
 }

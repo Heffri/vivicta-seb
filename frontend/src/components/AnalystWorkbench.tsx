@@ -4,6 +4,9 @@ import { CollectionPicker } from '@/components/CollectionPicker'
 import { useCollection } from '@/hooks/useCollection'
 import type { Comparison, Extraction, KbEntry, QueueIssue } from '@/types'
 import { Button } from '@/components/ui/button'
+import { PageHeader, Workspace } from '@/components/ui/workspace'
+import { OptionSelect } from '@/components/ui/option-select'
+import { ErrorBlock, LoadingLine } from '@/components/ui/state'
 
 const input = 'w-full rounded-lg border border-input bg-background p-2 text-foreground'
 const labels: Record<string, string> = { entity: 'Reporting entity', consolidation: 'Group or parent', period: 'Fiscal period (exact field period)', currency: 'Currency', scale: 'Scale', source: 'Source references (page and supporting text)', restatement: 'Restatement status', debt_basis: 'Debt measurement', leases: 'Lease treatment', bucket_mapping: 'Native intervals mapped to <1 / 1–5 / >5 years' }
@@ -50,7 +53,7 @@ export function YearComparison({ extraction: x, onChange }: { extraction: Extrac
     return () => { stale = true }
   }, [x, previous, onChange])
   if (!x.stem) return null
-  return <section className="space-y-3 rounded-xl border bg-card p-4" aria-label="Prior-year comparison">
+  return <section className="workspace-flat space-y-3" aria-label="Prior-year comparison">
     <h2 className="font-semibold">Prior-year comparison {result?.previous_year && `· ${result.previous_year} → ${result.current_year}`}</h2>
     <p className="text-sm text-muted-foreground">Saved statements only. No currency conversion or inferred restatement. Percentage change uses the absolute previous value.</p>
     <label className="block text-sm">Comparison source<select aria-label="Comparison source" className={input} value={previous || result?.previous_stem || ''} onChange={e => setPrevious(e.target.value)}><option value="">Immediately preceding year (if unique)</option>{result?.candidates.map(c => <option key={c.stem} value={c.stem}>{c.fiscal_year} · {c.company} · {c.stem}</option>)}</select></label>
@@ -88,10 +91,10 @@ export function ReviewQueue({ onOpen, filters, onFiltersChange }: { onOpen: (rep
   }
   const target = (issue: QueueIssue) => issue.kind === 'field' ? issue.key : issue.kind === 'basis' ? '@basis' : '@checks'
   const collectionLabel = collection === 'midcap' ? 'SEB Mid Cap universe' : collection === 'all' ? 'All saved reports' : 'Wallenberg collection'
-  return <section className="space-y-5"><header className="flex flex-wrap items-start justify-between gap-3"><div><h1 className="text-2xl font-semibold">Review</h1><p className="mt-2 text-muted-foreground">Outstanding checks in {collectionLabel}, grouped by statement. Open a statement to review its figures and sources.</p></div><CollectionPicker value={collection} onChange={value => { if (value !== collection) { setIssues(null); setError(''); setCollection(value) } }} /></header>
-    <div className="grid gap-3 sm:grid-cols-4">{Object.entries(filters).map(([k, v]) => <label key={k} className="text-sm capitalize">{k}<select aria-label={k} className={input} value={v} onChange={e => onFiltersChange({ ...filters, [k]: e.target.value })}><option value="">All</option>{[...new Set(issues?.map(i => value(i, k)))].sort().map(v => <option key={v} value={v}>{v.replaceAll('_', ' ')}</option>)}</select></label>)}</div>
-    {error && <p role="alert">{error}</p>}{!issues && !error && <p>Loading review queue…</p>}
-    {issues && <p role="status">{collectionLabel} · {groups.size} {groups.size === 1 ? 'statement' : 'statements'} · {visible?.length} outstanding {visible?.length === 1 ? 'check' : 'checks'}</p>}
+  const content = <>
+    {error && <ErrorBlock>{error}</ErrorBlock>}
+    {!issues && !error && <LoadingLine>Loading review queue…</LoadingLine>}
+    {issues && <p role="status" className="text-sm text-muted-foreground">{collectionLabel} · {groups.size} {groups.size === 1 ? 'statement' : 'statements'} · {visible?.length} outstanding {visible?.length === 1 ? 'check' : 'checks'}</p>}
     {issues && !visible?.length && <p className="text-sm text-muted-foreground">{issues.length ? 'No checks match these filters.' : 'No outstanding checks in this collection.'}</p>}
     <div className="space-y-3">{[...groups].map(([key, group]) => <article key={key} aria-label={`${group.report.company ?? group.report.stem} ${group.report.fiscal_year ?? ''} ${group.section.replaceAll('_', ' ')}`} className="rounded-xl border bg-card p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -105,5 +108,16 @@ export function ReviewQueue({ onOpen, filters, onFiltersChange }: { onOpen: (rep
         })}</div>
       </details>
     </article>)}</div>
-  </section>
+  </>
+  return <div className="space-y-6">
+    <PageHeader eyebrow="Review" title="Review statements" description={`Resolve outstanding checks in ${collectionLabel} against saved figures and their sources.`} actions={<CollectionPicker value={collection} onChange={next => { if (next !== collection) { setIssues(null); setError(''); setCollection(next) } }} />} />
+    <Workspace label="Review workspace" value={filters.kind} onChange={kind => onFiltersChange({ ...filters, kind })}
+      toolbar={<div className="grid w-full gap-3 sm:grid-cols-3">{['company', 'year', 'section'].map(k => <OptionSelect key={k} label={k === 'year' ? 'Fiscal year' : k === 'section' ? 'Statement' : 'Company'} value={filters[k as keyof ReviewFilters]} onChange={next => onFiltersChange({ ...filters, [k]: next })} options={[{ value: '', label: 'All' }, ...[...new Set(issues?.map(i => value(i, k)))].sort().map(item => ({ value: item, label: item.replaceAll('_', ' ') }))]} />)}</div>}
+      pages={[
+        { value: '', label: 'All checks' },
+        { value: 'field', label: 'Figures' },
+        { value: 'basis', label: 'Reporting basis' },
+        { value: 'check', label: 'Calculations' },
+      ].map(item => ({ ...item, content: filters.kind === item.value ? content : null }))} />
+  </div>
 }

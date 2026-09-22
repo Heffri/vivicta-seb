@@ -1,9 +1,10 @@
-import { Database, Download, Loader2, Search } from 'lucide-react'
+import { Database, Download, Library, Loader2, Search } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { type ApiError, getChunks, rebuildIndex, openKnowledge, pdfUrl, getConfig, getKb, getLibrary, getSchemas, kbExportCsvUrl, kbExportPptxUrl, openKbExtraction, type Config } from '@/api'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { PageHeader, Workspace } from '@/components/ui/workspace'
 import { ErrorBlock, LoadingLine } from '@/components/ui/state'
 import { CollectionPicker } from '@/components/CollectionPicker'
 import { MaturityWallCard } from '@/components/kb/MaturityWallCard'
@@ -38,6 +39,7 @@ export function KbView({ onOpen, onOpenReport }: Props) {
   // still loading or the call failed (old backend / network); either way fall back to "everything openable".
   const [pdfFiles, setPdfFiles] = useState<Set<string> | null>(null)
   const [pdfOnly, setPdfOnly] = useState(false)
+  const [view, setView] = useState<'reports' | 'index'>('reports')
   const [inspected, setInspected] = useState<KbEntry | null>(null)
   const pollAttempts = useRef(0)
   const pollDelay = useRef(POLL_BASE_MS)
@@ -147,103 +149,7 @@ export function KbView({ onOpen, onOpenReport }: Props) {
       (!pdfOnly || hasPdf(e.stem)),
   )
 
-  return (
-    <div className="space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-5">
-        <div>
-          <p className="text-xs text-muted-foreground uppercase tracking-wide">Knowledge base</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-            {entries
-              ? `${entries.length} reports · ${collection === 'wallenberg' ? 'Wallenberg collection' : collection === 'midcap' ? 'SEB Mid Cap universe' : 'all saved reports'}`
-              : 'Reports'}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Browse saved figures and source pages. Reports can be opened even when the original PDF is not on this device.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button disabled={withSection.length < 2 || !!busy} onClick={() => open(withSection, section)}>
-            {busy && withSection.join() === busy ? <Loader2 className="animate-spin" /> : <Database />}
-            Compare {withSection.length > 1 ? withSection.length : ''} selected
-          </Button>
-          <details className="group relative">
-            <summary className={`${buttonVariants({ variant: 'outline' })} cursor-pointer list-none [&::-webkit-details-marker]:hidden`}>
-              <Download /> Export all
-            </summary>
-            <div className="absolute right-0 z-20 mt-1 flex min-w-40 flex-col gap-1 rounded-lg border bg-popover p-1 shadow-md">
-              <a href={kbExportCsvUrl(exportSection, collection, query)} download className={buttonVariants({ size: 'sm', variant: 'ghost' })}>CSV</a>
-              <a href={kbExportPptxUrl(exportSection, collection, query)} download className={buttonVariants({ size: 'sm', variant: 'ghost' })}>PPTX deck</a>
-            </div>
-          </details>
-        </div>
-      </header>
-
-      {inspected && <ChunkBrowser key={inspected.stem} entry={entries?.find((e) => e.stem === inspected.stem) ?? inspected} onClose={() => setInspected(null)} />}
-      {error && (
-        <ErrorBlock
-          details={
-            notCached ? (
-              <p className="mt-2 text-xs">
-                Next step: fetch the PDF from the Extract tab’s Directory search, then open it here again.
-              </p>
-            ) : undefined
-          }
-        >
-          {error}
-        </ErrorBlock>
-      )}
-
-      {gaveUp && entries?.some((e) => e.status === 'building') && (
-        <p role="status" className="text-sm text-muted-foreground">
-          Indexing did not finish — refresh the page to retry.
-        </p>
-      )}
-
-      {!entries && !error && <LoadingLine>Loading…</LoadingLine>}
-
-      {entries && entries.length === 0 && <p className="text-sm text-muted-foreground">Empty — extract a report first.</p>}
-
-      {entries && entries.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative w-full sm:w-72">
-            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Filter by company or stem…"
-              aria-label="Filter reports"
-              className="h-8 w-full rounded-lg border border-input bg-background py-2 pr-2.5 pl-8 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring"
-            />
-          </div>
-          <span className="text-xs text-muted-foreground tabular-nums">
-            {filtered.length} / {entries.length}
-          </span>
-          <CollectionPicker value={collection} onChange={switchCollection} />
-          {/* v180: the sector view of the saved debt maturities; rows open through the same onOpenReport */}
-          <MaturityWallCard collection={collection} entries={entries ?? []} onOpenReport={onOpenReport} />
-          <label
-            className={`flex items-center gap-1.5 text-xs ${pdfFiles ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}
-            title={pdfFiles ? undefined : 'PDF cache list unavailable — cannot filter by it'}
-          >
-            <input
-              type="checkbox"
-              checked={pdfOnly}
-              disabled={!pdfFiles}
-              onChange={(e) => setPdfOnly(e.target.checked)}
-              className="size-3.5 accent-ring"
-            />
-            With PDF only
-          </label>
-        </div>
-      )}
-
-      {entries && entries.length > 0 && filtered.length === 0 && (
-        <p className="text-sm text-muted-foreground">No matches for "{query}".</p>
-      )}
-
-      {filtered.length > 0 && (
-        <Card className="overflow-hidden py-0 [&_[data-slot=table-container]]:max-h-[70vh] [&_[data-slot=table-container]]:overflow-y-auto">
+  const reportTable = filtered.length > 0 ? (<Card className="overflow-hidden py-0 [&_[data-slot=table-container]]:max-h-[70vh] [&_[data-slot=table-container]]:overflow-y-auto">
           <span id={NO_PDF_DESC_ID} className="sr-only">
             {NO_PDF_TITLE}
           </span>
@@ -255,7 +161,7 @@ export function KbView({ onOpen, onOpenReport }: Props) {
                 <TableHead className="text-right">FY</TableHead>
                 <TableHead className="text-right max-[900px]:hidden">Pages</TableHead>
                 <TableHead>Extractions</TableHead>
-                <TableHead>Embeddings</TableHead>
+                {view === 'index' && <TableHead>Search index</TableHead>}
                 <TableHead className="text-right" />
               </TableRow>
             </TableHeader>
@@ -281,7 +187,7 @@ export function KbView({ onOpen, onOpenReport }: Props) {
                     </TableCell>
                     <TableCell className="font-medium">
                       {e.company ?? e.stem}
-                      <span className="ml-2 font-mono text-xs text-muted-foreground max-[900px]:hidden">{e.stem}</span>
+                      {view === 'index' && <span className="mt-1 block font-mono text-xs text-muted-foreground">{e.stem}</span>}
                       {!available && (
                         <Badge variant="outline" className="ml-2 text-muted-foreground">
                           no PDF
@@ -303,7 +209,7 @@ export function KbView({ onOpen, onOpenReport }: Props) {
                         )}
                       </span>
                     </TableCell>
-                    <TableCell>
+                    {view === 'index' && <TableCell>
                       {config?.retrieval === 'bm25' ? (
                         // Keyword-only retrieval uses no embeddings file: "not yet" on every row read like
                         // breakage (v034), so name the index that actually serves /ask here instead.
@@ -316,10 +222,10 @@ export function KbView({ onOpen, onOpenReport }: Props) {
                         </Badge>
                       )}
                       <p className="text-xs text-muted-foreground" title={e.reason}>{e.embed_model ?? config?.embed_model} · {e.dimensions ?? "?"} dimensions<br />{e.page_chunks} passages · {e.fact_chunks} facts</p>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button size="xs" variant="outline" onClick={() => setInspected(e)}>Inspect</Button>
-                      <Button size="xs" variant="outline" disabled={!!busy || e.status === 'building'} onClick={() => build(e.stem)}>{busy === e.stem || e.status === 'building' ? 'Building…' : 'Rebuild'}</Button>
+                    </TableCell>}
+                    <TableCell className="space-x-2 text-right">
+                      {view === 'index' && <><Button size="xs" variant="outline" onClick={() => setInspected(e)}>Inspect</Button>
+                      <Button size="xs" variant="outline" disabled={!!busy || e.status === 'building'} onClick={() => build(e.stem)}>{busy === e.stem || e.status === 'building' ? 'Building…' : 'Rebuild'}</Button></>}
                       <Button size="xs" variant="outline" disabled={!!busy} onClick={() => onOpenReport(e)}>
                         Open
                       </Button>
@@ -329,8 +235,89 @@ export function KbView({ onOpen, onOpenReport }: Props) {
               })}
             </TableBody>
           </Table>
-        </Card>
+        </Card>) : null
+
+  return (
+    <div className="space-y-5">
+      <PageHeader eyebrow="Knowledge base" title="Saved reports" description="Browse saved figures and source pages, or manage the report search index." actions={<div className="flex flex-wrap items-center gap-2">
+        <Button disabled={withSection.length < 2 || !!busy} onClick={() => open(withSection, section)}>
+          {busy && withSection.join() === busy ? <Loader2 className="animate-spin" /> : <Database />}
+          Compare {withSection.length > 1 ? withSection.length : ''} selected
+        </Button>
+        <details className="group relative">
+          <summary className={`${buttonVariants({ variant: 'outline' })} cursor-pointer list-none [&::-webkit-details-marker]:hidden`}><Download /> Export all</summary>
+          <div className="absolute right-0 z-20 mt-1 flex min-w-40 flex-col gap-1 rounded-lg border bg-popover p-1 shadow-md">
+            <a href={kbExportCsvUrl(exportSection, collection, query)} download className={buttonVariants({ size: 'sm', variant: 'ghost' })}>CSV</a>
+            <a href={kbExportPptxUrl(exportSection, collection, query)} download className={buttonVariants({ size: 'sm', variant: 'ghost' })}>PPTX deck</a>
+          </div>
+        </details>
+      </div>} />
+
+
+      {error && (
+        <ErrorBlock
+          details={
+            notCached ? (
+              <p className="mt-2 text-xs">
+                Next step: fetch the PDF from the Extract tab’s Directory search, then open it here again.
+              </p>
+            ) : undefined
+          }
+        >
+          {error}
+        </ErrorBlock>
       )}
+
+      {!entries && !error && <LoadingLine>Loading…</LoadingLine>}
+
+      {gaveUp && entries?.some((entry) => entry.status === 'building') && <p role="status" className="text-sm text-muted-foreground">Indexing did not finish — refresh the page to retry.</p>}
+
+      {entries && entries.length === 0 && <p className="text-sm text-muted-foreground">Empty — extract a report first.</p>}
+
+      <Workspace label="Knowledge base workspace" value={view} onChange={setView} toolbar={<div className="flex flex-wrap items-center gap-3">
+          <div className="relative w-full sm:w-72">
+            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Filter by company or stem…"
+              aria-label="Filter reports"
+              className="h-8 w-full rounded-lg border border-input bg-background py-2 pr-2.5 pl-8 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring"
+            />
+          </div>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {filtered.length} / {entries?.length ?? 0}
+          </span>
+          <CollectionPicker value={collection} onChange={switchCollection} />
+          <MaturityWallCard collection={collection} entries={entries ?? []} onOpenReport={onOpenReport} />
+          <label
+            className={`flex items-center gap-1.5 text-xs ${pdfFiles ? 'text-muted-foreground' : 'text-muted-foreground/50'}`}
+            title={pdfFiles ? undefined : 'PDF cache list unavailable — cannot filter by it'}
+          >
+            <input
+              type="checkbox"
+              checked={pdfOnly}
+              disabled={!pdfFiles}
+              onChange={(e) => setPdfOnly(e.target.checked)}
+              className="size-3.5 accent-ring"
+            />
+            With PDF only
+          </label>
+        </div>} pages={[
+        { value: 'reports', label: 'Reports', icon: Library, content: view === 'reports' ? reportTable : null },
+        { value: 'index', label: 'Search index', icon: Database, content: view === 'index' ? <>
+          <p className="text-sm text-muted-foreground">Inspect the text used to answer questions and rebuild an index when needed.</p>
+          {inspected && <ChunkBrowser key={inspected.stem} entry={entries?.find(e => e.stem === inspected.stem) ?? inspected} onClose={() => setInspected(null)} />}
+          {reportTable}
+        </> : null },
+      ]} />
+
+      {entries && entries.length > 0 && filtered.length === 0 && (
+        <p className="text-sm text-muted-foreground">No matches for "{query}".</p>
+      )}
+
+
     </div>
   )
 }

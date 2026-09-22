@@ -4210,6 +4210,49 @@ def test_fixed_pages_skip_selection():
             os.environ["EXTRACT_TWO_PASS"] = old_two_pass
 
 
+def test_scan_all_is_separate_and_opt_in():
+    """m02: brute-force comparison scans never replace fixed-page fills or page selection."""
+    import json
+    import os
+    import pathlib
+
+    schema = json.loads((pathlib.Path(__file__).parents[1] / "schemas" / "debt_maturity.json").read_text("utf-8"))
+    texts = [f"Document page {page}" for page in range(1, 6)]
+    old_call, old_select = x.call_llm, x._select_pages
+    old_scan, old_two_pass = os.environ.get("EXTRACT_SCAN_ALL"), os.environ.get("EXTRACT_TWO_PASS")
+    calls = []
+    empty = {"fields": [
+        {"key": field["key"], "value": None, "unit": None, "period": None, "raw_label": None, "source": None}
+        for field in schema["fields"]
+    ]}
+    try:
+        x.call_llm = lambda _system, user: calls.append(user) or empty
+        os.environ.pop("EXTRACT_SCAN_ALL", None)
+        os.environ.pop("EXTRACT_TWO_PASS", None)
+        x.extract(texts, [2, 3, 4], schema, {"fiscal_year": 2025})
+        assert calls and all("=== PAGE 5 ===" not in user for user in calls), calls
+
+        calls.clear()
+        os.environ["EXTRACT_SCAN_ALL"] = "1"
+        os.environ["EXTRACT_TWO_PASS"] = "1"
+        x._select_pages = lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("scan-all must not invoke page selection"))
+        x.extract(texts, [2, 3, 4], schema, {"fiscal_year": 2025})
+        assert len(calls) == 4 and any("=== PAGE 5 ===" in user for user in calls), calls
+
+        calls.clear()
+        x.extract(texts, [2, 3], schema, {"fiscal_year": 2025}, fixed_pages=True)
+        assert len(calls) == 1, calls
+        assert "=== PAGE 2 ===" in calls[0] and "=== PAGE 3 ===" in calls[0], calls[0]
+        assert "=== PAGE 1 ===" not in calls[0] and "=== PAGE 5 ===" not in calls[0], calls[0]
+    finally:
+        x.call_llm, x._select_pages = old_call, old_select
+        for key, value in (("EXTRACT_SCAN_ALL", old_scan), ("EXTRACT_TWO_PASS", old_two_pass)):
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+
 def test_heldout_parent_continuation_and_unmarked_lease_schedule():
     """v186: held-out wrong tables stay outside the Group debt result."""
     import json
@@ -4616,6 +4659,7 @@ if __name__ == "__main__":
     test_note_citation_preference()
     test_absent_in_table_bucket()
     test_fixed_pages_skip_selection()
+    test_scan_all_is_separate_and_opt_in()
     test_heldout_parent_continuation_and_unmarked_lease_schedule()
     test_missing_reasons_for_honest_debt_nulls()
     test_fulltext_sweep_finds_numeric_synonym_rows_and_skips_tried_or_ocr_pages()

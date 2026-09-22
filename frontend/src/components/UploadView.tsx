@@ -1,7 +1,8 @@
-import { BookOpenCheck, Info, Loader2 } from 'lucide-react'
+import { BookOpenCheck, FileSearch, Files, Info, Loader2, Upload } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { type ApiError, fetchReport, getCompanies, getConfig, getLibrary, getSchemas, openKbExtraction, registerLibraryReport, uploadReport } from '@/api'
 import { Button } from '@/components/ui/button'
+import { PageHeader, Workspace } from '@/components/ui/workspace'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ErrorBlock } from '@/components/ui/state'
 import { BatchProgress } from '@/components/upload/BatchProgress'
@@ -51,6 +52,7 @@ export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onView
   const [files, setFiles] = useState<File[]>([]) // uploads, in drop/pick order, deduped by name+size
   const [dragging, setDragging] = useState(false)
   const [error, setError] = useState<string | null>(null) // local validation only (bad file type, sample open failure) — batch failures render per-item in BatchProgress
+  const [sourceView, setSourceView] = useState<'find' | 'saved' | 'upload'>('find')
 
   // Retrying a queued item re-invokes the exact same getReport() closure it was built with; reading
   // year off a ref (not the state value captured when the queue was built) means a Retry after
@@ -213,160 +215,50 @@ export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onView
     )
 
   return (
-    <div className="mx-auto w-full max-w-3xl min-[1280px]:max-w-none">
-      <header className="mb-6">
-        <p className="text-xs text-muted-foreground uppercase tracking-wide">Extract</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Pick reports, get source-linked numbers</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Find a company’s annual report with AI web search, reuse saved reports, or upload a PDF.
-        </p>
-        <div className="mt-4"><CollectionPicker companies value={collection} disabled={busy} onChange={value => {
-          if (value === collection) return
-          setCollection(value); setPicked([]); setSelected(new Set()); setCompanies([]); setLibrary([]); setError(null)
-        }} /></div>
-        {/* Direct line to a real result (supervisor add-on to v164): a stored KB extraction opens
-            with zero model calls — and its title says plainly that the basis is still unconfirmed. */}
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-          <Button variant="outline" size="sm" disabled={busy} onClick={() => void openSample()}>
-            <BookOpenCheck className="size-3.5" />
-            Open a real debt sample · saved result, zero model calls
-          </Button>
-          <span className="text-xs text-muted-foreground">
-            Karnell Group FY2025 debt note — extracted previously; its reading basis is still awaiting confirmation.
-          </span>
-        </div>
-      </header>
+    <div className="space-y-6">
+      <PageHeader eyebrow="Extract" title="Extract report data" description="Choose a source, then select the statement to extract." actions={<CollectionPicker companies value={collection} disabled={busy} onChange={value => {
+        if (value === collection) return
+        setCollection(value); setPicked([]); setSelected(new Set()); setCompanies([]); setLibrary([]); setError(null)
+      }} />} />
 
-      {/* Fixture mode says so before any upload (supervisor add-on): the figures a run returns are
-          the built-in sample, not this report's. Prominent but secondary-styled — it is a mode
-          explanation, not an error (DESIGN.md keeps danger for data-status failures). */}
-      {provider === 'fixture' && (
-        <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border border-border bg-primary/5 px-5 py-4 shadow-[inset_0_1px_0_var(--glass-hi)]">
-          <Info className="size-5 shrink-0 text-primary" aria-hidden />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium">Demo mode — no model is configured, so extraction returns a built-in sample result.</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">Uploads still parse for real (pages, candidate pages, sources); only the figures are fictional.</p>
-          </div>
-          <Button variant="outline" size="sm" disabled={busy} onClick={() => void openSample()}>
-            View a real sample
-          </Button>
-          <Button variant="ghost" size="sm" disabled={busy} onClick={() => onNavigate?.('settings')}>
-            Set up a real model in Settings
-          </Button>
-        </div>
-      )}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <Button variant="outline" size="sm" disabled={busy} onClick={() => void openSample()}><BookOpenCheck className="size-3.5" />Open a real debt sample · saved result, zero model calls</Button>
+        <span className="text-xs text-muted-foreground">Karnell Group FY2025 debt note — extracted previously; its reading basis is still awaiting confirmation.</span>
+      </div>
 
-      {/* One material: the whole screen is a single flat translucent step over the shell glass —
-          a --bg-1..2 gradient, hairline border, specular top edge, no backdrop-filter of its own
-          (DESIGN.md: one blurred pane per window, everything inside is a flat --bg-N step). */}
-      <section
-        aria-busy={busy || undefined}
-        className="overflow-hidden rounded-xl border border-border bg-linear-to-b from-background to-muted/60 shadow-[inset_0_1px_0_var(--glass-hi)]"
-      >
-        {/* The three paths. Busy dims the faces as a whole; the action bar below stays live. */}
-        <div
-          className={`grid transition-opacity duration-200 min-[1280px]:grid-cols-[1.1fr_1.1fr_1fr] ${
-            busy ? 'pointer-events-none opacity-60' : ''
-          }`}
-        >
-          <CompanySearch
-            collection={collection}
-            query={query}
-            year={year}
-            companies={companies}
-            dirError={dirError}
-            picked={picked}
-            busy={busy}
-            canRun={!!section}
-            discovery={discovery}
-            discovering={discovering}
-            trace={trace}
-            onQueryChange={setQuery}
-            onYearChange={setYear}
-            onTogglePick={togglePick}
-            onDiscover={discover}
-            onUseCandidate={useCandidate}
-          />
-          <CachedReports
-            library={library}
-            libraryError={libraryError}
-            selected={selected}
-            busy={busy}
-            onSelectAll={() => setSelected(new Set(library.map((e) => e.file)))}
-            onSelectNone={() => setSelected(new Set())}
-            onToggleTag={toggleAll}
-            onToggleOne={toggleOne}
-          />
-          <Dropzone
-            files={files}
-            dragging={dragging}
-            busy={busy}
-            onDragStage={setDragging}
-            onPick={pickFiles}
-            onRemove={removeFile}
-          />
-        </div>
+      {provider === 'fixture' && <div className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border border-border bg-primary/5 px-5 py-4 shadow-[inset_0_1px_0_var(--glass-hi)]">
+        <Info className="size-5 shrink-0 text-primary" aria-hidden />
+        <div className="min-w-0 flex-1"><p className="text-sm font-medium">Demo mode — no model is configured, so extraction returns a built-in sample result.</p><p className="mt-0.5 text-xs text-muted-foreground">Uploads still parse for real (pages, candidate pages, sources); only the figures are fictional.</p></div>
+        <Button variant="outline" size="sm" disabled={busy} onClick={() => void openSample()}>View a real sample</Button>
+        <Button variant="ghost" size="sm" disabled={busy} onClick={() => onNavigate?.('settings')}>Set up a real model in Settings</Button>
+      </div>}
 
-        {/* Action bar: section choice, run button. Per-item progress now lives in BatchProgress
-            below, not a single shared line — it keeps going after this section re-renders and
-            after a tab switch away and back, since it reads App-level batch state. */}
-        <div className="flex flex-wrap items-end gap-x-4 gap-y-3 border-t border-border bg-background/50 px-5 py-4">
+      <Workspace label="Report source" value={sourceView} onChange={setSourceView} pages={[
+        { value: 'find', label: 'Find a company', icon: FileSearch, count: picked.length, content: <CompanySearch
+          collection={collection} query={query} year={year} companies={companies} dirError={dirError} picked={picked} busy={busy} canRun={!!section}
+          discovery={discovery} discovering={discovering} trace={trace} onQueryChange={setQuery} onYearChange={setYear} onTogglePick={togglePick}
+          onDiscover={discover} onUseCandidate={useCandidate} /> },
+        { value: 'saved', label: 'Saved reports', icon: Files, count: selected.size, content: <CachedReports
+          library={library} libraryError={libraryError} selected={selected} busy={busy} onSelectAll={() => setSelected(new Set(library.map(entry => entry.file)))}
+          onSelectNone={() => setSelected(new Set())} onToggleTag={toggleAll} onToggleOne={toggleOne} /> },
+        { value: 'upload', label: 'Upload PDF', icon: Upload, count: files.length, content: <Dropzone
+          files={files} dragging={dragging} busy={busy} onDragStage={setDragging} onPick={pickFiles} onRemove={removeFile} /> },
+      ]} footer={<div className="w-full" aria-busy={busy || undefined}>
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-3 px-5 py-4">
           <div className="w-full max-w-80 space-y-1 min-[1280px]:flex-1">
-            <label htmlFor="section" className="text-xs text-muted-foreground">
-              Section
-            </label>
-            <Select
-              value={section}
-              onValueChange={setSection}
-              items={Object.fromEntries(schemas.map((s) => [s.name, s.title]))}
-              disabled={busy || schemas.length === 0}
-            >
-              <SelectTrigger id="section" className="w-full">
-                <SelectValue placeholder={schemasError ? 'No sections available' : 'Loading sections…'} />
-              </SelectTrigger>
-              <SelectContent>
-                {schemas.map((s) => (
-                  <SelectItem key={s.name} value={s.name}>
-                    {s.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
+            <label htmlFor="section" className="text-xs text-muted-foreground">Section</label>
+            <Select value={section} onValueChange={setSection} items={Object.fromEntries(schemas.map(schema => [schema.name, schema.title]))} disabled={busy || schemas.length === 0}>
+              <SelectTrigger id="section" className="w-full"><SelectValue placeholder={schemasError ? 'No sections available' : 'Loading sections…'} /></SelectTrigger>
+              <SelectContent>{schemas.map(schema => <SelectItem key={schema.name} value={schema.name}>{schema.title}</SelectItem>)}</SelectContent>
             </Select>
-            {schemasError && (
-              <ErrorBlock className="px-3 py-2 text-xs">
-                Could not load sections ({schemasError}). Is the backend running?
-              </ErrorBlock>
-            )}
+            {schemasError && <ErrorBlock className="px-3 py-2 text-xs">Could not load sections ({schemasError}). Is the backend running?</ErrorBlock>}
           </div>
-          <Button
-            onClick={() => runBatch()}
-            disabled={!canExtract}
-          >
-            {busy && <Loader2 className="animate-spin" />}
-            {count > 1 ? `Extract ${count} reports` : 'Extract'}
-          </Button>
+          <Button onClick={() => runBatch()} disabled={!canExtract}>{busy && <Loader2 className="animate-spin" />}{count > 1 ? `Extract ${count} reports` : 'Extract'}</Button>
         </div>
-
-        <BatchProgress
-          items={batch.items}
-          busy={busy}
-          stopRequested={batch.stopRequested}
-          resultsCount={resultsCount}
-          onStopAfterCurrent={batch.stopAfterCurrent}
-          onRetry={(id, opts) => void batch.retry(id, opts)}
-          onViewResults={onViewResults}
-          onNavigate={onNavigate}
-        />
-
-        {/* Local validation only — bad file type on drop/pick, or the sample failing to open.
-            Batch failures (fetch/candidates/extract) render per-item in BatchProgress above,
-            with their own next-step copy, not here. */}
-        {error && (
-          <div className="border-t border-border px-5 py-4">
-            <ErrorBlock>{error}</ErrorBlock>
-          </div>
-        )}
-      </section>
+        <BatchProgress items={batch.items} busy={busy} stopRequested={batch.stopRequested} resultsCount={resultsCount}
+          onStopAfterCurrent={batch.stopAfterCurrent} onRetry={(id, opts) => void batch.retry(id, opts)} onViewResults={onViewResults} onNavigate={onNavigate} />
+        {error && <div className="border-t border-border px-5 py-4"><ErrorBlock>{error}</ErrorBlock></div>}
+      </div>} />
     </div>
   )
 }

@@ -14,7 +14,7 @@ type FaceProps = {
 export function Face({ label, hint, actions, className = '', children }: FaceProps) {
   return (
     <section
-      className={`flex min-w-0 flex-col gap-3 border-border p-5 max-[1279px]:border-t max-[1279px]:first:border-t-0 min-[1280px]:border-l min-[1280px]:first:border-l-0 ${className}`}
+      className={`flex min-w-0 flex-col gap-4 ${className}`}
     >
       <div className="flex items-center justify-between gap-2">
         <h2 className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">

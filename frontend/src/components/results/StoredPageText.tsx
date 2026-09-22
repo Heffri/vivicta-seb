@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { scrollContent } from '@/components/shell/scrollContent'
 
-type Props = { text: string; quote?: string | null }
+type Props = { text: string; quote?: string | null; zoom?: number | null }
 
 const normalize = (s: string) => s.replace(/\s+/g, ' ').trim()
 
@@ -11,7 +11,7 @@ const normalize = (s: string) => s.replace(/\s+/g, ' ').trim()
  *  the first hit; a quote that doesn't appear verbatim still shows the full page, with a note.
  *  SourcePanel keys this component by page+quote, so the cycler starts back at 1/N on its own
  *  whenever either changes — a remount, not a reset effect, resets the local index. */
-export function StoredPageText({ text, quote }: Props) {
+export function StoredPageText({ text, quote, zoom = 100 }: Props) {
   const lines = text.split(/\r?\n/)
   const needle = quote ? normalize(quote) : ''
   const matches = needle ? lines.reduce<number[]>((acc, line, i) => (normalize(line).includes(needle) ? [...acc, i] : acc), []) : []
@@ -23,7 +23,7 @@ export function StoredPageText({ text, quote }: Props) {
   }, [activeLine, text])
   return (
     <div className="space-y-1.5">
-      <pre className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap break-words rounded-lg border bg-background p-3 text-xs leading-relaxed">
+      <pre style={{ fontSize: `${16 * (zoom ?? 100) / 100}px` }} className="h-[72vh] min-h-96 overflow-auto whitespace-pre-wrap break-words rounded-lg border bg-background p-5 font-sans leading-relaxed">
         {lines.map((line, i) => (
           <div key={i} ref={i === activeLine ? activeRef : undefined} className={i === activeLine ? 'rounded-[4px] bg-ring/25 px-0.5 ring-1 ring-ring/45' : undefined}>
             {line}
