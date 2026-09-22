@@ -158,7 +158,7 @@ export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onView
   // when only text is saved, and falls back to that saved text if the download fails. jobId (v194,
   // optional): only the AI-searched candidate path (useCandidate below) tracks it — a plain directory
   // pick's fetch stays as before, untracked.
-  const fetchWithDownload = (company: string, opts: { country?: string | null; url?: string | null } = {}, jobId?: string) =>
+  const fetchWithDownload = (company: string, opts: { country?: string | null; url?: string | null; ocr?: 'full' } = {}, jobId?: string) =>
     fetchReport(company, Number(yearRef.current), { ...opts, download_pdf: true, job_id: jobId })
 
   // Stored extraction from the knowledge base (supervisor add-on): no model call, works without the
@@ -186,12 +186,12 @@ export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onView
       ...(onlyExtra ? [] : picked).map((c) => ({
         label: c.name,
         prep: `Opening ${c.name} annual report ${yearRef.current}…`,
-        getReport: () => fetchWithDownload(c.name),
+        getReport: (opts?: { ocr?: 'full' }) => fetchWithDownload(c.name, opts),
       })),
       ...(onlyExtra ? [] : library)
         .filter((e) => selected.has(e.file))
-        .map((e) => ({ label: e.company, getReport: () => registerLibraryReport(e.file) })),
-      ...(onlyExtra ? [] : files).map((f) => ({ label: f.name, getReport: () => uploadReport(f), fromUpload: true })),
+        .map((e) => ({ label: e.company, getReport: (opts?: { ocr?: 'full' }) => registerLibraryReport(e.file, opts?.ocr) })),
+      ...(onlyExtra ? [] : files).map((f) => ({ label: f.name, getReport: (opts?: { ocr?: 'full' }) => uploadReport(f, opts?.ocr), fromUpload: true })),
     ]
     onSubmit(specs, section, sectionTitle, eta)
   }
@@ -205,7 +205,8 @@ export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onView
         {
           label: c.legal_name,
           prep: `Opening ${c.legal_name} annual report ${yearRef.current}…`,
-          getReport: () => trackJob('fetch', `Fetching ${c.legal_name}’s annual report`, (jobId) => fetchWithDownload(c.legal_name, { country: c.country, url: c.url }, jobId)),
+          getReport: (opts?: { ocr?: 'full' }) =>
+            trackJob('fetch', `Fetching ${c.legal_name}’s annual report`, (jobId) => fetchWithDownload(c.legal_name, { country: c.country, url: c.url, ...opts }, jobId)),
         },
       ],
       true,
@@ -352,7 +353,7 @@ export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onView
           stopRequested={batch.stopRequested}
           resultsCount={resultsCount}
           onStopAfterCurrent={batch.stopAfterCurrent}
-          onRetry={(id) => void batch.retry(id)}
+          onRetry={(id, opts) => void batch.retry(id, opts)}
           onViewResults={onViewResults}
           onNavigate={onNavigate}
         />

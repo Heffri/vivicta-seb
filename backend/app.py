@@ -61,6 +61,11 @@ async def ocr_unavailable(_request, exc):
     return JSONResponse(status_code=422, content={"detail": str(exc)})
 
 
+@app.exception_handler(parse.OCRBudgetExceeded)
+async def ocr_budget_exceeded(_request, exc):
+    return JSONResponse(status_code=422, content={"detail": str(exc), "ocr_pages_needed": exc.pages_needed})
+
+
 class ExtractBody(BaseModel):
     force: bool = False
     reuse_saved: bool = False
@@ -107,6 +112,7 @@ review_lock = threading.Lock()  # Local file store: serialize review read/modify
 
 class LibraryBody(BaseModel):
     file: str
+    ocr: Literal["bounded", "full"] = "bounded"
 
 
 class AskBody(BaseModel):
@@ -126,6 +132,7 @@ class DiscoverBody(BaseModel):
 class FetchBody(DiscoverBody):
     download_pdf: bool = True   # the PDF is always wanted (page images, quote checks); false = text-only reuse for API callers syncing KB text
     url: str | None = None      # a confirmed /discover candidate's PDF link: fetch_report tries it before its own sources
+    ocr: Literal["bounded", "full"] = "bounded"  # v191: "full" opts into an unbounded synchronous OCR pass on a newly-fetched scan
 
 
 def check_query(body: DiscoverBody):
@@ -152,6 +159,24 @@ def report_texts(report_id: str) -> list[str]:
     return texts_cache[report_id]
 
 
+def fill_pending_ocr(report_id: str, stem: str, wanted: list[int]) -> list[str]:
+    """v191(b): a candidate page the bounded registration OCR pass skipped (it lay outside the
+    generic debt/maturity/borrowings window) is OCR'd now, individually, when the section actually
+    being extracted needs it -- e.g. the locate.candidate_pages "page after the best one" companion
+    page just past the registration pass's own front-matter cutoff. No-op when none of `wanted` are
+    still ocr_pending."""
+    todo = sorted(set(kb._meta(stem).get("ocr_pending", [])) & set(wanted))
+    if not todo:
+        return texts_cache[report_id]
+    with pymupdf.open(pdf_path(report_id)) as doc:
+        updates = {n: parse.page_text(doc[n - 1]) for n in todo}
+    kb.fill_ocr_pages(stem, updates)
+    texts = texts_cache[report_id]
+    for n, t in updates.items():
+        texts[n - 1] = t
+    return texts
+
+
 def fill_texts(report_id: str) -> list[str]:
     """Read a fill window without registering or rewriting a report in the knowledge base."""
     if report_id in texts_cache:
@@ -162,7 +187,7 @@ def fill_texts(report_id: str) -> list[str]:
         pages = kb._pages(report["stem"])
         texts = [pages.get(n, "") for n in range(1, report["pages"] + 1)]
     elif pdf_path(report_id).is_file():
-        texts = parse.page_texts(pdf_path(report_id))
+        texts = parse.page_texts(pdf_path(report_id), ocr="full")  # a human picked these exact pages; bounding by debt keywords would leave the one they want blank
     else:
         raise HTTPException(404, "No saved page text is available for this report")
     texts_cache[report_id] = texts
@@ -233,7 +258,7 @@ def list_schemas():
 
 
 @app.post("/api/reports")
-async def upload_report(file: UploadFile = File(...)):
+async def upload_report(file: UploadFile = File(...), ocr: Literal["bounded", "full"] = Query("bounded")):
     data = await file.read()
     try:
         with pymupdf.open(stream=data, filetype="pdf") as doc:
@@ -243,15 +268,16 @@ async def upload_report(file: UploadFile = File(...)):
     sha = kb.sha256(data)
     cached = next((e for e in library_index() if e.get("sha256") == sha or (LIBRARY / e["file"]).stat().st_size == len(data) and kb.sha256((LIBRARY / e["file"]).read_bytes()) == sha), None)
     if cached:  # same bytes as a cached report: reuse its stem, so the KB gets no duplicate and few-shot excludes it correctly
-        return await run_in_threadpool(register_library, cached)
+        return await run_in_threadpool(register_library, cached, ocr)
     report_id = "up-" + sha[:12]  # deterministic: same upload twice = same report + same KB folder
     if report_id in reports:
         return reports[report_id]
     pdf_path(report_id).write_bytes(data)
-    texts, parsing = await run_in_threadpool(kb.load_texts, report_id, pdf_path(report_id), sha)
+    texts, parsing = await run_in_threadpool(kb.load_texts, report_id, pdf_path(report_id), sha, ocr)
     texts_cache[report_id] = texts
     company, fiscal_year = guess_meta(texts)
-    reports[report_id] = {"report_id": report_id, "filename": file.filename or "upload.pdf", "pages": len(texts), "company": company, "fiscal_year": fiscal_year, "stem": report_id}
+    reports[report_id] = {"report_id": report_id, "filename": file.filename or "upload.pdf", "pages": len(texts), "company": company, "fiscal_year": fiscal_year,
+                          "stem": report_id, "ocr_pages": parsing.get("ocr_pages", [])}
     kb.save_report(report_id, {"company": company, "fiscal_year": fiscal_year, "language": None, "source_url": None, "pages": len(texts),
                                "sha256": sha, "filename": reports[report_id]["filename"]} | parsing, texts)  # ponytail: uploads land in data/kb/up-<sha>/ too; prune before committing if they are not public reports
     return reports[report_id]
@@ -271,7 +297,7 @@ def list_library(collection_name: Literal["all", "wallenberg", "midcap"] = "all"
     return out
 
 
-def register_library(entry: dict) -> dict:
+def register_library(entry: dict, ocr: str = "bounded") -> dict:
     """Register a cached PDF (curated or fetched) exactly like an upload; same file twice = same report_id."""
     report_id = "lib-" + Path(entry["file"]).stem
     path = LIBRARY / entry["file"]
@@ -279,10 +305,11 @@ def register_library(entry: dict) -> dict:
         library_paths[report_id] = path
         texts_cache.pop(report_id, None)  # a restored text-only report must now read the fetched PDF
         digest = kb.sha256(path.read_bytes())
-        texts, parsing = kb.load_texts(path.stem, path, digest)
+        texts, parsing = kb.load_texts(path.stem, path, digest, ocr)
         texts_cache[report_id] = texts
         reports[report_id] = {"report_id": report_id, "filename": entry["file"], "pages": len(texts),
-                              "company": entry["company"], "fiscal_year": entry["fiscal_year"], "stem": Path(entry["file"]).stem}  # curated beats guess_meta
+                              "company": entry["company"], "fiscal_year": entry["fiscal_year"], "stem": Path(entry["file"]).stem,
+                              "ocr_pages": parsing.get("ocr_pages", [])}  # curated beats guess_meta
         kb.save_report(Path(entry["file"]).stem, {k: entry.get(k) for k in ("company", "fiscal_year", "language", "source_url")}
                        | {"pages": len(texts), "sha256": digest, "filename": entry["file"]} | parsing, texts)
     return reports[report_id]
@@ -293,7 +320,7 @@ def report_from_library(body: LibraryBody):
     entry = next((e for e in library_index() if e["file"] == body.file), None)
     if not entry or "/" in body.file or "\\" in body.file:  # trust boundary: index basenames only, never a path
         raise HTTPException(404, f"not in library: {body.file!r}; see GET /api/library")
-    return register_library(entry)
+    return register_library(entry, body.ocr)
 
 
 @app.get("/api/companies")
@@ -342,7 +369,7 @@ def fetch_report(body: FetchBody):
                 detail += f"; {e.args[1]}"
             return JSONResponse({"detail": detail, "tried": e.args[0]}, status_code=404)
         print(f"[fetch] {body.company} {body.year} -> {entry['file']} from {entry['source_url']} in {time.time() - t0:.0f}s")
-    return register_library(entry)
+    return register_library(entry, body.ocr)
 
 
 @app.get("/api/jobs/{job_id}")
@@ -459,6 +486,10 @@ def _run_extract(report_id: str, body: ExtractBody):
     else:
         texts = report_texts(report_id)
         pages = locate.candidate_pages(texts, schema, fiscal_year=report.get("fiscal_year"))
+        pending = set(pages) & set(kb._meta(report["stem"]).get("ocr_pending", []))
+        if pending and pdf_path(report_id).is_file():  # v191(b): a candidate this section actually needs, OCR'd on demand
+            texts = fill_pending_ocr(report_id, report["stem"], sorted(pending))
+            pages = locate.candidate_pages(texts, schema, fiscal_year=report.get("fiscal_year"))
         print(f"[extract] {report_id} {body.section}: candidate pages {pages}")
         if not pages:
             raise HTTPException(422, "No candidate pages found for this section")
@@ -506,7 +537,8 @@ def _run_extract(report_id: str, body: ExtractBody):
             raise HTTPException(502, " ".join(failures))
         ocr_pages = set(kb._meta(report["stem"]).get("ocr_pages", []))
         if ocr_pages:
-            result["warnings"].append("This report contains OCR text. Verify figures against the original PDF.")
+            result["warnings"].append(f"This report contains OCR text ({len(ocr_pages)} page{'s' if len(ocr_pages) != 1 else ''}). "
+                                      "Verify figures against the original PDF.")
             for field in result["fields"]:
                 sources = [field.get("source")] + [c.get("source") for c in field.get("components", [])]
                 if any(source and source.get("page") in ocr_pages for source in sources):

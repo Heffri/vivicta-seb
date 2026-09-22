@@ -144,3 +144,42 @@ test('extract: Stop after current lets the active three finish and leaves later 
 
   expect(errors).toEqual([])
 })
+
+test('extract: a scanned PDF over the OCR page budget offers "Run OCR anyway", which resends with ocr=full', async ({ page }) => {
+  // v191(c): registration 422s with {detail, ocr_pages_needed} when a scanned PDF's bounded OCR
+  // pass alone is over budget; the batch row surfaces a "Run OCR anyway (~N min)" button that
+  // resends the same upload with ocr=full. Mocked end to end (work order's own instruction) — the
+  // real bounded-OCR mechanics are covered by the backend's pipeline.test_maturity_ocr/test_runtime.
+  const errors = trackPageErrors(page)
+  await page.goto('/')
+
+  let uploadCalls = 0
+  await page.route(/\/api\/reports(\?.*)?$/, async (route) => {
+    uploadCalls++
+    const ocr = new URL(route.request().url()).searchParams.get('ocr')
+    if (ocr !== 'full') {
+      await route.fulfill({ status: 422, json: { detail: 'scanned PDF: OCR would take ~2 min for 55 pages', ocr_pages_needed: 55 } })
+      return
+    }
+    await route.fulfill({ status: 200, json: { report_id: 'up-mock191', filename: 'scan-191.pdf', pages: 60, company: null, fiscal_year: null, ocr_pages: [3, 4, 5] } })
+  })
+  await page.route(/\/api\/reports\/up-mock191\/candidates/, (route) => route.fulfill({ status: 200, json: [] }))
+  await page.route(/\/api\/reports\/up-mock191\/extract$/, (route) =>
+    route.fulfill({ status: 200, json: { report_id: 'up-mock191', section: 'debt_maturity', company: null, fiscal_year: null, currency: null, fields: [], checks: [], warnings: [] } }),
+  )
+
+  await page.setInputFiles('#pdf', { name: 'scan-191.pdf', mimeType: 'application/pdf', buffer: makePdf(2) })
+  await page.getByRole('main').getByRole('button', { name: /^Extract/ }).click()
+
+  const row = batchRow(page, 'scan-191.pdf')
+  await expect(row.getByText('scanned PDF: OCR would take ~2 min for 55 pages')).toBeVisible()
+  const runAnyway = row.getByRole('button', { name: /Run OCR anyway/ })
+  await expect(runAnyway).toHaveText('Run OCR anyway (~2 min)')
+
+  await runAnyway.click()
+  await expect(row.getByText('Done', { exact: true })).toBeVisible({ timeout: 20000 })
+  await expect(row.getByText('OCR: 3 pages')).toBeVisible()
+  await expect.poll(() => uploadCalls).toBe(2)
+
+  expect(errors).toEqual([])
+})

@@ -56,6 +56,7 @@ test('one statement card keeps independent basis prefill, source hints, reviewer
     basis_suggested: {
       entity: 'Atlas Copco', consolidation: 'Group', period: '2025', currency: 'SEK', scale: 'Millions',
       source: 'Annual report', restatement: 'As reported', debt_basis: 'Carrying amounts',
+      bucket_mapping: 'Under 1, 1 to 5, over 5',
     },
     basis_suggestions: [
       { key: 'debt_basis', value: 'Carrying amounts', source },
@@ -90,6 +91,7 @@ test('one statement card keeps independent basis prefill, source hints, reviewer
   await expect(basis.getByLabel('Restatement status', { exact: true })).toHaveValue('As reported')
   await expect(basis).toContainText('Prefilled from the report; nothing is confirmed until you save.')
   await expect(basis.getByText('Suggested from p. 7', { exact: true }).first()).toBeVisible()
+  await expect(basis).toContainText('Basis of figures · Basis not confirmed')
   await expect(basis.getByRole('button', { name: 'Use suggestion for Debt measurement', exact: true })).toBeVisible()
   const totalReview = page.getByRole('form', { name: 'Review Total borrowings', exact: true })
   await totalReview.getByLabel('Your name', { exact: true }).fill('Alex Analyst')

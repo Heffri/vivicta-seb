@@ -6,6 +6,7 @@ export type Report = {
   pages: number;
   company?: string | null;  // best-effort guess from first pages, may be null
   fiscal_year?: number | null;
+  ocr_pages?: number[];     // v191: 1-based pages this registration actually OCR'd (empty for a text-layer PDF)
 };
 
 export type Company = {

@@ -1,16 +1,18 @@
 import type { ChunkPage, Answer, Company, Discovery, Extraction, FieldFill, IndexStatus, Job, KbEntry, LibraryEntry, MaturityWall, Report, ReviewComponent, Schema } from './types'
 import type { Collection } from './hooks/useCollection'
 
-export type ApiError = Error & { status: number; tried?: string[] }
+export type ApiError = Error & { status: number; tried?: string[]; ocrPagesNeeded?: number }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init)
   if (!res.ok) {
-    // Errors are JSON { detail } per docs/API.md (fetch 404s add tried[]); fall back to status text for proxy/network errors.
-    const body: { detail?: string; tried?: string[] } = await res.json().catch(() => ({}))
+    // Errors are JSON { detail } per docs/API.md (fetch 404s add tried[]; v191's OCR-budget 422 adds
+    // ocr_pages_needed); fall back to status text for proxy/network errors.
+    const body: { detail?: string; tried?: string[]; ocr_pages_needed?: number } = await res.json().catch(() => ({}))
     throw Object.assign(new Error(body.detail ?? `${res.status} ${res.statusText}`), {
       status: res.status,
       tried: body.tried,
+      ocrPagesNeeded: body.ocr_pages_needed,
     }) satisfies ApiError
   }
   return res.json() as Promise<T>
@@ -18,19 +20,22 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 
 export const getSchemas = () => request<Schema[]>('/api/schemas')
 
-export function uploadReport(file: File) {
+// v191: ocr="full" opts into an unconditional OCR pass on a scanned PDF, after a first ("bounded",
+// the default when omitted) attempt 422'd with ocr_pages_needed -- see ApiError/BatchErrorKind's
+// 'ocr-budget' kind.
+export function uploadReport(file: File, ocr?: 'full') {
   const body = new FormData()
   body.append('file', file)
-  return request<Report>('/api/reports', { method: 'POST', body })
+  return request<Report>(`/api/reports${ocr ? '?ocr=full' : ''}`, { method: 'POST', body })
 }
 
 export const getLibrary = (collection: Collection = 'wallenberg') => request<LibraryEntry[]>(`/api/library?collection_name=${collection}`)
 
-export const registerLibraryReport = (file: string) =>
+export const registerLibraryReport = (file: string, ocr?: 'full') =>
   request<Report>('/api/reports/from-library', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ file }),
+    body: JSON.stringify({ file, ...(ocr ? { ocr } : {}) }),
   })
 
 export const getCompanies = (q: string, collection: Collection = 'wallenberg') => request<Company[]>(`/api/companies?q=${encodeURIComponent(q)}&collection_name=${collection}`)
@@ -45,8 +50,8 @@ export const discoverCompanies = (company: string, year: number, opts?: { countr
   })
 
 // country/hint provide optional context for AI-first report discovery; url (a confirmed candidate's link) is tried first.
-// job_id (v194, optional): see discoverCompanies.
-export const fetchReport = (company: string, year: number, opts?: { country?: string | null; hint?: string; url?: string | null; download_pdf?: boolean; job_id?: string }) =>
+// job_id (v194, optional): see discoverCompanies. ocr (v191, optional): see uploadReport.
+export const fetchReport = (company: string, year: number, opts?: { country?: string | null; hint?: string; url?: string | null; download_pdf?: boolean; ocr?: 'full'; job_id?: string }) =>
   request<Report>('/api/reports/fetch', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

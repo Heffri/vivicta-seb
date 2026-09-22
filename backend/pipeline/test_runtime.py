@@ -18,6 +18,24 @@ import app
 from . import kb, llm
 
 
+def _image_page(doc, text, width=300, height=100):
+    """A page with no text layer: `text` rendered as a raster image, so a real OCR pass (not a
+    mock) can recover it -- the same shape a scanned report page has."""
+    page = doc.new_page(width=width, height=height)
+    src = pymupdf.open()
+    src_page = src.new_page(width=width, height=height)
+    src_page.insert_text((10, height / 2), text, fontsize=20)
+    page.insert_image(page.rect, pixmap=src_page.get_pixmap(dpi=200))
+    src.close()
+    return page
+
+
+def _text_page(doc, text, width=300, height=100):
+    page = doc.new_page(width=width, height=height)
+    page.insert_text((10, height / 2), text, fontsize=11)
+    return page
+
+
 class RuntimeChecks(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -198,6 +216,58 @@ class RuntimeChecks(unittest.TestCase):
             app.reports.clear()
             self.client.post(f"/api/knowledge/{self.stem}/open")
             self.assertEqual(read.call_count, 1)
+
+    def test_upload_over_budget_422_then_ocr_full_retry(self):
+        """v191(a)(b): a scanned upload whose bounded candidate set alone exceeds OCR_PAGE_BUDGET is
+        refused with a structured 422 naming how many pages full OCR needs; the same bytes with
+        ocr=full run it unconditionally, no budget check."""
+        from . import parse
+        doc = pymupdf.open()
+        _text_page(doc, "Cover page")
+        _text_page(doc, "Second page")
+        _image_page(doc, "Scanned page three")
+        _image_page(doc, "Scanned page four")
+        _image_page(doc, "Scanned page five")
+        data = doc.tobytes()
+        doc.close()
+        with patch.object(parse, "OCR_PAGE_BUDGET", 2):
+            bounded = self.client.post("/api/reports", files={"file": ("scan.pdf", data, "application/pdf")})
+            self.assertEqual(bounded.status_code, 422, bounded.text)
+            body = bounded.json()
+            self.assertEqual(body["ocr_pages_needed"], 3)
+            self.assertRegex(body["detail"], r"~\d+ min for 3 pages")
+
+            full = self.client.post("/api/reports?ocr=full", files={"file": ("scan.pdf", data, "application/pdf")})
+            self.assertEqual(full.status_code, 200, full.text)
+            self.assertEqual(full.json()["ocr_pages"], [3, 4, 5])
+
+    def test_extract_fills_pending_candidate_page_on_demand(self):
+        """v191(b): a candidate page the bounded registration pass left ocr_pending (it sits past
+        the front matter, with no outline hit) is OCR'd individually, right before the model call
+        that needs it -- extract_mod.extract never sees a blank page for a page it was told to read."""
+        doc = pymupdf.open()
+        _text_page(doc, "Cover page")
+        for n in range(2, 10):
+            _text_page(doc, f"Body text page {n}")
+        _image_page(doc, "Borrowings note text")  # page 10: past the front matter, no toc hit
+        doc.save(app.UPLOADS / f"{self.stem}.pdf")
+        doc.close()
+
+        app.reports[self.stem] = {"report_id": self.stem, "stem": self.stem, "company": "Test AB", "fiscal_year": 2025, "pages": 10}
+        fixture = json.loads(app.FIXTURE.read_text(encoding="utf-8"))
+        fixture.update(report_id=self.stem, warnings=[], timings={"model": 0.1, "validate": 0.01, "attempts": 1})
+        captured = {}
+
+        def fake_extract(texts, pages, schema, report, **kw):
+            captured["texts"] = list(texts)
+            return json.loads(json.dumps(fixture))
+
+        with patch.object(app.locate, "candidate_pages", return_value=[10]), patch.object(app.extract_mod, "extract", side_effect=fake_extract):
+            response = self.client.post(f"/api/reports/{self.stem}/extract", json={"section": "income_statement"})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertIn("Borrowings note text", captured["texts"][9])  # the model read the filled page, not a blank one
+        self.assertEqual(kb._meta(self.stem)["ocr_pending"], [])
+        self.assertEqual(kb._meta(self.stem)["ocr_pages"], [10])
 
     def test_ask_uses_report_ids_and_withholds_bad_citations(self):
         from . import extract
