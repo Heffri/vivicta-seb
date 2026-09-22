@@ -94,10 +94,11 @@ with tempfile.TemporaryDirectory() as tmp:
             assert client.post('/api/reports/fetch', json=body).status_code == 200
             assert download.call_args.args[0] == 'ABB Ltd' and download.call_args.kwargs == {'url': body['url'], 'job_id': None}
             assert client.post('/api/reports/fetch', json=body | {'url': 'javascript:alert(1)'}).status_code == 400
-        # the PDF is wanted (default) but unreachable: saved page text still serves; nothing saved is a 404
+        # the PDF is wanted (default) but unreachable: saved page text still serves; a search-provider
+        # failure with nothing saved is distinguished from a completed "not found" search as a 502.
         with patch.object(app.fetch, 'fetch_report', side_effect=LookupError([], 'offline')):
             assert client.post('/api/reports/fetch', json={'company': 'ABB', 'year': 2025}).json()['report_id'] == 'lib-abb_2025'
-            assert client.post('/api/reports/fetch', json={'company': 'ABB', 'year': 2024}).status_code == 404
+            assert client.post('/api/reports/fetch', json={'company': 'ABB', 'year': 2024}).status_code == 502
         # /discover never downloads: it hands the query to fetch.discover and returns its candidates + note as-is
         with patch.object(app.fetch, 'fetch_report', side_effect=AssertionError('Unexpected PDF download')), \
                 patch.object(app.fetch, 'discover', return_value={'candidates': [], 'note': 'n'}) as discover:

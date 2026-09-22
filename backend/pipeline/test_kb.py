@@ -466,9 +466,9 @@ def test_kb_open_without_pdf():
 
             # ...but the page endpoints say the PDF is missing (409, require_pdf)
             png = client.get(f"/api/reports/{mine[0]}/pages/1.png")
-            assert png.status_code == 409 and "no longer cached" in png.json()["detail"], png.text
+            assert png.status_code == 409 and "matching source PDF is not cached" in png.json()["detail"], png.text
             pdf = client.get(f"/api/reports/{mine[0]}/pdf")
-            assert pdf.status_code == 409 and "no longer cached" in pdf.json()["detail"], pdf.text
+            assert pdf.status_code == 409 and "matching source PDF is not cached" in pdf.json()["detail"], pdf.text
 
             entry = next(e for e in client.get("/api/kb").json() if e["stem"] == stem)
             assert entry["pdf_available"] is False and entry["report_id"] == mine[0], entry
@@ -481,6 +481,10 @@ def test_kb_open_without_pdf():
                 for text in ("Net sales page", "operating profit page", "unrelated page"):
                     doc.new_page().insert_text((72, 72), text)
                 doc.save(libdir / "acme.pdf")  # meta.json's own filename -- get_report joins on it, not on the stem
+            # A later-arriving cached file represents the same saved edition only when its digest
+            # matches the stored source identity; production metadata already carries this digest.
+            source = libdir / "acme.pdf"
+            kb.save_report(stem, kb._meta(stem) | {"sha256": kb.sha256(source.read_bytes())}, [PAGES[i] for i in (1, 2, 3)])
             app_mod.LIBRARY = libdir
             app_mod.library_index = lambda: [{"file": "acme.pdf", "company": "Acme", "fiscal_year": 2025}]
             app_mod.reports.pop(mine[0], None)  # a restart: get_report re-registers from meta.json and finds the PDF
