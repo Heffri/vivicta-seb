@@ -1,7 +1,8 @@
-import { Globe, Loader2 } from 'lucide-react'
+import { FileSearch, Files, Globe, Loader2, Upload } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { type ApiError, extractSection, fetchReport, getCompanies, getConfig, getLibrary, getSchemas, registerLibraryReport, uploadReport } from '@/api'
 import { Button } from '@/components/ui/button'
+import { PageHeader, Workspace } from '@/components/ui/workspace'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ErrorBlock, LoadingLine } from '@/components/ui/state'
 import { CachedReports } from '@/components/upload/CachedReports'
@@ -37,6 +38,7 @@ export function UploadView({ onDone }: Props) {
   const [progress, setProgress] = useState<string | null>(null) // non-null = busy
   const [error, setError] = useState<string | null>(null)
   const [tried, setTried] = useState<Record<string, string[]>>({}) // label → URLs /fetch tried, for the all-failed block
+  const [sourceView, setSourceView] = useState<'find' | 'saved' | 'upload'>('find')
 
   // Debounced directory search; empty query = first 50. 404 = backend route not wired yet → muted one-liner.
   useEffect(() => {
@@ -187,33 +189,14 @@ export function UploadView({ onDone }: Props) {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl min-[1280px]:max-w-none">
-      <header className="mb-6">
-        <p className="text-xs text-muted-foreground uppercase tracking-wide">Extract</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Pick reports, get source-linked numbers</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Find a company’s annual report with AI web search, reuse saved reports, or upload a PDF.
-        </p>
-        <div className="mt-4"><CollectionPicker companies value={collection} disabled={busy} onChange={value => {
-          if (value === collection) return
-          setCollection(value); setPicked([]); setSelected(new Set()); setCompanies([]); setLibrary([]); setError(null)
-        }} /></div>
-      </header>
+    <div className="space-y-6">
+      <PageHeader eyebrow="Extract" title="Extract report data" description="Choose a source, then select the statement to extract." actions={<CollectionPicker companies value={collection} disabled={busy} onChange={value => {
+        if (value === collection) return
+        setCollection(value); setPicked([]); setSelected(new Set()); setCompanies([]); setLibrary([]); setError(null)
+      }} />} />
 
-      {/* One material: the whole screen is a single flat translucent step over the shell glass —
-          a --bg-1..2 gradient, hairline border, specular top edge, no backdrop-filter of its own
-          (DESIGN.md: one blurred pane per window, everything inside is a flat --bg-N step). */}
-      <section
-        aria-busy={busy || undefined}
-        className="overflow-hidden rounded-xl border border-border bg-linear-to-b from-background to-muted/60 shadow-[inset_0_1px_0_var(--glass-hi)]"
-      >
-        {/* The three paths. Busy dims the faces as a whole; the action bar below stays live. */}
-        <div
-          className={`grid transition-opacity duration-200 min-[1280px]:grid-cols-[1.1fr_1.1fr_1fr] ${
-            busy ? 'pointer-events-none opacity-60' : ''
-          }`}
-        >
-          <CompanySearch
+      <Workspace label="Report source" value={sourceView} onChange={setSourceView} pages={[
+        { value: 'find', label: 'Find a company', icon: FileSearch, count: picked.length, content: <CompanySearch
             collection={collection}
             query={query}
             year={year}
@@ -224,8 +207,8 @@ export function UploadView({ onDone }: Props) {
             onQueryChange={setQuery}
             onYearChange={setYear}
             onTogglePick={togglePick}
-          />
-          <CachedReports
+          /> },
+        { value: 'saved', label: 'Saved reports', icon: Files, count: selected.size, content: <CachedReports
             library={library}
             libraryError={libraryError}
             selected={selected}
@@ -234,19 +217,18 @@ export function UploadView({ onDone }: Props) {
             onSelectNone={() => setSelected(new Set())}
             onToggleTag={toggleAll}
             onToggleOne={toggleOne}
-          />
-          <Dropzone
+          /> },
+        { value: 'upload', label: 'Upload PDF', icon: Upload, count: files.length, content: <Dropzone
             files={files}
             dragging={dragging}
             busy={busy}
             onDragStage={setDragging}
             onPick={pickFiles}
             onRemove={removeFile}
-          />
-        </div>
-
+          /> },
+      ]} footer={<div className="w-full" aria-busy={busy || undefined}>
         {/* Live discovery is independent of the local directory and collection. */}
-        {hasWebQuery && (
+        {sourceView === 'find' && hasWebQuery && (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border bg-background/50 px-5 py-3">
             <div className="min-w-0 flex-1"><p className="text-sm font-medium">Find “{query.trim()}” on the web</p><p className="text-xs text-muted-foreground">Reuses saved reports first. Otherwise AI finds the official report, downloads the PDF and extracts your selected section.</p></div>
             {webSearchAvailable ? (
@@ -260,7 +242,7 @@ export function UploadView({ onDone }: Props) {
           </div>
         )}
 
-        <label className="flex items-start gap-2 border-t px-5 py-3 text-sm"><input type="checkbox" className="mt-1" checked={downloadPdf} disabled={busy} onChange={e => setDownloadPdf(e.target.checked)} /><span>Allow PDF download for this request<span className="block text-xs text-muted-foreground">Off by default. Saved text and figures work without the original PDF. Turn on only to fetch a missing report or its original PDF.</span></span></label>
+        {sourceView === 'find' && <label className="flex items-start gap-2 border-t px-5 py-3 text-sm"><input type="checkbox" className="mt-1" checked={downloadPdf} disabled={busy} onChange={e => setDownloadPdf(e.target.checked)} /><span>Allow PDF download for this request<span className="block text-xs text-muted-foreground">Off by default. Saved text and figures work without the original PDF. Turn on only to fetch a missing report or its original PDF.</span></span></label>}
         {/* Action bar: section choice, run button, progress line. */}
         <div className="flex flex-wrap items-end gap-x-4 gap-y-3 border-t border-border bg-background/50 px-5 py-4">
           <div className="w-full max-w-80 space-y-1 min-[1280px]:flex-1">
@@ -325,7 +307,7 @@ export function UploadView({ onDone }: Props) {
             </ErrorBlock>
           </div>
         )}
-      </section>
+      </div>} />
     </div>
   )
 }

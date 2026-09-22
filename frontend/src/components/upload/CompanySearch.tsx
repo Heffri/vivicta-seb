@@ -1,4 +1,5 @@
-import { Check, Search, X } from 'lucide-react'
+import { Check, Filter, Search, X } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { ErrorBlock } from '@/components/ui/state'
 import { Input } from '@/components/ui/input'
@@ -32,6 +33,17 @@ export function CompanySearch({
   onYearChange,
   onTogglePick,
 }: CompanySearchProps) {
+  const [sector, setSector] = useState('all')
+  const [availability, setAvailability] = useState('all')
+  const sectors = useMemo(
+    () => [...new Set(companies.map((company) => company.sector).filter((value): value is string => Boolean(value)))].sort(),
+    [companies],
+  )
+  const filteredCompanies = companies.filter((company) =>
+    (sector === 'all' || company.sector === sector) &&
+    (availability !== 'cached' || company.cached_years.includes(Number(year))),
+  )
+
   return (
     <Face label="Find a company" hint={collection === 'all' ? 'Local matches below · AI search works worldwide' : 'Wallenberg matches below · AI search works worldwide'}>
       <div className="flex gap-2">
@@ -65,12 +77,35 @@ export function CompanySearch({
         </Select>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2" aria-label="Company filters">
+        <Filter className="size-3.5 text-muted-foreground" aria-hidden />
+        <Select value={sector} onValueChange={(value) => value && setSector(value)} items={Object.fromEntries([['all', 'All sectors'], ...sectors.map((value) => [value, value])])} disabled={busy}>
+          <SelectTrigger aria-label="Filter companies by sector" size="sm" className="min-w-30 max-w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All sectors</SelectItem>
+            {sectors.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={availability} onValueChange={(value) => value && setAvailability(value)} items={{ all: 'Any availability', cached: `Cached in ${year}` }} disabled={busy}>
+          <SelectTrigger aria-label="Filter companies by report availability" size="sm" className="min-w-34">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any availability</SelectItem>
+            <SelectItem value="cached">Cached in {year}</SelectItem>
+          </SelectContent>
+        </Select>
+        {(sector !== 'all' || availability !== 'all') && <span className="text-xs text-muted-foreground">{filteredCompanies.length} shown</span>}
+      </div>
+
       {dirError !== null ? (
         <ErrorBlock className="px-3 py-2 text-xs">Company directory unavailable{dirError && ` (${dirError})`}.</ErrorBlock>
       ) : (
         <ul className="max-h-64 min-[1280px]:max-h-80 divide-y divide-border overflow-y-auto rounded-lg border border-border bg-background/50 text-sm">
-          {companies.length === 0 && <li className="px-3 py-2 text-xs text-muted-foreground">No local matches. Use AI web search below.</li>}
-          {companies.map((c) => {
+          {filteredCompanies.length === 0 && <li className="px-3 py-2 text-xs text-muted-foreground">{companies.length ? 'No companies match these filters.' : 'No local matches. Use AI web search below.'}</li>}
+          {filteredCompanies.map((c) => {
             const on = picked.some((p) => p.name === c.name)
             return (
               <li key={c.name}>

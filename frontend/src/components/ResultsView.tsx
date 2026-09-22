@@ -1,17 +1,18 @@
 import { BasisPanel, YearComparison } from '@/components/AnalystWorkbench'
-import { ArrowLeft, Download } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { ArrowLeft, Download, FileText, ListChecks, Columns3, MessageCircle, ChartColumn } from 'lucide-react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { csvUrl, pptxUrl, extractSection } from '@/api'
 import { AskPanel } from '@/components/AskPanel'
 import { HumanReviewForm } from '@/components/results/HumanReviewForm'
 import { FieldsTable } from '@/components/results/FieldsTable'
-import { MaturityChart } from '@/components/results/MaturityChart'
+import { isMaturitySection, MaturityChart } from '@/components/results/MaturityChart'
 import { SourcePanel, type Viewer } from '@/components/results/SourcePanel'
 import { StatusCards } from '@/components/results/StatusCards'
 import { Badge } from '@/components/ui/badge'
 import { scrollContent } from '@/components/shell/scrollContent'
 import { fieldVerification } from '@/components/results/verification'
 import { Button, buttonVariants } from '@/components/ui/button'
+import { PageHeader, Workspace } from '@/components/ui/workspace'
 import type { Comparison, Extraction, Field } from '@/types'
 
 type Props = {
@@ -20,6 +21,7 @@ type Props = {
   onUpdated: (result: Extraction) => void
   onReset: () => void
   onBack?: () => void
+  navigation?: ReactNode
   initialField?: string
   initialPage?: number | null // from a citation chip on the compare view
 }
@@ -43,7 +45,7 @@ const loadViewer = (): Viewer => {
   }
 }
 
-export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBack, initialPage, initialField }: Props) {
+export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBack, navigation, initialPage, initialField }: Props) {
   const { report_id, company, fiscal_year, currency, section, maturity_basis, fields, checks, warnings } = extraction
   const [selectedKey, setSelectedKey] = useState<string | null>(() => initialField ?? fields.find((f) => f.source)?.key ?? null)
   const [rerunning, setRerunning] = useState(false)
@@ -55,6 +57,9 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
     finally { setRerunning(false) }
   }
   const [comparison, setComparison] = useState<Comparison | null>(null)
+  const [view, setView] = useState<'figures' | 'review' | 'comparison' | 'ask' | 'export' | 'chart'>(initialField?.startsWith('@') ? 'review' : 'figures')
+  const focusSource = useRef(false)
+  const [reading, setReading] = useState(false)
   const [brokenPage, setBrokenPage] = useState<number | null>(null)
   const [askPage, setAskPage] = useState<number | null>(initialPage ?? null) // citation chip override; a row click clears it
   const [viewer, setViewerState] = useState<Viewer>(loadViewer)
@@ -75,6 +80,13 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
       if (basis) { basis.open = true; scrollContent(basis) }
     } else if (initialField === '@checks') scrollContent(document.getElementById('calculation-checks'))
   }, [initialField])
+  useEffect(() => {
+    if (!focusSource.current || view !== 'figures') return
+    const source = document.getElementById('report-source')
+    source?.focus({ preventScroll: true })
+    scrollContent(source, 'smooth')
+    focusSource.current = false
+  }, [view])
   const selected = fields.find((f) => f.key === selectedKey) ?? null
   const page = askPage ?? selected?.source?.page ?? null // what the provenance pane shows
   const selectField = (key: string) => {
@@ -95,24 +107,11 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
   }
 
   return (
-    <div className="space-y-6">
+    <div className="results-page space-y-3">
       {runError && <p role="alert" className="text-sm text-destructive">{runError}</p>}
-      {extraction.stale && <p role="status" className="text-sm text-amber-700">This saved result predates the current source, model or extraction settings. Human-reviewed results are preserved.</p>}
-      {extraction.timings && <p className="text-sm text-muted-foreground">{extraction.cached ? 'Saved result' : 'Fresh extraction'} · {extraction.timings.total ?? 0} s · {extraction.timings.attempts ?? 0} model calls</p>}
-      {/* Top bar: who, what, how well verified; exports on the right. */}
-      <header className="flex flex-wrap items-start justify-between gap-4 border-b pb-5">
-        <div>
-          {onBack ? (
-            <Button variant="link" size="xs" className="-ml-2 h-auto p-0 text-xs" onClick={onBack}>
-              <ArrowLeft /> Back to comparison
-            </Button>
-          ) : (
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Results</p>
-          )}
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">{company ?? 'Unknown company'}</h1>
-          <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
-            <span>{sectionTitle}</span>
-            <span aria-hidden>·</span>
+      <PageHeader eyebrow="Results" title={company ?? 'Unknown company'} description={
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            {!navigation && <><span>{sectionTitle}</span><span aria-hidden>·</span></>}
             <span>FY {fiscal_year ?? '—'}</span>
             <span aria-hidden>·</span>
             <span>{currency ?? '—'}</span>
@@ -124,12 +123,40 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
                 <span>basis: {maturity_basis === 'undiscounted' ? 'contractual undiscounted' : 'carrying amount'}</span>
               </>
             )}
-            <Badge variant={reviewCount ? 'warning' : 'secondary'}>
-              {reviewCount ? `${reviewCount} figures to review` : 'Source checks recorded'}
-            </Badge>
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+          </div>
+        } actions={<>{navigation}{onBack && <Button variant="outline" onClick={onBack}><ArrowLeft />Back to comparison</Button>}<Button onClick={onReset}>New report</Button></>} />
+      {extraction.stale && <p role="status" className="text-xs text-warning">This saved result predates the current source, model or extraction settings. Human-reviewed results are preserved.</p>}
+
+      <Workspace label="Report workspace" value={view} onChange={setView} pages={[
+        { value: 'figures', label: 'Figures & sources', icon: FileText, content: <>
+          <div className={`grid items-start gap-4 ${reading ? '' : 'min-[1100px]:grid-cols-[minmax(280px,2fr)_minmax(0,3fr)]'}`}>
+            <div hidden={reading} className="min-w-0 space-y-3">
+              <FieldsTable compact fields={fields} selectedKey={selectedKey} onSelect={selectField} />
+              <p className="text-xs text-muted-foreground">Select any figure to read its source. Status icons show verification; details below.</p>
+              {selected && <details className="rounded-lg border p-3" open={initialField === selected.key || undefined}>
+                <summary className="cursor-pointer text-sm font-medium">Review {selected.label}</summary>
+                <div className="mt-3 space-y-2 text-xs text-muted-foreground"><Badge variant={fieldVerification(selected).variant}>{fieldVerification(selected).label}</Badge><p>{fieldVerification(selected).detail}</p>{selected.human_review && <p>Automated evidence: {fieldVerification({ ...selected, human_review: undefined }).label.toLowerCase()}</p>}</div>
+                <div className="mt-4"><HumanReviewForm key={`${selected.key}:${selected.human_review?.at ?? ''}`} extraction={extraction} field={selected} onSaved={onUpdated} /></div>
+              </details>}
+            </div>
+            <SourcePanel reading={reading} onReadingChange={setReading} reportId={report_id} stem={extraction.stem} pdfAvailable={extraction.pdf_available} page={page}
+              selected={selected} askPage={askPage} viewer={viewer} onViewerChange={setViewer} brokenPage={brokenPage} onBrokenPage={setBrokenPage} />
+          </div>
+        </> },
+        ...(isMaturitySection(fields) ? [{ value: 'chart' as const, label: 'Maturity profile', icon: ChartColumn, keepMounted: true, content: <MaturityChart extraction={extraction} selectedKey={selectedKey} onSelect={key => { selectField(key); setView('figures') }} onPriorChange={setPriorYear} onPerYearChange={setPerYear} /> }] : []),
+        { value: 'review', label: 'Checks & review', icon: ListChecks, count: reviewCount, content: <>
+          <BasisPanel key={extraction.basis?.at ?? 'unknown'} extraction={extraction} onUpdated={onUpdated} />
+          <div id="calculation-checks"><StatusCards checks={checks} warnings={warnings} fields={fields} onSelect={key => {
+            selectField(key); focusSource.current = true; setView('figures')
+          }} /></div>
+        </> },
+        { value: 'comparison', label: 'Prior year', icon: Columns3, keepMounted: true, content: extraction.stem
+          ? <YearComparison extraction={extraction} onChange={setComparison} />
+          : <p className="text-sm text-muted-foreground">Prior-year comparisons are available for saved statements in the knowledge base.</p> },
+        { value: 'ask', label: 'Ask report', icon: MessageCircle, content: <AskPanel reports={[{ report_id, label: company ?? 'This report' }]} onCitation={(_id, p) => { setAskPage(p); focusSource.current = true; setView('figures') }} /> },
+        { value: 'export', label: 'Export', icon: Download, content: <div className="space-y-5">
+          <div><h2 className="text-base font-semibold">Export this statement</h2><p className="mt-1 text-sm text-muted-foreground">Download figures and their source references in your preferred format.</p></div>
+          <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={exportJson}>
             <Download /> Export JSON
           </Button>
@@ -139,51 +166,13 @@ export function ResultsView({ extraction, sectionTitle, onUpdated, onReset, onBa
           <a href={pptxUrl(report_id, extraction.stem ? section : undefined, comparison?.previous_stem, priorYear || undefined, perYear || undefined)} download className={buttonVariants({ variant: 'outline' })}>
             <Download /> Export PPTX
           </a>
-          <Button variant="outline" disabled={rerunning || !!extraction.basis_history?.length || fields.some((f) => f.review_history?.length)} onClick={rerun}>{rerunning ? "Extracting…" : "Run again"}</Button>
-          <Button onClick={onReset}>New report</Button>
-        </div>
-      </header>
-
-      <BasisPanel key={extraction.basis?.at ?? 'unknown'} extraction={extraction} onUpdated={onUpdated} />
-      <YearComparison extraction={extraction} onChange={setComparison} />
-      {/* Two columns from 1280px (fields + verification left, provenance + Ask right);
-          below that one column, Source directly under the table. The maturity chart
-          (v009) leads the grid full-width so it clears the fold on a 900px screen —
-          v010 moved it up from between Source and Checks per v009's suggestion; income
-          sections never render it, so their v003 layout is untouched. */}
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        {/* Maturity buckets — nothing renders unless the fields look like maturity
-            buckets, the same rule ppt.py uses to pick chart over table. */}
-        <MaturityChart extraction={extraction} selectedKey={selectedKey} onSelect={selectField} onPriorChange={setPriorYear} onPerYearChange={setPerYear} />
-
-        <div className="space-y-4">
-          <FieldsTable fields={fields} selectedKey={selectedKey} onSelect={selectField} />
-          {selected && <HumanReviewForm key={`${selected.key}:${selected.human_review?.at ?? ''}`} extraction={extraction} field={selected} onSaved={onUpdated} />}
-        </div>
-
-        {/* ponytail: no longer sticky — it would slide over the Ask panel below it. */}
-        <SourcePanel
-          reportId={report_id}
-          stem={extraction.stem}
-          pdfAvailable={extraction.pdf_available}
-          page={page}
-          selected={selected}
-          askPage={askPage}
-          viewer={viewer}
-          onViewerChange={setViewer}
-          brokenPage={brokenPage}
-          onBrokenPage={setBrokenPage}
-        />
-
-        <div id="calculation-checks"><StatusCards checks={checks} warnings={warnings} fields={fields} onSelect={(key) => {
-          selectField(key)
-          const source = document.getElementById('report-source')
-          source?.focus({ preventScroll: true })
-          scrollContent(source, 'smooth')
-        }} /></div>
-
-        <AskPanel reports={[{ report_id, label: company ?? 'This report' }]} onCitation={(_id, p) => setAskPage(p)} />
-      </div>
+          </div>
+          <div className="space-y-3 border-t pt-5"><h3 className="text-sm font-medium">Extraction</h3>
+            {extraction.timings && <p className="text-xs text-muted-foreground">{extraction.cached ? 'Saved result' : 'Fresh extraction'} · {extraction.timings.total ?? 0} s · {extraction.timings.attempts ?? 0} model calls</p>}
+            <Button variant="outline" disabled={rerunning || !!extraction.basis_history?.length || fields.some(f => f.review_history?.length)} onClick={rerun}>{rerunning ? 'Extracting…' : 'Run again'}</Button>
+          </div>
+        </div> },
+      ]} />
     </div>
   )
 }
