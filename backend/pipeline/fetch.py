@@ -200,13 +200,31 @@ def _filename_clear(label, *patterns):
 
 def _collection_context(company):
     member = collection.member(company)
-    if not member:
+    aliases = [name for name, target in collection.ALIASES.items() if target == collection.identity(company)]
+    context = f"\nCompany context: {member[0]} in the Wallenberg collection ({member[1]}). " if member else ""
+    if aliases:
+        context += f"Known legal or brand names: {', '.join(aliases)}. "
+    if member:
+        if metadata := collection.report_metadata(company):
+            context += f"This holding is also discussed inside {metadata['reports_in']}'s annual report. "
+        context += "Find this entity's own accounts, not a similarly named business or the owner's report."
+    return context
+
+
+def _directory_context(company):
+    try:
+        rows = json.loads(paths.companies_path().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
         return ""
-    context = f"\nCompany context: {member[0]} in the Wallenberg collection ({member[1]}). "
-    if metadata := collection.report_metadata(company):
-        context += (f"This holding is also discussed inside "
-                    f"{metadata['reports_in']}'s annual report. ")
-    return context + "Find this entity's own accounts, not a similarly named business or the owner's report."
+    identity = collection.identity(company)
+    row = next((r for r in rows if isinstance(r, dict) and r.get("name")
+                and collection.identity(r["name"]) == identity), None)
+    if not row:
+        return ""
+    identifiers = [f"{label}: {row[key]}" for key, label in
+                   (("ticker", "ticker"), ("isin", "ISIN"), ("org_number_or_lei", "registration number"))
+                   if row.get(key)]
+    return "\nKnown directory identifiers: " + ", ".join(identifiers) if identifiers else ""
 
 
 def _candidate_clear(url, title):
@@ -376,7 +394,7 @@ def _model_discover(query, year, country=None, hint=None, job_id=None):
     entity with its identity fields kept. A link that is not http(s) or is interim/risk/AGM-named (BAD_URL) is
     nulled, not the whole candidate -- fetch_report searches for that entity itself when url is null.
     job_id: see _model_candidates."""
-    user = f"Query: {query}\nFiscal year: {year}" + _collection_context(query)
+    user = f"Query: {query}\nFiscal year: {year}" + _collection_context(query) + _directory_context(query)
     if country:
         user += f"\nCountry: {country}"
     if hint:

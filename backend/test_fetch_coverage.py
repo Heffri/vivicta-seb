@@ -49,10 +49,20 @@ class FetchCoverageTests(unittest.TestCase):
         self.assertIn("issuer mismatch", why)
 
     def test_verified_brand_aliases_are_not_treated_as_other_issuers(self):
-        for requested, printed in [("Vectura", "Vectura Fastigheter AB"), ("3 Scandinavia", "Hi3G Scandinavia AB"), ("Sobi", "Swedish Orphan Biovitrum AB")]:
+        for requested, printed in [
+            ("Vectura", "Vectura Fastigheter AB"), ("3 Scandinavia", "Hi3G Scandinavia AB"),
+            ("3 Scandinavia", "Hi3G Holdings AB"), ("Sobi", "Swedish Orphan Biovitrum AB"),
+            ("AI Revenue Assistant Software", "AI Revenue Assistant Software Stockholm AB (publ)"),
+            ("ARENIT Industrie", "ARENIT Industrie SE"),
+        ]:
             doc, why = fetch._validate(accounts(company=printed), requested, 2025)
             self.assertIsNotNone(doc, why)
             doc.close()
+
+    def test_discovery_includes_catalogued_identifiers_and_legal_aliases(self):
+        self.assertIn("SE0028778498", fetch._directory_context("AI Revenue Assistant Software"))
+        self.assertIn("ARENIT SDB", fetch._directory_context("ARENIT Industrie"))
+        self.assertIn("hi3g holdings", fetch._collection_context("3 Scandinavia"))
 
     def test_parent_report_mentioning_holding_in_body_is_rejected(self):
         with pymupdf.open(stream=accounts(company="Investor AB")) as doc:

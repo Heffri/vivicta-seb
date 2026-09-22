@@ -1638,9 +1638,9 @@ def demo():
             "1-5 years 29 165 30 000\n1-5 years, of which fixed rate 10 000 9 000\n")
     decoy4 = "Appendix\nUnrelated content, never a pass-1 candidate.\n"  # page 4: not in `pages`, only reachable as page 3's default +1 companion
     full_answer = {"fields": [
-        {"key": "total_debt", "value": 32703, "unit": "MSEK", "period": "2025", "raw_label": "Total borrowings", "source": {"page": 3, "quote": "Total borrowings 32,703"}},
-        {"key": "due_within_1_year", "value": 3538, "unit": "MSEK", "period": "2025", "raw_label": "Within 1 year", "source": {"page": 3, "quote": "Within 1 year 3,538"}},
-        {"key": "due_1_to_5_years", "value": 29165, "unit": "MSEK", "period": "2025", "raw_label": "1-5 years", "source": {"page": 3, "quote": "1-5 years 29,165"}},
+        {"key": "total_debt", "value": 32703, "unit": "MSEK", "period": "2025", "raw_label": "Total borrowings", "source": {"page": 3, "quote": "Total borrowings 32 703"}},
+        {"key": "due_within_1_year", "value": 3538, "unit": "MSEK", "period": "2025", "raw_label": "Within 1 year", "source": {"page": 3, "quote": "Within 1 year 3 538"}},
+        {"key": "due_1_to_5_years", "value": 29165, "unit": "MSEK", "period": "2025", "raw_label": "1-5 years", "source": {"page": 3, "quote": "1-5 years 29 165"}},
         {"key": "due_after_5_years", "value": None, "unit": None, "period": None, "raw_label": None, "source": None}]}
     calls = []
 

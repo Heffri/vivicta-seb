@@ -2077,9 +2077,9 @@ def _subtotal_pair_fill(fields: list[dict], sfs: list[dict], schema: dict, texts
     section's own detail rows must close to its Summa in EVERY column -- the note's own arithmetic
     is what proves a bare "Summa" row is its section's subtotal and not another table's (a third
     Summa interleaved from a stacked table breaks the section walk or fails this closure). Declines
-    are silent (counter-examples must replay byte-identical); the model's own non-null total that
-    DISAGREES with A+B declines too -- the note and the model then name different scopes, a human's
-    question, not a repair's. Corroboration (the model's total matching, or the prose conversion of
+    are silent (counter-examples must replay byte-identical); a model total citing the non-current
+    subtotal is corrected to A+B, while any other disagreement remains a scope question for a human.
+    Corroboration (the model's total matching, or the prose conversion of
     A+B -- NOTE's p.109 "räntebärande skulder 824,2 (630,0) MSEK") only names itself in the warning;
     without it the adoption still stands on the two closures, at value_derived confidence."""
     ident = _identity_parts(schema)
@@ -2229,13 +2229,20 @@ def _subtotal_pair_fill(fields: list[dict], sfs: list[dict], schema: dict, texts
             continue
         pair_total = round(amA[col] + amB[col], 2)
         model_total = by_key[total_key].get("value")
-        if isinstance(model_total, (int, float)) and not isinstance(model_total, bool) and abs(model_total - pair_total) > 2:
+        total_src = by_key[total_key].get("source") or {}
+        cited_noncurrent_subtotal = (total_src.get("page") == page and
+                                     quote_on_page(total_src.get("quote") or "", rows[sumA]) and
+                                     isinstance(model_total, (int, float)) and abs(model_total - amA[col]) <= 2)
+        if isinstance(model_total, (int, float)) and not isinstance(model_total, bool) and abs(model_total - pair_total) > 2 \
+                and not cited_noncurrent_subtotal:
             continue  # the note's own subtotals and the model's total name different scopes: not this repair's call
         span = " ".join(rows[sumA:sumB + 1])  # both Summa rows verbatim, contiguously (a two-row join is not a page substring)
         if not quote_on_page(span, texts[page - 1]):
             continue
         corroborated = None
-        if isinstance(model_total, (int, float)) and not isinstance(model_total, bool):
+        if cited_noncurrent_subtotal:
+            corroborated = "model's cited non-current subtotal"
+        elif isinstance(model_total, (int, float)) and not isinstance(model_total, bool):
             corroborated = "the model's own total"
         elif (q := _prose_total(pair_total)) is not None:
             corroborated = f"page {q} prose"
@@ -4024,6 +4031,115 @@ def year_row_table(text: str, fiscal_year, schema: dict) -> bool:
     return _year_ladder(text, fiscal_year, schema) is not None
 
 
+_WIDE_YEAR_HEADER = re.compile(r"\bmaturity\b.*\bfixed\b.*\bfloating\b.*\bcarrying amount\b.*\bfair value\b", re.I)
+_WIDE_YEAR_ROW = re.compile(r"\b(20\d\d)(?:\s+and\s+after|\s+or\s+later)?(?=\s+\d)", re.I)
+
+
+def _wide_four_amounts(row: str) -> tuple[int, int, int, int] | None:
+    tokens = re.findall(r"\d[\d,.'’]*|[-–—−�]", row)
+    candidates = set()
+    for widths in itertools.product((1, 2, 3), repeat=4):
+        if sum(widths) != len(tokens):
+            continue
+        values, at = [], 0
+        for width in widths:
+            part = tokens[at:at + width]
+            at += width
+            if width == 1 and part[0] in "-–—−�":
+                values.append(0)
+            elif (all(re.fullmatch(r"\d{1,3}(?:[,.']\d{3})*|\d{4,}", token) for token in part)
+                  and (width == 1 or len(part[0]) <= 3 and all(len(token) == 3 for token in part[1:]))):
+                values.append(int("".join(part).replace(",", "").replace(".", "").replace("'", "")))
+            else:
+                break
+        if len(values) == 4 and values[0] + values[1] == values[2]:
+            candidates.add(tuple(values))
+    return next(iter(candidates)) if len(candidates) == 1 else None
+
+
+def wide_year_table(text: str, fiscal_year, schema: dict) -> dict | None:
+    """A debt maturity table with yearly fixed, floating, carrying and fair-value columns.
+
+    PDF text may interleave an unrelated left column with this table's right-hand rows. Read
+    only the suffix beginning at each future year, and require consecutive years plus the
+    table's own printed carrying total before accepting any derived bucket.
+    """
+    if schema.get("name") != "debt_maturity" or not fiscal_year:
+        return None
+    lines = text.splitlines()
+    for start, header in enumerate(lines):
+        if not _WIDE_YEAR_HEADER.search(header) or not re.search(
+            r"\b(?:borrowings?|loans?|debt)\b", " ".join(lines[max(0, start - 4):start + 1]), re.I
+        ):
+            continue
+        items = []
+        for end in range(start + 1, min(start + 30, len(lines))):
+            line = lines[end]
+            total_match = re.search(r"\btotal\s+(?=\d)", line, re.I) if len(items) >= 6 else None
+            if total_match:
+                amounts = _wide_four_amounts(line[total_match.end():])
+                years = [year for year, _, _ in items]
+                printed = amounts[2] if amounts else None
+                quote = "\n".join(lines[start:end + 1])
+                if (isinstance(printed, (int, float)) and years == list(range(int(fiscal_year) + 1, years[-1] + 1))
+                        and years[-1] >= int(fiscal_year) + 6
+                        and abs(round(sum(value for _, value, _ in items), 2) - printed) <= 2
+                        and quote_on_page(quote, text)):
+                    return {"items": items, "total": printed, "total_quote": line[total_match.start():], "quote": quote}
+                break
+            match = next((m for m in _WIDE_YEAR_ROW.finditer(line)
+                          if int(fiscal_year) < int(m.group(1)) <= int(fiscal_year) + 30), None)
+            if match:
+                amounts = _wide_four_amounts(line[match.end():])
+                if amounts:
+                    items.append((int(match.group(1)), amounts[2], line))
+    return None
+
+
+def _wide_year_table_fill(fields: list[dict], schema: dict, texts: list[str], pages: list[int],
+                          fiscal_year, basis: str, bucket_pick: dict, warnings: list[str],
+                          values: dict, filled: set) -> None:
+    if schema.get("name") != "debt_maturity" or not fiscal_year or basis != "carrying":
+        return
+    by_key = {field["key"]: field for field in fields}
+    for page in pages[:4]:
+        table = wide_year_table(texts[page - 1], fiscal_year, schema)
+        if not table:
+            continue
+        groups = {
+            "due_within_1_year": [item for item in table["items"] if item[0] == int(fiscal_year) + 1],
+            "due_1_to_5_years": [item for item in table["items"] if int(fiscal_year) + 2 <= item[0] <= int(fiscal_year) + 5],
+            "due_after_5_years": [item for item in table["items"] if item[0] > int(fiscal_year) + 5],
+        }
+        expected = {"total_debt": table["total"], **{k: round(sum(item[1] for item in rows), 2)
+                                                    for k, rows in groups.items()}}
+        if any((old := by_key[key].get("value")) is not None and abs(old - value) > 2
+               for key, value in expected.items()):
+            continue  # a conflicting answer may use a different debt basis; leave it for review
+        for key, value in expected.items():
+            field = by_key[key]
+            if field.get("value") is not None and "quote_on_page" in field.get("evidence", []):
+                continue
+            rows = groups.get(key, [])
+            source_quote = table["quote"] if rows else table["total_quote"]
+            field.update(value=value, period=str(fiscal_year),
+                         raw_label=" + ".join(str(year) for year, _, _ in rows) if rows else "Total",
+                         source={"page": page, "quote": source_quote},
+                         evidence=["quote_on_page", "value_derived"] if len(rows) > 1 else ["quote_on_page"])
+            if rows:
+                field["components"] = [{"value": amount, "page": page, "quote": row, "label": str(year)}
+                                       for year, amount, row in rows]
+            values[key] = value
+            filled.add(key)
+        bucket_pick["wide_years"] = {
+            "basis": basis,
+            "years": [{"label": str(year), "value": value, "source": {"page": page, "quote": row}}
+                      for year, value, row in table["items"]],
+        }
+        warnings.append(f"debt maturity: carrying-amount years on page {page} sum to the printed total {table['total']:g}")
+        return
+
+
 _LADDER_SUBSET_GAP = 0.10  # the ladder may restate the total (ABB: principal 8,247 vs carrying 7,905, 4.3%)
 
 
@@ -4366,6 +4482,8 @@ def _buckets_by_year_fill(schema: dict, texts: list[str], fiscal_year, bucket_pi
     total = values.get(ident[0])
     if not isinstance(total, (int, float)) or isinstance(total, bool):
         return None
+    if (wide := bucket_pick.get("wide_years")) is not None:
+        return wide if abs(sum(item["value"] for item in wide["years"]) - total) <= 2 else None
     if bucket_pick.get("year_labels"):
         if (cols := _year_cols_read(texts, fiscal_year, bucket_pick, total, basis)) is not None:
             return cols
@@ -4393,7 +4511,21 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
         chunks = [tuple(range(n, min(n + 2, len(texts) + 1))) for n in range(1, len(texts) + 1, 2)]
         queue = [tuple(pages[:2])] + [c for c in chunks if c != tuple(pages[:2])]
         windows = list(reversed(queue))  # popped back-to-front below, so reverse to try the candidate pages first
+    candidate_pages = list(pages)  # keep locate's ranking intact; pass-one selection must not hide rank 3-4 on widen
     two_pass_pages = None  # pass 1's own pick, if EXTRACT_TWO_PASS is on and it succeeded -- also stands in for
+    def cited_value(field):
+        if not isinstance(field, dict) or field.get("value") is None:
+            return False
+        source = field.get("source") or {}
+        page, quote = source.get("page"), source.get("quote") or ""
+        return (isinstance(page, int) and 1 <= page <= len(texts)
+                and bool(quote_on_page(quote, texts[page - 1]))
+                and (_value_in_quote(field["value"], quote)
+                     or field["value"] == 0 and bool(re.search(r"(?<!\w)[—–−-](?!\w)", quote))))
+
+    def answer_rank(fields):
+        return nonnull(fields), sum(cited_value(field) for field in fields)
+
     if not fixed_pages and os.getenv("EXTRACT_TWO_PASS") == "1" and len(pages) >= 2:
         selected = _select_pages(schema, pages, texts, page_select_hints)
         if selected:
@@ -4422,7 +4554,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
                 windows = [tuple(pages[:1])]  # IPC: pages 10-11 never answer, page 10 alone does in a minute; a hung single page ends it
             continue
         model_seconds += time.perf_counter() - call_started
-        if nonnull(got) > nonnull(raw):
+        if nonnull(got) > nonnull(raw) or schema.get("name") == "debt_maturity" and answer_rank(got) > answer_rank(raw):
             raw = got
         if full_scan:
             if nonnull(raw) == len(schema["fields"]):
@@ -4438,9 +4570,9 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
         holes = 0
         if schema.get("name") == "debt_maturity" and (ident := _identity_parts(schema)):
             got_by_key = {g.get("key"): g for g in raw if isinstance(g, dict)}
-            holes = sum(got_by_key.get(k, {}).get("value") is None for k in (ident[0], *ident[1]))
+            holes = sum(not cited_value(got_by_key.get(key)) for key in (ident[0], *ident[1]))
         if (2 * nonnull(raw) < len(schema["fields"]) or holes >= 2) and len(attempt) == 2 and len(pages) > 2:
-            windows = [tuple(pages[:4])]  # the first window did not settle it: widen once
+            windows = [tuple(candidate_pages[:4])]  # widen against original locate ranking, not pass-one reordering
     by_key = {f.get("key"): f for f in raw if isinstance(f, dict)}
     by_key = _quote_retry(by_key, system, schema, texts, pages, fiscal_year, warnings)
     scope_words = schema.get("table_scope_words")  # the wrong-table guard's marker vocabulary
@@ -4896,6 +5028,7 @@ def extract(texts: list[str], pages: list[int], schema: dict, report_meta: dict,
     _year_ladder_fill(fields, sfs, schema, texts, pages, fiscal_year, bucket_pick, warnings, values, filled)  # all three buckets null and the note is a bare calendar-year ladder (ABB p.89)
     _us_debt_schedule_fill(fields, schema, texts, pages, fiscal_year, warnings, values, filled, stated_zeros)  # exact US "Due in ..." schedule, guarded against its carrying amount
     _numbered_noncurrent_ladder_fill(fields, schema, texts, pages, fiscal_year, warnings, values, filled)  # numbered maturity table starts at fiscal+2; current loans print below it
+    _wide_year_table_fill(fields, schema, texts, pages, fiscal_year, basis, bucket_pick, warnings, values, filled)
     _normalize_sign(fields, sfs, schema, texts, warnings, values)  # liabilities-negative printed totals/buckets record their magnitude; the identity below closes on carrying positives
     if schema.get("name") == "debt_maturity" and fiscal_year:
         total = next((field for field in fields if field["key"] == "total_debt"), None)

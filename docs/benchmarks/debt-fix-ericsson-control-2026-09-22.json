@@ -1,0 +1,136 @@
+{
+  "provider": "codex",
+  "model": "gpt-5.6-terra",
+  "live": true,
+  "settings": {
+    "reasoning": "low",
+    "retrieval": "hybrid",
+    "embed_model": "bge-m3",
+    "fewshot": 2,
+    "fewshot_examples_by_report_section": {
+      "ericsson_2025/debt_maturity": 0
+    },
+    "merge_runs": "off",
+    "second_pass": false,
+    "scan_all": false,
+    "maturity_basis": "carrying"
+  },
+  "results": [
+    {
+      "report": "ericsson_2025",
+      "section": "debt_maturity",
+      "registration_seconds": 5.048,
+      "fresh": {
+        "model": 19.671,
+        "attempts": 2,
+        "validate": 0.301,
+        "second_pass_calls": 0,
+        "second_pass": 0.0,
+        "total": 20.222
+      },
+      "cached": {
+        "model": 0,
+        "parse": 0,
+        "locate": 0,
+        "validate": 0,
+        "attempts": 0,
+        "total": 0.001
+      },
+      "values": {
+        "total_debt": 32703,
+        "due_within_1_year": 3538,
+        "due_1_to_5_years": null,
+        "due_after_5_years": null
+      },
+      "warnings": [],
+      "checks": [
+        {
+          "name": "maturity_sums_to_total",
+          "passed": false,
+          "status": "unavailable",
+          "detail": "Missing explicit values: due_1_to_5_years, due_after_5_years"
+        }
+      ],
+      "fields": [
+        {
+          "key": "total_debt",
+          "label": "Total borrowings",
+          "value": 32703,
+          "unit": "SEK million",
+          "period": "2025",
+          "raw_label": "Total interest-bearing liabilities (ties to BS: Borrowings, non-current F4 + Borrowings, current F4)",
+          "source": {
+            "page": 65,
+            "quote": "Total interest-bearing liabilities 32,703 38,041 Revaluation due to changes in credit risk \u201330 567"
+          },
+          "confidence": 1.0,
+          "evidence": [
+            "quote_on_page",
+            "value_in_quote",
+            "arith_ok",
+            "label_known",
+            "period_ok",
+            "bs_tie",
+            "page_is_statement",
+            "unit_ok"
+          ]
+        },
+        {
+          "key": "due_within_1_year",
+          "label": "Due within 1 year",
+          "value": 3538,
+          "unit": "SEK million",
+          "period": "2025",
+          "raw_label": "Borrowings, current Cash \ufb02ows: Total borrowings, current",
+          "source": {
+            "page": 65,
+            "quote": "Total borrowings, current 3,538 6,137 Other financing activities 1,224 152"
+          },
+          "confidence": 1.0,
+          "evidence": [
+            "quote_on_page",
+            "value_in_quote",
+            "arith_ok",
+            "label_known",
+            "period_ok",
+            "page_is_statement",
+            "unit_ok"
+          ]
+        },
+        {
+          "key": "due_1_to_5_years",
+          "label": "Due 1\u20135 years",
+          "value": null,
+          "unit": null,
+          "period": "2025",
+          "raw_label": null,
+          "source": null,
+          "confidence": 0.0,
+          "evidence": [],
+          "missing_reason": {
+            "code": "not_found",
+            "detail": "No valid figure was read from candidate pages 65, 66, 95, 34, 60, 20, 56, 96, 59, 62, 94."
+          }
+        },
+        {
+          "key": "due_after_5_years",
+          "label": "Due after 5 years",
+          "value": null,
+          "unit": null,
+          "period": "2025",
+          "raw_label": null,
+          "source": null,
+          "confidence": 0.0,
+          "evidence": [],
+          "missing_reason": {
+            "code": "not_found",
+            "detail": "No valid figure was read from candidate pages 65, 66, 95, 34, 60, 20, 56, 96, 59, 62, 94."
+          }
+        }
+      ],
+      "debt_scope": null,
+      "context_source": null,
+      "verified": 2
+    }
+  ]
+}

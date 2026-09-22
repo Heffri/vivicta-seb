@@ -32,10 +32,17 @@ def main():
     if args.reports:
         entries = [e for e in entries if Path(e["file"]).stem in args.reports]
     original = kb.kb_dir()
+    fewshot_n = int(os.getenv("FEWSHOT", "2"))
+    sections = [args.section] if args.section else ["income_statement", "debt_maturity"]
+    # Snapshot examples from the real KB before redirecting writes to the scratch directory.
+    fewshots = {
+        (Path(e["file"]).stem, section): kb.fewshot_examples(section, Path(e["file"]).stem, fewshot_n)
+        for e in entries[:args.count] for section in sections
+    }
+    kb.fewshot_examples = lambda section, exclude_stem, n: fewshots.get((exclude_stem, section), [])[:n]
     results = []
     with tempfile.TemporaryDirectory(prefix="report-benchmark-") as directory:
         os.environ["KB_DIR"] = directory
-        os.environ["FEWSHOT"] = "0"  # stable prompts independent of benchmark ordering
         for entry in entries[:args.count]:
             stem = Path(entry["file"]).stem
             dest = Path(directory) / stem
@@ -46,7 +53,7 @@ def main():
             started = time.perf_counter()
             report = app.register_library(entry)
             registration = time.perf_counter() - started
-            for section in ([args.section] if args.section else ["income_statement", "debt_maturity"]):
+            for section in sections:
                 row = {"report": stem, "section": section, "registration_seconds": round(registration, 3)}
                 if args.live:
                     try:
@@ -73,7 +80,19 @@ def main():
                                     "citations": len(answer["citations"]), "warnings": answer["warnings"]})
                 except Exception as e:
                     results.append({"report": stem, "index_error": str(e)})
-    output = {"provider": llm.provider(), "model": app.config()["model"], "live": args.live, "results": results}
+    config = app.config()
+    output = {
+        "provider": llm.provider(), "model": config["model"], "live": args.live,
+        "settings": {
+            "reasoning": os.getenv("LLM_REASONING", "low"), "retrieval": config["retrieval"],
+            "embed_model": config["embed_model"], "fewshot": fewshot_n,
+            "fewshot_examples_by_report_section": {f"{stem}/{section}": len(examples)
+                                                     for (stem, section), examples in fewshots.items()},
+            "merge_runs": config["merge_runs"], "second_pass": config["second_pass"],
+            "scan_all": config["scan_all"], "maturity_basis": config["maturity_basis"],
+        },
+        "results": results,
+    }
     if args.output:
         args.output.write_text(json.dumps(output, indent=2), encoding="utf-8")
 

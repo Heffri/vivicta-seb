@@ -58,6 +58,7 @@ export function CompareView({ results, onSelect, onReset, onOpenReport }: Props)
                 const x = r.extraction
                 const notReported = x?.not_reported ?? []
                 const reviewCount = x?.issues?.length ?? x?.fields.filter((f) => NEEDS_HUMAN.includes(fieldVerification(f, notReported.includes(f.key)).label)).length ?? 0
+                const basisCount = x?.basis_issues?.length ?? 0
                 const calculatedCount = x?.fields.filter((f) => fieldVerification(f).label === 'Calculated from report').length ?? 0
                 return (
                   <TableHead key={i} className="min-w-48 p-1.5 align-top">
@@ -75,6 +76,7 @@ export function CompareView({ results, onSelect, onReset, onOpenReport }: Props)
                             <Badge variant={reviewCount ? 'warning' : 'secondary'}>
                               {reviewCount ? `${reviewCount} need a human` : 'Nothing needs a human'}
                             </Badge>
+                            {basisCount > 0 && <Badge variant="warning">Basis needs confirmation</Badge>}
                             {(notReported.length > 0 || calculatedCount > 0) && <span className="text-xs font-normal text-muted-foreground">{[notReported.length > 0 && `${notReported.length} not reported`, calculatedCount > 0 && `${calculatedCount} calculated from report`].filter(Boolean).join(' · ')}</span>}
                           </>
                         ) : (

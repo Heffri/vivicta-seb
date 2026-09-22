@@ -1,0 +1,141 @@
+{
+  "provider": "codex",
+  "model": "gpt-5.6-terra",
+  "live": true,
+  "settings": {
+    "reasoning": "low",
+    "retrieval": "hybrid",
+    "embed_model": "bge-m3",
+    "fewshot": 2,
+    "fewshot_examples_by_report_section": {
+      "aak_2025/debt_maturity": 0
+    },
+    "merge_runs": "off",
+    "second_pass": false,
+    "scan_all": false,
+    "maturity_basis": "carrying"
+  },
+  "results": [
+    {
+      "report": "aak_2025",
+      "section": "debt_maturity",
+      "registration_seconds": 2.468,
+      "fresh": {
+        "model": 36.217,
+        "attempts": 2,
+        "validate": 0.225,
+        "second_pass_calls": 0,
+        "second_pass": 0.0,
+        "total": 36.519
+      },
+      "cached": {
+        "model": 0,
+        "parse": 0,
+        "locate": 0,
+        "validate": 0,
+        "attempts": 0,
+        "total": 0.001
+      },
+      "values": {
+        "total_debt": 4478,
+        "due_within_1_year": 4088,
+        "due_1_to_5_years": null,
+        "due_after_5_years": 390
+      },
+      "warnings": [
+        "due_1_to_5_years: 0 is printed on none of pages [145, 146]; dropped as computed, not read",
+        "due_after_5_years: cited page 169 'More than 5 years 390 158 - -' (note row) instead of page 145 (balance sheet)"
+      ],
+      "checks": [
+        {
+          "name": "maturity_sums_to_total",
+          "passed": false,
+          "status": "unavailable",
+          "detail": "Missing explicit values: due_1_to_5_years"
+        }
+      ],
+      "fields": [
+        {
+          "key": "total_debt",
+          "label": "Total borrowings",
+          "value": 4478,
+          "unit": "SEK million",
+          "period": "2025",
+          "raw_label": "Liabilities to banks and credit institutions",
+          "source": {
+            "page": 145,
+            "quote": "Liabilities to banks and credit institutions 4,478 4,088 - - 390"
+          },
+          "confidence": 0.9,
+          "evidence": [
+            "quote_on_page",
+            "value_in_quote",
+            "arith_ok",
+            "period_ok",
+            "page_is_statement",
+            "unit_ok"
+          ]
+        },
+        {
+          "key": "due_within_1_year",
+          "label": "Due within 1 year",
+          "value": 4088,
+          "unit": "SEK million",
+          "period": "2025",
+          "raw_label": "Liabilities to banks and credit institutions",
+          "source": {
+            "page": 145,
+            "quote": "Liabilities to banks and credit institutions 4,478 4,088 - - 390"
+          },
+          "confidence": 0.9,
+          "evidence": [
+            "quote_on_page",
+            "value_in_quote",
+            "arith_ok",
+            "period_ok",
+            "page_is_statement",
+            "unit_ok"
+          ]
+        },
+        {
+          "key": "due_1_to_5_years",
+          "label": "Due 1\u20135 years",
+          "value": null,
+          "unit": null,
+          "period": null,
+          "raw_label": null,
+          "source": null,
+          "confidence": 0.0,
+          "evidence": [],
+          "missing_reason": {
+            "code": "not_found",
+            "detail": "No valid figure was read from candidate pages 145, 146, 147, 127, 144, 186, 140, 169, 164, 48, 142."
+          }
+        },
+        {
+          "key": "due_after_5_years",
+          "label": "Due after 5 years",
+          "value": 390,
+          "unit": "SEK million",
+          "period": "2025",
+          "raw_label": "Liabilities to banks and credit institutions",
+          "source": {
+            "page": 169,
+            "quote": "More than 5 years 390 158 - -"
+          },
+          "confidence": 0.85,
+          "evidence": [
+            "quote_on_page",
+            "value_in_quote",
+            "arith_ok",
+            "period_ok",
+            "unit_ok"
+          ]
+        }
+      ],
+      "debt_scope": null,
+      "context_source": null,
+      "verified": 3
+    }
+  ]
+}

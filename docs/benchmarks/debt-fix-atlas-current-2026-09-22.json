@@ -1,0 +1,212 @@
+{
+  "provider": "codex",
+  "model": "gpt-5.6-terra",
+  "live": true,
+  "settings": {
+    "reasoning": "low",
+    "retrieval": "hybrid",
+    "embed_model": "bge-m3",
+    "fewshot": 2,
+    "fewshot_examples_by_report_section": {
+      "atlas_copco_2025/debt_maturity": 0
+    },
+    "merge_runs": "off",
+    "second_pass": false,
+    "scan_all": false,
+    "maturity_basis": "carrying"
+  },
+  "results": [
+    {
+      "report": "atlas_copco_2025",
+      "section": "debt_maturity",
+      "registration_seconds": 3.398,
+      "fresh": {
+        "model": 27.167,
+        "attempts": 2,
+        "validate": 0.566,
+        "second_pass_calls": 0,
+        "second_pass": 0.0,
+        "total": 27.912
+      },
+      "cached": {
+        "model": 0,
+        "parse": 0,
+        "locate": 0,
+        "validate": 0,
+        "attempts": 0,
+        "total": 0.001
+      },
+      "values": {
+        "total_debt": 34899,
+        "due_within_1_year": 6471,
+        "due_1_to_5_years": 16025,
+        "due_after_5_years": 12403
+      },
+      "warnings": [
+        "due_within_1_year: quote not found on page 135",
+        "due_1_to_5_years: 16025 is printed on none of pages [135, 136]; dropped as computed, not read",
+        "due_after_5_years: 12403 is printed on none of pages [135, 136]; dropped as computed, not read",
+        "debt maturity: carrying-amount years on page 135 sum to the printed total 34899"
+      ],
+      "checks": [
+        {
+          "name": "maturity_sums_to_total",
+          "passed": true,
+          "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (\u00b12 rounding) | abs((6471 + 16025 + 12403) - 34899) <= 2",
+          "status": "passed"
+        }
+      ],
+      "fields": [
+        {
+          "key": "total_debt",
+          "label": "Total borrowings",
+          "value": 34899,
+          "unit": "MSEK",
+          "period": "2025",
+          "raw_label": "Total",
+          "source": {
+            "page": 135,
+            "quote": "Atlas Copco AB\u2019s long-term and short-term debt is rated by Moody\u2019s and Fitch with the long-/short-term rating A1/ Total 27 657 7 242 34 899 33 949"
+          },
+          "confidence": 0.9,
+          "evidence": [
+            "quote_on_page",
+            "value_in_quote",
+            "arith_ok",
+            "period_ok",
+            "page_is_statement",
+            "unit_ok"
+          ]
+        },
+        {
+          "key": "due_within_1_year",
+          "label": "Due within 1 year",
+          "value": 6471,
+          "unit": "MSEK",
+          "period": "2025",
+          "raw_label": "2026",
+          "source": {
+            "page": 135,
+            "quote": "Current portion of long-term borrowings 3 675 3 640 280 280 Maturity Fixed Floating \u00b9 Carrying amount Fair value\nShort-term loans 1 028 1 028 1 034 1 034 2026 6 337 134 6 471 6 436\nLease liabilities 1 768 1768 1 762 1 762 2027 3 953 2 3 955 3 894\nTotal current borrowings 6 471 6 436 3 076 3 076 2028 2 356 1 2 357 2 314\nClosing balance, Dec. 31 34 899 33 949 34 764 33 417 2029 4 033 \u2013 4 033 3 752\nThe difference between carrying value and fair value relates to the measurement method as certain liabilities are 2030 551 5 129 5 680 5 789\nreported at amortized cost and not at fair value. Changes in interest rates and credit margins create the difference 2031 426 1 976 2 402 2 427\nbetween fair value and amortized cost. During 2025, Atlas Copco AB reduced its external borrowings. In April, MEUR 2032 5 696 \u2013 5 696 5 025\n182 of a MEUR 500 public bond with maturity August 2026 was repurchased from Deutsche Bank AG. See additional\ninformation about the Group\u2019s exposure to interest rate risk and foreign currency risk in note 27. 2033 260 \u2013 260 260\nShort term loans include supply chain financing contracts with remaining payment terms exceeding 180 days. 2034 and after 4 045 \u2013 4 045 4 052\nAtlas Copco AB\u2019s long-term and short-term debt is rated by Moody\u2019s and Fitch with the long-/short-term rating A1/ Total 27 657 7 242 34 899 33 949"
+          },
+          "confidence": 0.9,
+          "evidence": [
+            "quote_on_page",
+            "value_in_quote",
+            "arith_ok",
+            "period_ok",
+            "page_is_statement",
+            "unit_ok"
+          ],
+          "components": [
+            {
+              "value": 6471,
+              "page": 135,
+              "quote": "Short-term loans 1 028 1 028 1 034 1 034 2026 6 337 134 6 471 6 436",
+              "label": "2026"
+            }
+          ]
+        },
+        {
+          "key": "due_1_to_5_years",
+          "label": "Due 1\u20135 years",
+          "value": 16025,
+          "unit": "MSEK",
+          "period": "2025",
+          "raw_label": "2027 + 2028 + 2029 + 2030",
+          "source": {
+            "page": 135,
+            "quote": "Current portion of long-term borrowings 3 675 3 640 280 280 Maturity Fixed Floating \u00b9 Carrying amount Fair value\nShort-term loans 1 028 1 028 1 034 1 034 2026 6 337 134 6 471 6 436\nLease liabilities 1 768 1768 1 762 1 762 2027 3 953 2 3 955 3 894\nTotal current borrowings 6 471 6 436 3 076 3 076 2028 2 356 1 2 357 2 314\nClosing balance, Dec. 31 34 899 33 949 34 764 33 417 2029 4 033 \u2013 4 033 3 752\nThe difference between carrying value and fair value relates to the measurement method as certain liabilities are 2030 551 5 129 5 680 5 789\nreported at amortized cost and not at fair value. Changes in interest rates and credit margins create the difference 2031 426 1 976 2 402 2 427\nbetween fair value and amortized cost. During 2025, Atlas Copco AB reduced its external borrowings. In April, MEUR 2032 5 696 \u2013 5 696 5 025\n182 of a MEUR 500 public bond with maturity August 2026 was repurchased from Deutsche Bank AG. See additional\ninformation about the Group\u2019s exposure to interest rate risk and foreign currency risk in note 27. 2033 260 \u2013 260 260\nShort term loans include supply chain financing contracts with remaining payment terms exceeding 180 days. 2034 and after 4 045 \u2013 4 045 4 052\nAtlas Copco AB\u2019s long-term and short-term debt is rated by Moody\u2019s and Fitch with the long-/short-term rating A1/ Total 27 657 7 242 34 899 33 949"
+          },
+          "confidence": 1.0,
+          "evidence": [
+            "quote_on_page",
+            "value_derived",
+            "arith_ok",
+            "label_known",
+            "period_ok",
+            "page_is_statement",
+            "unit_ok"
+          ],
+          "components": [
+            {
+              "value": 3955,
+              "page": 135,
+              "quote": "Lease liabilities 1 768 1768 1 762 1 762 2027 3 953 2 3 955 3 894",
+              "label": "2027"
+            },
+            {
+              "value": 2357,
+              "page": 135,
+              "quote": "Total current borrowings 6 471 6 436 3 076 3 076 2028 2 356 1 2 357 2 314",
+              "label": "2028"
+            },
+            {
+              "value": 4033,
+              "page": 135,
+              "quote": "Closing balance, Dec. 31 34 899 33 949 34 764 33 417 2029 4 033 \u2013 4 033 3 752",
+              "label": "2029"
+            },
+            {
+              "value": 5680,
+              "page": 135,
+              "quote": "The difference between carrying value and fair value relates to the measurement method as certain liabilities are 2030 551 5 129 5 680 5 789",
+              "label": "2030"
+            }
+          ]
+        },
+        {
+          "key": "due_after_5_years",
+          "label": "Due after 5 years",
+          "value": 12403,
+          "unit": "MSEK",
+          "period": "2025",
+          "raw_label": "2031 + 2032 + 2033 + 2034",
+          "source": {
+            "page": 135,
+            "quote": "Current portion of long-term borrowings 3 675 3 640 280 280 Maturity Fixed Floating \u00b9 Carrying amount Fair value\nShort-term loans 1 028 1 028 1 034 1 034 2026 6 337 134 6 471 6 436\nLease liabilities 1 768 1768 1 762 1 762 2027 3 953 2 3 955 3 894\nTotal current borrowings 6 471 6 436 3 076 3 076 2028 2 356 1 2 357 2 314\nClosing balance, Dec. 31 34 899 33 949 34 764 33 417 2029 4 033 \u2013 4 033 3 752\nThe difference between carrying value and fair value relates to the measurement method as certain liabilities are 2030 551 5 129 5 680 5 789\nreported at amortized cost and not at fair value. Changes in interest rates and credit margins create the difference 2031 426 1 976 2 402 2 427\nbetween fair value and amortized cost. During 2025, Atlas Copco AB reduced its external borrowings. In April, MEUR 2032 5 696 \u2013 5 696 5 025\n182 of a MEUR 500 public bond with maturity August 2026 was repurchased from Deutsche Bank AG. See additional\ninformation about the Group\u2019s exposure to interest rate risk and foreign currency risk in note 27. 2033 260 \u2013 260 260\nShort term loans include supply chain financing contracts with remaining payment terms exceeding 180 days. 2034 and after 4 045 \u2013 4 045 4 052\nAtlas Copco AB\u2019s long-term and short-term debt is rated by Moody\u2019s and Fitch with the long-/short-term rating A1/ Total 27 657 7 242 34 899 33 949"
+          },
+          "confidence": 1.0,
+          "evidence": [
+            "quote_on_page",
+            "value_derived",
+            "arith_ok",
+            "label_known",
+            "period_ok",
+            "page_is_statement",
+            "unit_ok"
+          ],
+          "components": [
+            {
+              "value": 2402,
+              "page": 135,
+              "quote": "reported at amortized cost and not at fair value. Changes in interest rates and credit margins create the difference 2031 426 1 976 2 402 2 427",
+              "label": "2031"
+            },
+            {
+              "value": 5696,
+              "page": 135,
+              "quote": "between fair value and amortized cost. During 2025, Atlas Copco AB reduced its external borrowings. In April, MEUR 2032 5 696 \u2013 5 696 5 025",
+              "label": "2032"
+            },
+            {
+              "value": 260,
+              "page": 135,
+              "quote": "information about the Group\u2019s exposure to interest rate risk and foreign currency risk in note 27. 2033 260 \u2013 260 260",
+              "label": "2033"
+            },
+            {
+              "value": 4045,
+              "page": 135,
+              "quote": "Short term loans include supply chain financing contracts with remaining payment terms exceeding 180 days. 2034 and after 4 045 \u2013 4 045 4 052",
+              "label": "2034"
+            }
+          ]
+        }
+      ],
+      "debt_scope": null,
+      "context_source": null,
+      "verified": 4
+    }
+  ]
+}

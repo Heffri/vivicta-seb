@@ -30,6 +30,14 @@ NUMBERED_MATURITY_TITLE = re.compile(r"(?im)^\s*\d{1,2}:\d+\s+maturity\s*$")
 DEBT_NOTE_SUBJECT = re.compile(r"\bbond loans?\b|\bother loans?\b|\bborrowings?\b", re.I)
 
 
+def borrowing_note_maturity_table(text: str) -> bool:
+    """A borrowing note that prints current debt and a separate non-current maturity split."""
+    return bool(re.search(r"(?im)^\s*(?:note\s*)?\d+[.:]?\s+borrowings?\b", text)
+                and re.search(r"\bmaturity for non-current borrowings?\b", text, re.I)
+                and re.search(r"\bbetween 1 and 5 years\b", text, re.I)
+                and re.search(r"\bmore than 5 years\b", text, re.I))
+
+
 def numbered_debt_maturity_table(text: str, fiscal_year) -> bool:
     """A note-numbered debt maturity table whose rows start after the current year.
 
@@ -203,7 +211,9 @@ def scored_pages(texts: list[str], schema: dict, fiscal_year=None) -> list[tuple
         summary = _summary_heading(head, raw_head)  # "2023 2022 2021" / "Oct-Dec 2025 Jul-Sep 2025 ...": multi-year or quarterly table
         group_at = (GROUP.search(head) or re.compile(r"$").search(head)).start()
         parent = any(k in head and (head.index(k) < group_at or not ENTITY.search(k)) for k in excluded)  # Pandox: "KONCERNEN 2024 Rörelsesegment" is a segment note whatever precedes it. Saab SV: parent-company statement outranked the group one;
-        penalty = 0.1 if summary or parent else 1  # Vitrolife prints "Group | Parent Company" columns on one page: group first, so not a parent page
+        carrying = shape_ok and extract.debt_basis() == "carrying"
+        borrow_note = carrying and borrowing_note_maturity_table(texts[i])
+        penalty = 0.1 if (summary or parent) and not borrow_note else 1  # a joint Group/Parent borrowing note is still the group's source
         # A calendar-year ladder ("2026 442 ... Thereafter 4,013 / Total 8,247") names its buckets with bare
         # years, so `fields` scores 0 and the page carries no shape evidence at all -- ABB's p.89 lost to the
         # instrument table on p.90 for exactly that reason. Worth 2: enough to pass a same-keyword neighbour,
@@ -211,7 +221,8 @@ def scored_pages(texts: list[str], schema: dict, fiscal_year=None) -> list[tuple
         # A numbered loan-maturity table is more specific than a heading hit: it must outrank a
         # prose/chart page carrying the broad phrase ``maturity structure`` so pass 1 reads the
         # actual note.  Generic fiscal+1 ladders keep their measured +2 weight.
-        shape = (7 if numbered_maturity else
+        shape = (20 if borrow_note else
+                 7 if numbered_maturity or carrying and extract.wide_year_table(texts[i], fiscal_year, schema) else
                  2 if shape_ok and extract.year_row_table(texts[i], fiscal_year, schema) else 0)
         scored.append(((distinct + 5 * heading + fields + shape + 5 * (i + 1 in toc)) * (1 + 5 * density) * penalty, i + 1))
     scored.sort(key=lambda s: (-s[0], s[1]))

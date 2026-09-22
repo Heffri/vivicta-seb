@@ -159,6 +159,41 @@ million with a verified page-33 quote and no warnings. The browser showed the re
 bge-m3 index (1024 dimensions), passage/fact counts, Inspect and Rebuild. Eight desktop
 update/data-sync tests also passed.
 
+## Current-settings live spot-check (22 September 2026)
+
+One live Atlas Copco FY2025 debt-maturity extraction was run with the active application
+configuration: Codex `gpt-5.6-terra`, low reasoning, hybrid retrieval with `bge-m3`,
+carrying-value debt basis, merge off, second pass off, scan-all off, and `FEWSHOT=2`.
+There were no eligible saved debt-maturity examples, so the effective few-shot count was
+zero. The run used an isolated KB directory and left the saved report untouched.
+
+| Report | Section | Fresh | Attempts | Cached repeat | Verified fields |
+|---|---|---:|---:|---:|---:|
+| Atlas Copco | Debt maturity | 17.933 s | 2 | 0.001 s | 0/4 |
+
+The model returned no values for the four maturity fields, with no warnings. This is a
+single-report spot-check, not an accuracy estimate or evidence of a general regression.
+Raw output and the active settings snapshot are in
+[`current-settings-2026-09-22.json`](benchmarks/current-settings-2026-09-22.json).
+The benchmark harness snapshots eligible few-shot examples from the active KB before
+redirecting benchmark writes, and records the settings used.
+
+After the debt page-ranking and closed-table repairs, the same scratch-KB harness produced:
+
+| Report | Before verified fields | After verified fields | After values (total / <1 / 1–5 / >5) | After check |
+|---|---:|---:|---|---|
+| Atlas Copco | 0/4 | 4/4 | 34,899 / 6,471 / 16,025 / 12,403 MSEK | passed |
+| AAK | 3/4 | 4/4 | 4,478 / 4,088 / 0 / 390 SEK million | passed |
+
+Atlas Copco's derived buckets cite their nine printed year rows on page 135. AAK's zero
+comes from the printed dash in its borrowings note on page 169. An Ericsson control run
+returned the same two non-null values as its saved extraction (32,703 and 3,538 SEK million);
+the remaining buckets stayed unknown. Raw runs: [Atlas after](benchmarks/debt-fix-atlas-current-2026-09-22.json),
+[AAK before](benchmarks/debt-fix-aak-before-current-2026-09-22.json),
+[AAK after](benchmarks/debt-fix-aak-after-current-2026-09-22.json), and
+[Ericsson control](benchmarks/debt-fix-ericsson-control-2026-09-22.json).
+These are report-level checks under the active settings, not an accuracy estimate.
+
 
 ## Held-out first extraction — round 1 (Small Cap, blind labels; subsequently used for guard tuning)
 

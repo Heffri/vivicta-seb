@@ -1,0 +1,148 @@
+{
+  "provider": "codex",
+  "model": "gpt-5.6-terra",
+  "live": true,
+  "settings": {
+    "reasoning": "low",
+    "retrieval": "hybrid",
+    "embed_model": "bge-m3",
+    "fewshot": 2,
+    "fewshot_examples_by_report_section": {
+      "aak_2025/debt_maturity": 0
+    },
+    "merge_runs": "off",
+    "second_pass": false,
+    "scan_all": false,
+    "maturity_basis": "carrying"
+  },
+  "results": [
+    {
+      "report": "aak_2025",
+      "section": "debt_maturity",
+      "registration_seconds": 2.446,
+      "fresh": {
+        "model": 25.952,
+        "attempts": 2,
+        "validate": 0.272,
+        "second_pass_calls": 0,
+        "second_pass": 0.0,
+        "total": 26.303
+      },
+      "cached": {
+        "model": 0,
+        "parse": 0,
+        "locate": 0,
+        "validate": 0,
+        "attempts": 0,
+        "total": 0.001
+      },
+      "values": {
+        "total_debt": 4478,
+        "due_within_1_year": 4088,
+        "due_1_to_5_years": 0,
+        "due_after_5_years": 390
+      },
+      "warnings": [
+        "due_1_to_5_years: 0 kept -- 'Between 1 and 5 years - 791 - 526' prints a dash in the fiscal-year column under a known label (printed nil)"
+      ],
+      "checks": [
+        {
+          "name": "maturity_sums_to_total",
+          "passed": true,
+          "detail": "due_within_1_year + due_1_to_5_years + due_after_5_years == total_debt (\u00b12 rounding) | abs((4088 + 0 + 390) - 4478) <= 2",
+          "status": "passed"
+        }
+      ],
+      "fields": [
+        {
+          "key": "total_debt",
+          "label": "Total borrowings",
+          "value": 4478,
+          "unit": "MSEK",
+          "period": "2025",
+          "raw_label": "Liabilities to banks and credit institutions",
+          "source": {
+            "page": 145,
+            "quote": "Liabilities to banks and credit institutions 4,478 4,088 - - 390"
+          },
+          "confidence": 0.85,
+          "evidence": [
+            "quote_on_page",
+            "value_in_quote",
+            "arith_ok",
+            "period_ok",
+            "unit_ok"
+          ]
+        },
+        {
+          "key": "due_within_1_year",
+          "label": "Due within 1 year",
+          "value": 4088,
+          "unit": "MSEK",
+          "period": "2025",
+          "raw_label": "Liabilities to banks and credit institutions",
+          "source": {
+            "page": 169,
+            "quote": "Liabilities to banks and credit institutions 4,088 2,071 531 1,026"
+          },
+          "confidence": 0.9,
+          "evidence": [
+            "quote_on_page",
+            "value_in_quote",
+            "arith_ok",
+            "period_ok",
+            "page_is_statement",
+            "unit_ok"
+          ]
+        },
+        {
+          "key": "due_1_to_5_years",
+          "label": "Due 1\u20135 years",
+          "value": 0,
+          "unit": "MSEK",
+          "period": "2025",
+          "raw_label": "Between 1 and 5 years -",
+          "source": {
+            "page": 169,
+            "quote": "Between 1 and 5 years - 791 - 526"
+          },
+          "confidence": 0.5,
+          "evidence": [
+            "quote_on_page",
+            "printed_nil",
+            "arith_ok",
+            "label_known",
+            "period_ok",
+            "page_is_statement",
+            "unit_ok"
+          ]
+        },
+        {
+          "key": "due_after_5_years",
+          "label": "Due after 5 years",
+          "value": 390,
+          "unit": "MSEK",
+          "period": "2025",
+          "raw_label": "More than 5 years",
+          "source": {
+            "page": 169,
+            "quote": "More than 5 years 390 158 - -"
+          },
+          "confidence": 1.0,
+          "evidence": [
+            "quote_on_page",
+            "value_in_quote",
+            "arith_ok",
+            "label_known",
+            "period_ok",
+            "page_is_statement",
+            "unit_ok"
+          ]
+        }
+      ],
+      "debt_scope": null,
+      "context_source": null,
+      "verified": 4
+    }
+  ]
+}

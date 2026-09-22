@@ -1,0 +1,121 @@
+{
+  "provider": "codex",
+  "model": "gpt-5.6-terra",
+  "live": true,
+  "settings": {
+    "reasoning": "low",
+    "retrieval": "hybrid",
+    "embed_model": "bge-m3",
+    "fewshot": 2,
+    "fewshot_examples_by_report_section": {
+      "atlas_copco_2025/debt_maturity": 0
+    },
+    "merge_runs": "off",
+    "second_pass": false,
+    "scan_all": false,
+    "maturity_basis": "carrying"
+  },
+  "results": [
+    {
+      "report": "atlas_copco_2025",
+      "section": "debt_maturity",
+      "registration_seconds": 3.44,
+      "fresh": {
+        "model": 17.557,
+        "attempts": 2,
+        "validate": 0.195,
+        "second_pass_calls": 0,
+        "second_pass": 0.0,
+        "total": 17.933
+      },
+      "cached": {
+        "model": 0,
+        "parse": 0,
+        "locate": 0,
+        "validate": 0,
+        "attempts": 0,
+        "total": 0.001
+      },
+      "values": {
+        "total_debt": null,
+        "due_within_1_year": null,
+        "due_1_to_5_years": null,
+        "due_after_5_years": null
+      },
+      "warnings": [],
+      "checks": [
+        {
+          "name": "maturity_sums_to_total",
+          "passed": false,
+          "status": "unavailable",
+          "detail": "Missing explicit values: total_debt, due_within_1_year, due_1_to_5_years, due_after_5_years"
+        }
+      ],
+      "fields": [
+        {
+          "key": "total_debt",
+          "label": "Total borrowings",
+          "value": null,
+          "unit": null,
+          "period": null,
+          "raw_label": null,
+          "source": null,
+          "confidence": 0.0,
+          "evidence": [],
+          "missing_reason": {
+            "code": "not_found",
+            "detail": "No valid figure was read from candidate pages 146, 147, 118, 116, 117, 171, 107, 109, 121, 17, 136, 135."
+          }
+        },
+        {
+          "key": "due_within_1_year",
+          "label": "Due within 1 year",
+          "value": null,
+          "unit": null,
+          "period": null,
+          "raw_label": null,
+          "source": null,
+          "confidence": 0.0,
+          "evidence": [],
+          "missing_reason": {
+            "code": "not_found",
+            "detail": "No valid figure was read from candidate pages 146, 147, 118, 116, 117, 171, 107, 109, 121, 17, 136, 135."
+          }
+        },
+        {
+          "key": "due_1_to_5_years",
+          "label": "Due 1\u20135 years",
+          "value": null,
+          "unit": null,
+          "period": null,
+          "raw_label": null,
+          "source": null,
+          "confidence": 0.0,
+          "evidence": [],
+          "missing_reason": {
+            "code": "not_found",
+            "detail": "No valid figure was read from candidate pages 146, 147, 118, 116, 117, 171, 107, 109, 121, 17, 136, 135."
+          }
+        },
+        {
+          "key": "due_after_5_years",
+          "label": "Due after 5 years",
+          "value": null,
+          "unit": null,
+          "period": null,
+          "raw_label": null,
+          "source": null,
+          "confidence": 0.0,
+          "evidence": [],
+          "missing_reason": {
+            "code": "not_found",
+            "detail": "No valid figure was read from candidate pages 146, 147, 118, 116, 117, 171, 107, 109, 121, 17, 136, 135."
+          }
+        }
+      ],
+      "debt_scope": null,
+      "context_source": null,
+      "verified": 0
+    }
+  ]
+}
