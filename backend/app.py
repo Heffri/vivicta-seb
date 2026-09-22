@@ -574,7 +574,8 @@ def apply_second_pass(result: dict, texts: list[str], pages: list[int], schema: 
     except (TypeError, ValueError):
         fixed_pages_supported = False
     enabled = os.getenv("EXTRACT_SECOND_PASS", "1") == "1" and isinstance(result.get("timings"), dict) and fixed_pages_supported
-    stats = extract_mod.second_pass(result, texts, pages, schema, report) \
+    second_pass_meta = {**report, "ocr_pending": kb._meta(report["stem"]).get("ocr_pending", [])}
+    stats = extract_mod.second_pass(result, texts, pages, schema, second_pass_meta) \
         if enabled else {"calls": 0, "seconds": 0.0, "model": 0.0, "validate": 0.0}
     timings = result.setdefault("timings", {})
     timings["model"] = round(timings.get("model", 0.0) + stats["model"], 3)

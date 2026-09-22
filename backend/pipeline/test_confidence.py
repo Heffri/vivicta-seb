@@ -4465,6 +4465,39 @@ def test_second_pass_fills_required_field_from_full_candidate_pages():
     assert "Net turnover 123 120" in seen[0][1] and "table detail" in seen[0][1], seen[0][1]
 
 
+def test_second_pass_retries_a_locator_miss_on_fulltext_sweep_pages():
+    """w198: a required null gets one final fixed-page read of untried synonym-hit pages."""
+    schema = {"name": "income_statement", "title": "Income statement", "description": "Group statement",
+              "value_convention": "As printed", "fields": [
+                  {"key": "net_profit", "label": "Profit for the year", "description": "Group result",
+                   "synonyms": ["profit for the year", "net income"], "unit_hint": "currency_millions"},
+              ], "checks": []}
+    result = _second_pass_result(schema, {"net_profit"})
+    texts = ["Narrative only"] * 72
+    texts[71] = "Consolidated statements of operations\nUSD millions\n2025 2024\nNet income 1,641 854"
+    seen = []
+    old = x.call_llm
+    try:
+        def reply(system, user, *args, **kwargs):
+            seen.append(user)
+            if "=== PAGE 72 ===" not in user:
+                return {"fields": [{"key": "net_profit", "label": "Profit for the year", "value": None,
+                                    "unit": None, "period": None, "raw_label": None, "source": None,
+                                    "confidence": 0}]}
+            return {"fields": [{"key": "net_profit", "label": "Profit for the year", "value": 1641,
+                                "unit": "USD millions", "period": "2025", "raw_label": "Net income",
+                                "source": {"page": 72, "quote": "Net income 1,641 854"}, "confidence": 0}]}
+        x.call_llm = reply
+        stats = x.second_pass(result, texts, [1, 2, 3], schema,
+                              {"fiscal_year": 2025, "stem": "sweep-test", "ocr_pending": []})
+    finally:
+        x.call_llm = old
+    field = result["fields"][0]
+    assert stats["calls"] == 2 and len(seen) == 2, (stats, seen)
+    assert field["value"] == 1641 and field["source"]["page"] == 72, field
+    assert "second_pass" in field["evidence"] and "fulltext_sweep" in field["evidence"], field
+
+
 def test_second_pass_rejects_a_quote_not_on_its_page():
     """w197: a second-pass number without its own printed quote remains a null."""
     schema = {"name": "income_statement", "title": "Income statement", "description": "Group statement",
@@ -4571,6 +4604,7 @@ if __name__ == "__main__":
     test_missing_reasons_for_honest_debt_nulls()
     test_fulltext_sweep_finds_numeric_synonym_rows_and_skips_tried_or_ocr_pages()
     test_second_pass_fills_required_field_from_full_candidate_pages()
+    test_second_pass_retries_a_locator_miss_on_fulltext_sweep_pages()
     test_second_pass_rejects_a_quote_not_on_its_page()
     test_second_pass_skips_optional_nulls()
     test_second_pass_caps_required_nulls_and_off_switch_makes_zero_calls()
