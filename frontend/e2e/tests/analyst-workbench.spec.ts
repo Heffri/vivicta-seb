@@ -32,7 +32,7 @@ for (const width of [1440, 900]) test(`review issue scroll stays inside the app 
   await expect(page.getByRole('combobox', { name: 'Question', exact: true })).toBeVisible()
 })
 
-test('one statement card keeps sourced basis hints, categories, reviewer and filter', async ({ page }) => {
+test('one statement card keeps independent basis prefill, source hints, reviewer and filter', async ({ page }) => {
   const entry = { stem: 'atlas_2025', report_id: 'lib-atlas_2025', company: 'Atlas Copco', fiscal_year: 2025, sections: ['debt_maturity'], pages: 7, pdf_available: false, indexed: false }
   const source = { page: 7, quote: 'Maturity profile: due within 1 year, due 1 to 5 years and due after 5 years (carrying amount)' }
   const fields = [
@@ -42,7 +42,6 @@ test('one statement card keeps sourced basis hints, categories, reviewer and fil
     { key: 'due_after_5_years', label: 'Due after 5 years', value: 30, unit: 'MSEK', period: '2025', raw_label: 'Due after 5 years', source, confidence: 0, evidence: [] },
   ]
   const issues: any[] = [
-    { kind: 'basis', key: 'period', detail: 'Confirm period' },
     { kind: 'field', key: 'total_debt', detail: 'Total borrowings: verify value, unit, period and source' },
     { kind: 'field', key: 'due_within_1_year', detail: 'Due within 1 year: missing value (not zero)' },
     { kind: 'check', key: 'maturity_sums_to_total', detail: 'maturity_sums_to_total: 100 != 80' },
@@ -50,11 +49,16 @@ test('one statement card keeps sourced basis hints, categories, reviewer and fil
   ]
   const extraction: any = {
     ...entry, section: 'debt_maturity', currency: 'MSEK', fields, checks: [], warnings: [], issues, ready: false,
+    // v185: confirmed basis choices no longer block the figure/check queue. The backend pre-fills
+    // its safe defaults in this dictionary, while the older source-backed hints remain available
+    // for a reviewer to inspect or explicitly re-apply.
+    basis_issues: [{ kind: 'basis', key: 'period', detail: 'Confirm period' }],
+    basis_suggested: {
+      entity: 'Atlas Copco', consolidation: 'Group', period: '2025', currency: 'SEK', scale: 'Millions',
+      source: 'Annual report', restatement: 'As reported', debt_basis: 'Carrying amounts',
+    },
     basis_suggestions: [
-      { key: 'entity', value: 'Atlas Copco', source: 'report metadata' },
-      { key: 'period', value: '2025', source: 'report metadata' },
-      { key: 'currency', value: 'SEK', source }, { key: 'scale', value: 'Millions', source },
-      { key: 'source', value: 'Cited pages p. 7', source }, { key: 'debt_basis', value: 'Carrying amounts', source },
+      { key: 'debt_basis', value: 'Carrying amounts', source },
       { key: 'bucket_mapping', value: 'Under 1, 1 to 5, over 5', source },
     ],
   }
@@ -73,17 +77,20 @@ test('one statement card keeps sourced basis hints, categories, reviewer and fil
   await expect(page.getByRole('article')).toHaveCount(1)
   const statement = page.getByRole('article', { name: 'Atlas Copco 2025 debt maturity' })
   await statement.getByText('Show outstanding checks', { exact: true }).click()
-  for (const heading of ['Basis to confirm', 'Numeric conflicts', 'Missing evidence', 'Cannot calculate']) await expect(statement.getByRole('heading', { name: heading, exact: true })).toBeVisible()
-  await page.getByLabel('kind', { exact: true }).selectOption('basis')
+  for (const heading of ['Numeric conflicts', 'Missing evidence', 'Cannot calculate']) await expect(statement.getByRole('heading', { name: heading, exact: true })).toBeVisible()
+  await expect(statement.getByRole('heading', { name: 'Basis to confirm', exact: true })).toHaveCount(0)
+  await page.getByLabel('kind', { exact: true }).selectOption('field')
   await statement.getByRole('button', { name: 'Review statement', exact: true }).click()
   const basis = page.locator('#basis-review')
+  await basis.locator('summary').click()
   await expect(basis).toHaveAttribute('open', '')
   await expect(basis.getByLabel('Reporting entity', { exact: true })).toHaveValue('Atlas Copco')
-  await expect(basis.getByText('Suggested from report metadata', { exact: true }).first()).toBeVisible()
+  await expect(basis.getByLabel('Group or parent', { exact: true })).toHaveValue('Group')
+  await expect(basis.getByLabel('Source references (page and supporting text)', { exact: true })).toHaveValue('Annual report')
+  await expect(basis.getByLabel('Restatement status', { exact: true })).toHaveValue('As reported')
+  await expect(basis).toContainText('Prefilled from the report; nothing is confirmed until you save.')
   await expect(basis.getByText('Suggested from p. 7', { exact: true }).first()).toBeVisible()
-  await expect(basis.getByRole('button', { name: 'Use suggestion for Reporting entity', exact: true })).toBeVisible()
-  await expect(basis).toContainText('1 definitions to confirm')
-  await page.getByRole('button', { name: 'Next unresolved field', exact: true }).click()
+  await expect(basis.getByRole('button', { name: 'Use suggestion for Debt measurement', exact: true })).toBeVisible()
   const totalReview = page.getByRole('form', { name: 'Review Total borrowings', exact: true })
   await totalReview.getByLabel('Your name', { exact: true }).fill('Alex Analyst')
   await totalReview.getByRole('button', { name: 'Save review', exact: true }).click()
@@ -93,7 +100,7 @@ test('one statement card keeps sourced basis hints, categories, reviewer and fil
   const nextReview = page.getByRole('form', { name: 'Review Due within 1 year', exact: true })
   await expect(nextReview.getByLabel('Your name', { exact: true })).toHaveValue('Alex Analyst')
   await page.getByRole('button', { name: 'Back to reports', exact: true }).click()
-  await expect(page.getByLabel('kind', { exact: true })).toHaveValue('basis')
+  await expect(page.getByLabel('kind', { exact: true })).toHaveValue('field')
 })
 
 for (const tone of ['light', 'dark']) test(`review queue, basis and saved comparison [${tone}]`, async ({ page }) => {
