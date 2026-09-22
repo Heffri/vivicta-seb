@@ -105,7 +105,9 @@ for (const tone of TONES) {
 
     await page.getByLabel('Filter reports').fill('atlas')
     const rows = page.locator('tbody tr')
-    await expect(rows).toHaveCount(1)
+    // The real library is ~212 entries here and the list renders "Loading…" until /api/kb answers;
+    // the same 20 s allowance the Open assertion below uses, not a weaker assertion.
+    await expect(rows).toHaveCount(1, { timeout: 20000 })
     await expect(rows.first()).toContainText('Atlas Copco')
 
     await rows.first().getByRole('button', { name: 'Open' }).click()
@@ -154,7 +156,7 @@ for (const tone of TONES) {
     await expect(page.getByRole('heading', { name: /reports/ })).toBeVisible()
 
     const noPdfRow = page.locator('tbody tr', { has: page.getByText('no PDF', { exact: true }) }).first()
-    await expect(noPdfRow).toBeVisible()
+    await expect(noPdfRow).toBeVisible({ timeout: 20000 })
     await expect(noPdfRow.getByRole('button', { name: 'Open' })).toBeEnabled()
     await noPdfRow.getByRole('button', { name: 'Open' }).click()
     await expect(page.getByText('Saved page text. The original PDF is not available on this device.')).toBeVisible()
