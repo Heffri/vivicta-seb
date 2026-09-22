@@ -210,6 +210,50 @@ def fill_pending_ocr(report_id: str, stem: str, wanted: list[int]) -> list[str]:
     return texts
 
 
+def companion_candidate_pages(stem: str, schema: dict, fiscal_year: int | None) -> list[int]:
+    """Candidate-page hints from a saved translation of the same report.
+
+    Saab publishes matching English/Swedish editions: the English PDF is entirely image-only while
+    ``saab_2025_sv`` has a native text layer.  The translated text is used only to nominate bounded
+    pages for OCR in the requested edition; extraction candidates and evidence are recomputed from
+    that edition's own OCR text. Exact ``_sv`` stem pairing plus year/page-count equality keeps this
+    from silently crossing unrelated reports.
+    """
+    alternatives = [stem[:-3]] if stem.endswith("_sv") else [stem + "_sv"]
+    own = kb._meta(stem)
+    for alternative in alternatives:
+        meta = kb._meta(alternative)
+        pages_file = kb.kb_dir() / alternative / "pages.jsonl"
+        if (not meta or not pages_file.is_file() or meta.get("fiscal_year") != own.get("fiscal_year")
+                or meta.get("pages") != own.get("pages")):
+            continue
+        saved = kb._pages(alternative)
+        texts = [saved.get(n, "") for n in range(1, int(meta.get("pages") or 0) + 1)]
+        if any(text.strip() for text in texts):
+            return locate.candidate_pages(texts, schema, fiscal_year=fiscal_year)
+    return []
+
+
+def locate_report_pages(report_id: str, report: dict, schema: dict) -> tuple[list[str], list[int]]:
+    """Locate against this report, topping up only bounded OCR pages when needed."""
+    texts = report_texts(report_id)
+    pages = locate.candidate_pages(texts, schema, fiscal_year=report.get("fiscal_year"))
+    meta = kb._meta(report["stem"])
+    pending = set(meta.get("ocr_pending", []))
+    wanted = set(pages) & pending
+    if not pages and pending:
+        # An all-image report has no text from which the locator can nominate an on-demand page.
+        # A saved bilingual twin can break that loop without lending its text to the extraction.
+        # Match the extractor's full-text window: four translated ranks are enough to break the
+        # blank-page loop without turning a bounded retry into OCR of every weak/snippet candidate.
+        wanted.update(companion_candidate_pages(report["stem"], schema, report.get("fiscal_year"))[:locate.WINDOW_PAGES])
+        wanted.intersection_update(pending)
+    if wanted and pdf_path(report_id).is_file():
+        texts = fill_pending_ocr(report_id, report["stem"], sorted(wanted))
+        pages = locate.candidate_pages(texts, schema, fiscal_year=report.get("fiscal_year"))
+    return texts, pages
+
+
 def fill_texts(report_id: str) -> list[str]:
     """Read a fill window without registering or rewriting a report in the knowledge base."""
     if report_id in texts_cache:
@@ -628,10 +672,10 @@ def report_candidates(report_id: str, section: str = Query(min_length=1)):
     heading = the page's de-boilerplated opening, whitespace-normalized (a peeks-at-the-page line)."""
     report = get_report(report_id)
     schema = load_schema(section)
-    texts = report_texts(report_id)
+    texts, pages = locate_report_pages(report_id, report, schema)
     stripped = locate.strip_boilerplate(texts)
     return [{"page": page, "heading": " ".join(stripped[page - 1].split())[:80]}
-            for page in locate.candidate_pages(texts, schema, fiscal_year=report.get("fiscal_year"))]
+            for page in pages]
 
 
 @app.post("/api/reports/{report_id}/extract")
@@ -664,12 +708,7 @@ def _run_extract(report_id: str, body: ExtractBody):
         # candidates call), and that must name the section the user actually ran.
         result = json.loads(FIXTURE.read_text(encoding="utf-8")) | {"report_id": report_id, "section": body.section}
     else:
-        texts = report_texts(report_id)
-        pages = locate.candidate_pages(texts, schema, fiscal_year=report.get("fiscal_year"))
-        pending = set(pages) & set(kb._meta(report["stem"]).get("ocr_pending", []))
-        if pending and pdf_path(report_id).is_file():  # v191(b): a candidate this section actually needs, OCR'd on demand
-            texts = fill_pending_ocr(report_id, report["stem"], sorted(pending))
-            pages = locate.candidate_pages(texts, schema, fiscal_year=report.get("fiscal_year"))
+        texts, pages = locate_report_pages(report_id, report, schema)
         unavailable = set(kb._meta(report["stem"]).get("ocr_unavailable", []))
         if pages and set(pages) <= unavailable:
             raise HTTPException(422, parse.ocr_unavailable_message())

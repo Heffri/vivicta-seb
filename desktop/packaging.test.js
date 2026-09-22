@@ -34,6 +34,11 @@ for (const name of ['eng.traineddata', 'swe.traineddata', 'LICENSE']) {
 }
 const main = fs.readFileSync(path.join(here, 'main.js'), 'utf8')
 assert.match(main, /process\.resourcesPath, 'tessdata'/, 'the packaged backend must be pointed at resources/tessdata')
+assert.match(
+  main,
+  /\['eng', 'swe'\]\.every[\s\S]*tessdataDir \? \{ TESSDATA_PREFIX: tessdataDir \} : \{\}/,
+  'an absent packaged tessdata resource must not hide a complete writable data-dir copy',
+)
 assert.match(main, /webContents\.on\(['"]render-process-gone['"]/, 'renderer crashes must be captured by the main process')
 assert.match(main, /dialog\s*\.showMessageBox[\s\S]*webContents\.reload\(\)/, 'a renderer crash must offer a safe window reload instead of exiting the app')
 console.log(`packaging: ${seen.size} shell modules all listed in electron-builder.yml (${[...seen].join(', ')})`)

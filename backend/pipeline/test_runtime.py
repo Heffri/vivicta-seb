@@ -341,6 +341,37 @@ class RuntimeChecks(unittest.TestCase):
         self.assertEqual(kb._meta(self.stem)["ocr_pending"], [])
         self.assertEqual(kb._meta(self.stem)["ocr_pages"], [10])
 
+    def test_scanned_bilingual_report_uses_saved_companion_only_to_locate_ocr_pages(self):
+        """w209: Saab's English PDF is image-only while the saved Swedish edition has text on
+        matching pages. The sibling may nominate bounded OCR pages, but its text must never become
+        the English report's evidence; candidates are recomputed from newly OCR'd English text."""
+        report_id, stem, companion = "lib-saab_2025", "saab_2025", "saab_2025_sv"
+        english = [""] * 10
+        debt = "Borrowings\nMaturity of financial liabilities\nTotal borrowings 100\nDue within one year 20\nDue after 5 years 30"
+        swedish = [""] * 8 + [debt] + [""]
+        kb.save_report(stem, {"company": "Saab", "fiscal_year": 2025, "pages": 10,
+                              "sha256": "scan", "ocr_pages": [], "ocr_pending": [9],
+                              "ocr_unavailable": []}, english)
+        kb.save_report(companion, {"company": "Saab (svenska)", "fiscal_year": 2025,
+                                   "pages": 10, "sha256": "native"}, swedish)
+        app.reports[report_id] = {"report_id": report_id, "stem": stem, "company": "Saab",
+                                  "fiscal_year": 2025, "pages": 10}
+        app.texts_cache[report_id] = english
+        pdf = self.root / "saab_2025.pdf"
+        pdf.write_bytes(b"only the existence check is relevant")
+        app.library_paths[report_id] = pdf
+
+        def ocr(_report_id, _stem, wanted):
+            self.assertIn(9, wanted)
+            app.texts_cache[report_id][8] = debt
+            return app.texts_cache[report_id]
+
+        with patch.object(app, "fill_pending_ocr", side_effect=ocr) as fill:
+            response = self.client.get(f"/api/reports/{report_id}/candidates?section=debt_maturity")
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertIn(9, [row["page"] for row in response.json()])
+        fill.assert_called_once()
+
     def test_ask_uses_report_ids_and_withholds_bad_citations(self):
         from . import extract
         other = "test_2024"

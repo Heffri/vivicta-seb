@@ -41,16 +41,25 @@ def tessdata_dir() -> Path:
 
     The desktop bundle places them at ``resources/tessdata``.  A frozen backend lives two
     directories below that (``resources/backend/_internal``), while source checkouts keep the
-    optional developer copy under ``data/tessdata``.
+    optional developer copy under ``data/tessdata``. The explicit override is authoritative; an
+    automatic package candidate only wins when it contains every requested language file. Refresh
+    builds made before w209 could otherwise hide a complete copy already in writable user data.
     """
-    env = os.getenv("TESSDATA_PREFIX")
-    if env:
-        return Path(env).resolve()
+    env = Path(os.environ["TESSDATA_PREFIX"]).resolve() if os.getenv("TESSDATA_PREFIX") else None
+    if env is not None:  # a user-supplied override remains authoritative, including for diagnostics
+        return env
+    bundled = None
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
         bundled = resource_dir().parent.parent / "tessdata"
-        if bundled.is_dir():
-            return bundled.resolve()
-    return (data_dir() / "tessdata").resolve()
+    writable = (data_dir() / "tessdata").resolve()
+    languages = [lang for lang in os.getenv("OCR_LANGUAGE", "eng+swe").split("+") if lang]
+    candidates = [candidate.resolve() for candidate in (bundled, writable) if candidate is not None]
+    for candidate in candidates:
+        if all((candidate / f"{language}.traineddata").is_file() for language in languages):
+            return candidate
+    # Keep the old diagnostic target when no usable copy exists: an explicit override remains the
+    # path named in the missing-files error; otherwise writable data is where setup/repair installs.
+    return writable
 
 
 def reports_dir() -> Path:
