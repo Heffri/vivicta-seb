@@ -44,8 +44,11 @@ Compare, Knowledge base open → Results, the embedded Ask citation flow, candid
 citation locating) run in both tones; the rest run once. The suite never starts a server itself:
 
 ```
-# 1. backend, fixture mode (no LLM_* set)
-cd backend && uvicorn app:app --port 8000
+# 1. backend, fixture mode (no LLM_* set). Point KB_DIR at a scratch copy of data/kb: the
+#    cached-report spec re-registers atlas_copco_2025 for real, which rewrites that entry's
+#    meta.json and pages.jsonl -- against the committed library it leaves the repo dirty, and
+#    those files are the measured library, so they must not be committed from a test run.
+cd backend && KB_DIR=/tmp/e2e-kb uvicorn app:app --port 8000
 
 # 2. frontend dev server, in another shell
 cd frontend && npm run dev

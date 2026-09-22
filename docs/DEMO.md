@@ -128,7 +128,9 @@ after everything below has already succeeded.
   has neither variable set).
 - **Nothing to set up on stage.** Every surface lists all of `data/kb/` with no scope to choose,
   so what the audience sees is what the machine has. Nothing can be left on the wrong setting and
-  quietly make the library look smaller than it is — the failure this replaced.
+  quietly make the library look smaller than it is — the failure this replaced. Stable packaged
+  ports mean the light/dark tone survives an in-demo app restart, so there is nothing to redo
+  after a relaunch either.
 - **Private-roster members open straight to the parent.** If the directory or Company map shows a
   private holding with no standalone annual report (e.g. Sarnova, a private Investor holding),
   say so before clicking: "this company doesn't file its own annual report — we go

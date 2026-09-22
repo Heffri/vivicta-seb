@@ -65,7 +65,7 @@ verify — locator, parser, label matching.
 ## What a colleague saw when this line of work closed
 
 - **Get it**: Sebastijan's CI-built **`desktop-demo`** release (auto-updating, from team `demo`; the `desktop-main` feed tracks `main`) — double-click, no toolchain; the old **`desktop-0.3.4`** portable/Setup zip is a legacy fallback that cannot update itself (the first bullet of "How a teammate gets it" above).
-- **Data**: a KB of **206 companies**, 105 with a stored `debt_maturity` extraction — the KB page opened on the Wallenberg collection (issue #4), and its Collection switch (Wallenberg / All saved reports, [v112](evidence/v112.md)) exposed the rest without touching that default; every entry stayed visible to Ask, Compare and `eval/run.py --stored-kb` regardless. **That switch and its default were removed afterwards** — every surface now lists all of `data/kb`, so the rows below describing a collection picker are what those versions landed, not what the app does today ([`README.md`](../../README.md)).
+- **Data**: a KB of **206 companies**, 105 with a stored `debt_maturity` extraction — the KB page opened on the Wallenberg collection (issue #4) until `4c94188` made All its own default, and its Collection switch (Wallenberg / SEB Mid Cap / All saved reports, [v112](evidence/v112.md), [v169](evidence/v169.md)) narrowed it; every entry stayed visible to Ask, Compare and `eval/run.py --stored-kb` regardless. **The switch was removed entirely afterwards**, on every surface and not just this one — the app now always lists all of `data/kb`, so the rows below describing a collection picker are what those versions landed, not what it does today ([`README.md`](../../README.md)).
 - **Look**: Settings' **Theme** switch (Solid default / Acrylic) — the browser UI flips instantly, the desktop window's real material follows; the rail's tone toggle still picks dark/light within either theme.
 - **Accuracy — two separate claims, kept separate** (re-measured on this tree, zero model calls;
   superseded 86.4% / 81.5%):
@@ -87,8 +87,9 @@ verify — locator, parser, label matching.
     scored **36/40 (90.0%)** values, **14/17 (82.4%)** pages (1 empty, 3 non-empty-wrong) for both
     shipped-default `off` and non-default `majority`; small n, no market extrapolation
     ([v178](evidence/v178.md), [v190](evidence/v190.md)).
-  - **Error nature** (stored debt misses, each named): of 40 value misses, **34 empty** (not read /
-    declined) vs **6 non-empty wrong**; the label audit found **0 label errors**, **2
+  - **Error nature** (stored debt misses, each named): of 40 value misses, **33 empty** (not read /
+    declined) vs **7 non-empty wrong** (per today's `eval_breakdown.py`; v167 measured 34/6 before
+    v166's republish gave dynavox a derived total); the label audit found **0 label errors**, **2
     report-internal disagreements** (Green Landscaping, Volati — the report itself prints two
     inconsistent totals) and **7 hard cases** blocked by named mechanism gaps
     ([v154](evidence/v154.md)); Kristian-dependent scope calls are disclosed per company, not
@@ -133,7 +134,7 @@ their own thin glass. Dark is the default (`:root`), light is `[data-tone="light
 | Knowledge map / Review queue — collections | Both follow the KB's collection picker (Wallenberg / All / SEB Mid Cap): the map re-requests its company nodes and the review queue its statement cards for the selection, each naming its scope | [v175](evidence/v175.md) |
 | Results — find the cited line | The citation's own line is boxed on the page image (rects scaled to the page; a two-line-wrapped quote counts as one occurrence, a genuinely repeated line gets an "N matches" badge) and highlighted in the no-PDF saved-text view (scroll-to + a "1/N ▸" cycler when the line prints more than once); fields read from scanned pages say "From OCR — check the scanned image", and each human-reviewed component citation gets its own "p. N" link | [v179](evidence/v179.md) |
 | Knowledge base — export everything | "Export all" beside Compare downloads the whole current collection as a CSV (one row per company: the three maturity amounts plus review status columns) or a PPTX deck (summary table + one slide per company) — read straight from the saved extraction files, no PDF registration, no model call, honoring the page's collection and filter | [v163](evidence/v163.md) |
-| Knowledge base — the SEB Mid Cap collection | A third picker entry, "SEB Mid Cap (132)" (the Mid Cap universe from `data/companies.json`): the KB heading reads "n reports · SEB Mid Cap universe", and the companies/library/KB/review-queue endpoints plus the whole-KB exports all accept it — the UI default stays Wallenberg | [v169](evidence/v169.md) |
+| Knowledge base — the SEB Mid Cap collection | A third picker entry, "SEB Mid Cap (132)" (the Mid Cap universe from `data/companies.json`): the KB heading reads "n reports · SEB Mid Cap universe", and the companies/library/KB/review-queue endpoints plus the whole-KB exports all accept it — the UI default stayed Wallenberg until `4c94188` (see [w219](evidence/w219.md)) | [v169](evidence/v169.md) |
 | Knowledge base — maturity wall by sector | A "Maturity wall" toggle beside the collection picker opens an SVG card with one bar per company grouped by sector — share of debt due within 1 year, with honest states (grey "buckets incomplete", "not read" for a missing total; missing buckets are never backfilled as 0); the PPTX deck gains the same "Maturity wall by sector" pages, ≤30 rows per slide with "(cont.)" continuations | [v180](evidence/v180.md) |
 | Review — statement-first | One card per report/statement instead of a flat issue list, its rows grouped under **Basis to confirm / Numeric conflicts / Missing evidence / Cannot calculate** (a basis issue opens first); conservative `basis_suggestions` preload with their source shown — "Suggested from p. N" or "Suggested from report metadata" — and a per-field "Use suggestion" action (entity/period/currency/scale/debt-basis only; consolidation, leases and restatement are never suggested, and a suggestion never changes `issues` or `ready`); Results gains **Next unresolved field**, which moves only the selection — a failed save and the typed reviewer name stay on their field. Landed merged with Sebastijan's #7, on his basis semantics (`basis_issues` tasks / `basis_suggested` defaults) | [v182](evidence/v182.md) |
 | Extract — batch runs, three-wide (merged-tree e2e repair) | The merged tree's 6 red e2e cases brought back to their real intended behavior: five staged uploads now genuinely run three at a time (three workers share one queue cursor — peak three `Extracting…` rows, the rest `Queued`; **Stop after current** finishes exactly those three and marks later ones skipped, never started); a finished fetch stays on Extract behind "View results (1)" instead of force-navigating; fetch errors show their tried URLs in a collapsible detail; full Playwright suite **59 passed / 0 failed** | [v187](evidence/v187.md) |
@@ -601,7 +602,7 @@ code gates, so they're applied consistently — not yet confirmed:
 
 ```bash
 cd frontend && npm run build && npm run lint           # tsc -b + vite build, then oxlint
-cd frontend && npm run e2e                             # Playwright end-to-end pass
+cd frontend && npm run e2e                             # Playwright end-to-end suite
 
 cd backend  && python -m pipeline.test_confidence      # extract.py's evidence/confidence scoring
 cd backend  && python -m pipeline.test_debt_selection  # page selection vs lease-table regression

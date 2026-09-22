@@ -47,7 +47,7 @@ export function CompareView({ results, onSelect, onReset, onOpenReport }: Props)
       <PageHeader eyebrow="Compare" title="Compare reports" description={`${results[0]?.sectionTitle ?? 'Statements'} · ${ok} of ${results.length} reports extracted`} actions={<Button onClick={onReset}>New report</Button>} />
       <Workspace label="Comparison workspace" value={view} onChange={setView} pages={[
       { value: 'figures', label: 'Side by side', icon: Columns3, content: <div className="space-y-5">
-      {/* the saved-collection-wide list, independent of the result columns below it. */}
+      {/* the whole-KB list, independent of the result columns below it. */}
       <MaturityWall onOpenReport={onOpenReport} />
       <Card className="overflow-x-auto py-0">
         <Table>
