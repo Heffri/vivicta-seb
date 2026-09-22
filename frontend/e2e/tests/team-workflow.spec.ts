@@ -43,7 +43,7 @@ test('Extract and Ask can use all companies, and the choice follows navigation',
   await expect(page.getByText('2 / 2', { exact: true })).toBeVisible()
 })
 
-test('SEB Mid Cap keeps the KB list within its collection', async ({ page }) => {
+test('Knowledge base scopes to SEB Mid Cap independently of the Extract collection', async ({ page }) => {
   await mockLibrary(page)
   const kbScopes: string[] = []
   page.on('request', request => {
@@ -54,8 +54,16 @@ test('SEB Mid Cap keeps the KB list within its collection', async ({ page }) => 
   await page.getByRole('button', { name: 'SEB Mid Cap (132)', exact: true }).click()
   await expect(page.getByRole('button', { name: /Acast ACAST/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /ABB ABB/ })).toHaveCount(0)
+
+  // The KB browse view keeps its own collection preference (arp-kb-view-collection) so a newly
+  // saved report is never hidden by the Extract tab's scope: picking SEB Mid Cap there does not
+  // reach Knowledge base until it is chosen again from the KB tab's own picker below.
   await page.getByRole('tab', { name: 'Knowledge base', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Saved reports', exact: true })).toBeVisible()
+  await expect(page.getByText('2 / 2', { exact: true })).toBeVisible()
+  await expect(page.getByRole('row', { name: /ABB/ })).toBeVisible()
+
+  await page.getByRole('group', { name: 'Collection' }).getByRole('button', { name: 'SEB Mid Cap (132)', exact: true }).click()
   await expect(page.getByText('1 / 1', { exact: true })).toBeVisible()
   await expect(page.getByRole('row', { name: /Acast.*2025/ })).toBeVisible()
   await expect(page.getByRole('row', { name: /ABB/ })).toHaveCount(0)
