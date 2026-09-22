@@ -276,7 +276,7 @@ export function UploadView({ batch, reportSearch, onSubmit, resultsCount, onView
           <Button onClick={() => runBatch()} disabled={!canExtract}>{busy && <Loader2 className="animate-spin" />}{count > 1 ? `Extract ${count} reports` : 'Extract'}</Button>
         </div>
         <BatchProgress items={batch.items} busy={busy} stopRequested={batch.stopRequested} resultsCount={resultsCount}
-          onStopAfterCurrent={batch.stopAfterCurrent} onExtractAgain={() => runBatch()} onRetry={(id, opts) => void batch.retry(id, opts)} onViewResults={onViewResults} onNavigate={onNavigate} />
+          onStopAfterCurrent={batch.stopAfterCurrent} onExtractAgain={() => runBatch()} onRetry={(id, opts) => void batch.retry(id, opts)} onDownload={(id, listing) => void batch.download(id, listing)} onViewResults={onViewResults} onNavigate={onNavigate} />
         {error && <div className="border-t border-border px-5 py-4"><ErrorBlock>{error}</ErrorBlock></div>}
       </div>} />
     </div>

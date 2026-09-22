@@ -31,7 +31,7 @@ function newJobId(): string {
 
 export function useReportSearch() {
   const [query, setQueryState] = useState('')
-  const [year, setYearState] = useState('2025')
+  const [year, setYearState] = useState(String(new Date().getFullYear() - 1))
   const [discovery, setDiscovery] = useState<Discovery | null>(null)
   const [discovering, setDiscovering] = useState(false)
   const [trace, setTrace] = useState<SearchTrace | null>(null)

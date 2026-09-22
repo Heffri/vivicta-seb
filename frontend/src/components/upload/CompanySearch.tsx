@@ -12,6 +12,9 @@ import type { Candidate, Company, Discovery } from '@/types'
 import { Face } from './Face'
 import { SearchTracePanel } from './SearchTrace'
 
+const YEARS = Array.from({ length: new Date().getFullYear() - 1899 }, (_, i) => String(new Date().getFullYear() - i))
+const YEAR_LABELS = Object.fromEntries(YEARS.map(year => [year, year]))
+
 type CompanySearchProps = {
   collection: Collection
   query: string
@@ -93,14 +96,14 @@ export function CompanySearch({
         <Select
           value={year}
           onValueChange={(v) => v && onYearChange(v)}
-          items={{ 2025: '2025', 2024: '2024', 2023: '2023' }}
+          items={YEAR_LABELS}
           disabled={locked}
         >
           <SelectTrigger aria-label="Fiscal year" className="w-24 shrink-0">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {['2025', '2024', '2023'].map((y) => (
+            {YEARS.map((y) => (
               <SelectItem key={y} value={y}>
                 {y}
               </SelectItem>

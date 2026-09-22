@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { type ApiError, type CandidatePage, type FetchAttempt, extractSection, formatPageRanges, getCandidates } from '@/api'
+import { type ApiError, type CandidatePage, type FetchAttempt, type ReportListing, extractSection, formatPageRanges, getCandidates } from '@/api'
 import type { Report, Result } from '@/types'
 
 // v171 (consult item 6): the extraction queue's state used to live inside UploadView, so switching
@@ -19,7 +19,7 @@ export type BatchStage = 'queued' | 'registering' | 'candidates' | 'extracting' 
 // 422 = no text candidates (needs OCR some other way, or a different file). 502 = the model provider
 // itself failed. Fetch failures can additionally distinguish an unavailable public report from a
 // blocked/failed download. Everything else remains 'other'; the raw message is still shown.
-export type BatchErrorKind = 'review-protected' | 'download-needed' | 'needs-ocr' | 'ocr-budget' | 'provider-failed' | 'report-unavailable' | 'download-failed' | 'other'
+export type BatchErrorKind = 'review-protected' | 'download-needed' | 'needs-ocr' | 'ocr-budget' | 'provider-failed' | 'report-unavailable' | 'report-listed' | 'download-failed' | 'other'
 export type BatchWait = { pages: string; total: number; heading: string }
 export type RegisterOpts = { ocr?: 'full' }
 
@@ -48,10 +48,15 @@ export type BatchItem = BatchSpec & {
   tried: string[] | undefined // /fetch 404's attempted URLs, when the backend reports them
   attempts?: FetchAttempt[]
   ocrPages: number[] | null // v191: pages this item's own registration actually OCR'd, once known
+  listings?: ReportListing[]
   retrying: boolean
+  downloadPending?: boolean
+  downloadError?: string
+  sourceNotice?: string
 }
 
 function classify(stage: 'fetch' | 'extract', err: ApiError): BatchErrorKind {
+  if (stage === 'fetch' && err.code === 'report_listed') return 'report-listed'
   if (err.code === 'report_unavailable' || (stage === 'fetch' && err.status === 404)) return 'report-unavailable'
   if (err.code === 'download_failed') return 'download-failed'
   if (err.status === 409) return stage === 'fetch' ? 'download-needed' : 'review-protected'
@@ -90,7 +95,7 @@ export function useBatch({ onSettle }: Handlers) {
   const runItem = async (id: string, opts?: RegisterOpts) => {
     const before = itemsRef.current.find((it) => it.id === id)
     if (!before) return
-    patch(id, (it) => ({ ...it, stage: 'registering', startedAt: performance.now(), finishedAt: null, wait: null, errorKind: null, tried: undefined, attempts: undefined }))
+    patch(id, (it) => ({ ...it, stage: 'registering', startedAt: performance.now(), finishedAt: null, wait: null, errorKind: null, tried: undefined, attempts: undefined, listings: undefined }))
     let report: Report
     try {
       report = await before.getReport(opts)
@@ -103,12 +108,13 @@ export function useBatch({ onSettle }: Handlers) {
         errorKind: classify('fetch', err),
         tried: err.tried,
         attempts: err.attempts,
+        listings: err.listings,
         result: { label: before.label, sectionTitle: before.sectionTitle, error: err.message },
       }))
       notifySettle()
       return
     }
-    patch(id, (it) => ({ ...it, stage: 'candidates', ocrPages: report.ocr_pages ?? null }))
+    patch(id, (it) => ({ ...it, stage: 'candidates', ocrPages: report.ocr_pages ?? null, sourceNotice: report.source_notice }))
     let pages: CandidatePage[] | null = null
     try {
       pages = await getCandidates(report.report_id, before.section)
@@ -201,7 +207,28 @@ export function useBatch({ onSettle }: Handlers) {
     setStopRequested(false)
   }
 
-  return { items, busy, stopRequested, start, stopAfterCurrent, retry, reset }
+  const download = async (id: string, listing: ReportListing) => {
+    const item = itemsRef.current.find(it => it.id === id)
+    if (!item || item.retrying || item.stage !== 'failed' || !window.arp?.downloadReport) return
+    patch(id, it => ({ ...it, retrying: true, downloadPending: true, downloadError: undefined }))
+    try {
+      const result = await window.arp.downloadReport(listing)
+      if (!result.ok) {
+        if (!result.cancelled) patch(id, it => ({ ...it, downloadError: result.error || 'The report could not be imported.' }))
+        return
+      }
+      // Preserve the chosen section and batch identity; retries reuse the verified
+      // PDF instead of returning to website discovery.
+      patch(id, it => ({ ...it, getReport: () => Promise.resolve(result.report), downloadPending: false }))
+      await runItem(id)
+    } catch (error) {
+      patch(id, it => ({ ...it, downloadError: (error as Error).message }))
+    } finally {
+      patch(id, it => ({ ...it, retrying: false, downloadPending: false }))
+    }
+  }
+
+  return { items, busy, stopRequested, start, stopAfterCurrent, retry, reset, download }
 }
 
 export type Batch = ReturnType<typeof useBatch>

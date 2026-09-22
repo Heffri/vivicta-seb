@@ -879,11 +879,9 @@ def demo_private_holding_guard():
     metadata = collection.report_metadata("Sarnova")
     assert metadata == {
         "reports_in": "Investor AB", "collection_group": "Patricia Industries",
-        "report_stem": "investor_2025", "no_standalone_report": True,
+        "report_stem": "investor_2025", "no_standalone_report": False,
     }, metadata
-    # The generic issuer check is evidence-based, not an ownership graph: a parent report that
-    # names its subsidiary repeatedly in the first 20 pages can satisfy it. This reproduces that
-    # precondition without a model or network, proving the guard belongs before URL validation.
+    # Repeated subsidiary mentions must not validate an explicitly titled parent report.
     with tempfile.TemporaryDirectory() as tmp:
         parent_pdf = Path(tmp) / "investor-mentions-sarnova.pdf"
         doc = fitz.open()
@@ -896,28 +894,15 @@ def demo_private_holding_guard():
         doc.save(parent_pdf)
         doc.close()
         validated, reason = fetch._validate(parent_pdf.read_bytes(), "Sarnova", YEAR)
-        assert validated is not None, reason
-        validated.close()
-    with patch.object(fetch, "_get", side_effect=AssertionError("private holding must not download a URL")), \
-            patch.object(fetch, "_candidates", side_effect=AssertionError("private holding must not search feeds")), \
-            patch.object(fetch, "_model_discover", side_effect=AssertionError("private holding must not search with AI")):
-        found = fetch.discover("Sarnova", YEAR, job_id="job-private-discover")
-        assert found == {
-            "candidates": [],
-            "note": "Private company — reported inside Investor AB's annual report (Patricia Industries)",
-            "source": "saved", "skipped_web_search": True,
-        }, found
-        job = jobs.get("job-private-discover")
-        assert job and job["done"] and job["stage"] == "done", job
-        try:
-            fetch.fetch_report("Sarnova", YEAR, Path(tempfile.gettempdir()) / "private-holding", url="https://example.com/investor.pdf",
-                               job_id="job-private-fetch")
-            assert False, "expected a no-standalone-report guard"
-        except fetch.NoStandaloneReport as error:
-            assert "Investor AB" in str(error) and "Patricia Industries" in str(error), error
-        job = jobs.get("job-private-fetch")
-        assert job and job["done"] and job["stage"] == "failed", job
-    print("private holding no-standalone-report guard ok")
+        assert validated is None and "issuer mismatch" in reason, reason
+    with tempfile.TemporaryDirectory() as tmp, \
+            patch.object(fetch, 'websearch_provider', return_value='codex'), \
+            patch.object(fetch, '_model_discover', return_value=([], None)) as search:
+        for company in ('Sarnova', 'Atlas Antibodies AB', 'The Grand Group AB'):
+            found = fetch.discover(company, YEAR, dest_dir=Path(tmp))
+            assert not found['skipped_web_search'] and found['source'] == 'web', found
+        assert search.call_count == 3
+    print("private holdings remain searchable; parent PDFs rejected by issuer validation")
 
 
 if __name__ == "__main__":

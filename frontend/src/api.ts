@@ -2,20 +2,22 @@ import type { ChunkPage, Answer, Company, Discovery, Extraction, FieldFill, Inde
 import type { Collection } from './hooks/useCollection'
 
 export type FetchAttempt = { url: string; reason: string; kind: string }
-export type ApiError = Error & { status: number; code?: string; tried?: string[]; attempts?: FetchAttempt[]; ocrPagesNeeded?: number }
+export type ReportListing = { url: string; company: string; fiscal_year: number; title: string; evidence: string; access: 'manual_download' }
+export type ApiError = Error & { status: number; code?: string; tried?: string[]; attempts?: FetchAttempt[]; listings?: ReportListing[]; ocrPagesNeeded?: number }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init)
   if (!res.ok) {
     // Errors are JSON { detail } per docs/API.md (fetch 404s add tried[]; v191's OCR-budget 422 adds
     // ocr_pages_needed); fall back to status text for proxy/network errors.
-    const body: { detail?: string; code?: string; tried?: string[]; attempts?: FetchAttempt[]; ocr_pages_needed?: number } = await res.json().catch(() => ({}))
+    const body: { detail?: string; code?: string; tried?: string[]; attempts?: FetchAttempt[]; ocr_pages_needed?: number; listings?: ReportListing[] } = await res.json().catch(() => ({}))
     throw Object.assign(new Error(body.detail ?? `${res.status} ${res.statusText}`), {
       status: res.status,
       tried: body.tried,
       code: body.code,
       attempts: body.attempts,
       ocrPagesNeeded: body.ocr_pages_needed,
+      listings: body.listings,
     }) satisfies ApiError
   }
   return res.json() as Promise<T>

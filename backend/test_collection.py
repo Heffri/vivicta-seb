@@ -33,9 +33,7 @@ with tempfile.TemporaryDirectory() as tmp:
             assert len(client.get('/api/kb?collection_name=midcap').json()) == 1
             assert len(client.get('/api/kb').json()) == 3
             assert len(client.get('/api/companies?collection_name=wallenberg').json()) == 35
-            # A Patricia Industries subsidiary is present in the Wallenberg directory, but it does
-            # not publish a standalone report.  Its directory row must name the Investor report
-            # instead of leading the Extract flow into an unrelated PDF search.
+            # Parent coverage is retained as context, without blocking standalone accounts.
             kb.save_report('investor_2025', {'company': 'Investor AB', 'fiscal_year': 2025, 'pages': 2, 'sha256': 'investor'}, [
                 'Investor annual report 2025', 'Patricia Industries reports on Sarnova.',
             ])
@@ -43,9 +41,8 @@ with tempfile.TemporaryDirectory() as tmp:
             assert sarnova == [
                 {
                     'name': 'Sarnova', 'ticker': '', 'sector': None, 'isin': None, 'cached_years': [],
-                    'no_standalone_report': True, 'reports_in': 'Investor AB',
+                    'no_standalone_report': False, 'reports_in': 'Investor AB',
                     'collection_group': 'Patricia Industries', 'report_stem': 'investor_2025',
-                    'report_page': 2,
                 }
             ], sarnova
             investor = next(entry for entry in client.get('/api/kb?collection_name=wallenberg').json()
@@ -62,16 +59,16 @@ with tempfile.TemporaryDirectory() as tmp:
                 {'name': '3 Scandinavia', 'collection_group': 'Patricia Industries'},
                 {'name': 'Vectura', 'collection_group': 'Patricia Industries'},
             ], investor
-            with patch.object(app.fetch, '_model_discover', side_effect=AssertionError('private holdings must not start AI discovery')), \
-                    patch.object(app.fetch, 'fetch_report', side_effect=AssertionError('private holdings must not fetch a standalone PDF')):
-                discovered = client.post('/api/reports/discover', json={'company': 'Sarnova', 'year': 2025})
-                assert discovered.status_code == 200 and discovered.json() == {
-                    'candidates': [], 'note': "Private company — reported inside Investor AB's annual report (Patricia Industries)",
-                    'source': 'saved', 'skipped_web_search': True,
-                }, discovered.text
-                blocked = client.post('/api/reports/fetch', json={'company': 'Sarnova', 'year': 2025,
-                                                                   'url': 'https://example.com/investor.pdf'})
-                assert blocked.status_code == 409 and blocked.json()['reports_in'] == 'Investor AB', blocked.text
+            for company in ('Sarnova', 'Atlas Antibodies AB', 'The Grand Group AB', 'Kopparfors Skogar'):
+                with patch.object(app.fetch, 'websearch_provider', return_value='codex'), \
+                        patch.object(app.fetch, '_model_discover', return_value=([], None)) as search, \
+                        patch.object(app.fetch, 'fetch_report', side_effect=LookupError([], None)) as download:
+                    discovered = client.post('/api/reports/discover', json={'company': company, 'year': 2025})
+                    assert discovered.status_code == 200 and not discovered.json()['skipped_web_search'], discovered.text
+                    search.assert_called_once()
+                    missing = client.post('/api/reports/fetch', json={'company': company, 'year': 2025})
+                    assert missing.status_code == 404 and missing.json()['code'] == 'report_unavailable', missing.text
+                    download.assert_called_once()
             assert [company['name'] for company in client.get('/api/companies?q=acast&collection_name=midcap').json()] == ['Acast']
             assert client.get('/api/review-queue?collection_name=midcap').status_code == 200
             export = client.get('/api/kb/export.csv?section=income_statement&collection=midcap')

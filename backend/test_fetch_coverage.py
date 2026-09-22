@@ -108,7 +108,8 @@ class FetchCoverageTests(unittest.TestCase):
         self.assertIn("own accounts", context)
         private_context = fetch._collection_context("Atlas Antibodies AB")
         self.assertIn("Patricia Industries", private_context)
-        self.assertIn("reported inside Investor AB's annual report", private_context)
+        self.assertIn("also discussed inside Investor AB's annual report", private_context)
+        self.assertNotIn("no standalone report", private_context)
         self.assertEqual(fetch._collection_context("Unrelated Company"), "")
 
 

@@ -187,9 +187,12 @@ def chunks(stem: str) -> list[dict]:
     from .extract import _value_in_quote
     from .maturity import verified_source
     pages = _pages(stem)
+    meta = _meta(stem)
+    if meta.get("document_type") == "registration_statement":
+        allowed = set(meta.get("statement_pages") or [])
+        pages = {n: text if n in allowed else "" for n, text in pages.items()}
     texts = [pages[n] for n in sorted(pages)]
     out = [{"page": n, "start": s, "text": t} for n, text in sorted(pages.items()) for s, t in _windows(text)]
-    meta = _meta(stem)
     who = f"{meta.get('company') or stem} FY{meta.get('fiscal_year') or '?'}"
     for p in _section_files(stem):
         try:
@@ -554,6 +557,8 @@ def ask(stems: list[str], question: str, k=8, ids: dict[str, str] | None = None,
             warnings.append(f"citation dropped: {name} p.{page} quote not found")
             continue
         stem = verified[0]
+        if (notice := metas[stem].get("source_notice")) and notice not in warnings:
+            warnings.append(notice)
         if (stem, page, quote) in seen:
             continue
         seen.add((stem, page, quote))
