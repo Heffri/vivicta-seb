@@ -28,7 +28,7 @@ from typing import Literal
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from pipeline import extract as extract_mod, fetch, kb, llm, locate, parse, paths, ppt, collection, workbench
+from pipeline import extract as extract_mod, fetch, jobs, kb, llm, locate, parse, paths, ppt, collection, workbench
 
 load_dotenv()
 UPLOADS = paths.uploads_dir()
@@ -126,6 +126,7 @@ class DiscoverBody(BaseModel):
     year: int
     country: str | None = None  # v074: optional context for the model search when the directory has no hit ("Switzerland")
     hint: str | None = None     # v074: free-text hint for the model search ("FY ends 30 June", the report's exact title)
+    job_id: str | None = Field(default=None, max_length=100)  # v194: frontend-generated uuid; GET /api/jobs/{id} polls its progress
 
 
 class FetchBody(DiscoverBody):
@@ -339,7 +340,7 @@ def discover_companies(body: DiscoverBody):
     """Which legal entities the typed query could mean: saved reports first (no model call), then one
     web-search ask. Nothing is downloaded; the user confirms a candidate and /fetch takes its url first."""
     check_query(body)
-    return fetch.discover(body.company, body.year, body.country, body.hint, LIBRARY)
+    return fetch.discover(body.company, body.year, body.country, body.hint, LIBRARY, job_id=body.job_id)
 
 
 @app.post("/api/reports/fetch")
@@ -359,7 +360,7 @@ def fetch_report(body: FetchBody):
         t0 = time.time()
         try:
             # A confirmed candidate's url is tried first; then the connected model searches official sources; feeds are fallback discovery.
-            entry = fetch.fetch_report(body.company, body.year, LIBRARY, body.country, body.hint, url=body.url)
+            entry = fetch.fetch_report(body.company, body.year, LIBRARY, body.country, body.hint, url=body.url, job_id=body.job_id)
         except LookupError as e:
             if saved:  # the PDF is wanted but unreachable: the git-synced page text still extracts; the Source panel says the PDF is missing
                 return get_report(saved_report_id(saved[0]["stem"]))
@@ -369,6 +370,17 @@ def fetch_report(body: FetchBody):
             return JSONResponse({"detail": detail, "tried": e.args[0]}, status_code=404)
         print(f"[fetch] {body.company} {body.year} -> {entry['file']} from {entry['source_url']} in {time.time() - t0:.0f}s")
     return register_library(entry, body.ocr)
+
+
+@app.get("/api/jobs/{job_id}")
+def read_job(job_id: str):
+    """v194: progress trail for a job_id passed to /discover or /fetch -- {stage, started, updated,
+    done, error, events: [{t, stage, text, data?}]}. The frontend polls this every 1.5 s while either
+    call is in flight. 404 once pipeline.jobs has swept it (unknown id, or past its 1-hour TTL)."""
+    job = jobs.get(job_id)
+    if job is None:
+        raise HTTPException(404, f"unknown or expired job_id {job_id!r}")
+    return job
 
 
 @app.get("/api/reports/{report_id}")
